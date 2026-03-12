@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="GameDen.gg game detail: price history, deal score, momentum, and market context.">
+    <meta name="application-name" content="GameDen.gg">
+    <link rel="canonical" href="https://gameden.gg/web/game-detail.html">
+    <link rel="icon" type="image/x-icon" href="/web/favicon.ico">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GameDen.gg">
+    <meta property="og:title" content="GameDen.gg - Game Detail">
+    <meta property="og:description" content="View deep game-level pricing and momentum insights in GameDen.gg.">
+    <meta property="og:url" content="https://gameden.gg/web/game-detail.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="GameDen.gg - Game Detail">
+    <meta name="twitter:description" content="View deep game-level pricing and momentum insights in GameDen.gg.">
+    <meta name="twitter:url" content="https://gameden.gg/web/game-detail.html">
+    <title>Game Detail | GameDen.gg</title>
+    <script src="/site-config.js"></script>
+    <script src="/web/site-branding.js"></script>
+    <script>
+    window.GameDenSite.applyMetadata({
+        path: "/web/game-detail.html",
+        title: "Game Detail | GameDen.gg",
+        description: "GameDen.gg game detail: price history, deal score, momentum, and market context.",
+        ogTitle: "GameDen.gg - Game Detail",
+        ogDescription: "View deep game-level pricing and momentum insights in GameDen.gg.",
+        twitterTitle: "GameDen.gg - Game Detail",
+        twitterDescription: "View deep game-level pricing and momentum insights in GameDen.gg."
+    });
+    </script>
+    <link rel="stylesheet" href="/web/game-detail.css" />
+</head>
+<body>
+<main class="page-shell">
+    <section class="hero-card">
+        <div class="hero-banner-wrap">
+            <div id="heroBanner" class="hero-banner"></div>
+            <h1 id="gameTitle">Loading...</h1>
+            <p id="dealSummary" class="deal-summary">Fetching game detail...</p>
+        </div>
+
+        <div class="price-row">
+            <div class="meta-item"><span>Current Price</span><strong id="currentPrice">-</strong></div>
+            <div class="meta-item"><span>Original Price</span><strong id="originalPrice">-</strong></div>
+            <div class="meta-item"><span>Discount</span><strong id="discountPercent">-</strong></div>
+            <div class="meta-item"><span>Historical Low</span><strong id="historicalLow">-</strong></div>
+        </div>
+
+        <div class="meta-grid">
+            <div class="meta-item"><span>Players</span><strong id="playerCount">-</strong></div>
+            <div class="meta-item"><span>Developer</span><strong id="developer">-</strong></div>
+            <div class="meta-item"><span>Publisher</span><strong id="publisher">-</strong></div>
+            <div class="meta-item"><span>Release Date</span><strong id="releaseDate">-</strong></div>
+            <div class="meta-item"><span>Deal Score</span><strong id="dealScore">-</strong></div>
+            <div class="meta-item"><span>Worth Buying</span><strong id="worthBuyingScore">-</strong></div>
+            <div class="meta-item"><span>Momentum</span><strong id="momentumScore">-</strong></div>
+            <div class="meta-item"><span>Confidence</span><strong id="predictionConfidence">-</strong></div>
+        </div>
+
+        <div id="tagList" class="tag-list"></div>
+    </section>
+
+    <section class="content-grid">
+        <div class="panel wide-panel">
+            <div class="panel-header">
+                <h2>Price History</h2>
+                <div class="range-tabs">
+                    <button class="range-btn" data-range="30d">30D</button>
+                    <button class="range-btn active" data-range="90d">90D</button>
+                    <button class="range-btn" data-range="1y">1Y</button>
+                    <button class="range-btn" data-range="all">ALL</button>
+                </div>
+            </div>
+            <canvas id="priceChart" height="120"></canvas>
+        </div>
+
+        <div class="panel">
+            <h2>Deal Score Breakdown</h2>
+            <div id="dealFactors" class="factor-list"></div>
+        </div>
+
+        <div class="panel">
+            <h2>Buy Timing Prediction</h2>
+            <div id="predictionPanel" class="prediction-panel"></div>
+        </div>
+
+        <div class="panel">
+            <h2>Deal Heat</h2>
+            <div id="dealHeatPanel" class="prediction-panel"></div>
+        </div>
+
+        <div class="panel wide-panel">
+            <h2>Market Insights</h2>
+            <div id="marketInsights" class="insights-grid"></div>
+        </div>
+    </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/web/game-detail.js"></script>
+</body>
+</html>

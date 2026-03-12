@@ -1,0 +1,1073 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="GameDen.gg game detail with price history, discounts, player trends, and deal intelligence.">
+<meta name="application-name" content="GameDen.gg">
+<link rel="canonical" href="https://gameden.gg/web/game.html">
+<link rel="icon" type="image/x-icon" href="/web/favicon.ico">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GameDen.gg">
+<meta property="og:title" content="GameDen.gg - Game Detail">
+<meta property="og:description" content="Game-level pricing, player movement, and market intelligence on GameDen.gg.">
+<meta property="og:url" content="https://gameden.gg/web/game.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="GameDen.gg - Game Detail">
+<meta name="twitter:description" content="Game-level pricing, player movement, and market intelligence on GameDen.gg.">
+<meta name="twitter:url" content="https://gameden.gg/web/game.html">
+<title>GameDen.gg - Game Detail</title>
+<script src="/site-config.js"></script>
+<script src="/web/site-branding.js"></script>
+<script>
+window.GameDenSite.applyMetadata({
+    path: "/web/game.html",
+    title: "GameDen.gg - Game Detail",
+    description: "GameDen.gg game detail with price history, discounts, player trends, and deal intelligence.",
+    ogTitle: "GameDen.gg - Game Detail",
+    ogDescription: "Game-level pricing, player movement, and market intelligence on GameDen.gg.",
+    twitterTitle: "GameDen.gg - Game Detail",
+    twitterDescription: "Game-level pricing, player movement, and market intelligence on GameDen.gg."
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root {
+    --bg: #07111f;
+    --panel: rgba(12, 24, 44, 0.94);
+    --panel-2: rgba(15, 29, 53, 0.98);
+    --line: rgba(154, 182, 255, 0.16);
+    --line-strong: rgba(154, 182, 255, 0.26);
+    --text: #edf4ff;
+    --muted: #9ab6ff;
+    --muted-2: #b7c8eb;
+    --good: #4ade80;
+    --pink: #f472b6;
+    --shadow-lg: 0 20px 45px rgba(0,0,0,0.35);
+    --shadow-sm: 0 8px 20px rgba(0,0,0,0.22);
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background:
+        radial-gradient(circle at top, rgba(96,165,250,0.12), transparent 28%),
+        linear-gradient(180deg, #06101d 0%, #091526 100%);
+    color: var(--text);
+    line-height: 1.4;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.page {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 28px;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+    color: var(--muted);
+    font-weight: 800;
+}
+
+.back-link:hover {
+    color: #d7e6ff;
+}
+
+.hero {
+    overflow: hidden;
+    border-radius: 28px;
+    border: 1px solid var(--line);
+    background:
+        radial-gradient(circle at right top, rgba(96,165,250,0.18), transparent 30%),
+        linear-gradient(180deg, rgba(15,28,52,0.98), rgba(9,18,35,0.98));
+    box-shadow: var(--shadow-lg);
+    margin-bottom: 24px;
+}
+
+.hero-banner {
+    height: 260px;
+    background:
+        linear-gradient(180deg, rgba(96,165,250,0.16), rgba(96,165,250,0.05));
+    background-size: cover;
+    background-position: center;
+    border-bottom: 1px solid rgba(154,182,255,0.12);
+}
+
+.hero-body {
+    padding: 24px;
+}
+
+.hero-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: flex-start;
+    margin-bottom: 22px;
+}
+
+.hero-actions {
+    display: grid;
+    gap: 10px;
+    justify-items: end;
+}
+
+.hero-title h1 {
+    margin: 0;
+    font-size: clamp(34px, 6vw, 52px);
+    line-height: 0.98;
+    letter-spacing: -0.05em;
+}
+
+.hero-sub {
+    margin-top: 8px;
+    color: var(--muted-2);
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(154,182,255,0.18);
+    background: rgba(255,255,255,0.04);
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.hero-watch-btn {
+    border: 1px solid rgba(154,182,255,0.32);
+    background: rgba(255,255,255,0.05);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.hero-watch-btn.active {
+    border-color: rgba(74, 222, 128, 0.6);
+    background: rgba(74, 222, 128, 0.16);
+    color: #ddffe9;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.stat-card {
+    padding: 18px;
+    border-radius: 20px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.03);
+}
+
+.stat-label {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 800;
+}
+
+.stat-value {
+    margin-top: 10px;
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+}
+
+.content-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.95fr);
+    gap: 24px;
+}
+
+.left-column,
+.right-column {
+    display: grid;
+    gap: 24px;
+    align-content: start;
+}
+
+.panel {
+    border-radius: 24px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+.panel-head {
+    padding: 20px 20px 0;
+}
+
+.panel-title {
+    margin: 0;
+    font-size: 24px;
+    letter-spacing: -0.04em;
+}
+
+.panel-subtitle {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.panel-body {
+    padding: 18px 20px 20px;
+}
+
+.range-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.range-btn {
+    background: rgba(255,255,255,0.03);
+    color: var(--text);
+    border: 1px solid rgba(148,163,184,0.25);
+    border-radius: 12px;
+    padding: 9px 14px;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.range-btn.active {
+    background: var(--good);
+    color: #052e16;
+    border-color: var(--good);
+}
+
+.chart-wrap {
+    padding: 12px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(154,182,255,0.12);
+}
+
+.info-list,
+.prediction-list {
+    display: grid;
+    gap: 12px;
+}
+
+.info-item,
+.prediction-item {
+    padding: 15px;
+    border-radius: 18px;
+    border: 1px solid rgba(154,182,255,0.12);
+    background: linear-gradient(180deg, rgba(22,35,58,0.84), rgba(13,23,40,0.92));
+}
+
+.info-title,
+.prediction-title {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 800;
+}
+
+.info-value,
+.prediction-value {
+    margin-top: 8px;
+    font-size: 20px;
+    font-weight: 900;
+}
+
+.breakdown {
+    display: grid;
+    gap: 12px;
+}
+
+.break-row {
+    padding: 14px;
+    border: 1px solid rgba(154,182,255,0.12);
+    border-radius: 16px;
+    background: rgba(255,255,255,0.02);
+}
+
+.break-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    font-weight: 800;
+}
+
+.bar {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #67e8f9, #60a5fa);
+}
+
+.summary {
+    margin-top: 10px;
+    color: var(--muted-2);
+    line-height: 1.6;
+}
+
+.reason-list {
+    margin: 10px 0 0;
+    padding-left: 18px;
+    color: var(--muted-2);
+    line-height: 1.6;
+}
+
+.error {
+    padding: 18px;
+    border: 1px dashed rgba(244,114,182,0.35);
+    border-radius: 16px;
+    color: #ffd5e7;
+    background: rgba(244,114,182,0.08);
+}
+
+.related-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.related-block {
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(154,182,255,0.12);
+    background: rgba(255,255,255,0.02);
+}
+
+.related-title {
+    margin: 0 0 8px;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+}
+
+.related-items {
+    display: grid;
+    gap: 7px;
+}
+
+.related-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--muted-2);
+    font-size: 13px;
+}
+
+.related-item strong {
+    color: var(--text);
+    font-weight: 700;
+}
+
+@media (max-width: 980px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 680px) {
+    .hero-top {
+        flex-direction: column;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .page {
+        padding: 18px;
+    }
+
+    .hero-banner {
+        height: 200px;
+    }
+}
+</style>
+</head>
+<body>
+<div class="page">
+    <a class="back-link" href="/web/index.html">&larr; Back to dashboard</a>
+
+    <section class="hero">
+        <div class="hero-banner" id="heroBanner"></div>
+        <div class="hero-body">
+            <div class="hero-top">
+                <div class="hero-title">
+                    <h1 id="gameTitle">Loading...</h1>
+                    <div class="hero-sub" id="gameSub">Fetching game details...</div>
+                </div>
+                <div class="hero-actions">
+                    <div class="hero-badge" id="dealBadge">Loading</div>
+                    <button class="hero-watch-btn" id="watchButton" type="button" aria-pressed="false">Watch</button>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Current Price</div>
+                    <div class="stat-value" id="currentPrice">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Historical Low</div>
+                    <div class="stat-value" id="historicalLow">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Deal Score</div>
+                    <div class="stat-value" id="dealScore">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Players</div>
+                    <div class="stat-value" id="playerCount">--</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="content-grid">
+        <div class="left-column">
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Interactive Price History</h2>
+                    <div class="panel-subtitle">Track price movement, sale windows, and historical lows over time.</div>
+                </div>
+                <div class="panel-body">
+                    <div class="range-row">
+                        <button class="range-btn" data-range="30d" type="button">30D</button>
+                        <button class="range-btn active" data-range="90d" type="button">90D</button>
+                        <button class="range-btn" data-range="1y" type="button">1Y</button>
+                        <button class="range-btn" data-range="all" type="button">ALL</button>
+                    </div>
+                    <div class="chart-wrap">
+                        <canvas id="priceChart" height="120"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Player Activity History</h2>
+                    <div class="panel-subtitle">Live player movement over time using snapshot-linked activity history.</div>
+                </div>
+                <div class="panel-body">
+                    <div class="chart-wrap">
+                        <canvas id="playerChart" height="120"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Deal Explanation</h2>
+                    <div class="panel-subtitle">How the platform is scoring this deal.</div>
+                </div>
+                <div class="panel-body">
+                    <div class="breakdown" id="dealExplanation"></div>
+                </div>
+            </section>
+        </div>
+
+        <div class="right-column">
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Market Snapshot</h2>
+                    <div class="panel-subtitle">Current state and metadata for this game.</div>
+                </div>
+                <div class="panel-body">
+                    <div class="info-list" id="marketInfo"></div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Sale Prediction</h2>
+                    <div class="panel-subtitle">Heuristic prediction based on recent platform signals.</div>
+                </div>
+                <div class="panel-body">
+                    <div class="prediction-list" id="prediction"></div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Discovery Loops</h2>
+                    <div class="panel-subtitle">Related games based on discounts, tags, and similar player movement.</div>
+                </div>
+                <div class="panel-body">
+                    <div class="related-grid" id="relatedGames"></div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+<script>
+function getQueryParam(name) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+}
+
+const WATCHLIST_STORAGE_KEY = "gameden.user_id";
+const DEFAULT_USER_ID = "legacy-user";
+const gameName = getQueryParam("game_name");
+const gameIdParam = getQueryParam("game_id");
+const watchButton = document.getElementById("watchButton");
+const relatedGamesEl = document.getElementById("relatedGames");
+let priceChart = null;
+let playerChart = null;
+let activeRange = "90d";
+let currentGameId = null;
+let currentGamePayload = null;
+
+function getCurrentUserId() {
+    try {
+        const stored = String(localStorage.getItem(WATCHLIST_STORAGE_KEY) || "").trim();
+        if (stored) return stored;
+        localStorage.setItem(WATCHLIST_STORAGE_KEY, DEFAULT_USER_ID);
+        return DEFAULT_USER_ID;
+    } catch {
+        return DEFAULT_USER_ID;
+    }
+}
+
+const CURRENT_USER_ID = getCurrentUserId();
+
+function fmtPrice(value) {
+    if (value === null || value === undefined) return "—";
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "—";
+    return `$${number.toFixed(2)}`;
+}
+
+function fmtInt(value) {
+    if (value === null || value === undefined) return "—";
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "—";
+    return number.toLocaleString();
+}
+
+function fmtDate(value) {
+    if (!value) return "—";
+    return new Date(value).toLocaleDateString();
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+async function fetchJson(url, options = {}) {
+    const res = await fetch(url, options);
+    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+    if (res.status === 204) return null;
+    return await res.json();
+}
+
+function parseCsv(value) {
+    return String(value || "")
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+}
+
+function getReviewLabel(payload) {
+    return payload?.review_score_label
+        || payload?.review_label
+        || payload?.review_summary
+        || "Review label unavailable";
+}
+
+async function loadGame() {
+    const requestedGameId = Number(gameIdParam);
+    const hasValidGameId = Number.isFinite(requestedGameId) && requestedGameId > 0;
+    if (!hasValidGameId && !gameName) {
+        document.getElementById("gameTitle").innerText = "Missing game identifier";
+        document.querySelector(".content-grid").innerHTML = `<div class="error">game_id or game_name is required in URL query.</div>`;
+        return;
+    }
+
+    let payload = null;
+    if (hasValidGameId) {
+        payload = await fetchJson(`/games/${requestedGameId}`).catch(() => null);
+    }
+    if (!payload && gameName) {
+        payload = await fetchJson(`/games/by-name?game_name=${encodeURIComponent(gameName)}`).catch(() => null);
+    }
+
+    if (!payload || payload.error) {
+        const message = payload?.error || "Game not found";
+        document.getElementById("gameTitle").innerText = message;
+        document.querySelector(".content-grid").innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+        return;
+    }
+
+    currentGameId = Number(payload.id || payload.game_id || (hasValidGameId ? requestedGameId : 0));
+    payload = {
+        ...payload,
+        game_name: payload.game_name || payload.name || gameName || (Number.isFinite(currentGameId) && currentGameId > 0 ? `Game ${currentGameId}` : "Unknown game"),
+    };
+    currentGamePayload = payload;
+
+    document.getElementById("gameTitle").innerText = payload.game_name || gameName;
+    document.getElementById("gameSub").innerText =
+        `${getReviewLabel(payload)} • ${payload.release_date_text || payload.release_date || "Released"}`;
+
+    document.getElementById("currentPrice").innerText = fmtPrice(payload.price ?? payload.current_price);
+    document.getElementById("historicalLow").innerText = fmtPrice(payload.historical_low ?? payload.historical_low_price);
+    document.getElementById("dealScore").innerText = payload.deal_score ?? "—";
+    document.getElementById("playerCount").innerText = fmtInt(payload.current_players);
+    document.getElementById("dealBadge").innerText = payload.deal_label || `Deal score ${payload.deal_score ?? "—"}`;
+
+    if (payload.banner_url || payload.header_image || payload.banner_image) {
+        document.getElementById("heroBanner").style.backgroundImage =
+            `url('${payload.banner_url || payload.header_image || payload.banner_image}')`;
+    } else if (payload.steam_appid) {
+        document.getElementById("heroBanner").style.backgroundImage =
+            `url('https://cdn.cloudflare.steamstatic.com/steam/apps/${payload.steam_appid}/header.jpg')`;
+    }
+
+    renderMarketInfo(payload);
+    renderDealExplanation(payload.deal_explanation || {});
+    renderPrediction(payload.prediction || {});
+    await loadPriceHistory(activeRange);
+
+    if (Number.isFinite(currentGameId) && currentGameId > 0) {
+        await Promise.all([
+            loadPlayerHistory(currentGameId),
+            loadRelatedGames(currentGameId),
+            syncWatchButton(),
+        ]);
+    } else {
+        renderRelatedFallback("Related discovery requires a valid game id.");
+    }
+}
+
+async function loadPriceHistory(range) {
+    activeRange = range;
+    document.querySelectorAll(".range-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.range === range);
+    });
+    if (!Number.isFinite(currentGameId) || currentGameId <= 0) return;
+    const data = await fetchJson(`/games/${currentGameId}/price-history`);
+    renderPriceChart(data);
+}
+
+async function loadPlayerHistory(gameId) {
+    const payload = await fetchJson(`/games/${gameId}/player-history`).catch(() => ({ players: [], stats: {} }));
+    renderPlayerChart(payload);
+}
+
+async function loadRelatedGames(gameId) {
+    const payload = await fetchJson(`/games/${gameId}/related?limit=8`).catch(() => null);
+    if (!payload) {
+        renderRelatedFallback("No related games available right now.");
+        return;
+    }
+
+    const groups = [
+        ["Trending Similar Games", payload.trending_similar_games || []],
+        ["Also Discounted", payload.also_discounted_games || []],
+        ["Games With Similar Player Trends", payload.similar_player_trends || []],
+    ];
+
+    relatedGamesEl.innerHTML = groups.map(([title, rows]) => `
+        <section class="related-block">
+            <h3 class="related-title">${escapeHtml(title)}</h3>
+            <div class="related-items">
+                ${rows.length
+                    ? rows.slice(0, 6).map((row) => {
+                        const name = escapeHtml(row.game_name || "Unknown game");
+                        const discount = Number(row.discount_percent || 0);
+                        const metric = discount > 0
+                            ? `${discount}% off`
+                            : `Players ${fmtInt(row.current_players)}`;
+                        return `
+                            <a class="related-item" href="/web/game.html?game_name=${encodeURIComponent(row.game_name || "")}">
+                                <strong>${name}</strong>
+                                <span>${escapeHtml(metric)}</span>
+                            </a>
+                        `;
+                    }).join("")
+                    : `<div class="related-item"><span>No matches in this group.</span></div>`}
+            </div>
+        </section>
+    `).join("");
+}
+
+function renderRelatedFallback(message) {
+    relatedGamesEl.innerHTML = `
+        <section class="related-block">
+            <h3 class="related-title">Discovery Loops</h3>
+            <div class="related-items">
+                <div class="related-item"><span>${escapeHtml(message)}</span></div>
+            </div>
+        </section>
+    `;
+}
+
+function renderMarketInfo(data) {
+    const el = document.getElementById("marketInfo");
+    const current = Number(data.price ?? data.current_price);
+    const historicalLow = Number(data.historical_low ?? data.historical_low_price);
+    const genres = Array.isArray(data.genres) ? data.genres : parseCsv(data.genres);
+    const platforms = Array.isArray(data.platforms) ? data.platforms : parseCsv(data.platforms);
+    const lowDelta = Number.isFinite(current) && Number.isFinite(historicalLow)
+        ? `${current >= historicalLow ? "+" : ""}${(current - historicalLow).toFixed(2)} vs low`
+        : "—";
+    const items = [
+        ["Original Price", fmtPrice(data.original_price)],
+        ["Current Discount", data.discount_percent !== null && data.discount_percent !== undefined ? `${data.discount_percent}%` : "—"],
+        ["Historical Low Comparison", lowDelta],
+        ["Review Score", data.review_score ?? "—"],
+        ["Review Count", fmtInt(data.review_total_count ?? data.review_count)],
+        ["Buy Score", Number.isFinite(Number(data.buy_score)) ? Number(data.buy_score).toFixed(1) : "—"],
+        ["Genres", genres.slice(0, 3).join(", ") || "—"],
+        ["Platforms", platforms.slice(0, 3).join(", ") || "—"],
+    ];
+
+    el.innerHTML = items.map(([label, value]) => `
+        <div class="info-item">
+            <div class="info-title">${escapeHtml(label)}</div>
+            <div class="info-value">${escapeHtml(value)}</div>
+        </div>
+    `).join("");
+}
+
+function renderDealExplanation(explain) {
+    const el = document.getElementById("dealExplanation");
+    const rows = [
+        ["Discount Strength", explain.discount_strength, 30],
+        ["Historical Value", explain.historical_value, 25],
+        ["Review Quality", explain.review_quality, 20],
+        ["Player Interest", explain.player_interest, 15],
+        ["Sale Rarity", explain.sale_rarity, 10],
+    ];
+
+    el.innerHTML = rows.map(([label, score, max]) => {
+        const pct = score ? Math.max(0, Math.min(100, (score / max) * 100)) : 0;
+        return `
+            <div class="break-row">
+                <div class="break-top">
+                    <span>${escapeHtml(label)}</span>
+                    <span>${score ?? 0} / ${max}</span>
+                </div>
+                <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+            </div>
+        `;
+    }).join("") + `<div class="summary">${escapeHtml(explain.summary || "Snapshot-derived deal explanation.")}</div>`;
+}
+
+function renderPrediction(pred) {
+    const el = document.getElementById("prediction");
+    const reasons = Array.isArray(pred.reasoning) ? pred.reasoning : [];
+    el.innerHTML = `
+        <div class="prediction-item">
+            <div class="prediction-title">Chance of sale in 7 days</div>
+            <div class="prediction-value">${pred.sale_probability_7d !== undefined ? Math.round(pred.sale_probability_7d * 100) + "%" : "—"}</div>
+        </div>
+        <div class="prediction-item">
+            <div class="prediction-title">Chance of sale in 30 days</div>
+            <div class="prediction-value">${pred.sale_probability_30d !== undefined ? Math.round(pred.sale_probability_30d * 100) + "%" : "—"}</div>
+        </div>
+        <div class="prediction-item">
+            <div class="prediction-title">Predicted discount</div>
+            <div class="prediction-value">${pred.predicted_discount_percent !== undefined && pred.predicted_discount_percent !== null ? pred.predicted_discount_percent + "%" : "—"}</div>
+        </div>
+        <div class="prediction-item">
+            <div class="prediction-title">Confidence</div>
+            <div class="prediction-value">${escapeHtml(pred.confidence || "—")}</div>
+        </div>
+        <div class="prediction-item">
+            <div class="prediction-title">Reasoning</div>
+            <ul class="reason-list">
+                ${reasons.map((item) => `<li>${escapeHtml(item)}</li>`).join("") || "<li>No reasoning available yet.</li>"}
+            </ul>
+        </div>
+    `;
+}
+
+function renderPriceChart(historyPayload) {
+    const ctx = document.getElementById("priceChart").getContext("2d");
+    const legacyPoints = Array.isArray(historyPayload?.points) ? historyPayload.points : [];
+    const sampledHistory = Array.isArray(historyPayload?.history)
+        ? historyPayload.history.map((entry) => ({
+            timestamp: entry.timestamp,
+            price: entry.price,
+            original_price: entry.original_price,
+            discount_percent: entry.discount_percent,
+            current_players: entry.players,
+        }))
+        : [];
+    const points = legacyPoints.length ? legacyPoints : sampledHistory;
+    if (!points.length) {
+        if (priceChart) priceChart.destroy();
+        return;
+    }
+
+    const labels = points.map((p) => new Date(p.timestamp).toLocaleDateString());
+    const prices = points.map((p) => p.price);
+    const originalPrices = points.map((p) => p.original_price);
+    const discounts = points.map((p) => p.discount_percent ?? 0);
+    const players = points.map((p) => p.current_players ?? null);
+    const historicalLowPrice = historyPayload.historical_low?.price ?? historyPayload?.stats?.historical_low ?? null;
+
+    if (priceChart) priceChart.destroy();
+
+    const saleBandPlugin = {
+        id: "saleBandPlugin",
+        beforeDatasetsDraw(chart) {
+            const { ctx, chartArea, scales } = chart;
+            if (!chartArea) return;
+            const markers = Array.isArray(historyPayload?.sale_markers) ? historyPayload.sale_markers : [];
+            ctx.save();
+            markers.forEach((marker) => {
+                const startIndex = points.findIndex((p) => p.timestamp === marker.start);
+                const endIndex = points.findIndex((p) => p.timestamp === marker.end);
+                if (startIndex === -1 || endIndex === -1) return;
+                const x1 = scales.x.getPixelForValue(startIndex);
+                const x2 = scales.x.getPixelForValue(endIndex);
+                ctx.fillStyle = "rgba(34, 197, 94, 0.08)";
+                ctx.fillRect(x1, chartArea.top, Math.max(x2 - x1, 2), chartArea.bottom - chartArea.top);
+            });
+            ctx.restore();
+        },
+    };
+
+    const historicalLowPlugin = {
+        id: "historicalLowPlugin",
+        afterDatasetsDraw(chart) {
+            if (historicalLowPrice === null || historicalLowPrice === undefined) return;
+            const { ctx, chartArea, scales } = chart;
+            const y = scales.y.getPixelForValue(historicalLowPrice);
+            ctx.save();
+            ctx.strokeStyle = "rgba(244, 114, 182, 0.78)";
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.moveTo(chartArea.left, y);
+            ctx.lineTo(chartArea.right, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = "rgba(244, 114, 182, 0.95)";
+            ctx.fillText(`Historical low: ${fmtPrice(historicalLowPrice)}`, chartArea.left + 8, y - 8);
+            ctx.restore();
+        },
+    };
+
+    priceChart = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: "Current Price",
+                    data: prices,
+                    borderWidth: 2,
+                    tension: 0.25,
+                    pointRadius: 1.5,
+                },
+                {
+                    label: "Original Price",
+                    data: originalPrices,
+                    borderWidth: 1,
+                    tension: 0.2,
+                    pointRadius: 0,
+                    borderDash: [5, 5],
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+                legend: { labels: { color: "#e5e7eb" } },
+                tooltip: {
+                    callbacks: {
+                        title(items) {
+                            const idx = items[0].dataIndex;
+                            return fmtDate(points[idx].timestamp);
+                        },
+                        afterBody(items) {
+                            const idx = items[0].dataIndex;
+                            return [`Discount: ${discounts[idx]}%`, `Players: ${fmtInt(players[idx])}`];
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    ticks: { color: "#94a3b8", maxTicksLimit: 8 },
+                    grid: { color: "rgba(148,163,184,0.12)" },
+                },
+                y: {
+                    ticks: {
+                        color: "#94a3b8",
+                        callback: (value) => fmtPrice(value),
+                    },
+                    grid: { color: "rgba(148,163,184,0.12)" },
+                },
+            },
+        },
+        plugins: [saleBandPlugin, historicalLowPlugin],
+    });
+}
+
+function renderPlayerChart(historyPayload) {
+    const ctx = document.getElementById("playerChart").getContext("2d");
+    const points = Array.isArray(historyPayload?.players) ? historyPayload.players : [];
+    if (!points.length) {
+        if (playerChart) playerChart.destroy();
+        return;
+    }
+    const labels = points.map((entry) => new Date(entry.timestamp).toLocaleDateString());
+    const playerValues = points.map((entry) => {
+        const value = Number(entry.players);
+        return Number.isFinite(value) ? value : null;
+    });
+
+    if (playerChart) playerChart.destroy();
+
+    playerChart = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: "Live players",
+                    data: playerValues,
+                    borderWidth: 2,
+                    tension: 0.25,
+                    pointRadius: 1.2,
+                    borderColor: "#67eaff",
+                    backgroundColor: "rgba(103, 234, 255, 0.18)",
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { labels: { color: "#e5e7eb" } },
+                tooltip: {
+                    callbacks: {
+                        label(item) {
+                            return `Players: ${fmtInt(item.parsed.y)}`;
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    ticks: { color: "#94a3b8", maxTicksLimit: 8 },
+                    grid: { color: "rgba(148,163,184,0.12)" },
+                },
+                y: {
+                    ticks: {
+                        color: "#94a3b8",
+                        callback: (value) => fmtInt(value),
+                    },
+                    grid: { color: "rgba(148,163,184,0.12)" },
+                },
+            },
+        },
+    });
+}
+
+async function fetchUserWatchlist() {
+    const payload = await fetchJson(`/api/watchlist?user_id=${encodeURIComponent(CURRENT_USER_ID)}`);
+    return Array.isArray(payload?.items) ? payload.items : [];
+}
+
+async function syncWatchButton() {
+    if (!watchButton || !Number.isFinite(currentGameId) || currentGameId <= 0) return;
+    const items = await fetchUserWatchlist().catch(() => []);
+    const watched = items.some((item) => Number(item.game_id) === Number(currentGameId));
+    watchButton.classList.toggle("active", watched);
+    watchButton.setAttribute("aria-pressed", watched ? "true" : "false");
+    watchButton.textContent = watched ? "Watching" : "Watch";
+}
+
+async function toggleWatch() {
+    if (!watchButton || !Number.isFinite(currentGameId) || currentGameId <= 0) return;
+    watchButton.disabled = true;
+    try {
+        const isActive = watchButton.classList.contains("active");
+        if (isActive) {
+            await fetchJson(`/api/watchlist/${encodeURIComponent(currentGameId)}?user_id=${encodeURIComponent(CURRENT_USER_ID)}`, {
+                method: "DELETE",
+            });
+        } else {
+            await fetchJson("/api/watchlist", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    user_id: CURRENT_USER_ID,
+                    game_id: currentGameId,
+                }),
+            });
+        }
+        await syncWatchButton();
+    } finally {
+        watchButton.disabled = false;
+    }
+}
+
+function wireRangeButtons() {
+    document.querySelectorAll(".range-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            void loadPriceHistory(btn.dataset.range);
+        });
+    });
+}
+
+watchButton?.addEventListener("click", () => {
+    void toggleWatch().catch((error) => console.error(error));
+});
+
+wireRangeButtons();
+void loadGame().catch((error) => {
+    console.error(error);
+    document.getElementById("gameTitle").innerText = "Failed to load game";
+});
+</script>
+</body>
+</html>
+
+

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Browse the full GameDen.gg catalog with A-Z sorting, search, and filters.">
+<meta name="application-name" content="GameDen.gg">
+<link rel="canonical" href="https://gameden.gg/web/all-results.html">
+<link rel="icon" type="image/x-icon" href="/web/favicon.ico">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GameDen.gg">
+<meta property="og:title" content="GameDen.gg - All Games Directory">
+<meta property="og:description" content="Search and filter the full GameDen.gg catalog with snapshot-backed data.">
+<meta property="og:url" content="https://gameden.gg/web/all-results.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="GameDen.gg - All Games Directory">
+<meta name="twitter:description" content="Search and filter the full GameDen.gg catalog on GameDen.gg.">
+<meta name="twitter:url" content="https://gameden.gg/web/all-results.html">
+<title>GameDen.gg - All Games Directory</title>
+<script src="/site-config.js"></script>
+<script src="/web/site-branding.js"></script>
+<script>
+window.GameDenSite.applyMetadata({
+  path: "/web/all-results.html",
+  title: "GameDen.gg - All Games Directory",
+  description: "Browse the full GameDen.gg catalog with A-Z sorting, search, and filters.",
+  ogTitle: "GameDen.gg - All Games Directory",
+  ogDescription: "Search and filter the full GameDen.gg catalog with snapshot-backed data.",
+  twitterTitle: "GameDen.gg - All Games Directory",
+  twitterDescription: "Search and filter the full GameDen.gg catalog on GameDen.gg."
+});
+</script>
+<style>
+:root{--bg:#050913;--panel:rgba(10,20,38,.92);--line:rgba(130,173,247,.24);--line2:rgba(130,173,247,.42);--text:#eff6ff;--muted:#9eb8e7;--accent:#6fe8ff;--good:#5ce4a9;--warn:#ffc77a}
+*{box-sizing:border-box}html,body{margin:0;padding:0}body{font-family:"IBM Plex Sans","Segoe UI",sans-serif;color:var(--text);background:radial-gradient(920px 540px at 4% -10%,rgba(103,234,255,.16),transparent 60%),radial-gradient(980px 700px at 98% 6%,rgba(188,168,255,.16),transparent 58%),linear-gradient(180deg,#050913 0,#040a16 100%)}
+a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0 44px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}.brand{font-size:26px;font-weight:900;letter-spacing:.02em;text-decoration:none}
+.back-link{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(111,232,255,.08);text-decoration:none;color:var(--text);font-weight:700}
+.back-link:hover{border-color:var(--line2);background:rgba(111,232,255,.14)}
+.hero{border-radius:22px;border:1px solid var(--line);background:radial-gradient(circle at 88% 2%,rgba(111,232,255,.2),transparent 34%),linear-gradient(170deg,rgba(15,28,52,.96),rgba(8,16,29,.96));padding:22px;margin-bottom:14px}
+.hero h1{margin:10px 0 8px;font-size:clamp(30px,4.3vw,52px);line-height:.95;letter-spacing:-.04em}.hero p{margin:0;color:var(--muted);line-height:1.55}
+.eyebrow{display:inline-block;padding:5px 11px;border-radius:999px;border:1px solid rgba(111,232,255,.45);background:rgba(111,232,255,.12);color:#dcfbff;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.controls{position:sticky;top:12px;z-index:30;margin-bottom:16px;border-radius:16px;border:1px solid var(--line);background:rgba(7,14,28,.86);backdrop-filter:blur(8px);padding:12px}
+.search-grid{display:grid;gap:10px;grid-template-columns:minmax(240px,1.8fr) repeat(3,minmax(140px,1fr))}
+.filter-grid{margin-top:10px;display:grid;gap:10px;grid-template-columns:repeat(5,minmax(120px,1fr))}
+.field{display:grid;gap:5px}.field>label{color:#d7e7ff;font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+.field input,.field select{width:100%;border:1px solid rgba(130,173,247,.3);border-radius:10px;background:rgba(255,255,255,.04);color:var(--text);padding:10px 11px;font-size:14px}
+.check{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(130,173,247,.3);border-radius:10px;background:rgba(255,255,255,.04);padding:10px 11px;min-height:40px}
+.count{border:1px solid rgba(130,173,247,.3);border-radius:10px;background:rgba(255,255,255,.04);min-height:40px;display:inline-flex;align-items:center;justify-content:center;font-weight:800}
+.btn{border:1px solid var(--line);border-radius:10px;background:rgba(121,168,255,.11);color:var(--text);padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer}
+.chips{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}.chip{border-radius:999px;border:1px solid rgba(111,232,255,.36);background:rgba(111,232,255,.12);color:#d8fbff;font-size:11px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;padding:5px 9px}
+.status{border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:12px 14px;margin-bottom:12px}.status.error{border-color:rgba(255,143,159,.45);background:rgba(48,12,20,.75);color:#ffd9df}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:12px}.card{display:grid;grid-template-rows:130px auto;border-radius:16px;border:1px solid rgba(130,173,247,.18);background:linear-gradient(180deg,rgba(14,27,48,.95),rgba(8,16,30,.95));text-decoration:none}
+.card:hover{transform:translateY(-2px);border-color:rgba(111,232,255,.5)}.card img{width:100%;height:130px;object-fit:cover;background:linear-gradient(180deg,rgba(111,232,255,.28),rgba(121,168,255,.14))}
+.body{padding:11px;display:grid;gap:8px}.title{margin:0;font-size:15px;line-height:1.2}.price{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.price strong{font-size:20px}.price s{font-size:12px;color:rgba(203,217,243,.78)}
+.meta-stack{display:grid;gap:7px}
+.meta-row{display:flex;align-items:center;gap:7px;min-width:0}
+.meta-row.signals{flex-wrap:wrap}
+.meta-row.deal{justify-content:space-between}
+.meta-row.context{flex-wrap:wrap;color:var(--muted);font-size:12px}
+.meta-cluster{display:flex;align-items:center;gap:7px;min-width:0}
+.meta-cluster.primary{flex-wrap:wrap}
+.meta-cluster.secondary{justify-content:flex-end;flex-wrap:wrap}
+.meta-chip{border-radius:999px;border:1px solid rgba(130,173,247,.3);background:rgba(255,255,255,.05);padding:4px 8px;font-size:11px;font-weight:700;line-height:1}
+.meta-chip.signal.good{border-color:rgba(92,228,169,.34);background:rgba(92,228,169,.13);color:#b8ffe0}
+.meta-chip.signal.warn{border-color:rgba(255,199,122,.36);background:rgba(255,199,122,.14);color:#ffd89e}
+.meta-chip.signal.info{border-color:rgba(111,232,255,.36);background:rgba(111,232,255,.14);color:#d8fbff}
+.meta-chip.deal-primary{border-color:rgba(255,199,122,.38);background:rgba(255,199,122,.16);color:#ffe5bf}
+.meta-chip.deal-flag{border-color:rgba(188,168,255,.4);background:rgba(188,168,255,.18);color:#e0d2ff}
+.meta-chip.metric{color:#dce9ff}
+.context-item{white-space:nowrap}
+.context-item strong{color:#e8f0ff}
+.skeleton .title,.skeleton .price strong,.skeleton .price s,.skeleton .meta-chip,.skeleton .context-item{color:transparent;background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.18),rgba(255,255,255,.06));background-size:220% 100%;animation:shimmer 1.2s linear infinite}
+.skeleton .title{height:17px;border-radius:6px}.skeleton .price strong{height:24px;width:72px;border-radius:8px;display:block}.skeleton .price s{height:14px;width:52px;border-radius:6px;display:block}.skeleton .meta-chip{height:19px;width:84px}.skeleton .context-item{height:14px;width:80px;display:inline-block}
+.load-more{margin-top:14px;display:flex;justify-content:center}.hidden{display:none!important}
+@keyframes shimmer{from{background-position:220% 0}to{background-position:-220% 0}}
+@media (max-width:1180px){.search-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:760px){.page{width:min(1420px,100% - 16px)}.topbar{flex-direction:column;align-items:flex-start}.search-grid,.filter-grid,.grid{grid-template-columns:1fr}.meta-row.deal{flex-direction:column;align-items:flex-start}.meta-cluster.secondary{justify-content:flex-start}}
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="topbar">
+    <a class="back-link" href="/web/index.html">Back to Dashboard</a>
+    <a class="brand" href="/web/index.html">GameDen.gg</a>
+  </header>
+  <section class="hero">
+    <span class="eyebrow">GameDen.gg Discovery Engine</span>
+    <h1 id="title">All Games Directory</h1>
+    <p id="subtitle">A-Z by default. Search and filter the full released catalog with snapshot-backed data.</p>
+  </section>
+  <section id="controls" class="controls">
+    <div class="search-grid">
+      <div class="field"><label for="search">Search</label><input id="search" type="search" placeholder="Search game name, developer, or publisher"></div>
+      <div class="field"><label for="genre">Genre</label><select id="genre"><option value="">All genres</option></select></div>
+      <div class="field"><label for="platform">Platform</label><select id="platform"><option value="">All platforms</option></select></div>
+      <div class="field"><label for="sort">Sort</label><select id="sort"><option value="alpha-asc">A-Z</option><option value="alpha-desc">Z-A</option><option value="deal-score">Deal score</option><option value="best-deals">Best deals</option><option value="best-reviews">Best reviews</option><option value="player-count">Player count</option><option value="price-asc">Price low to high</option><option value="price-desc">Price high to low</option></select></div>
+    </div>
+    <div class="filter-grid">
+      <div class="field"><label for="tag">Tag</label><select id="tag"><option value="">All tags</option></select></div>
+      <div class="field"><label for="review">Review label</label><select id="review"><option value="">All review labels</option></select></div>
+      <div class="field"><label for="minDiscount">Min discount</label><input id="minDiscount" type="number" min="0" max="100" step="1" placeholder="0"></div>
+      <div class="field"><label for="maxPrice">Max price</label><input id="maxPrice" type="number" min="0" step="0.01" placeholder="Any"></div>
+      <div class="field"><label for="minPlayers">Min players</label><input id="minPlayers" type="number" min="0" step="1" placeholder="Any"></div>
+      <div class="field"><label class="hidden" for="dealsOnly">Deals only</label><span class="check"><input id="dealsOnly" type="checkbox"><span>Deals only</span></span></div>
+      <div class="field"><label class="hidden" for="includeFree">Include free</label><span class="check"><input id="includeFree" type="checkbox"><span>Include free</span></span></div>
+      <div class="field"><label>Results</label><div id="count" class="count">--</div></div>
+      <div class="field"><label class="hidden" for="reset">Reset</label><button id="reset" class="btn" type="button">Reset filters</button></div>
+    </div>
+    <div id="chips" class="chips"></div>
+  </section>
+  <div id="status" class="status hidden"></div>
+  <section id="grid" class="grid" aria-live="polite"></section>
+  <div id="sentinel"></div>
+  <div id="moreWrap" class="load-more hidden"><button id="more" class="btn" type="button">Load more</button></div>
+</main>
+
+<script>
+(() => {
+  "use strict";
+  const SITE_NAME = (window.GameDenSite && window.GameDenSite.config && window.GameDenSite.config.site_name) || "GameDen.gg";
+  const RELEASED_VIEW = "released-games";
+  const PAGE_SIZE = 36;
+  const EXTENDED_PLATFORM_FILTER_OPTIONS = ["Steam Deck", "VR Compatibility"];
+  const DASHBOARD_VIEWS = {
+    "deal-ranked": { key: "dealRanked", title: "Best Deals Today", subtitle: "Snapshot-ranked deal opportunities from the homepage cache." },
+    "worth-buying-now": { key: "worthBuyingNow", title: "Worth Buying Now", subtitle: "High-conviction picks blending value, quality, and momentum." },
+    "trending-games": { key: "trendingDeals", title: "Trending Games", subtitle: "Games with the strongest current movement signals." },
+    "new-historical-lows": { key: "newHistoricalLows", title: "New Historical Lows", subtitle: "Recent all-time low events from snapshot-backed signals." },
+    "biggest-deals": { key: "biggestDeals", title: "Biggest Deals", subtitle: "Largest active discounts available right now." },
+    "historical-lows": { key: "historicalLows", title: "Historical Lows", subtitle: "Games currently near or at historical low pricing." },
+    "top-reviewed": { key: "topReviewed", title: "Top Reviewed", subtitle: "Strongly reviewed games surfaced from the catalog." },
+    "upcoming": { key: "upcoming", title: "Upcoming Releases", subtitle: "Upcoming releases with active market signals." },
+    "recommended-deals": { key: "recommendedDeals", title: "Recommended Deals", subtitle: "Personalized quality-weighted deal candidates." },
+    "new-deals": { key: "newDealsSinceLastVisit", title: "New Deals Since Last Visit", subtitle: "Deals detected after your most recent visit marker." },
+    "seasonal-sale": { key: "seasonalSale.expected_games", title: "Seasonal Sale Radar", subtitle: "Current seasonal discounts or upcoming sale candidates." },
+  };
+  const ui = { title: document.getElementById("title"), subtitle: document.getElementById("subtitle"), controls: document.getElementById("controls"), search: document.getElementById("search"), genre: document.getElementById("genre"), platform: document.getElementById("platform"), sort: document.getElementById("sort"), tag: document.getElementById("tag"), review: document.getElementById("review"), minDiscount: document.getElementById("minDiscount"), maxPrice: document.getElementById("maxPrice"), minPlayers: document.getElementById("minPlayers"), dealsOnly: document.getElementById("dealsOnly"), includeFree: document.getElementById("includeFree"), reset: document.getElementById("reset"), count: document.getElementById("count"), chips: document.getElementById("chips"), status: document.getElementById("status"), grid: document.getElementById("grid"), moreWrap: document.getElementById("moreWrap"), more: document.getElementById("more"), sentinel: document.getElementById("sentinel") };
+  const state = { view: RELEASED_VIEW, title: "All Games Directory", filters: { search: "", genre: "", platform: "", sort: "alpha-asc", tag: "", reviewLabel: "", minDiscount: null, maxPrice: null, minPlayers: null, dealsOnly: false, includeFree: true }, rows: [], page: 1, total: 0, totalPages: 0, loading: false, loadingMore: false, requestId: 0, controller: null, observer: null, timer: null };
+  const n = (v, d = null) => { const x = Number(v); return Number.isFinite(x) ? x : d; };
+  const b = (v, d = false) => { if (v === null || v === undefined || v === "") return d; const s = String(v).trim().toLowerCase(); if (["1", "true", "yes", "on"].includes(s)) return true; if (["0", "false", "no", "off"].includes(s)) return false; return d; };
+  const h = (v) => String(v ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+  const p = (v) => { const x = n(v, null); if (x === null) return "--"; if (x === 0) return "Free"; return `$${x.toFixed(2)}`; };
+  const i = (v) => { const x = n(v, null); return x === null ? "--" : Math.round(x).toLocaleString(); };
+  const arr = (v) => Array.isArray(v) ? v : (typeof v === "string" ? v.split(",").map((x) => x.trim()).filter(Boolean) : []);
+  const review = (g) => String(g?.review_score_label ?? g?.review_label ?? g?.review_summary ?? g?.reviewSummary ?? "").trim();
+  const byPath = (obj, path) => String(path || "").split(".").reduce((acc, key) => (acc && typeof acc === "object") ? acc[key] : null, obj);
+  const keyOf = (g) => { const id = n(g?.id ?? g?.game_id, null); const name = String(g?.game_name || "").trim().toLowerCase(); return id !== null ? `id:${Math.trunc(id)}` : (name ? `name:${name}` : ""); };
+  const unique = (rows) => { const out = []; const seen = new Set(); for (const row of rows || []) { const key = keyOf(row); if (!key || seen.has(key)) continue; seen.add(key); out.push(row); } return out; };
+  const detailHref = (g) => { const q = new URLSearchParams(); const id = n(g?.id ?? g?.game_id, null); const name = String(g?.game_name || "").trim(); if (id !== null) q.set("game_id", String(Math.trunc(id))); if (name) q.set("game_name", name); return `/web/game.html?${q.toString()}`; };
+  const setStatus = (msg, err = false) => { if (!msg) { ui.status.classList.add("hidden"); ui.status.classList.remove("error"); ui.status.textContent = ""; return; } ui.status.textContent = msg; ui.status.classList.remove("hidden"); ui.status.classList.toggle("error", !!err); };
+  const setCount = (total, shown) => ui.count.textContent = Number.isFinite(total) ? `${Math.round(shown || 0).toLocaleString()} of ${Math.round(total).toLocaleString()}` : "--";
+  const hasMore = () => state.page <= state.totalPages;
+  const stopRequest = () => { if (state.controller) { try { state.controller.abort(); } catch {} state.controller = null; } };
+  const updateMore = () => { const show = state.view === RELEASED_VIEW && hasMore() && !state.loading; ui.moreWrap.classList.toggle("hidden", !show); ui.more.disabled = state.loadingMore; ui.more.textContent = state.loadingMore ? "Loading..." : "Load more"; };
+  const parseTs = (value) => { if (value === null || value === undefined || value === "") return null; if (typeof value === "number" && Number.isFinite(value)) return value < 1e12 ? value * 1000 : value; const parsed = Date.parse(String(value)); return Number.isFinite(parsed) ? parsed : null; };
+  function signalCandidates(g) {
+    const signals = [];
+    const push = (key, label, tone, priority) => { if (!label) return; signals.push({ key, label, tone, priority: Number(priority) || 0 }); };
+    const hs = String(g?.historical_status || "").trim();
+    if (hs === "new_historical_low") push("new_historical_low", "New historical low", "good", 100);
+    else if (hs === "matches_historical_low") push("matches_historical_low", "Matches historical low", "info", 90);
+    else if (hs === "near_historical_low") push("near_historical_low", "Near historical low", "info", 82);
+    const detectedTs = parseTs(g?.deal_detected_at);
+    if (Number.isFinite(detectedTs)) { const diff = Date.now() - detectedTs; if (Number.isFinite(diff) && diff >= 0) { if (diff <= 6 * 60 * 60 * 1000) push("dropped_today", "Dropped today", "warn", 78); else if (diff <= 24 * 60 * 60 * 1000) push("dropped_recently", "Dropped recently", "info", 72); } }
+    const change = n(g?.player_change, null); const trend = n(g?.short_term_player_trend ?? g?.momentum_score, null); const movement = change !== null ? change : trend;
+    if (movement !== null) { if (movement > 0) push("players_rising", "Players rising", "good", 70); else if (movement < 0) push("players_falling", "Players falling", "warn", 66); else push("players_stable", "Player activity stable", "info", 52); }
+    const seen = new Set();
+    return signals.sort((a, b) => (b.priority - a.priority) || String(a.label).localeCompare(String(b.label))).filter((entry) => { const key = String(entry.key || "").toLowerCase(); if (!key || seen.has(key)) return false; seen.add(key); return true; }).slice(0, 3);
+  }
+  function signalRow(g) {
+    const signals = signalCandidates(g);
+    if (!signals.length) return '<div class="meta-row signals"><span class="meta-chip signal info">No major movement</span></div>';
+    return `<div class="meta-row signals">${signals.map((entry) => `<span class="meta-chip signal ${h(entry.tone)}">${h(entry.label)}</span>`).join("")}</div>`;
+  }
+  function dealRow(g) {
+    const discount = Math.max(0, n(g?.discount_percent, 0) || 0); const dScore = n(g?.deal_score, null); const buyScore = n(g?.buy_score ?? g?.worth_buying_score, null); const reviewScore = n(g?.review_score, 0) || 0;
+    let quality = "";
+    if (discount >= 80) quality = "Huge discount"; else if (dScore !== null && dScore >= 92) quality = "Top-ranked deal"; else if (reviewScore >= 90 && discount >= 50) quality = "Hidden gem value";
+    const discountChip = discount > 0 ? `<span class="meta-chip deal-primary">${Math.round(discount)}% off</span>` : '<span class="meta-chip">No active discount</span>';
+    const qualityChip = quality ? `<span class="meta-chip deal-flag">${h(quality)}</span>` : "";
+    const dScoreChip = dScore !== null ? `<span class="meta-chip metric">Deal ${Math.round(dScore)}</span>` : "";
+    const buyScoreChip = buyScore !== null ? `<span class="meta-chip metric">Worth ${Math.round(buyScore)}</span>` : "";
+    return `<div class="meta-row deal"><div class="meta-cluster primary">${discountChip}${qualityChip}</div><div class="meta-cluster secondary">${dScoreChip}${buyScoreChip}</div></div>`;
+  }
+  function contextRow(g) {
+    const platforms = arr(g?.platforms).slice(0, 2).join(" • ") || "Unknown platform";
+    const pieces = [`<span class="context-item"><strong>${h(i(g?.current_players))}</strong> players</span>`, `<span class="context-item"><strong>${h(platforms)}</strong></span>`, `<span class="context-item"><strong>${h(review(g) || "Review pending")}</strong></span>`];
+    return `<div class="meta-row context">${pieces.join('<span class="context-item">•</span>')}</div>`;
+  }
+  function card(g) {
+    const title = h(g?.game_name || "Unknown game"); const img = String(g?.banner_url || g?.image_url || "").trim();
+    return `<a class="card" href="${detailHref(g)}" aria-label="Open ${title} details">${img ? `<img src="${h(img)}" alt="${title} banner" loading="lazy">` : "<img alt=\"\" loading=\"lazy\">"}<div class="body"><h3 class="title">${title}</h3><div class="price"><strong>${h(p(g?.price))}</strong>${n(g?.original_price,null)!==null && n(g?.price,null)!==null && n(g.original_price)>n(g.price)?`<s>${h(p(g.original_price))}</s>`:""}</div><div class="meta-stack">${signalRow(g)}${dealRow(g)}${contextRow(g)}</div></div></a>`;
+  }
+  function skeleton(count = PAGE_SIZE) { ui.grid.innerHTML = new Array(Math.max(6, Math.min(count, PAGE_SIZE))).fill("").map(() => '<article class="card skeleton"><img alt=""><div class="body"><div class="title">x</div><div class="price"><strong>x</strong><s>x</s></div><div class="meta-stack"><div class="meta-row signals"><span class="meta-chip">x</span><span class="meta-chip">x</span></div><div class="meta-row deal"><div class="meta-cluster primary"><span class="meta-chip">x</span></div><div class="meta-cluster secondary"><span class="meta-chip">x</span></div></div><div class="meta-row context"><span class="context-item">x</span><span class="context-item">x</span></div></div></div></article>').join(""); }
+  function render(rows, append = false) { const safe = unique(rows); if (!append) ui.grid.innerHTML = ""; if (!append && !safe.length) { ui.grid.innerHTML = '<div class="status">No games match your current search and filters.</div>'; return; } const html = safe.map(card).join(""); if (append) ui.grid.insertAdjacentHTML("beforeend", html); else ui.grid.innerHTML = html; }
+  async function fetchJson(url, opt = {}) { const res = await fetch(url, opt); if (!res.ok) { const text = await res.text().catch(() => ""); throw new Error(text || `Request failed: ${res.status}`); } return res.json(); }
+  function readQuery() {
+    const q = new URLSearchParams(location.search); state.view = String(q.get("view") || RELEASED_VIEW).trim().toLowerCase() || RELEASED_VIEW;
+    const fallbackTitle = state.view === RELEASED_VIEW ? "All Games Directory" : (DASHBOARD_VIEWS[state.view]?.title || "Discovery");
+    state.title = String(q.get("title") || fallbackTitle).trim();
+    state.filters.search = String(q.get("search") || q.get("q") || "").trim(); state.filters.genre = String(q.get("genre") || "").trim(); state.filters.platform = String(q.get("platform") || "").trim(); state.filters.tag = String(q.get("tag") || "").trim(); state.filters.reviewLabel = String(q.get("reviewLabel") || q.get("review_label") || "").trim();
+    state.filters.minDiscount = n(q.get("minDeal") ?? q.get("min_discount"), null); state.filters.maxPrice = n(q.get("maxPrice") ?? q.get("max_price"), null); state.filters.minPlayers = n(q.get("minPlayers") ?? q.get("min_players"), null);
+    state.filters.dealsOnly = b(q.get("dealsOnly") ?? q.get("deals_only"), false); state.filters.includeFree = b(q.get("includeFree") ?? q.get("include_free"), true);
+    const s = String(q.get("releasedSort") || q.get("sort") || (state.view === RELEASED_VIEW ? "alpha-asc" : "deal-score")).trim(); state.filters.sort = s || (state.view === RELEASED_VIEW ? "alpha-asc" : "deal-score");
+  }
+  function writeQuery() {
+    const q = new URLSearchParams(); q.set("view", state.view); q.set("title", state.title);
+    if (state.view === RELEASED_VIEW) { if (state.filters.search) q.set("search", state.filters.search); if (state.filters.genre) q.set("genre", state.filters.genre); if (state.filters.platform) q.set("platform", state.filters.platform); if (state.filters.tag) q.set("tag", state.filters.tag); if (state.filters.reviewLabel) q.set("reviewLabel", state.filters.reviewLabel); if (state.filters.minDiscount !== null) q.set("minDeal", String(state.filters.minDiscount)); if (state.filters.maxPrice !== null) q.set("maxPrice", String(state.filters.maxPrice)); if (state.filters.minPlayers !== null) q.set("minPlayers", String(state.filters.minPlayers)); if (state.filters.dealsOnly) q.set("dealsOnly", "1"); if (state.filters.includeFree) q.set("includeFree", "1"); q.set("releasedSort", state.filters.sort || "alpha-asc"); }
+    history.replaceState({}, "", `${location.pathname}?${q.toString()}`);
+  }
+  function syncUi() {
+    ui.title.textContent = state.title;
+    const subtitle = state.view !== RELEASED_VIEW
+      ? (DASHBOARD_VIEWS[state.view]?.subtitle || "Snapshot-backed discovery section.")
+      : "A-Z by default. Search and filter the full released catalog with snapshot-backed data.";
+    if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
+      const title = `${SITE_NAME} - ${state.title}`;
+      window.GameDenSite.applyMetadata({
+        path: "/web/all-results.html",
+        title,
+        description: subtitle,
+        ogTitle: title,
+        ogDescription: subtitle,
+        twitterTitle: title,
+        twitterDescription: subtitle,
+      });
+    } else {
+      document.title = `${SITE_NAME} - ${state.title}`;
+    }
+    if (state.view !== RELEASED_VIEW) { ui.controls.classList.add("hidden"); ui.subtitle.textContent = subtitle; return; }
+    ui.controls.classList.remove("hidden"); ui.subtitle.textContent = subtitle;
+    ui.search.value = state.filters.search; ui.genre.value = state.filters.genre; ui.platform.value = state.filters.platform; ui.sort.value = state.filters.sort || "alpha-asc"; ui.tag.value = state.filters.tag; ui.review.value = state.filters.reviewLabel; ui.minDiscount.value = state.filters.minDiscount ?? ""; ui.maxPrice.value = state.filters.maxPrice ?? ""; ui.minPlayers.value = state.filters.minPlayers ?? ""; ui.dealsOnly.checked = !!state.filters.dealsOnly; ui.includeFree.checked = !!state.filters.includeFree;
+  }
+  function chips() {
+    const x = []; if (state.filters.search) x.push(`Search: ${state.filters.search}`); if (state.filters.genre) x.push(`Genre: ${state.filters.genre}`); if (state.filters.platform) x.push(`Platform: ${state.filters.platform}`); if (state.filters.tag) x.push(`Tag: ${state.filters.tag}`); if (state.filters.reviewLabel) x.push(`Review: ${state.filters.reviewLabel}`); if (state.filters.minDiscount !== null) x.push(`Min discount: ${state.filters.minDiscount}%`); if (state.filters.maxPrice !== null) x.push(`Max price: $${Number(state.filters.maxPrice).toFixed(2)}`); if (state.filters.minPlayers !== null) x.push(`Min players: ${i(state.filters.minPlayers)}`); if (state.filters.dealsOnly) x.push("Deals only"); if (!state.filters.includeFree) x.push("Paid games only"); ui.chips.innerHTML = x.map((v) => `<span class="chip">${h(v)}</span>`).join("");
+  }
+  function qUrl(page) { const q = new URLSearchParams(); q.set("page", String(page)); q.set("page_size", String(PAGE_SIZE)); q.set("sort", state.filters.sort || "alpha-asc"); if (state.filters.search) q.set("q", state.filters.search); if (state.filters.genre) q.set("genre", state.filters.genre); if (state.filters.platform) q.set("platform", state.filters.platform); if (state.filters.tag) q.set("tag", state.filters.tag); if (state.filters.reviewLabel) q.set("review_label", state.filters.reviewLabel); if (state.filters.minDiscount !== null) q.set("min_discount", String(state.filters.minDiscount)); if (state.filters.maxPrice !== null) q.set("max_price", String(state.filters.maxPrice)); if (state.filters.minPlayers !== null) q.set("min_players", String(state.filters.minPlayers)); if (state.filters.dealsOnly) q.set("deals_only", "true"); q.set("include_free", state.filters.includeFree ? "true" : "false"); return `/games/released?${q.toString()}`; }
+  async function loadReleased(reset = false) {
+    if (reset) { state.page = 1; state.rows = []; state.total = 0; state.totalPages = 0; state.loading = true; state.loadingMore = false; state.requestId += 1; writeQuery(); skeleton(PAGE_SIZE); setStatus(""); setCount(0, 0); }
+    else if (!hasMore() || state.loading || state.loadingMore) return; else { state.loadingMore = true; updateMore(); }
+    const id = state.requestId; stopRequest(); const controller = new AbortController(); state.controller = controller; const page = state.page;
+    try {
+      const payload = await fetchJson(qUrl(page), { signal: controller.signal }); if (id !== state.requestId) return;
+      const incoming = Array.isArray(payload?.items) ? payload.items : []; state.total = Math.max(0, n(payload?.total, 0) || 0); state.totalPages = Math.max(0, n(payload?.total_pages, 0) || 0); state.page = Math.max(1, page + 1); state.rows = unique([...state.rows, ...incoming]);
+      if (page === 1) render(state.rows, false); else if (incoming.length) render(incoming, true);
+      setCount(state.total, state.rows.length); chips(); setStatus(!state.rows.length ? "No games match your current search and filters." : "");
+    } catch (e) { if (e?.name !== "AbortError") { if (page === 1) ui.grid.innerHTML = ""; setStatus("Failed to load directory results. Please try again.", true); } }
+    finally { if (id === state.requestId) { state.loading = false; state.loadingMore = false; state.controller = null; updateMore(); } }
+  }
+  async function loadFilters() {
+    try {
+      const payload = await fetchJson("/games/filters");
+      const fill = (el, list, empty) => { const prev = el.value; const opts = [`<option value="">${h(empty)}</option>`]; for (const raw of list || []) { const v = String(raw || "").trim(); if (!v) continue; opts.push(`<option value="${h(v)}">${h(v)}</option>`); } el.innerHTML = opts.join(""); el.value = prev; };
+      const platforms = []; const seen = new Set(); for (const raw of [...(payload?.platforms || []), ...EXTENDED_PLATFORM_FILTER_OPTIONS]) { const v = String(raw || "").trim(); const token = v.toLowerCase(); if (!v || seen.has(token)) continue; seen.add(token); platforms.push(v); }
+      fill(ui.genre, payload?.genres || [], "All genres"); fill(ui.platform, platforms, "All platforms"); fill(ui.tag, payload?.tags || [], "All tags"); fill(ui.review, payload?.review_labels || [], "All review labels");
+    } catch { setStatus("Filter options are temporarily unavailable. Directory filtering still works.", false); }
+  }
+  async function loadStatic() {
+    state.loading = true; skeleton(12); setStatus("");
+    try { const payload = await fetchJson("/dashboard/home"); const rows = Array.isArray(byPath(payload, DASHBOARD_VIEWS[state.view]?.key)) ? byPath(payload, DASHBOARD_VIEWS[state.view]?.key) : []; state.rows = unique(rows); state.total = state.rows.length; state.totalPages = 1; render(state.rows, false); setCount(state.total, state.rows.length); if (!state.rows.length) setStatus("No items are available for this section yet."); }
+    catch { ui.grid.innerHTML = ""; setStatus("Failed to load this discovery section.", true); }
+    finally { state.loading = false; updateMore(); }
+  }
+  function readUi() { state.filters.search = String(ui.search.value || "").trim(); state.filters.genre = String(ui.genre.value || "").trim(); state.filters.platform = String(ui.platform.value || "").trim(); state.filters.sort = String(ui.sort.value || "alpha-asc").trim() || "alpha-asc"; state.filters.tag = String(ui.tag.value || "").trim(); state.filters.reviewLabel = String(ui.review.value || "").trim(); state.filters.minDiscount = n(ui.minDiscount.value, null); state.filters.maxPrice = n(ui.maxPrice.value, null); state.filters.minPlayers = n(ui.minPlayers.value, null); state.filters.dealsOnly = !!ui.dealsOnly.checked; state.filters.includeFree = !!ui.includeFree.checked; }
+  function schedule() { readUi(); if (state.timer) clearTimeout(state.timer); state.timer = setTimeout(() => loadReleased(true), 280); }
+  function wire() {
+    [ui.search, ui.genre, ui.platform, ui.sort, ui.tag, ui.review, ui.minDiscount, ui.maxPrice, ui.minPlayers].forEach((el) => el.addEventListener(el === ui.search ? "input" : "change", schedule));
+    ui.dealsOnly.addEventListener("change", schedule); ui.includeFree.addEventListener("change", schedule);
+    ui.reset.addEventListener("click", () => { state.filters = { search: "", genre: "", platform: "", sort: "alpha-asc", tag: "", reviewLabel: "", minDiscount: null, maxPrice: null, minPlayers: null, dealsOnly: false, includeFree: true }; syncUi(); loadReleased(true); });
+    ui.more.addEventListener("click", () => loadReleased(false));
+    state.observer = new IntersectionObserver((entries) => { const [e] = entries; if (!e?.isIntersecting || state.view !== RELEASED_VIEW || state.loading || state.loadingMore || !hasMore()) return; loadReleased(false); }, { rootMargin: "900px 0px 1200px 0px", threshold: 0 });
+    state.observer.observe(ui.sentinel);
+  }
+  function cleanup() { stopRequest(); if (state.timer) { clearTimeout(state.timer); state.timer = null; } if (state.observer) { state.observer.disconnect(); state.observer = null; } }
+  async function start() {
+    readQuery(); syncUi(); wire();
+    if (state.view === RELEASED_VIEW) { await loadFilters(); syncUi(); await loadReleased(true); }
+    else { ui.controls.classList.add("hidden"); chips(); await loadStatic(); }
+  }
+  window.addEventListener("pagehide", cleanup); window.addEventListener("beforeunload", cleanup); start().catch(() => setStatus("Failed to initialize the directory page.", true));
+})();
+</script>
+</body>
+</html>

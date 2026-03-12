@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="GameDen.gg watchlist: tracked games with live deal signals and buy-score context.">
+<meta name="application-name" content="GameDen.gg">
+<link rel="canonical" href="https://gameden.gg/watchlist">
+<link rel="icon" type="image/x-icon" href="/web/favicon.ico">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GameDen.gg">
+<meta property="og:title" content="GameDen.gg - Watchlist">
+<meta property="og:description" content="Track your games and monitor sale, low-price, and buy-signal events in one place.">
+<meta property="og:url" content="https://gameden.gg/watchlist">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="GameDen.gg - Watchlist">
+<meta name="twitter:description" content="Track your games and monitor sale, low-price, and buy-signal events.">
+<meta name="twitter:url" content="https://gameden.gg/watchlist">
+<title>GameDen.gg - Watchlist</title>
+<script src="/site-config.js"></script>
+<script src="/web/site-branding.js"></script>
+<script>
+window.GameDenSite.applyMetadata({
+    path: "/watchlist",
+    title: "GameDen.gg - Watchlist",
+    description: "GameDen.gg watchlist: tracked games with live deal signals and buy-score context.",
+    ogTitle: "GameDen.gg - Watchlist",
+    ogDescription: "Track your games and monitor sale, low-price, and buy-signal events in one place.",
+    twitterTitle: "GameDen.gg - Watchlist",
+    twitterDescription: "Track your games and monitor sale, low-price, and buy-signal events."
+});
+</script>
+<style>
+:root {
+    --bg: #050913;
+    --panel: rgba(10, 20, 38, 0.92);
+    --line: rgba(130, 173, 247, 0.24);
+    --text: #eff6ff;
+    --muted: #9eb8e7;
+    --accent: #6fe8ff;
+    --good: #5ce4a9;
+    --warn: #ffc77a;
+    --radius: 18px;
+    --shadow: 0 18px 40px rgba(2, 8, 20, 0.38);
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+    color: var(--text);
+    background:
+        radial-gradient(900px 540px at 4% -10%, rgba(103, 234, 255, 0.16), transparent 60%),
+        radial-gradient(980px 700px at 98% 6%, rgba(188, 168, 255, 0.16), transparent 58%),
+        linear-gradient(180deg, #050913 0%, #040a16 100%);
+}
+
+.page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 24px 18px 40px;
+}
+
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.brand {
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+}
+
+.actions {
+    display: inline-flex;
+    gap: 10px;
+}
+
+.btn {
+    border: 1px solid var(--line);
+    background: rgba(121, 168, 255, 0.1);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.btn:hover { border-color: rgba(121, 168, 255, 0.58); }
+
+.hero {
+    border-radius: 24px;
+    border: 1px solid var(--line);
+    background:
+        radial-gradient(circle at 90% 8%, rgba(103, 234, 255, 0.2), transparent 36%),
+        linear-gradient(170deg, rgba(15, 28, 52, 0.96), rgba(8, 16, 29, 0.96));
+    padding: 24px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+}
+
+.hero h1 {
+    margin: 0 0 8px;
+    font-size: clamp(32px, 5vw, 52px);
+    line-height: 0.95;
+    letter-spacing: -0.04em;
+}
+
+.hero p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.55;
+}
+
+.meta-row {
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.card {
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(14, 27, 48, 0.95), rgba(9, 17, 31, 0.95));
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.thumb {
+    display: block;
+    height: 132px;
+    background: linear-gradient(180deg, rgba(97, 165, 250, 0.22), rgba(97, 165, 250, 0.08));
+    background-size: cover;
+    background-position: center;
+    border-bottom: 1px solid rgba(121, 168, 255, 0.18);
+}
+
+.body {
+    padding: 14px;
+    display: grid;
+    gap: 10px;
+}
+
+.name {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
+
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.metric {
+    border-radius: 12px;
+    border: 1px solid rgba(121, 168, 255, 0.18);
+    background: rgba(255, 255, 255, 0.03);
+    padding: 8px;
+}
+
+.metric-label {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+}
+
+.metric-value {
+    margin-top: 4px;
+    font-weight: 800;
+}
+
+.signals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.signal {
+    padding: 6px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(121, 168, 255, 0.24);
+    background: rgba(121, 168, 255, 0.1);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.signal.good { background: rgba(92, 228, 169, 0.15); border-color: rgba(92, 228, 169, 0.34); }
+.signal.warn { background: rgba(255, 199, 122, 0.18); border-color: rgba(255, 199, 122, 0.36); }
+
+.card-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.empty,
+.error,
+.loading {
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 16px;
+    color: var(--muted);
+}
+
+.error {
+    border-color: rgba(248, 113, 113, 0.35);
+    color: #ffd9df;
+}
+
+@media (max-width: 720px) {
+    .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+</head>
+<body>
+<div class="page">
+    <div class="topbar">
+    <div class="brand">GameDen.gg Watchlist</div>
+        <div class="actions">
+            <button class="btn" id="refreshBtn" type="button">Refresh</button>
+            <a class="btn" href="/web/index.html">Back to dashboard</a>
+        </div>
+    </div>
+
+    <section class="hero">
+        <h1>Track What Matters</h1>
+        <p>Watchlist entries surface sale starts, historical-low hits, and buy-score signals from snapshot-backed data.</p>
+        <div class="meta-row">User scope: <strong id="userScope">loading...</strong></div>
+    </section>
+
+    <section id="content"></section>
+</div>
+
+<script>
+const WATCHLIST_STORAGE_KEY = "gameden.user_id";
+
+function getCurrentUserId() {
+    const fallback = "legacy-user";
+    try {
+        const stored = String(localStorage.getItem(WATCHLIST_STORAGE_KEY) || "").trim();
+        if (stored) return stored;
+        localStorage.setItem(WATCHLIST_STORAGE_KEY, fallback);
+        return fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+const CURRENT_USER_ID = getCurrentUserId();
+const contentEl = document.getElementById("content");
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+function fmtPrice(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "—";
+    return `$${n.toFixed(2)}`;
+}
+
+function signalTone(signal) {
+    const type = String(signal?.type || "").toUpperCase();
+    if (type.includes("LOW") || type.includes("BUY")) return "good";
+    if (type.includes("SALE") || type.includes("DROP")) return "warn";
+    return "";
+}
+
+function buildAlertMap(alertItems) {
+    const byGame = new Map();
+    for (const row of Array.isArray(alertItems) ? alertItems : []) {
+        const gameId = Number(row?.game_id || 0);
+        if (!Number.isFinite(gameId) || gameId <= 0) continue;
+        if (!byGame.has(gameId)) byGame.set(gameId, []);
+        byGame.get(gameId).push(row);
+    }
+    return byGame;
+}
+
+async function fetchJson(url, options = {}) {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`);
+    }
+    if (response.status === 204) return null;
+    return response.json();
+}
+
+async function removeWatch(gameId) {
+    await fetchJson(`/api/watchlist/${encodeURIComponent(gameId)}?user_id=${encodeURIComponent(CURRENT_USER_ID)}`, {
+        method: "DELETE",
+    });
+    await loadWatchlist();
+}
+
+function render(items, alertsByGame = new Map()) {
+    if (!items.length) {
+        contentEl.innerHTML = `<div class="empty">No watched games yet. Add titles from the homepage or game pages to start tracking signals.</div>`;
+        return;
+    }
+
+    contentEl.innerHTML = `
+        <div class="grid">
+            ${items.map((item) => {
+                const bannerStyle = item.banner_url
+                    ? ` style="background-image:url('${encodeURI(item.banner_url).replaceAll("'", "%27")}')"`
+                    : "";
+                const discount = Number(item.latest_discount_percent || 0);
+                const watchSignals = Array.isArray(item.signals) ? item.signals : [];
+                const alertSignals = alertsByGame.get(Number(item.game_id || 0)) || [];
+                const mergedSignals = [...watchSignals];
+                const seenSignalLabels = new Set(
+                    mergedSignals
+                        .map((signal) => String(signal?.label || "").trim().toLowerCase())
+                        .filter(Boolean)
+                );
+                for (const alert of alertSignals) {
+                    const label = String(alert?.alert_label || alert?.alert_type || "Market signal").trim();
+                    const dedupeKey = label.toLowerCase();
+                    if (!label || seenSignalLabels.has(dedupeKey)) continue;
+                    seenSignalLabels.add(dedupeKey);
+                    mergedSignals.push({
+                        type: String(alert?.alert_type || "SIGNAL"),
+                        label,
+                    });
+                }
+                const signals = mergedSignals.slice(0, 3);
+                return `
+                    <article class="card">
+                        <a class="thumb" href="/web/game.html?game_name=${encodeURIComponent(item.game_name || "")}"${bannerStyle}></a>
+                        <div class="body">
+                            <h2 class="name">${escapeHtml(item.game_name || "Unknown game")}</h2>
+                            <div class="metrics">
+                                <div class="metric">
+                                    <div class="metric-label">Price</div>
+                                    <div class="metric-value">${fmtPrice(item.latest_price)}</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Discount</div>
+                                    <div class="metric-value">${discount > 0 ? `${discount}%` : "No sale"}</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Buy Score</div>
+                                    <div class="metric-value">${Number.isFinite(Number(item.buy_score)) ? Number(item.buy_score).toFixed(1) : "—"}</div>
+                                </div>
+                            </div>
+                            <div class="signals">
+                                ${signals.length
+                                    ? signals.map((signal) => `<span class="signal ${signalTone(signal)}">${escapeHtml(signal.label || signal.type || "Signal")}</span>`).join("")
+                                    : '<span class="signal">Watching for new signals</span>'}
+                            </div>
+                            <div class="card-actions">
+                                <a class="btn" href="/web/game.html?game_name=${encodeURIComponent(item.game_name || "")}">Open game</a>
+                                <button class="btn" type="button" data-remove-watch="${Number(item.game_id || 0)}">Remove</button>
+                            </div>
+                        </div>
+                    </article>
+                `;
+            }).join("")}
+        </div>
+    `;
+
+    contentEl.querySelectorAll("[data-remove-watch]").forEach((button) => {
+        button.addEventListener("click", async () => {
+            const gameId = Number(button.getAttribute("data-remove-watch") || 0);
+            if (!Number.isFinite(gameId) || gameId <= 0) return;
+            button.disabled = true;
+            try {
+                await removeWatch(gameId);
+            } catch (error) {
+                console.error(error);
+                button.disabled = false;
+            }
+        });
+    });
+}
+
+async function loadWatchlist() {
+    document.getElementById("userScope").textContent = CURRENT_USER_ID;
+    contentEl.innerHTML = `<div class="loading">Loading watchlist...</div>`;
+    try {
+        const [watchlistPayload, alertsPayload] = await Promise.all([
+            fetchJson(`/api/watchlist?user_id=${encodeURIComponent(CURRENT_USER_ID)}`),
+            fetchJson(`/api/alerts?user_id=${encodeURIComponent(CURRENT_USER_ID)}&limit=120`).catch(() => ({ items: [] })),
+        ]);
+        const items = Array.isArray(watchlistPayload?.items) ? watchlistPayload.items : [];
+        const alertsByGame = buildAlertMap(Array.isArray(alertsPayload?.items) ? alertsPayload.items : []);
+        render(items, alertsByGame);
+    } catch (error) {
+        console.error(error);
+        contentEl.innerHTML = `<div class="error">Failed to load watchlist data.</div>`;
+    }
+}
+
+document.getElementById("refreshBtn").addEventListener("click", () => {
+    void loadWatchlist();
+});
+
+void loadWatchlist();
+</script>
+</body>
+</html>

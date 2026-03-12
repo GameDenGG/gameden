@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="GameDen.gg price history explorer for Steam games, discount history, and player movement context.">
+    <meta name="application-name" content="GameDen.gg">
+    <link rel="canonical" href="https://gameden.gg/web/history.html">
+    <link rel="icon" type="image/x-icon" href="/web/favicon.ico">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GameDen.gg">
+    <meta property="og:title" content="GameDen.gg - Price History">
+    <meta property="og:description" content="Track historical prices, discount movement, and trends across Steam games on GameDen.gg.">
+    <meta property="og:url" content="https://gameden.gg/web/history.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="GameDen.gg - Price History">
+    <meta name="twitter:description" content="Track historical prices, discount movement, and trends across Steam games on GameDen.gg.">
+    <meta name="twitter:url" content="https://gameden.gg/web/history.html">
+    <title>GameDen.gg - Price History</title>
+    <script src="/site-config.js"></script>
+    <script src="/web/site-branding.js"></script>
+    <script>
+    window.GameDenSite.applyMetadata({
+        path: "/web/history.html",
+        title: "GameDen.gg - Price History",
+        description: "GameDen.gg price history explorer for Steam games, discount history, and player movement context.",
+        ogTitle: "GameDen.gg - Price History",
+        ogDescription: "Track historical prices, discount movement, and trends across Steam games on GameDen.gg.",
+        twitterTitle: "GameDen.gg - Price History",
+        twitterDescription: "Track historical prices, discount movement, and trends across Steam games on GameDen.gg."
+    });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0b1020;
+            --bg-elev: #121933;
+            --bg-elev-2: #192243;
+            --card: rgba(18, 25, 51, 0.94);
+            --card-2: rgba(25, 34, 67, 0.96);
+            --text: #eef2ff;
+            --muted: #a9b4d0;
+            --line: rgba(255, 255, 255, 0.08);
+            --accent: #6ea8fe;
+            --accent-2: #7ef0c6;
+            --warn: #ffcf70;
+            --danger: #ff7b86;
+            --success: #7ef0c6;
+            --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+            --radius: 18px;
+            --radius-lg: 24px;
+            --maxw: 1380px;
+            --chip: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background:
+                radial-gradient(circle at top left, rgba(110, 168, 254, 0.15), transparent 28%),
+                radial-gradient(circle at top right, rgba(126, 240, 198, 0.10), transparent 22%),
+                linear-gradient(180deg, #0a0f1e 0%, #0b1020 100%);
+            color: var(--text);
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        button,
+        input {
+            font: inherit;
+        }
+
+        .page {
+            max-width: var(--maxw);
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .back-row {
+            margin-bottom: 18px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.04);
+            padding: 10px 14px;
+            border-radius: 12px;
+            transition: 0.18s ease;
+        }
+
+        .back-link:hover {
+            color: var(--text);
+            transform: translateY(-1px);
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            background:
+                linear-gradient(135deg, rgba(110, 168, 254, 0.16), rgba(126, 240, 198, 0.08)),
+                rgba(18, 25, 51, 0.9);
+            box-shadow: var(--shadow);
+            padding: 28px;
+            margin-bottom: 22px;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1.35fr 0.95fr;
+            gap: 22px;
+            align-items: start;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent-2);
+            margin-bottom: 12px;
+        }
+
+        .hero h1 {
+            margin: 0 0 10px;
+            font-size: clamp(30px, 4vw, 50px);
+            line-height: 1.04;
+        }
+
+        .hero-subtitle {
+            margin: 0;
+            color: var(--muted);
+            font-size: 16px;
+            line-height: 1.65;
+        }
+
+        .chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: var(--chip);
+            border: 1px solid var(--line);
+            color: #d8e2ff;
+            font-size: 12px;
+        }
+
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .hero-stat {
+            border: 1px solid var(--line);
+            background: rgba(8, 13, 28, 0.35);
+            border-radius: 18px;
+            padding: 16px;
+        }
+
+        .hero-stat-label {
+            color: var(--muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .hero-stat-value {
+            font-size: 28px;
+            font-weight: 800;
+        }
+
+        .hero-stat-sub {
+            margin-top: 6px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) 360px;
+            gap: 22px;
+        }
+
+        .stack {
+            display: grid;
+            gap: 22px;
+        }
+
+        .panel {
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            background: var(--card);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 18px 0;
+        }
+
+        .panel-title-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .panel-title {
+            margin: 0;
+            font-size: 22px;
+            line-height: 1.2;
+        }
+
+        .panel-subtitle {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .panel-body {
+            padding: 18px;
+        }
+
+        .review-card {
+            display: grid;
+            gap: 16px;
+        }
+
+        .review-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .review-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 38px;
+            padding: 8px 13px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 700;
+            border: 1px solid var(--line);
+            background: rgba(110, 168, 254, 0.12);
+            color: #cfe0ff;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .meta-card {
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 16px;
+        }
+
+        .meta-label {
+            color: var(--muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .meta-value {
+            font-size: 28px;
+            font-weight: 800;
+        }
+
+        .meta-sub {
+            margin-top: 6px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .meta-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .meta-pill {
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 7px 10px;
+            font-size: 12px;
+            color: #d8e2ff;
+        }
+
+        .alert-card {
+            display: grid;
+            gap: 14px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .field label {
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .field input {
+            width: 100%;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text);
+            border-radius: 12px;
+            padding: 12px 13px;
+            outline: none;
+        }
+
+        .field input::placeholder {
+            color: #90a0c7;
+        }
+
+        .btn {
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text);
+            border-radius: 12px;
+            padding: 11px 14px;
+            cursor: pointer;
+            transition: 0.18s ease;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, rgba(110, 168, 254, 0.22), rgba(126, 240, 198, 0.18));
+            border-color: rgba(110, 168, 254, 0.45);
+        }
+
+        .status {
+            min-height: 20px;
+            font-size: 14px;
+        }
+
+        .status.success {
+            color: var(--success);
+        }
+
+        .status.error {
+            color: var(--danger);
+        }
+
+        .chart-wrap {
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 16px;
+            min-height: 360px;
+        }
+
+        .chart-shell {
+            position: relative;
+            height: 320px;
+        }
+
+        .table-wrap {
+            overflow: auto;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 880px;
+        }
+
+        th,
+        td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--line);
+            font-size: 14px;
+            vertical-align: top;
+        }
+
+        th {
+            position: sticky;
+            top: 0;
+            background: #121933;
+            color: #dce6ff;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .right {
+            text-align: right;
+        }
+
+        .empty-state,
+        .loading-state,
+        .error-state {
+            border: 1px dashed var(--line);
+            border-radius: 18px;
+            padding: 18px;
+            color: var(--muted);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .subtle {
+            color: var(--muted);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 1180px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-grid,
+            .meta-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 860px) {
+            .page {
+                padding: 16px;
+            }
+
+            .hero {
+                padding: 22px;
+            }
+
+            .hero-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .panel-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="back-row">
+        <a class="back-link" href="/">← Back to dashboard</a>
+        </div>
+
+        <section class="hero">
+            <div class="hero-grid">
+                <div>
+                    <div class="eyebrow">GameDen.gg - Price History</div>
+                    <h1 id="gameTitle">Loading game...</h1>
+                    <p class="hero-subtitle" id="heroSubtitle">
+                        Reviewing historical pricing, current player activity, and overall review snapshot.
+                    </p>
+                    <div class="chip-row" id="heroPills"></div>
+                    <div class="chip-row">
+                        <a class="btn btn-primary" id="steamLink" href="#" target="_blank" rel="noopener noreferrer">View on Steam</a>
+                    </div>
+                </div>
+
+                <div class="hero-stats">
+                    <div class="hero-stat">
+                        <div class="hero-stat-label">Current Price</div>
+                        <div class="hero-stat-value" id="heroCurrentPrice">—</div>
+                        <div class="hero-stat-sub">Latest tracked price</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-label">Current Players</div>
+                        <div class="hero-stat-value" id="heroCurrentPlayers">—</div>
+                        <div class="hero-stat-sub">Latest tracked Steam players</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-label">Biggest Discount Seen</div>
+                        <div class="hero-stat-value" id="heroBestDiscount">—</div>
+                        <div class="hero-stat-sub">Across saved history rows</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-label">History Snapshots</div>
+                        <div class="hero-stat-value" id="heroSnapshotCount">—</div>
+                        <div class="hero-stat-sub">Rows returned by the API</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="layout">
+            <main class="stack">
+                <section class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title-wrap">
+                            <h2 class="panel-title">Review Snapshot</h2>
+                            <div class="panel-subtitle">Overall review data only. Recent reviews were intentionally removed.</div>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="review-card">
+                            <div class="review-top">
+                                <div>
+                                    <div class="subtle">Overall rating</div>
+                                    <div id="reviewLabel" class="review-badge">No review data</div>
+                                </div>
+                                <div class="subtle" id="reviewCountText">No review count available</div>
+                            </div>
+
+                            <div class="meta-grid">
+                                <div class="meta-card">
+                                    <div class="meta-label">Genres</div>
+                                    <div class="meta-pills" id="genresPills"></div>
+                                </div>
+                                <div class="meta-card">
+                                    <div class="meta-label">Platforms</div>
+                                    <div class="meta-pills" id="platformsPills"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title-wrap">
+                            <h2 class="panel-title">Price Chart</h2>
+                            <div class="panel-subtitle">Tracked price over time, including original price when available.</div>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="chart-wrap">
+                            <div class="chart-shell">
+                                <canvas id="priceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title-wrap">
+                            <h2 class="panel-title">Players Chart</h2>
+                            <div class="panel-subtitle">Current Steam players captured in each saved snapshot.</div>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="chart-wrap">
+                            <div class="chart-shell">
+                                <canvas id="playersChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title-wrap">
+                            <h2 class="panel-title">History Table</h2>
+                            <div class="panel-subtitle">Complete returned history rows from the API.</div>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th class="right">Price</th>
+                                        <th class="right">Original</th>
+                                        <th class="right">Discount</th>
+                                        <th class="right">Players</th>
+                                        <th>Store</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <aside class="stack">
+                <section class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title-wrap">
+                            <h2 class="panel-title">Game Snapshot</h2>
+                            <div class="panel-subtitle">Current tracked metrics from the latest row.</div>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="meta-grid">
+                            <div class="meta-card">
+                                <div class="meta-label">Lowest Tracked Price</div>
+                                <div class="meta-value" id="lowestPrice">—</div>
+                                <div class="meta-sub">From history rows currently stored</div>
+                            </div>
+                            <div class="meta-card">
+                                <div class="meta-label">Highest Players Seen</div>
+                                <div class="meta-value" id="peakPlayers">—</div>
+                                <div class="meta-sub">Across returned history rows</div>
+                            </div>
+                            <div class="meta-card">
+                                <div class="meta-label">Current Discount</div>
+                                <div class="meta-value" id="currentDiscount">—</div>
+                                <div class="meta-sub">Latest discount percent</div>
+                            </div>
+                            <div class="meta-card">
+                                <div class="meta-label">Last Updated</div>
+                                <div class="meta-value" id="lastUpdated">—</div>
+                                <div class="meta-sub">Latest row timestamp</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title-wrap">
+                            <h2 class="panel-title">Price Alert</h2>
+                            <div class="panel-subtitle">Get notified when this game reaches your target price.</div>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <form class="alert-card" id="alertForm">
+                            <div class="field">
+                                <label for="targetPriceInput">Target Price</label>
+                                <input id="targetPriceInput" type="number" min="0" step="0.01" placeholder="e.g. 19.99" required />
+                            </div>
+
+                            <div class="field">
+                                <label for="emailInput">Email</label>
+                                <input id="emailInput" type="email" placeholder="you@example.com" required />
+                            </div>
+
+                            <button class="btn btn-primary" type="submit">Create Alert</button>
+                            <div class="status" id="alertStatus"></div>
+                        </form>
+                    </div>
+                </section>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "";
+        const query = new URLSearchParams(window.location.search);
+        const gameName = query.get("game");
+
+        let priceChartInstance = null;
+        let playersChartInstance = null;
+
+        const els = {
+            gameTitle: document.getElementById("gameTitle"),
+            heroSubtitle: document.getElementById("heroSubtitle"),
+            heroPills: document.getElementById("heroPills"),
+            steamLink: document.getElementById("steamLink"),
+
+            heroCurrentPrice: document.getElementById("heroCurrentPrice"),
+            heroCurrentPlayers: document.getElementById("heroCurrentPlayers"),
+            heroBestDiscount: document.getElementById("heroBestDiscount"),
+            heroSnapshotCount: document.getElementById("heroSnapshotCount"),
+
+            reviewLabel: document.getElementById("reviewLabel"),
+            reviewCountText: document.getElementById("reviewCountText"),
+            genresPills: document.getElementById("genresPills"),
+            platformsPills: document.getElementById("platformsPills"),
+
+            lowestPrice: document.getElementById("lowestPrice"),
+            peakPlayers: document.getElementById("peakPlayers"),
+            currentDiscount: document.getElementById("currentDiscount"),
+            lastUpdated: document.getElementById("lastUpdated"),
+
+            historyTableBody: document.getElementById("historyTableBody"),
+
+            alertForm: document.getElementById("alertForm"),
+            targetPriceInput: document.getElementById("targetPriceInput"),
+            emailInput: document.getElementById("emailInput"),
+            alertStatus: document.getElementById("alertStatus"),
+
+            priceChartCanvas: document.getElementById("priceChart"),
+            playersChartCanvas: document.getElementById("playersChart")
+        };
+
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        function formatCurrency(value) {
+            if (value === null || value === undefined || Number.isNaN(Number(value))) {
+                return "—";
+            }
+            return `$${Number(value).toFixed(2)}`;
+        }
+
+        function formatNumber(value) {
+            if (value === null || value === undefined || Number.isNaN(Number(value))) {
+                return "—";
+            }
+            return Number(value).toLocaleString();
+        }
+
+        function formatPercent(value) {
+            if (value === null || value === undefined || Number.isNaN(Number(value))) {
+                return "—";
+            }
+            return `${Number(value)}%`;
+        }
+
+        function formatDateTime(value) {
+            if (!value) {
+                return "—";
+            }
+
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return value;
+            }
+
+            return date.toLocaleString();
+        }
+
+        function formatShortDate(value) {
+            if (!value) {
+                return "—";
+            }
+
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return value;
+            }
+
+            return date.toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric"
+            });
+        }
+
+        function renderPills(container, items, fallbackLabel) {
+            const list = Array.isArray(items) && items.length ? items : [fallbackLabel];
+            container.innerHTML = list
+                .map((item) => `<span class="meta-pill">${escapeHtml(item)}</span>`)
+                .join("");
+        }
+
+        function setStatus(message, type = "") {
+            els.alertStatus.textContent = message;
+            els.alertStatus.className = "status" + (type ? ` ${type}` : "");
+        }
+
+        async function fetchJson(path, options = {}) {
+            const response = await fetch(`${API_BASE}${path}`, {
+                headers: {
+                    "Accept": "application/json",
+                    ...(options.body ? { "Content-Type": "application/json" } : {})
+                },
+                ...options
+            });
+
+            const data = await response.json().catch(() => null);
+
+            if (!response.ok) {
+                const detail = data && data.detail ? data.detail : `Request failed (${response.status})`;
+                throw new Error(detail);
+            }
+
+            return data;
+        }
+
+        function buildHero(metadata, latestRow, rows) {
+            els.gameTitle.textContent = metadata.game_name || "Unknown Game";
+            els.heroSubtitle.textContent = "Historical pricing, player snapshots, and reliable overall review data.";
+
+            els.steamLink.href = metadata.store_url || "#";
+            els.steamLink.classList.toggle("hidden", !metadata.store_url);
+
+            const pills = [];
+
+            if (metadata.review_score_label) {
+                pills.push(metadata.review_score_label);
+            }
+
+            if (metadata.review_total_count !== null && metadata.review_total_count !== undefined) {
+                pills.push(`${formatNumber(metadata.review_total_count)} reviews`);
+            }
+
+            if (Array.isArray(metadata.platforms)) {
+                pills.push(...metadata.platforms.slice(0, 3));
+            }
+
+            els.heroPills.innerHTML = pills.length
+                ? pills.map((pill) => `<span class="chip">${escapeHtml(pill)}</span>`).join("")
+                : `<span class="chip">No extra metadata yet</span>`;
+
+            els.heroCurrentPrice.textContent = formatCurrency(latestRow?.price);
+            els.heroCurrentPlayers.textContent = formatNumber(latestRow?.current_players);
+            els.heroBestDiscount.textContent = formatPercent(
+                rows.reduce((max, row) => Math.max(max, Number(row.discount_percent || 0)), 0)
+            );
+            els.heroSnapshotCount.textContent = formatNumber(rows.length);
+        }
+
+        function buildReviewSection(metadata) {
+            els.reviewLabel.textContent = metadata.review_score_label || "No review data";
+            els.reviewCountText.textContent = metadata.review_total_count
+                ? `${formatNumber(metadata.review_total_count)} total reviews tracked`
+                : "No review count available";
+
+            renderPills(els.genresPills, metadata.genres, "No genres");
+            renderPills(els.platformsPills, metadata.platforms, "No platforms");
+        }
+
+        function buildSnapshotCards(latestRow, rows) {
+            const prices = rows
+                .map((row) => row.price)
+                .filter((value) => value !== null && value !== undefined && !Number.isNaN(Number(value)))
+                .map(Number);
+
+            const players = rows
+                .map((row) => row.current_players)
+                .filter((value) => value !== null && value !== undefined && !Number.isNaN(Number(value)))
+                .map(Number);
+
+            els.lowestPrice.textContent = prices.length ? formatCurrency(Math.min(...prices)) : "—";
+            els.peakPlayers.textContent = players.length ? formatNumber(Math.max(...players)) : "—";
+            els.currentDiscount.textContent = formatPercent(latestRow?.discount_percent);
+            els.lastUpdated.textContent = formatDateTime(latestRow?.timestamp);
+        }
+
+        function buildHistoryTable(rows) {
+            if (!rows.length) {
+                els.historyTableBody.innerHTML = `<tr><td colspan="6">No history rows found for this game.</td></tr>`;
+                return;
+            }
+
+            els.historyTableBody.innerHTML = rows
+                .slice()
+                .reverse()
+                .map((row) => `
+                    <tr>
+                        <td>${escapeHtml(formatDateTime(row.timestamp))}</td>
+                        <td class="right">${escapeHtml(formatCurrency(row.price))}</td>
+                        <td class="right">${escapeHtml(formatCurrency(row.original_price))}</td>
+                        <td class="right">${escapeHtml(formatPercent(row.discount_percent))}</td>
+                        <td class="right">${escapeHtml(formatNumber(row.current_players))}</td>
+                        <td>
+                            ${row.store_url
+                                ? `<a href="${escapeHtml(row.store_url)}" target="_blank" rel="noopener noreferrer">Open Steam</a>`
+                                : "—"}
+                        </td>
+                    </tr>
+                `)
+                .join("");
+        }
+
+        function destroyCharts() {
+            if (priceChartInstance) {
+                priceChartInstance.destroy();
+                priceChartInstance = null;
+            }
+
+            if (playersChartInstance) {
+                playersChartInstance.destroy();
+                playersChartInstance = null;
+            }
+        }
+
+        function buildCharts(rows) {
+            destroyCharts();
+
+            const labels = rows.map((row) => formatShortDate(row.timestamp));
+            const priceValues = rows.map((row) => row.price);
+            const originalPriceValues = rows.map((row) => row.original_price);
+            const playerValues = rows.map((row) => row.current_players);
+
+            priceChartInstance = new Chart(els.priceChartCanvas.getContext("2d"), {
+                type: "line",
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: "Current Price",
+                            data: priceValues,
+                            borderWidth: 2,
+                            tension: 0.25
+                        },
+                        {
+                            label: "Original Price",
+                            data: originalPriceValues,
+                            borderWidth: 2,
+                            tension: 0.25
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: "index",
+                        intersect: false
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: (value) => `$${value}`
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: "#eef2ff"
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: ${formatCurrency(context.raw)}`
+                            }
+                        }
+                    }
+                }
+            });
+
+            playersChartInstance = new Chart(els.playersChartCanvas.getContext("2d"), {
+                type: "line",
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: "Current Players",
+                            data: playerValues,
+                            borderWidth: 2,
+                            tension: 0.25
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: "index",
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: "#eef2ff"
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: ${formatNumber(context.raw)}`
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadHistory() {
+            if (!gameName) {
+                renderPageError("No game name was provided in the URL.");
+                return;
+            }
+
+            try {
+                const rows = await fetchJson(`/games/${encodeURIComponent(gameName)}/history`);
+
+                if (!Array.isArray(rows) || rows.length === 0) {
+                    renderPageError("No history data was found for this game yet.");
+                    return;
+                }
+
+                const latestRow = rows[rows.length - 1];
+                const metadata = {
+                    game_name: latestRow.game_name || gameName,
+                    store_url: latestRow.store_url || "",
+                    genres: Array.isArray(latestRow.genres) ? latestRow.genres : [],
+                    tags: Array.isArray(latestRow.tags) ? latestRow.tags : [],
+                    platforms: Array.isArray(latestRow.platforms) ? latestRow.platforms : [],
+                    review_score: latestRow.review_score ?? null,
+                    review_score_label: latestRow.review_score_label || "",
+                    review_total_count: latestRow.review_total_count ?? null
+                };
+
+                buildHero(metadata, latestRow, rows);
+                buildReviewSection(metadata);
+                buildSnapshotCards(latestRow, rows);
+                buildHistoryTable(rows);
+                buildCharts(rows);
+            } catch (error) {
+                console.error(error);
+                renderPageError(error.message || "Failed to load history.");
+            }
+        }
+
+        function renderPageError(message) {
+            els.gameTitle.textContent = "History unavailable";
+            els.heroSubtitle.textContent = message;
+            els.heroPills.innerHTML = `<span class="chip">Load error</span>`;
+
+            const block = `<div class="error-state">${escapeHtml(message)}</div>`;
+
+            document.querySelectorAll(".panel-body").forEach((panelBody) => {
+                if (panelBody.querySelector("canvas") || panelBody.querySelector("table") || panelBody.querySelector("form")) {
+                    return;
+                }
+            });
+
+            els.reviewLabel.textContent = "Unavailable";
+            els.reviewCountText.textContent = message;
+            els.genresPills.innerHTML = `<span class="meta-pill">No data</span>`;
+            els.platformsPills.innerHTML = `<span class="meta-pill">No data</span>`;
+            els.historyTableBody.innerHTML = `<tr><td colspan="6">${escapeHtml(message)}</td></tr>`;
+
+            destroyCharts();
+        }
+
+        async function handleAlertSubmit(event) {
+            event.preventDefault();
+            setStatus("");
+
+            if (!gameName) {
+                setStatus("No game selected for alerts.", "error");
+                return;
+            }
+
+            const targetPrice = Number(els.targetPriceInput.value);
+            const email = els.emailInput.value.trim();
+
+            if (Number.isNaN(targetPrice) || targetPrice < 0) {
+                setStatus("Enter a valid target price.", "error");
+                return;
+            }
+
+            if (!email) {
+                setStatus("Enter an email address.", "error");
+                return;
+            }
+
+            try {
+                await fetchJson("/alerts", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        game_name: gameName,
+                        target_price: targetPrice,
+                        email
+                    })
+                });
+
+                setStatus("Price alert created successfully.", "success");
+                els.alertForm.reset();
+            } catch (error) {
+                console.error(error);
+                setStatus(error.message || "Failed to create alert.", "error");
+            }
+        }
+
+        els.alertForm.addEventListener("submit", handleAlertSubmit);
+        loadHistory();
+    </script>
+</body>
+</html>

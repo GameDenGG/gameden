@@ -4,3 +4,4 @@ logs/
 *.pyc
 .env
 games.db
+.idea/

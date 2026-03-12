@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: gameden-web
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    plan: free
+    autoDeploy: true
+
+  - type: worker
+    name: gameden-ingestion
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m jobs.run_price_ingestion_loop
+    plan: free
+
+  - type: worker
+    name: gameden-snapshots
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m jobs.refresh_snapshots
+    plan: free
+
+databases:
+  - name: gameden-db
+    databaseName: gameden
+    user: gameden

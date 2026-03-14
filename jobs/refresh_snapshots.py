@@ -50,6 +50,7 @@ from config import (
     SNAPSHOT_SALE_EVENTS_MAX,
     SNAPSHOT_SPARKLINE_POINTS,
     SNAPSHOT_UPCOMING_LIMIT,
+    validate_settings,
 )
 from database import direct_engine
 from database.job_status import normalize_counter_triplet
@@ -2716,6 +2717,7 @@ def get_dirty_games_backlog(session: Session) -> int:
 
 
 def run_once() -> None:
+    validate_settings()
     assert_scale_schema_ready(direct_engine, component_name="refresh_snapshots worker (--once)")
     print(
         "refresh_snapshots single-run started "
@@ -2779,6 +2781,7 @@ def run_once() -> None:
 
 
 def run_worker_forever() -> None:
+    validate_settings()
     assert_scale_schema_ready(direct_engine, component_name="refresh_snapshots worker")
     print(
         "refresh_snapshots worker started "

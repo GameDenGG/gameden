@@ -106,6 +106,11 @@ Example:
 
 `postgresql://postgres:PASSWORD@localhost:5432/newworld`
 
+`REQUIRE_DATABASE_URL`
+
+Optional safety switch. When `true`, startup fails if `DATABASE_URL` is not set from environment.
+This is recommended for deployed runtimes.
+
 `STEAM_API_KEY`
 
 Used by seed scripts and ingestion.

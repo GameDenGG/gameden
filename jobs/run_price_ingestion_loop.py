@@ -9,6 +9,7 @@ from config import (
     INGESTION_MIN_DELAY_SECONDS,
     INGESTION_SHARD_INDEX,
     INGESTION_SHARD_TOTAL,
+    validate_settings,
 )
 from database import direct_engine
 from database.schema_guard import assert_scale_schema_ready
@@ -19,6 +20,7 @@ INTERVAL_SECONDS = INGESTION_LOOP_INTERVAL_SECONDS
 
 
 def run_loop() -> None:
+    validate_settings()
     assert_scale_schema_ready(direct_engine, component_name="price ingestion scheduler")
     print(
         "price ingestion scheduler started "

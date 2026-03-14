@@ -2,6 +2,7 @@ from sqlalchemy import text
 
 from database import direct_engine
 from database.models import Base
+from database.schema_guard import validate_scale_schema
 
 
 POSTGRES_SQL = [
@@ -652,6 +653,14 @@ def setup_database() -> None:
         run_sql_statements(POSTGRES_SQL, dialect)
     else:
         run_sql_statements(SQLITE_SQL, dialect)
+
+    report = validate_scale_schema(direct_engine)
+    if not report.is_ready:
+        raise RuntimeError(
+            "Database setup finished but required scale schema is still incomplete. "
+            f"details={report.to_dict()}"
+        )
+    print(f"Scale schema readiness OK for dialect={report.dialect}.")
 
     print("Database setup complete!")
 

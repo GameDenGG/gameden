@@ -37,9 +37,11 @@ from config import (
     SITE_HOST,
     SITE_NAME,
     SITE_URL,
+    validate_settings,
 )
-from database import ReadSessionLocal
+from database import ReadSessionLocal, direct_engine
 from database.dirty_games import mark_game_dirty
+from database.schema_guard import assert_scale_schema_ready
 from database.models import (
     DealWatchlist,
     Alert,
@@ -64,6 +66,8 @@ from logger_config import setup_logger
 
 logger = setup_logger("api")
 
+validate_settings()
+
 app = FastAPI(title=f"{SITE_NAME} API", description=SITE_DESCRIPTION)
 
 ALLOW_ALL_CORS = CORS_ALLOW_ALL_ORIGINS or "*" in CORS_ALLOW_ORIGINS
@@ -79,6 +83,24 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 app.mount("/web", StaticFiles(directory="web"), name="web")
 if Path("public").exists():
     app.mount("/public", StaticFiles(directory="public"), name="public")
+
+
+@app.on_event("startup")
+async def startup_guardrails() -> None:
+    assert_scale_schema_ready(direct_engine, component_name="api server")
+    logger.info(
+        "api startup ready "
+        "cache_stale_minutes=%s default_user_id=%s page_size_default=%s page_size_max=%s "
+        "list_limit_default=%s list_limit_max=%s history_points_default=%s history_points_max=%s",
+        API_DASHBOARD_CACHE_STALE_MINUTES,
+        API_DEFAULT_USER_ID,
+        API_DEFAULT_PAGE_SIZE,
+        API_MAX_PAGE_SIZE,
+        API_DEFAULT_LIST_LIMIT,
+        API_MAX_LIST_LIMIT,
+        API_DEFAULT_HISTORY_POINTS,
+        API_MAX_HISTORY_POINTS,
+    )
 
 PRIMARY_DASHBOARD_CACHE_KEY = "home_v1"
 LEGACY_DASHBOARD_CACHE_KEYS = ("home",)

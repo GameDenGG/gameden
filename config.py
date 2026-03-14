@@ -76,6 +76,11 @@ _DEFAULT_SITE_DESCRIPTION = (
 _ENV_DATABASE_URL = os.getenv("DATABASE_URL")
 DATABASE_URL = _ENV_DATABASE_URL or _DEFAULT_DATABASE_URL
 DATABASE_URL_SOURCE = "environment" if _ENV_DATABASE_URL else "local_fallback"
+IS_DEPLOYED_RUNTIME = any(
+    bool(os.getenv(env_name))
+    for env_name in ("RENDER", "RENDER_SERVICE_ID", "RENDER_EXTERNAL_URL")
+)
+REQUIRE_DATABASE_URL = get_bool(os.getenv("REQUIRE_DATABASE_URL"), IS_DEPLOYED_RUNTIME)
 
 # Keep compatibility with existing engine/session split.
 DATABASE_URL_POOLED = DATABASE_URL
@@ -402,8 +407,63 @@ SNAPSHOT_DEAL_RADAR_BIG_DROP_MIN_PCT = max(
 def validate_settings() -> None:
     errors: list[str] = []
 
+    def validate_optional_int_env(
+        primary_name: str,
+        *alias_names: str,
+        minimum: int | None = None,
+        maximum: int | None = None,
+    ) -> None:
+        raw_value = get_env_with_alias(primary_name, *alias_names)
+        if raw_value is None:
+            return
+        try:
+            parsed = int(str(raw_value).strip())
+        except ValueError:
+            aliases = ", ".join((primary_name, *alias_names))
+            errors.append(f"{aliases} must be an integer (got {raw_value!r}).")
+            return
+
+        if minimum is not None and parsed < minimum:
+            errors.append(f"{primary_name} must be >= {minimum} (got {parsed}).")
+        if maximum is not None and parsed > maximum:
+            errors.append(f"{primary_name} must be <= {maximum} (got {parsed}).")
+
+    def validate_optional_float_env(
+        primary_name: str,
+        *alias_names: str,
+        minimum: float | None = None,
+        maximum: float | None = None,
+    ) -> None:
+        raw_value = get_env_with_alias(primary_name, *alias_names)
+        if raw_value is None:
+            return
+        try:
+            parsed = float(str(raw_value).strip())
+        except ValueError:
+            aliases = ", ".join((primary_name, *alias_names))
+            errors.append(f"{aliases} must be a number (got {raw_value!r}).")
+            return
+
+        if minimum is not None and parsed < minimum:
+            errors.append(f"{primary_name} must be >= {minimum} (got {parsed}).")
+        if maximum is not None and parsed > maximum:
+            errors.append(f"{primary_name} must be <= {maximum} (got {parsed}).")
+
     if not DATABASE_URL:
         errors.append("DATABASE_URL is missing.")
+    elif REQUIRE_DATABASE_URL and DATABASE_URL_SOURCE != "environment":
+        errors.append(
+            "DATABASE_URL must be set from environment for this runtime "
+            "(set DATABASE_URL or unset REQUIRE_DATABASE_URL)."
+        )
+
+    parsed_database_url = urlsplit(DATABASE_URL)
+    if not parsed_database_url.scheme:
+        errors.append("DATABASE_URL must include a URL scheme (for example postgresql://...).")
+    elif parsed_database_url.scheme.startswith("postgres") and not parsed_database_url.hostname:
+        errors.append("DATABASE_URL postgres URL must include a hostname.")
+    elif parsed_database_url.scheme == "sqlite" and not parsed_database_url.path:
+        errors.append("DATABASE_URL sqlite URL must include a database path.")
 
     parsed_site_url = urlsplit(SITE_URL)
     if not parsed_site_url.scheme or not parsed_site_url.netloc:
@@ -425,6 +485,48 @@ def validate_settings() -> None:
 
     if EMAIL_PASSWORD and not EMAIL_USER:
         errors.append("EMAIL_USER is missing but EMAIL_PASSWORD is set.")
+
+    validate_optional_int_env("TRACK_GAMES_PER_RUN", "INGESTION_BATCH_SIZE", minimum=1)
+    validate_optional_int_env("TRACK_GAMES_PER_RUN_LIMIT", "INGESTION_BATCH_SIZE_LIMIT", minimum=1)
+    validate_optional_float_env("TRACK_MIN_DELAY_SECONDS", minimum=0.0)
+    validate_optional_float_env("TRACK_MAX_DELAY_SECONDS", minimum=0.0)
+    validate_optional_int_env("TRACK_REQUEST_RETRIES", minimum=0)
+    validate_optional_int_env("TRACK_SHARD_TOTAL", minimum=1)
+    validate_optional_int_env("TRACK_SHARD_INDEX", minimum=0)
+    validate_optional_int_env("INGESTION_LOOP_INTERVAL_SECONDS", minimum=5)
+
+    validate_optional_int_env("SNAPSHOT_BATCH_SIZE", minimum=1)
+    validate_optional_int_env("SNAPSHOT_MAX_BATCH_SIZE", minimum=1)
+    validate_optional_int_env("DIRTY_QUEUE_FETCH_SIZE", minimum=1)
+    validate_optional_int_env("SNAPSHOT_CACHE_REBUILD_EVERY_BATCHES", minimum=1)
+    validate_optional_float_env("SNAPSHOT_RETRY_BACKOFF_BASE_SECONDS", minimum=1.0)
+    validate_optional_float_env("SNAPSHOT_RETRY_BACKOFF_MAX_SECONDS", minimum=1.0)
+    validate_optional_int_env("SNAPSHOT_RETRY_BACKOFF_EXPONENT_CAP", minimum=1)
+
+    validate_optional_int_env("API_DEFAULT_PAGE_SIZE", "DEFAULT_PAGE_SIZE", minimum=1)
+    validate_optional_int_env("API_MAX_PAGE_SIZE", "MAX_PAGE_SIZE", minimum=1)
+    validate_optional_int_env("API_DEFAULT_LIST_LIMIT", "DEFAULT_LIST_LIMIT", minimum=1)
+    validate_optional_int_env("API_MAX_LIST_LIMIT", "MAX_LIST_LIMIT", minimum=1)
+    validate_optional_int_env("API_DEFAULT_HISTORY_POINTS", "DEFAULT_HISTORY_POINTS", minimum=1)
+    validate_optional_int_env("API_MAX_HISTORY_POINTS", "MAX_HISTORY_POINTS", minimum=1)
+    validate_optional_float_env("API_SEARCH_SIMILARITY_THRESHOLD", "SEARCH_SIMILARITY_THRESHOLD", minimum=0.0, maximum=1.0)
+
+    if INGESTION_MAX_DELAY_SECONDS < INGESTION_MIN_DELAY_SECONDS:
+        errors.append(
+            "TRACK_MAX_DELAY_SECONDS must be greater than or equal to TRACK_MIN_DELAY_SECONDS."
+        )
+    if INGESTION_SHARD_INDEX >= INGESTION_SHARD_TOTAL:
+        errors.append(
+            "TRACK_SHARD_INDEX must be less than TRACK_SHARD_TOTAL."
+        )
+    if API_MAX_PAGE_SIZE < API_DEFAULT_PAGE_SIZE:
+        errors.append("API_MAX_PAGE_SIZE must be >= API_DEFAULT_PAGE_SIZE.")
+    if API_MAX_LIST_LIMIT < API_DEFAULT_LIST_LIMIT:
+        errors.append("API_MAX_LIST_LIMIT must be >= API_DEFAULT_LIST_LIMIT.")
+    if API_MAX_HISTORY_POINTS < API_DEFAULT_HISTORY_POINTS:
+        errors.append("API_MAX_HISTORY_POINTS must be >= API_DEFAULT_HISTORY_POINTS.")
+    if SNAPSHOT_MAX_BATCH_SIZE < SNAPSHOT_BATCH_SIZE:
+        errors.append("SNAPSHOT_MAX_BATCH_SIZE must be >= SNAPSHOT_BATCH_SIZE.")
 
     if errors:
         joined = "\n".join(f"- {error}" for error in errors)

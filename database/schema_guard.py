@@ -52,6 +52,9 @@ REQUIRED_SCALE_COLUMNS: dict[str, set[str]] = {
         "game_name",
         "latest_price",
         "latest_discount_percent",
+        "buy_recommendation",
+        "buy_reason",
+        "price_vs_low_ratio",
         "deal_score",
         "worth_buying_score",
         "momentum_score",
@@ -271,5 +274,5 @@ def assert_scale_schema_ready(engine: Engine, *, component_name: str) -> SchemaR
     detail_text = "; ".join(details) if details else "unknown schema mismatch"
     raise RuntimeError(
         f"{component_name} cannot start because required scale schema is missing ({detail_text}). "
-        "Run: python setup_database.py"
+        "Run: python setup_database.py (or apply migrations with: alembic upgrade head)."
     )

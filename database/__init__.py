@@ -12,7 +12,15 @@ from config import (
 
 
 def _build_engine(url: str):
-    return create_engine(url, **SQLALCHEMY_ENGINE_OPTIONS)
+    if not str(url or "").strip():
+        raise RuntimeError("Database URL is empty. Set DATABASE_URL before starting GameDen.")
+    try:
+        return create_engine(url, **SQLALCHEMY_ENGINE_OPTIONS)
+    except Exception as exc:
+        raise RuntimeError(
+            "Failed to initialize SQLAlchemy engine from configured database URL. "
+            "Verify DATABASE_URL and database connectivity."
+        ) from exc
 
 
 def _log_database_target(url: str) -> None:

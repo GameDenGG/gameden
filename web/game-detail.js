@@ -24,6 +24,9 @@ function escapeHtml(value) {
 }
 
 async function fetchJson(url) {
+  if (!window.GameDenSite || typeof window.GameDenSite.fetchJson !== "function") {
+    throw new Error("GameDen runtime is not initialized. Ensure /site-branding.js loads before page scripts.");
+  }
   return window.GameDenSite.fetchJson(url);
 }
 

@@ -25,6 +25,11 @@ target_metadata = Base.metadata
 env_database_url = os.getenv("DATABASE_URL")
 if env_database_url:
     config.set_main_option("sqlalchemy.url", env_database_url.replace("%", "%%"))
+elif not config.get_main_option("sqlalchemy.url"):
+    raise RuntimeError(
+        "Alembic database URL is not configured. "
+        "Set DATABASE_URL or sqlalchemy.url in alembic.ini."
+    )
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

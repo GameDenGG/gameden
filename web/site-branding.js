@@ -64,6 +64,17 @@
     "/deal-watchlists/",
     "/notifications/",
   ];
+  const warnedKeys = new Set();
+
+  function warnOnce(key, message) {
+    if (warnedKeys.has(key)) {
+      return;
+    }
+    warnedKeys.add(key);
+    if (typeof console !== "undefined" && typeof console.warn === "function") {
+      console.warn(`[GameDenSite] ${message}`);
+    }
+  }
 
   function normalizeSiteUrl(rawValue) {
     const value = String(rawValue || "").trim() || fallbackConfig.site_url;
@@ -107,11 +118,6 @@
       return value;
     }
 
-    const apiBase = String(siteConfig.api_base || "").trim().replace(/\/+$/, "");
-    if (!apiBase) {
-      return value;
-    }
-
     const match = value.match(/^([^?#]*)([?#].*)?$/);
     const rawPath = match ? match[1] : value;
     const suffix = match && match[2] ? match[2] : "";
@@ -138,6 +144,15 @@
       API_PATH_PREFIXES.some((prefix) => normalizedLower.startsWith(prefix));
 
     if (!isApiRoute) {
+      return value;
+    }
+
+    const apiBase = String(siteConfig.api_base || "").trim().replace(/\/+$/, "");
+    if (!apiBase) {
+      warnOnce(
+        "missing_api_base",
+        `api_base is not configured. API route "${normalizedPath}" will use page origin.`,
+      );
       return value;
     }
 
@@ -174,17 +189,28 @@
 
   async function fetchJson(url, options = {}) {
     const requestUrl = resolveApiUrl(url);
-    const response = await fetch(requestUrl, options);
+    let response;
+    try {
+      response = await fetch(requestUrl, options);
+    } catch (networkError) {
+      const error = new Error(`Network request failed for ${url} (${requestUrl})`);
+      error.url = url;
+      error.requestUrl = requestUrl;
+      error.cause = networkError;
+      throw error;
+    }
+
     if (response.status === 204) return null;
 
     const rawBody = await response.text();
     const parsed = _parseJsonBody(rawBody, url, response.status, response.ok);
 
     if (!response.ok) {
-      const fallbackMessage = `Failed to load ${url}: ${response.status}`;
+      const fallbackMessage = `Failed to load ${url} (${requestUrl}): ${response.status}`;
       const error = new Error(_extractErrorDetail(parsed.payload, parsed.rawBody, fallbackMessage));
       error.status = response.status;
       error.url = url;
+      error.requestUrl = requestUrl;
       throw error;
     }
 

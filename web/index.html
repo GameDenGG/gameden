@@ -6299,14 +6299,80 @@ input:focus-visible {
 
         async function loadDashboardData() {
             const releasedParams = buildReleasedCatalogParams({ page: 1, pageSize: CATALOG_PAGE_SIZE });
-            const [dashboardData, seasonalData, releasedData, dealRadarData] = await Promise.all([
-                fetchJson("/dashboard/home"),
-                fetchJson("/sales/seasonal-summary?limit=24").catch(() => ({ sale_event: null, expected_games: [], mode: "potential_sale" })),
-                fetchJson(`/games/released?${releasedParams.toString()}`).catch(() => ({ items: [] })),
-                fetchJson("/api/market-radar?limit=50")
-                    .catch(() => fetchJson("/api/deal-radar?limit=50"))
-                    .catch(() => ({ items: [] })),
-            ]);
+            const emptySeasonal = { sale_event: null, expected_games: [], mode: "potential_sale" };
+            const emptyReleased = { items: [] };
+            const emptyDealRadar = { items: [] };
+
+            let dashboardData = null;
+            let seasonalData = emptySeasonal;
+            let releasedData = emptyReleased;
+            let dealRadarData = emptyDealRadar;
+
+            try {
+                dashboardData = await fetchJson("/dashboard/home");
+
+                const dashboardSeasonal = normalizeSeasonalPayload(
+                    dashboardData?.seasonalSale || dashboardData?.seasonal_summary || null
+                );
+                seasonalData = (dashboardSeasonal.sale_event || safeArray(dashboardSeasonal.expected_games).length)
+                    ? dashboardSeasonal
+                    : await fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal);
+
+                const dashboardReleasedSeed = uniqueGamesByName([
+                    ...safeArray(dashboardData?.releasedGames),
+                    ...safeArray(dashboardData?.released),
+                    ...safeArray(dashboardData?.dealRanked),
+                    ...safeArray(dashboardData?.worthBuyingNow),
+                    ...safeArray(dashboardData?.biggestDeals),
+                    ...safeArray(dashboardData?.topReviewed),
+                    ...safeArray(dashboardData?.trendingDeals),
+                    ...safeArray(dashboardData?.topPlayed),
+                    ...safeArray(dashboardData?.historicalLows),
+                    ...safeArray(dashboardData?.upcoming),
+                ]);
+                releasedData = dashboardReleasedSeed.length
+                    ? { items: dashboardReleasedSeed }
+                    : await fetchJson(`/games/released?${releasedParams.toString()}`).catch(() => emptyReleased);
+
+                const dashboardDealRadarSeed = safeArray(dashboardData?.marketRadar).length
+                    ? safeArray(dashboardData?.marketRadar)
+                    : safeArray(dashboardData?.dealRadar);
+                dealRadarData = dashboardDealRadarSeed.length
+                    ? { items: dashboardDealRadarSeed }
+                    : await fetchJson("/api/market-radar?limit=50")
+                        .catch(() => fetchJson("/api/deal-radar?limit=50"))
+                        .catch(() => emptyDealRadar);
+            } catch (dashboardError) {
+                console.warn("Failed to load /dashboard/home, using endpoint fallbacks", dashboardError);
+                dashboardData = {
+                    catalogSummary: {},
+                    recommendedDeals: [],
+                    worthBuyingNow: [],
+                    topDealsToday: [],
+                    dealRanked: [],
+                    biggestDeals: [],
+                    historicalLows: [],
+                    trendingDeals: [],
+                    newHistoricalLows: [],
+                    topReviewed: [],
+                    mostPlayedDeals: [],
+                    topPlayed: [],
+                    trending: [],
+                    leaderboard: [],
+                    upcoming: [],
+                    filters: {},
+                    alertSignals: [],
+                    dealRadar: [],
+                    marketRadar: [],
+                };
+                [seasonalData, releasedData, dealRadarData] = await Promise.all([
+                    fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal),
+                    fetchJson(`/games/released?${releasedParams.toString()}`).catch(() => emptyReleased),
+                    fetchJson("/api/market-radar?limit=50")
+                        .catch(() => fetchJson("/api/deal-radar?limit=50"))
+                        .catch(() => emptyDealRadar),
+                ]);
+            }
             hydrateDashboardState(dashboardData, seasonalData, releasedData, dealRadarData);
             seedCatalogFromPayload(releasedData);
             await Promise.all([
@@ -6442,6 +6508,8 @@ input:focus-visible {
                 });
             }
             await loadUserWishlist();
+            renderWishlist();
+            renderWatchlist();
 
             applyAllRenders();
         }

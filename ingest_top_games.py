@@ -17,8 +17,8 @@ HEADERS = {
     "User-Agent": STEAM_USER_AGENT
 }
 
-RELEASED_TARGET = 200
-UPCOMING_TARGET = 50
+RELEASED_TARGET = 50000
+UPCOMING_TARGET = 5000
 
 
 def extract_apps_from_search_html(html: str) -> List[Dict[str, str]]:
@@ -224,10 +224,9 @@ def collect_released_games(target: int = RELEASED_TARGET) -> List[Dict[str, str]
         "https://store.steampowered.com/search/?filter=topsellers",
     ]
 
-    max_pages_per_source = 20
-
     for base_url in sources:
-        for page in range(1, max_pages_per_source + 1):
+        page = 1
+        while True:
             if len(released_games) >= target:
                 break
 
@@ -266,6 +265,7 @@ def collect_released_games(target: int = RELEASED_TARGET) -> List[Dict[str, str]
                         break
 
             time.sleep(random.uniform(3, 6))
+            page += 1
 
     return released_games[:target]
 
@@ -278,10 +278,9 @@ def collect_upcoming_games(target: int = UPCOMING_TARGET) -> List[Dict[str, str]
         "https://store.steampowered.com/search/?filter=popularwishlist",
     ]
 
-    max_pages_per_source = 20
-
     for base_url in sources:
-        for page in range(1, max_pages_per_source + 1):
+        page = 1
+        while True:
             if len(upcoming_games) >= target:
                 break
 
@@ -320,6 +319,7 @@ def collect_upcoming_games(target: int = UPCOMING_TARGET) -> List[Dict[str, str]
                         break
 
             time.sleep(random.uniform(3, 6))
+            page += 1
 
     return upcoming_games[:target]
 

@@ -2578,9 +2578,10 @@ input:focus-visible {
         });
 
         const WATCHLIST_STORAGE_KEY = "gameden.user_id";
+        const DEFAULT_USER_ID = "legacy-user";
 
         function getCurrentUserId() {
-            const fallback = "legacy-user";
+            const fallback = DEFAULT_USER_ID;
             try {
                 const stored = String(localStorage.getItem(WATCHLIST_STORAGE_KEY) || "").trim();
                 if (stored) return stored;
@@ -2592,6 +2593,16 @@ input:focus-visible {
         }
 
         const CURRENT_USER_ID = getCurrentUserId();
+
+        function isDefaultOrAnonymousUserId(userId) {
+            const normalized = String(userId || "").trim().toLowerCase();
+            if (!normalized) return true;
+            return (
+                normalized === String(DEFAULT_USER_ID).toLowerCase()
+                || normalized === "anonymous"
+                || normalized === "guest"
+            );
+        }
 
         function setNodeText(id, value) {
             const el = document.getElementById(id);
@@ -3852,10 +3863,36 @@ input:focus-visible {
         }
 
 
-        function isInWishlist(gameName) {
-            return state.wishlist.some(
-                (item) => String(item.game_name).toLowerCase() === String(gameName).toLowerCase()
-            );
+        function normalizeWishlistTarget(gameOrName, gameId = null) {
+            if (gameOrName && typeof gameOrName === "object") {
+                const normalized = normalizeGameRow(gameOrName);
+                const resolvedGameId = Number(normalized.game_id);
+                return {
+                    game_name: String(normalized.game_name || "").trim(),
+                    game_id: Number.isFinite(resolvedGameId) && resolvedGameId > 0 ? resolvedGameId : null,
+                };
+            }
+            const parsedGameId = Number(gameId);
+            return {
+                game_name: String(gameOrName || "").trim(),
+                game_id: Number.isFinite(parsedGameId) && parsedGameId > 0 ? parsedGameId : null,
+            };
+        }
+
+        function isInWishlist(gameOrName, gameId = null) {
+            const target = normalizeWishlistTarget(gameOrName, gameId);
+            return state.wishlist.some((item) => {
+                const normalizedItem = normalizeGameRow(item);
+                const itemGameId = Number(normalizedItem.game_id);
+                if (
+                    target.game_id !== null
+                    && Number.isFinite(itemGameId)
+                    && itemGameId > 0
+                ) {
+                    return itemGameId === target.game_id;
+                }
+                return String(normalizedItem.game_name || "").toLowerCase() === String(target.game_name || "").toLowerCase();
+            });
         }
 
         function normalizeWatchTarget(gameOrName, gameId) {
@@ -3910,14 +3947,14 @@ input:focus-visible {
         }
 
         function buildActionButtons(game) {
-            const wishlistActive = isInWishlist(game.game_name);
-            const watchlistActive = isInWatchlist(game);
             const resolvedGameId = Number(game.game_id ?? game.id);
             const gameIdAttr = Number.isFinite(resolvedGameId) && resolvedGameId > 0 ? ` data-game-id="${resolvedGameId}"` : "";
+            const wishlistActive = isInWishlist(game.game_name, Number.isFinite(resolvedGameId) && resolvedGameId > 0 ? resolvedGameId : null);
+            const watchlistActive = isInWatchlist(game);
 
             return `
                 <div class="card-action-row">
-                    <button class="card-action-btn ${wishlistActive ? "active" : ""}" type="button" aria-pressed="${wishlistActive}" data-action="wishlist" data-game-name="${escapeHtml(game.game_name || "")}">
+                    <button class="card-action-btn ${wishlistActive ? "active" : ""}" type="button" aria-pressed="${wishlistActive}" data-action="wishlist" data-game-name="${escapeHtml(game.game_name || "")}"${gameIdAttr}>
                         ${wishlistActive ? "💜 Wishlisted" : "💜 Add to Wishlist"}
                     </button>
                     <button class="card-action-btn watch ${watchlistActive ? "active" : ""}" type="button" aria-pressed="${watchlistActive}" data-action="watchlist" data-game-name="${escapeHtml(game.game_name || "")}"${gameIdAttr}>
@@ -5776,9 +5813,37 @@ input:focus-visible {
         async function fetchJson(url, options = {}) {
             const requestUrl = window.GameDenSite?.resolveApiUrl ? window.GameDenSite.resolveApiUrl(url) : url;
             const res = await fetch(requestUrl, options);
-            if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
             if (res.status === 204) return null;
-            return await res.json();
+
+            const rawBody = await res.text();
+            const body = String(rawBody || "");
+            const hasBody = body.trim().length > 0;
+
+            let payload = null;
+            if (hasBody) {
+                try {
+                    payload = JSON.parse(body);
+                } catch (_error) {
+                    if (res.ok) {
+                        const parseError = new Error(`Invalid JSON response for ${url}`);
+                        parseError.status = res.status;
+                        parseError.url = url;
+                        throw parseError;
+                    }
+                }
+            }
+
+            if (!res.ok) {
+                const detail = payload && typeof payload === "object"
+                    ? payload.detail || payload.error || payload.message
+                    : null;
+                const error = new Error(detail || `Failed to load ${url}: ${res.status}`);
+                error.status = res.status;
+                error.url = url;
+                throw error;
+            }
+
+            return hasBody ? payload : null;
         }
 
         function isAbortLikeError(error) {
@@ -6310,6 +6375,11 @@ input:focus-visible {
                 state.wishlist = items;
                 return items;
             } catch (error) {
+                if (Number(error?.status) === 404 && isDefaultOrAnonymousUserId(CURRENT_USER_ID)) {
+                    state.wishlist = [];
+                    state.personalListStatus.wishlistError = null;
+                    return [];
+                }
                 state.wishlist = [];
                 state.personalListStatus.wishlistError = error;
                 throw error;
@@ -6318,36 +6388,37 @@ input:focus-visible {
             }
         }
 
-        function resolveWishlistGameId(gameName) {
-            const targetName = String(gameName || "").trim().toLowerCase();
-            if (!targetName) return null;
-            const match = uniqueGamesByIdentity([
-                ...safeArray(state.allGames),
-                ...safeArray(state.latestPrices),
-                ...safeArray(state.dealRanked),
-                ...safeArray(state.worthBuyingNow),
-                ...safeArray(state.discoveryTrending),
-                ...safeArray(state.wishlist),
-                ...safeArray(state.watchlist),
-            ]).find((row) => String(row.game_name || "").trim().toLowerCase() === targetName);
-            if (!match) return null;
-            const gameId = Number(normalizeGameRow(match).game_id);
-            return Number.isFinite(gameId) && gameId > 0 ? gameId : null;
-        }
-
-        async function toggleWishlist(gameName) {
-            const gameId = resolveWishlistGameId(gameName);
-            if (gameId === null) {
+        async function toggleWishlist(gameOrName, gameId = null) {
+            const target = normalizeWishlistTarget(gameOrName, gameId);
+            if (target.game_id === null && target.game_name) {
+                const fallback = uniqueGamesByName([
+                    ...state.allGames,
+                    ...state.latestPrices,
+                    ...state.dealRanked,
+                    ...state.worthBuyingNow,
+                    ...state.discoveryTrending,
+                    ...state.wishlist,
+                    ...state.watchlist,
+                ]).find((row) => String(row.game_name || "").toLowerCase() === target.game_name.toLowerCase());
+                if (fallback) {
+                    const normalizedFallback = normalizeGameRow(fallback);
+                    const fallbackGameId = Number(normalizedFallback.game_id);
+                    if (Number.isFinite(fallbackGameId) && fallbackGameId > 0) {
+                        target.game_id = fallbackGameId;
+                    }
+                }
+            }
+            if (target.game_id === null) {
                 throw new Error("Wishlist actions require game_id");
             }
-            const inWishlist = isInWishlist(gameName);
+            const inWishlist = isInWishlist(target.game_name, target.game_id);
             const endpoint = inWishlist ? "/wishlist/remove" : "/wishlist/add";
             await fetchJson(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     user_id: CURRENT_USER_ID,
-                    game_id: gameId,
+                    game_id: target.game_id,
                 }),
             });
             await loadUserWishlist();
@@ -6448,7 +6519,7 @@ input:focus-visible {
 
                 try {
                     if (action === "wishlist") {
-                        await toggleWishlist(gameName);
+                        await toggleWishlist(gameName, Number.isFinite(gameId) && gameId > 0 ? gameId : null);
                         return;
                     }
                     if (action === "watchlist") {

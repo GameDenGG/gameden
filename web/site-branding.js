@@ -131,6 +131,7 @@
       "/games/",
       "/deals/",
       "/leaderboards/",
+      "/wishlist/",
       "/deal-watchlists/",
       "/notifications/",
     ];

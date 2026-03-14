@@ -2,51 +2,39 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 
-def mark_game_dirty(session: Session, game_id: int, reason: str | None = None) -> None:
+def _db_now_expression(session: Session) -> str:
     if session.bind and session.bind.dialect.name == "postgresql":
-        sql = """
-            INSERT INTO dirty_games (
-                game_id,
-                reason,
-                first_seen_at,
-                last_seen_at,
-                updated_at,
-                retry_count,
-                next_attempt_at
-            )
-            VALUES (:game_id, :reason, now(), now(), now(), 0, now())
-            ON CONFLICT (game_id) DO UPDATE SET
-                reason = COALESCE(EXCLUDED.reason, dirty_games.reason),
-                last_seen_at = now(),
-                updated_at = now(),
-                next_attempt_at = now()
-        """
-    else:
-        sql = """
-            INSERT INTO dirty_games (
-                game_id,
-                reason,
-                first_seen_at,
-                last_seen_at,
-                updated_at,
-                retry_count,
-                next_attempt_at
-            )
-            VALUES (
-                :game_id,
-                :reason,
-                CURRENT_TIMESTAMP,
-                CURRENT_TIMESTAMP,
-                CURRENT_TIMESTAMP,
-                0,
-                CURRENT_TIMESTAMP
-            )
-            ON CONFLICT(game_id) DO UPDATE SET
-                reason = COALESCE(excluded.reason, dirty_games.reason),
-                last_seen_at = CURRENT_TIMESTAMP,
-                updated_at = CURRENT_TIMESTAMP,
-                next_attempt_at = CURRENT_TIMESTAMP
-        """
+        return "now()"
+    return "CURRENT_TIMESTAMP"
+
+
+def mark_game_dirty(session: Session, game_id: int, reason: str | None = None) -> None:
+    now_expression = _db_now_expression(session)
+    sql = f"""
+        INSERT INTO dirty_games (
+            game_id,
+            reason,
+            first_seen_at,
+            last_seen_at,
+            updated_at,
+            retry_count,
+            next_attempt_at
+        )
+        VALUES (
+            :game_id,
+            :reason,
+            {now_expression},
+            {now_expression},
+            {now_expression},
+            0,
+            {now_expression}
+        )
+        ON CONFLICT (game_id) DO UPDATE SET
+            reason = COALESCE(EXCLUDED.reason, dirty_games.reason),
+            last_seen_at = {now_expression},
+            updated_at = {now_expression},
+            next_attempt_at = {now_expression}
+    """
 
     session.execute(text(sql), {"game_id": int(game_id), "reason": reason})
 

@@ -71,7 +71,9 @@ app.mount("/web", StaticFiles(directory="web"), name="web")
 if Path("public").exists():
     app.mount("/public", StaticFiles(directory="public"), name="public")
 
-DASHBOARD_CACHE_KEY = "home"
+PRIMARY_DASHBOARD_CACHE_KEY = "home_v1"
+LEGACY_DASHBOARD_CACHE_KEYS = ("home",)
+DASHBOARD_CACHE_STALE_AFTER = datetime.timedelta(minutes=20)
 DEAL_RADAR_CACHE_KEY = "home:deal_radar"
 DEFAULT_USER_ID = "legacy-user"
 SITEMAP_PATHS = (
@@ -88,6 +90,11 @@ SITEMAP_PATHS = (
 )
 EXTENDED_PLATFORM_FILTER_OPTIONS = ("Steam Deck", "VR Compatibility")
 SEARCH_SIMILARITY_THRESHOLD = 0.18
+HISTORY_RANGE_DAYS: dict[str, int] = {
+    "30d": 30,
+    "90d": 90,
+    "1y": 365,
+}
 
 
 def _normalize_host(value: str | None) -> str:
@@ -986,26 +993,11 @@ def _normalize_deal_radar_item(item: dict) -> dict | None:
     }
 
 
-def get_price_history_range_start(range_key: str) -> datetime.datetime:
-    now = utc_now()
-    if range_key == "30d":
-        return now - datetime.timedelta(days=30)
-    if range_key == "90d":
-        return now - datetime.timedelta(days=90)
-    if range_key == "1y":
-        return now - datetime.timedelta(days=365)
-    return datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
-
-
 def get_history_range_start(range_key: str) -> datetime.datetime | None:
-    now = utc_now()
-    if range_key == "30d":
-        return now - datetime.timedelta(days=30)
-    if range_key == "90d":
-        return now - datetime.timedelta(days=90)
-    if range_key == "1y":
-        return now - datetime.timedelta(days=365)
-    return None
+    days = HISTORY_RANGE_DAYS.get(str(range_key or "").strip())
+    if days is None:
+        return None
+    return utc_now() - datetime.timedelta(days=days)
 
 
 def downsample_history_points(
@@ -1521,7 +1513,12 @@ def health():
             if now - oldest_dirty > datetime.timedelta(minutes=60):
                 dirty_queue_status = "stale"
 
-        cache_row = session.query(DashboardCache).filter(DashboardCache.cache_key == DASHBOARD_CACHE_KEY).first()
+        cache_row = None
+        for cache_key in (PRIMARY_DASHBOARD_CACHE_KEY, *LEGACY_DASHBOARD_CACHE_KEYS):
+            candidate = session.query(DashboardCache).filter(DashboardCache.cache_key == cache_key).first()
+            if candidate is not None:
+                cache_row = candidate
+                break
         if cache_row is None:
             cache_status = "missing"
         elif cache_row.updated_at:
@@ -1623,7 +1620,8 @@ def metrics():
         )
 
         cache_keys = [
-            "home",
+            PRIMARY_DASHBOARD_CACHE_KEY,
+            *LEGACY_DASHBOARD_CACHE_KEYS,
             "home:worth_buying",
             "home:trending",
             "home:historical_lows",
@@ -2840,6 +2838,15 @@ def _snapshot_to_dict(row: GameSnapshot) -> dict:
         "release_date_text": row.release_date_text,
         "is_released": row.is_released,
         "deal_score": row.deal_score,
+        "buy_recommendation": row.buy_recommendation,
+        "buy_reason": row.buy_reason,
+        "price_vs_low_ratio": row.price_vs_low_ratio,
+        "predicted_next_sale_price": row.predicted_next_sale_price,
+        "predicted_next_discount_percent": row.predicted_next_discount_percent,
+        "predicted_next_sale_window_days_min": row.predicted_next_sale_window_days_min,
+        "predicted_next_sale_window_days_max": row.predicted_next_sale_window_days_max,
+        "predicted_sale_confidence": row.predicted_sale_confidence,
+        "predicted_sale_reason": row.predicted_sale_reason,
         "player_change": row.player_change,
         "daily_peak": row.daily_peak,
         "avg_30d": row.avg_30d,
@@ -3130,24 +3137,72 @@ def _read_cache_payload(session: Session, cache_key: str):
         return row, None
 
 
+def _dashboard_cache_keys() -> tuple[str, ...]:
+    return (PRIMARY_DASHBOARD_CACHE_KEY, *LEGACY_DASHBOARD_CACHE_KEYS)
+
+
+def _dashboard_payload_is_empty(payload) -> bool:
+    if payload is None:
+        return True
+    if isinstance(payload, dict):
+        return len(payload) == 0
+    if isinstance(payload, list):
+        return len(payload) == 0
+    return False
+
+
+def _dashboard_cache_is_stale(cache_row: DashboardCache, now: datetime.datetime) -> bool:
+    if cache_row is None or cache_row.updated_at is None:
+        return True
+    updated_at = cache_row.updated_at
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=datetime.timezone.utc)
+    return now - updated_at > DASHBOARD_CACHE_STALE_AFTER
+
+
 def _read_dashboard_cache(session):
-    return _read_cache_payload(session, DASHBOARD_CACHE_KEY)
+    for cache_key in _dashboard_cache_keys():
+        row, payload = _read_cache_payload(session, cache_key)
+        if row is not None:
+            return row, payload
+    return None, None
+
+
+def _upsert_dashboard_cache_rows(session: Session, payload_json: str, updated_at: datetime.datetime) -> None:
+    for cache_key in _dashboard_cache_keys():
+        row = session.query(DashboardCache).filter(DashboardCache.cache_key == cache_key).first()
+        if not row:
+            row = DashboardCache(
+                cache_key=cache_key,
+                payload=payload_json,
+                updated_at=updated_at,
+            )
+            session.add(row)
+        else:
+            row.payload = payload_json
+            row.updated_at = updated_at
 
 
 def _write_dashboard_cache_payload(session, payload):
     payload_json = json.dumps(payload, ensure_ascii=False)
-    row = session.query(DashboardCache).filter(DashboardCache.cache_key == DASHBOARD_CACHE_KEY).first()
-    if not row:
-        row = DashboardCache(
-            cache_key=DASHBOARD_CACHE_KEY,
-            payload=payload_json,
-            updated_at=utc_now(),
-        )
-        session.add(row)
-    else:
-        row.payload = payload_json
-        row.updated_at = utc_now()
+    _upsert_dashboard_cache_rows(session, payload_json=payload_json, updated_at=utc_now())
     session.commit()
+
+
+def _rebuild_dashboard_cache_on_demand():
+    session = Session()
+    try:
+        from jobs.refresh_snapshots import rebuild_dashboard_cache
+
+        rebuild_dashboard_cache(session)
+        session.commit()
+        return _read_dashboard_cache(session)
+    except Exception:
+        session.rollback()
+        logger.exception("On-demand /dashboard/home cache rebuild failed")
+        return None, None
+    finally:
+        session.close()
 
 
 @app.get("/dashboard/home")
@@ -3155,26 +3210,49 @@ def _write_dashboard_cache_payload(session, payload):
 @ttl_cache(ttl_seconds=60, endpoint_key="/dashboard/home")
 def get_dashboard_home(request: Request):
     started = _start_timer()
-    session = ReadSessionLocal()
     try:
-        cache_row, cached_payload = _read_dashboard_cache(session)
-    finally:
-        session.close()
-        _log_timing("/dashboard/home", started)
+        read_session = ReadSessionLocal()
+        try:
+            cache_row, cached_payload = _read_dashboard_cache(read_session)
+        finally:
+            read_session.close()
 
-    if cache_row is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Dashboard cache missing. Run jobs/refresh_snapshots.py or wait for worker refresh.",
+        should_refresh = (
+            cache_row is None
+            or _dashboard_payload_is_empty(cached_payload)
+            or _dashboard_cache_is_stale(cache_row, utc_now())
         )
-    if cached_payload is None:
-        raise HTTPException(status_code=503, detail="Dashboard cache is invalid JSON")
+        if should_refresh:
+            rebuilt_row, rebuilt_payload = _rebuild_dashboard_cache_on_demand()
+            if rebuilt_row is not None and not _dashboard_payload_is_empty(rebuilt_payload):
+                cache_row = rebuilt_row
+                cached_payload = rebuilt_payload
+            elif cache_row is not None and isinstance(cached_payload, dict) and cached_payload:
+                logger.warning(
+                    "Serving stale /dashboard/home payload after on-demand rebuild miss for cache_key=%s",
+                    cache_row.cache_key,
+                )
+            else:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Dashboard cache missing. Run jobs/refresh_snapshots.py or wait for worker refresh.",
+                )
 
-    cached_payload["_meta"] = {
-        "cache_key": cache_row.cache_key,
-        "generated_at": cache_row.updated_at.isoformat() if cache_row.updated_at else None,
-    }
-    return cached_payload
+        if cached_payload is None:
+            raise HTTPException(status_code=503, detail="Dashboard cache is invalid JSON")
+        if _dashboard_payload_is_empty(cached_payload):
+            raise HTTPException(status_code=503, detail="Dashboard cache is empty")
+        if not isinstance(cached_payload, dict):
+            raise HTTPException(status_code=503, detail="Dashboard cache payload has unexpected shape")
+
+        payload = dict(cached_payload)
+        payload["_meta"] = {
+            "cache_key": cache_row.cache_key,
+            "generated_at": cache_row.updated_at.isoformat() if cache_row.updated_at else None,
+        }
+        return payload
+    finally:
+        _log_timing("/dashboard/home", started)
 
 
 @app.get("/games/detail")
@@ -3224,7 +3302,7 @@ def game_detail(game_name: str):
 
 
 @app.get("/games/price-history")
-def get_game_price_history(
+def get_game_price_history_windowed(
     game_name: str,
     range: str = Query("90d", pattern="^(30d|90d|1y|all)$"),
 ):
@@ -3234,16 +3312,7 @@ def get_game_price_history(
         if not game:
             return {"error": "Game not found"}
 
-        now = datetime.datetime.now(datetime.timezone.utc)
-
-        if range == "30d":
-            start_dt = now - datetime.timedelta(days=30)
-        elif range == "90d":
-            start_dt = now - datetime.timedelta(days=90)
-        elif range == "1y":
-            start_dt = now - datetime.timedelta(days=365)
-        else:
-            start_dt = None
+        start_dt = get_history_range_start(range)
 
         query = (
             session.query(GamePrice)
@@ -3256,11 +3325,7 @@ def get_game_price_history(
 
         rows = query.all()
 
-        # reuse your existing helper if present
-        try:
-            rows = downsample_price_rows(rows, range)
-        except Exception:
-            pass
+        rows = downsample_price_rows(rows, range)
 
         historical_low_row = None
         if rows:
@@ -3333,8 +3398,42 @@ def get_game_detail(game_id: int):
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
         payload = build_game_detail_payload(session, game)
+        payload["buy_recommendation"] = None
+        payload["buy_reason"] = None
+        payload["price_vs_low_ratio"] = None
+        payload["predicted_next_sale_price"] = None
+        payload["predicted_next_discount_percent"] = None
+        payload["predicted_next_sale_window_days_min"] = None
+        payload["predicted_next_sale_window_days_max"] = None
+        payload["predicted_sale_confidence"] = None
+        payload["predicted_sale_reason"] = None
+        payload["next_sale_prediction"] = {
+            "expected_next_price": None,
+            "expected_next_discount_percent": None,
+            "estimated_window_days_min": None,
+            "estimated_window_days_max": None,
+            "confidence": None,
+            "reason": None,
+        }
         snapshot = session.query(GameSnapshot).filter(GameSnapshot.game_id == game_id).first()
         if snapshot:
+            payload["buy_recommendation"] = snapshot.buy_recommendation
+            payload["buy_reason"] = snapshot.buy_reason
+            payload["price_vs_low_ratio"] = snapshot.price_vs_low_ratio
+            payload["predicted_next_sale_price"] = snapshot.predicted_next_sale_price
+            payload["predicted_next_discount_percent"] = snapshot.predicted_next_discount_percent
+            payload["predicted_next_sale_window_days_min"] = snapshot.predicted_next_sale_window_days_min
+            payload["predicted_next_sale_window_days_max"] = snapshot.predicted_next_sale_window_days_max
+            payload["predicted_sale_confidence"] = snapshot.predicted_sale_confidence
+            payload["predicted_sale_reason"] = snapshot.predicted_sale_reason
+            payload["next_sale_prediction"] = {
+                "expected_next_price": snapshot.predicted_next_sale_price,
+                "expected_next_discount_percent": snapshot.predicted_next_discount_percent,
+                "estimated_window_days_min": snapshot.predicted_next_sale_window_days_min,
+                "estimated_window_days_max": snapshot.predicted_next_sale_window_days_max,
+                "confidence": snapshot.predicted_sale_confidence,
+                "reason": snapshot.predicted_sale_reason,
+            }
             payload["worth_buying"] = {
                 "score": snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score,
                 "version": snapshot.worth_buying_score_version,
@@ -3454,6 +3553,23 @@ def get_game_by_name(request: Request, game_name: str):
             "historical_status": snapshot.historical_status if snapshot else None,
             "deal_score": snapshot.deal_score if snapshot else None,
             "buy_score": buy_score,
+            "buy_recommendation": snapshot.buy_recommendation if snapshot else None,
+            "buy_reason": snapshot.buy_reason if snapshot else None,
+            "price_vs_low_ratio": snapshot.price_vs_low_ratio if snapshot else None,
+            "predicted_next_sale_price": snapshot.predicted_next_sale_price if snapshot else None,
+            "predicted_next_discount_percent": snapshot.predicted_next_discount_percent if snapshot else None,
+            "predicted_next_sale_window_days_min": snapshot.predicted_next_sale_window_days_min if snapshot else None,
+            "predicted_next_sale_window_days_max": snapshot.predicted_next_sale_window_days_max if snapshot else None,
+            "predicted_sale_confidence": snapshot.predicted_sale_confidence if snapshot else None,
+            "predicted_sale_reason": snapshot.predicted_sale_reason if snapshot else None,
+            "next_sale_prediction": {
+                "expected_next_price": snapshot.predicted_next_sale_price if snapshot else None,
+                "expected_next_discount_percent": snapshot.predicted_next_discount_percent if snapshot else None,
+                "estimated_window_days_min": snapshot.predicted_next_sale_window_days_min if snapshot else None,
+                "estimated_window_days_max": snapshot.predicted_next_sale_window_days_max if snapshot else None,
+                "confidence": snapshot.predicted_sale_confidence if snapshot else None,
+                "reason": snapshot.predicted_sale_reason if snapshot else None,
+            },
             "worth_buying_reason_summary": snapshot.worth_buying_reason_summary if snapshot else None,
             "review_score": (
                 snapshot.review_score

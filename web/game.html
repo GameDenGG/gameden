@@ -517,8 +517,8 @@ a {
 
             <section class="panel">
                 <div class="panel-head">
-                    <h2 class="panel-title">Sale Prediction</h2>
-                    <div class="panel-subtitle">Heuristic prediction based on recent platform signals.</div>
+                    <h2 class="panel-title">Next Sale Prediction</h2>
+                    <div class="panel-subtitle">Snapshot-based estimate for next sale timing and likely price.</div>
                 </div>
                 <div class="panel-body">
                     <div class="prediction-list" id="prediction"></div>
@@ -670,7 +670,7 @@ async function loadGame() {
 
     renderMarketInfo(payload);
     renderDealExplanation(payload.deal_explanation || {});
-    renderPrediction(payload.prediction || {});
+    renderPrediction(payload);
     await loadPriceHistory(activeRange);
 
     if (Number.isFinite(currentGameId) && currentGameId > 0) {
@@ -799,31 +799,53 @@ function renderDealExplanation(explain) {
     }).join("") + `<div class="summary">${escapeHtml(explain.summary || "Snapshot-derived deal explanation.")}</div>`;
 }
 
-function renderPrediction(pred) {
+function renderPrediction(payload) {
     const el = document.getElementById("prediction");
-    const reasons = Array.isArray(pred.reasoning) ? pred.reasoning : [];
+    const nextPrediction = payload?.next_sale_prediction || {};
+    const legacyPrediction = payload?.prediction || {};
+    const expectedNextPrice = nextPrediction.expected_next_price ?? payload?.predicted_next_sale_price ?? null;
+    const expectedNextDiscount = nextPrediction.expected_next_discount_percent ?? payload?.predicted_next_discount_percent ?? legacyPrediction.predicted_discount_percent ?? null;
+    const windowMin = nextPrediction.estimated_window_days_min ?? payload?.predicted_next_sale_window_days_min ?? null;
+    const windowMax = nextPrediction.estimated_window_days_max ?? payload?.predicted_next_sale_window_days_max ?? null;
+    const confidenceRaw = String(nextPrediction.confidence ?? payload?.predicted_sale_confidence ?? legacyPrediction.confidence ?? "").trim();
+    const reason = String(nextPrediction.reason ?? payload?.predicted_sale_reason ?? "").trim();
+
+    const hasWindowDays = Number.isFinite(Number(windowMin)) && Number.isFinite(Number(windowMax));
+    const timingLabel = hasWindowDays
+        ? `${Math.max(0, Number(windowMin))}-${Math.max(0, Number(windowMax))} days`
+        : legacyPrediction.predicted_sale_window_start && legacyPrediction.predicted_sale_window_end
+            ? `${fmtDate(legacyPrediction.predicted_sale_window_start)} - ${fmtDate(legacyPrediction.predicted_sale_window_end)}`
+            : "—";
+
+    const confidenceLabel = confidenceRaw
+        ? `${confidenceRaw.slice(0, 1).toUpperCase()}${confidenceRaw.slice(1).toLowerCase()}`
+        : "Low";
+
+    let reasonHtml = escapeHtml(reason || "Not enough discount history for a strong prediction.");
+    if (!reason && Array.isArray(legacyPrediction.reasoning) && legacyPrediction.reasoning.length) {
+        reasonHtml = `<ul class="reason-list">${legacyPrediction.reasoning.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+    }
+
     el.innerHTML = `
         <div class="prediction-item">
-            <div class="prediction-title">Chance of sale in 7 days</div>
-            <div class="prediction-value">${pred.sale_probability_7d !== undefined ? Math.round(pred.sale_probability_7d * 100) + "%" : "—"}</div>
+            <div class="prediction-title">Expected next price</div>
+            <div class="prediction-value">${escapeHtml(fmtPrice(expectedNextPrice))}</div>
         </div>
         <div class="prediction-item">
-            <div class="prediction-title">Chance of sale in 30 days</div>
-            <div class="prediction-value">${pred.sale_probability_30d !== undefined ? Math.round(pred.sale_probability_30d * 100) + "%" : "—"}</div>
+            <div class="prediction-title">Expected discount</div>
+            <div class="prediction-value">${expectedNextDiscount !== null && expectedNextDiscount !== undefined ? escapeHtml(`${expectedNextDiscount}%`) : "—"}</div>
         </div>
         <div class="prediction-item">
-            <div class="prediction-title">Predicted discount</div>
-            <div class="prediction-value">${pred.predicted_discount_percent !== undefined && pred.predicted_discount_percent !== null ? pred.predicted_discount_percent + "%" : "—"}</div>
+            <div class="prediction-title">Estimated timing</div>
+            <div class="prediction-value">${escapeHtml(timingLabel)}</div>
         </div>
         <div class="prediction-item">
             <div class="prediction-title">Confidence</div>
-            <div class="prediction-value">${escapeHtml(pred.confidence || "—")}</div>
+            <div class="prediction-value">${escapeHtml(confidenceLabel)}</div>
         </div>
         <div class="prediction-item">
-            <div class="prediction-title">Reasoning</div>
-            <ul class="reason-list">
-                ${reasons.map((item) => `<li>${escapeHtml(item)}</li>`).join("") || "<li>No reasoning available yet.</li>"}
-            </ul>
+            <div class="prediction-title">Reason</div>
+            <div class="prediction-value">${reasonHtml}</div>
         </div>
     `;
 }

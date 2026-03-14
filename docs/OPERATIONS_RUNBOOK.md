@@ -118,6 +118,18 @@ Recommended safe value:
 
 `25`
 
+`INGESTION_BATCH_SIZE`
+
+Optional alias for `TRACK_GAMES_PER_RUN` used by `jobs.run_price_ingestion_loop`.
+
+`SNAPSHOT_BATCH_SIZE`
+
+Rows processed per snapshot worker cycle (default: `1000`).
+
+`DIRTY_QUEUE_FETCH_SIZE`
+
+Optional cap on dirty queue rows claimed per snapshot cycle (defaults to `SNAPSHOT_BATCH_SIZE`).
+
 Domain/metadata runtime variables for production:
 
 - `DISPLAY_SITE_NAME` (set to `GameDen.gg`)

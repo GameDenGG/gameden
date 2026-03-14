@@ -14,6 +14,15 @@ function setText(id, value) {
   if (el) el.textContent = value ?? "-";
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 async function fetchJson(url) {
   const requestUrl = window.GameDenSite?.resolveApiUrl ? window.GameDenSite.resolveApiUrl(url) : url;
   const res = await fetch(requestUrl);
@@ -60,6 +69,8 @@ function renderDetail(detail) {
     .join("");
 
   renderPrediction(detail.prediction || {});
+  renderNextSalePrediction(detail);
+  renderBuyRecommendation(detail);
   renderDealHeat(detail.deal_heat || {}, detail.worth_buying || {}, detail.momentum || {}, detail.historical_low_radar || {});
 }
 
@@ -77,6 +88,51 @@ function renderPrediction(prediction) {
   `;
 }
 
+function renderNextSalePrediction(detail) {
+  const panel = document.getElementById("nextSalePredictionPanel");
+  if (!panel) return;
+
+  const prediction = detail.next_sale_prediction || {};
+  const expectedNextPrice = prediction.expected_next_price ?? detail.predicted_next_sale_price;
+  const expectedNextDiscount = prediction.expected_next_discount_percent ?? detail.predicted_next_discount_percent;
+  const windowMin = prediction.estimated_window_days_min ?? detail.predicted_next_sale_window_days_min;
+  const windowMax = prediction.estimated_window_days_max ?? detail.predicted_next_sale_window_days_max;
+  const confidenceRaw = String(prediction.confidence ?? detail.predicted_sale_confidence ?? "").trim();
+  const reason = String(prediction.reason ?? detail.predicted_sale_reason ?? "").trim();
+
+  const hasWindow = Number.isFinite(Number(windowMin)) && Number.isFinite(Number(windowMax));
+  const windowLabel = hasWindow
+    ? `${Math.max(0, Number(windowMin))}-${Math.max(0, Number(windowMax))} days`
+    : "-";
+  const confidenceLabel = confidenceRaw
+    ? `${confidenceRaw.slice(0, 1).toUpperCase()}${confidenceRaw.slice(1).toLowerCase()}`
+    : "-";
+
+  if (
+    expectedNextPrice == null
+    && expectedNextDiscount == null
+    && !hasWindow
+    && !reason
+  ) {
+    panel.innerHTML = `
+      <div class="prediction-stat"><strong>Expected Next Price</strong><div>-</div></div>
+      <div class="prediction-stat"><strong>Expected Discount</strong><div>-</div></div>
+      <div class="prediction-stat"><strong>Estimated Timing</strong><div>-</div></div>
+      <div class="prediction-stat"><strong>Confidence</strong><div>Low</div></div>
+      <div class="prediction-stat"><strong>Reason</strong><div>Not enough discount history for a strong prediction.</div></div>
+    `;
+    return;
+  }
+
+  panel.innerHTML = `
+    <div class="prediction-stat"><strong>Expected Next Price</strong><div>${escapeHtml(fmtPrice(expectedNextPrice))}</div></div>
+    <div class="prediction-stat"><strong>Expected Discount</strong><div>${expectedNextDiscount != null ? escapeHtml(`${expectedNextDiscount}%`) : "-"}</div></div>
+    <div class="prediction-stat"><strong>Estimated Timing</strong><div>${escapeHtml(windowLabel)}</div></div>
+    <div class="prediction-stat"><strong>Confidence</strong><div>${escapeHtml(confidenceLabel)}</div></div>
+    <div class="prediction-stat"><strong>Reason</strong><div>${escapeHtml(reason || "Not enough discount history for a strong prediction.")}</div></div>
+  `;
+}
+
 function renderDealHeat(heat, worth, momentum, lowRadar) {
   const tags = Array.isArray(heat.tags) ? heat.tags : [];
   document.getElementById("dealHeatPanel").innerHTML = `
@@ -86,6 +142,42 @@ function renderDealHeat(heat, worth, momentum, lowRadar) {
     <div class="prediction-stat"><strong>Trend Reason</strong><div>${momentum.reason || "-"}</div></div>
     <div class="prediction-stat"><strong>Historical Low Radar</strong><div>${lowRadar.reason || "-"}</div></div>
     <div class="prediction-stat"><strong>Heat Tags</strong><div>${tags.length ? tags.join(", ") : "-"}</div></div>
+  `;
+}
+
+function renderBuyRecommendation(detail) {
+  const panel = document.getElementById("buyNowPanel");
+  if (!panel) return;
+
+  const recommendation = String(detail.buy_recommendation || "").trim().toUpperCase();
+  const reason = String(detail.buy_reason || "").trim();
+  const ratioValue = Number(detail.price_vs_low_ratio);
+  const hasRatio = Number.isFinite(ratioValue) && ratioValue > 0;
+
+  if (!recommendation) {
+    panel.innerHTML = `
+      <div class="prediction-stat"><strong>Recommendation</strong><div>-</div></div>
+      <div class="prediction-stat"><strong>Reason</strong><div>Recommendation unavailable for this game yet.</div></div>
+    `;
+    return;
+  }
+
+  const recommendationLabel = recommendation === "BUY_NOW" ? "BUY NOW" : "WAIT";
+  let ratioSummary = "-";
+  if (hasRatio) {
+    if (ratioValue > 1.0) {
+      ratioSummary = `${Math.round((ratioValue - 1.0) * 100)}% above historical low`;
+    } else if (ratioValue < 1.0) {
+      ratioSummary = `${Math.round((1.0 - ratioValue) * 100)}% below historical low`;
+    } else {
+      ratioSummary = "At historical low";
+    }
+  }
+
+  panel.innerHTML = `
+    <div class="prediction-stat"><strong>Recommendation</strong><div>${escapeHtml(recommendationLabel)}</div></div>
+    <div class="prediction-stat"><strong>Reason</strong><div>${escapeHtml(reason || "Snapshot-derived recommendation.")}</div></div>
+    <div class="prediction-stat"><strong>Price vs Historical Low</strong><div>${escapeHtml(ratioSummary)}</div></div>
   `;
 }
 

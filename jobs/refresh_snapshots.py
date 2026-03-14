@@ -12,6 +12,7 @@ import math
 import os
 import time
 import uuid
+from statistics import median
 from typing import Any
 
 from sqlalchemy import case, desc, func, text
@@ -43,13 +44,40 @@ from database.models import (
 from database.schema_guard import assert_scale_schema_ready
 from services.push_notifications import send_push_notification
 
-CACHE_KEY = "home"
-DEFAULT_BATCH_SIZE = max(1, int(os.getenv("SNAPSHOT_BATCH_SIZE", "200")))
-MAX_BATCH_SIZE = max(100, int(os.getenv("SNAPSHOT_MAX_BATCH_SIZE", "1000")))
+CACHE_KEY = "home_v1"
+LEGACY_CACHE_KEYS = ("home",)
+# Snapshot queue throughput controls:
+# - SNAPSHOT_BATCH_SIZE sets target rows processed per worker cycle.
+# - DIRTY_QUEUE_FETCH_SIZE optionally caps queue claim size per cycle.
+# - SNAPSHOT_MAX_BATCH_SIZE is a safety clamp to avoid unbounded single-run work.
+SNAPSHOT_BATCH_SIZE_DEFAULT = 1000
+SNAPSHOT_MAX_BATCH_SIZE_DEFAULT = 5000
+SNAPSHOT_MIN_BATCH_SIZE = 1
+SNAPSHOT_MAX_BATCH_SIZE_FLOOR = 100
+DEFAULT_BATCH_SIZE = max(
+    SNAPSHOT_MIN_BATCH_SIZE,
+    int(os.getenv("SNAPSHOT_BATCH_SIZE", str(SNAPSHOT_BATCH_SIZE_DEFAULT))),
+)
+MAX_BATCH_SIZE = max(
+    SNAPSHOT_MAX_BATCH_SIZE_FLOOR,
+    int(os.getenv("SNAPSHOT_MAX_BATCH_SIZE", str(SNAPSHOT_MAX_BATCH_SIZE_DEFAULT))),
+)
 BATCH_SIZE = min(DEFAULT_BATCH_SIZE, MAX_BATCH_SIZE)
+DIRTY_QUEUE_FETCH_SIZE = max(
+    SNAPSHOT_MIN_BATCH_SIZE,
+    min(
+        int(os.getenv("DIRTY_QUEUE_FETCH_SIZE", str(BATCH_SIZE))),
+        MAX_BATCH_SIZE,
+    ),
+)
 IDLE_SLEEP_SECONDS = 10
 SPARKLINE_POINTS = 60
 SALE_EVENTS_MAX = 24
+SALE_EVENT_GAP_DAYS = max(3, int(os.getenv("SALE_EVENT_GAP_DAYS", "5")))
+PREDICTION_SALE_HISTORY_LIMIT = max(
+    SALE_EVENTS_MAX * 5,
+    int(os.getenv("PREDICTION_SALE_HISTORY_LIMIT", "120")),
+)
 UPCOMING_LIMIT = 250
 HOMEPAGE_RAIL_LIMIT = 24
 HOMEPAGE_DEAL_CANDIDATE_POOL = max(
@@ -175,7 +203,7 @@ def split_csv_field(value: str | None) -> list[str]:
 
 
 def clamp_batch_size(batch_size: int) -> int:
-    return max(1, min(int(batch_size), MAX_BATCH_SIZE))
+    return max(SNAPSHOT_MIN_BATCH_SIZE, min(int(batch_size), MAX_BATCH_SIZE))
 
 
 def compute_retry_backoff_seconds(retry_count: int) -> int:
@@ -402,6 +430,282 @@ def compute_worth_buying_score(
         reasons.append("near historical low")
     reason_summary = " + ".join(reasons[:3]) if reasons else "Balanced value signal"
     return score, components, reason_summary
+
+
+def compute_buy_recommendation(
+    current_price: float | None,
+    historical_low: float | None,
+    discount_percent: int | None,
+    days_since_last_sale: int | None,
+) -> tuple[str, str, float | None]:
+    ratio = None
+    if current_price is not None and current_price > 0 and historical_low is not None and historical_low > 0:
+        ratio = round(current_price / historical_low, 6)
+        if current_price <= historical_low * 1.05:
+            return "BUY_NOW", "Price near historical low", ratio
+
+    normalized_discount = int(safe_num(discount_percent, -1.0)) if discount_percent is not None else None
+    if normalized_discount is not None and normalized_discount < 25:
+        return "WAIT", "Discount depth historically larger", ratio
+
+    if days_since_last_sale is not None and days_since_last_sale < 30:
+        return "WAIT", "Recent sale suggests another upcoming", ratio
+
+    if ratio is None:
+        return "WAIT", "Insufficient historical context to confirm favorable timing", ratio
+
+    return "BUY_NOW", "Price favorable relative to history", ratio
+
+
+def _normalize_price_bucket(value: float | None) -> float | None:
+    numeric = safe_num(value, default=0.0)
+    if numeric <= 0:
+        return None
+    return round(float(numeric), 2)
+
+
+def _build_distinct_sale_events(
+    sale_rows: list[tuple[datetime.datetime | None, float | None, int | None]],
+) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for recorded_at, price, discount_percent in sale_rows:
+        if recorded_at is None:
+            continue
+        normalized.append(
+            {
+                "recorded_at": recorded_at,
+                "price": _normalize_price_bucket(price),
+                "discount_percent": int(clamp(safe_num(discount_percent, 0.0), 0.0, 100.0)),
+            }
+        )
+
+    if not normalized:
+        return []
+
+    normalized.sort(key=lambda row: row["recorded_at"])
+    events: list[dict[str, Any]] = []
+    current_event: dict[str, Any] | None = None
+    previous_timestamp: datetime.datetime | None = None
+
+    for row in normalized:
+        recorded_at = row["recorded_at"]
+        gap_days = None
+        if previous_timestamp is not None:
+            gap_days = (recorded_at - previous_timestamp).total_seconds() / 86400.0
+
+        if current_event is None or (gap_days is not None and gap_days > SALE_EVENT_GAP_DAYS):
+            if current_event is not None:
+                events.append(current_event)
+            current_event = {
+                "start_at": recorded_at,
+                "end_at": recorded_at,
+                "best_price": row["price"],
+                "max_discount_percent": int(row["discount_percent"]),
+                "observations": 1,
+            }
+        else:
+            current_event["end_at"] = recorded_at
+            current_event["max_discount_percent"] = max(
+                int(current_event["max_discount_percent"]),
+                int(row["discount_percent"]),
+            )
+            current_event["observations"] = int(current_event["observations"]) + 1
+            row_price = row["price"]
+            if row_price is not None:
+                best_price = current_event.get("best_price")
+                if best_price is None or float(row_price) < float(best_price):
+                    current_event["best_price"] = row_price
+
+        previous_timestamp = recorded_at
+
+    if current_event is not None:
+        events.append(current_event)
+
+    return events
+
+
+def compute_next_sale_prediction(
+    current_price: float | None,
+    latest_original_price: float | None,
+    historical_low_price: float | None,
+    sale_rows: list[tuple[datetime.datetime | None, float | None, int | None]],
+) -> dict[str, Any]:
+    sale_events = _build_distinct_sale_events(sale_rows)
+    fallback_window_min = 30
+    fallback_window_max = 90
+
+    if not sale_events:
+        best_known_low = _normalize_price_bucket(historical_low_price)
+        near_best_now = bool(
+            safe_num(current_price, 0.0) > 0
+            and safe_num(best_known_low, 0.0) > 0
+            and safe_num(current_price, 0.0) <= safe_num(best_known_low, 0.0) * 1.05
+        )
+        fallback_reason = "Discount history is sparse, so prediction confidence is low."
+        if near_best_now:
+            fallback_reason += " Current price is already near the best historical sale price."
+
+        fallback_discount = None
+        if best_known_low is not None:
+            base_price = safe_num(latest_original_price, 0.0)
+            if base_price <= 0:
+                base_price = safe_num(current_price, 0.0)
+            if base_price > 0 and best_known_low < base_price:
+                fallback_discount = int(
+                    clamp(
+                        round((1.0 - (float(best_known_low) / float(base_price))) * 100.0),
+                        1.0,
+                        95.0,
+                    )
+                )
+
+        return {
+            "predicted_next_sale_price": best_known_low if near_best_now else None,
+            "predicted_next_discount_percent": fallback_discount if near_best_now else None,
+            "predicted_next_sale_window_days_min": fallback_window_min,
+            "predicted_next_sale_window_days_max": fallback_window_max,
+            "predicted_sale_confidence": "LOW",
+            "predicted_sale_reason": fallback_reason,
+        }
+
+    intervals: list[int] = []
+    for idx in range(1, len(sale_events)):
+        prior = sale_events[idx - 1]["start_at"]
+        current = sale_events[idx]["start_at"]
+        gap_days = (current - prior).days
+        if gap_days > 0:
+            intervals.append(int(gap_days))
+
+    discount_counts: dict[int, int] = {}
+    discount_values: list[int] = []
+    for event in sale_events:
+        discount_value = int(safe_num(event.get("max_discount_percent"), 0.0))
+        if discount_value > 0:
+            discount_counts[discount_value] = discount_counts.get(discount_value, 0) + 1
+            discount_values.append(discount_value)
+
+    most_frequent_discount = None
+    most_frequent_discount_count = 0
+    if discount_counts:
+        sorted_discounts = sorted(
+            discount_counts.items(),
+            key=lambda item: (-item[1], -item[0]),
+        )
+        most_frequent_discount, most_frequent_discount_count = sorted_discounts[0]
+
+    price_counts: dict[float, int] = {}
+    for event in sale_events:
+        event_price = _normalize_price_bucket(event.get("best_price"))
+        if event_price is None:
+            continue
+        price_counts[event_price] = price_counts.get(event_price, 0) + 1
+
+    repeated_prices = [(price, count) for price, count in price_counts.items() if count >= 2]
+    best_repeated_price = min((price for price, _ in repeated_prices), default=None)
+    best_repeated_price_count = max((count for _, count in repeated_prices), default=0)
+
+    best_historical_price = min(price_counts.keys()) if price_counts else None
+    if best_historical_price is None:
+        best_historical_price = _normalize_price_bucket(historical_low_price)
+
+    if len(intervals) >= 2:
+        median_spacing = max(7, int(round(float(median(intervals)))))
+        window_min = max(14, int(round(median_spacing * 0.8)))
+        window_max = max(window_min + 7, int(round(median_spacing * 1.2)))
+    elif len(intervals) == 1:
+        single_spacing = max(7, int(intervals[0]))
+        window_min = max(21, int(round(single_spacing * 0.75)))
+        window_max = max(window_min + 7, int(round(single_spacing * 1.35)))
+    else:
+        window_min = fallback_window_min
+        window_max = fallback_window_max
+
+    predicted_next_sale_price = best_repeated_price or best_historical_price
+    if predicted_next_sale_price is None and most_frequent_discount is not None:
+        base_price = safe_num(latest_original_price, 0.0)
+        if base_price <= 0:
+            base_price = safe_num(current_price, 0.0)
+        if base_price > 0:
+            predicted_next_sale_price = round(
+                max(0.01, base_price * (1.0 - (float(most_frequent_discount) / 100.0))),
+                2,
+            )
+
+    predicted_next_discount_percent = most_frequent_discount
+    if predicted_next_discount_percent is None and predicted_next_sale_price is not None:
+        base_price = safe_num(latest_original_price, 0.0)
+        if base_price <= 0:
+            base_price = safe_num(current_price, 0.0)
+        if base_price > 0 and predicted_next_sale_price < base_price:
+            predicted_next_discount_percent = int(
+                clamp(
+                    round((1.0 - (float(predicted_next_sale_price) / float(base_price))) * 100.0),
+                    1.0,
+                    95.0,
+                )
+            )
+
+    interval_spread = (max(intervals) - min(intervals)) if len(intervals) >= 2 else None
+    discount_spread = (max(discount_values) - min(discount_values)) if len(discount_values) >= 2 else None
+
+    if (
+        len(sale_events) >= 4
+        and len(intervals) >= 3
+        and most_frequent_discount_count >= 3
+        and (interval_spread is None or interval_spread <= 45)
+        and (discount_spread is None or discount_spread <= 20)
+    ):
+        confidence = "HIGH"
+    elif len(sale_events) >= 2:
+        confidence = "MEDIUM"
+    else:
+        confidence = "LOW"
+
+    near_best_now = bool(
+        safe_num(current_price, 0.0) > 0
+        and safe_num(best_historical_price, 0.0) > 0
+        and safe_num(current_price, 0.0) <= safe_num(best_historical_price, 0.0) * 1.05
+    )
+
+    reason_parts: list[str] = []
+    if most_frequent_discount is not None and most_frequent_discount_count >= 2:
+        reason_parts.append(
+            f"This game has repeated a {int(most_frequent_discount)}% discount across {int(most_frequent_discount_count)} prior sales."
+        )
+    elif best_repeated_price is not None and best_repeated_price_count >= 2:
+        reason_parts.append(
+            f"The ${best_repeated_price:.2f} sale price has repeated across {int(best_repeated_price_count)} prior sales."
+        )
+    elif len(sale_events) >= 2:
+        reason_parts.append(
+            f"This game has {len(sale_events)} prior sale events, but discount patterns are less consistent."
+        )
+    else:
+        reason_parts.append("Discount history is sparse, so prediction confidence is low.")
+
+    if intervals:
+        median_interval = int(round(float(median(intervals))))
+        reason_parts.append(f"Sales tend to recur about every {median_interval} days.")
+    if near_best_now:
+        reason_parts.append("Current price is already near the best historical sale price.")
+
+    if confidence == "LOW" and len(sale_events) < 2:
+        reason = "Discount history is sparse, so prediction confidence is low."
+        if near_best_now:
+            reason += " Current price is already near the best historical sale price."
+    else:
+        reason = " ".join(reason_parts[:2]).strip()
+        if near_best_now and "Current price is already near the best historical sale price." not in reason:
+            reason = f"{reason} Current price is already near the best historical sale price.".strip()
+
+    return {
+        "predicted_next_sale_price": _normalize_price_bucket(predicted_next_sale_price),
+        "predicted_next_discount_percent": predicted_next_discount_percent,
+        "predicted_next_sale_window_days_min": int(window_min),
+        "predicted_next_sale_window_days_max": int(window_max),
+        "predicted_sale_confidence": confidence,
+        "predicted_sale_reason": reason,
+    }
 
 
 def compute_deal_heat(
@@ -696,7 +1000,7 @@ def process_watchlist_target_alerts(
 
 
 def claim_dirty_batch(session: Session, batch_size: int) -> list[int]:
-    effective_batch_size = clamp_batch_size(batch_size)
+    effective_batch_size = clamp_batch_size(min(int(batch_size), int(DIRTY_QUEUE_FETCH_SIZE)))
     if session.bind and session.bind.dialect.name == "postgresql":
         rows = session.execute(
             text(
@@ -966,6 +1270,15 @@ def _snapshot_row_to_dict(snapshot: GameSnapshot) -> dict:
         "recommended_score": snapshot.recommended_score,
         "trending_score": snapshot.trending_score,
         "buy_score": snapshot.buy_score,
+        "buy_recommendation": snapshot.buy_recommendation,
+        "buy_reason": snapshot.buy_reason,
+        "price_vs_low_ratio": snapshot.price_vs_low_ratio,
+        "predicted_next_sale_price": snapshot.predicted_next_sale_price,
+        "predicted_next_discount_percent": snapshot.predicted_next_discount_percent,
+        "predicted_next_sale_window_days_min": snapshot.predicted_next_sale_window_days_min,
+        "predicted_next_sale_window_days_max": snapshot.predicted_next_sale_window_days_max,
+        "predicted_sale_confidence": snapshot.predicted_sale_confidence,
+        "predicted_sale_reason": snapshot.predicted_sale_reason,
         "worth_buying_score": snapshot.worth_buying_score,
         "worth_buying_score_version": snapshot.worth_buying_score_version,
         "worth_buying_reason_summary": snapshot.worth_buying_reason_summary,
@@ -1693,6 +2006,9 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
         last_discounted_at = history_stats.get("last_discounted_at")
         if last_discounted_at is not None and last_discounted_at.tzinfo is None:
             last_discounted_at = last_discounted_at.replace(tzinfo=UTC)
+        days_since_last_sale = (now - last_discounted_at).days if last_discounted_at else None
+        if days_since_last_sale is not None and days_since_last_sale < 0:
+            days_since_last_sale = 0
         ever_discounted = bool(max_discount > 0 or last_discounted_at is not None)
 
         current_players = int(safe_num(latest.current_players, default=0.0)) if latest and latest.current_players is not None else None
@@ -1735,7 +2051,7 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
         ]
         sparkline = downsample(spark_points, SPARKLINE_POINTS)
 
-        sale_rows = (
+        prediction_sale_rows = (
             session.query(GamePrice.recorded_at, GamePrice.price, GamePrice.discount_percent)
             .filter(
                 GamePrice.game_id == game_id,
@@ -1743,7 +2059,7 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
                 GamePrice.discount_percent > 0,
             )
             .order_by(GamePrice.recorded_at.desc(), GamePrice.id.desc())
-            .limit(SALE_EVENTS_MAX)
+            .limit(PREDICTION_SALE_HISTORY_LIMIT)
             .all()
         )
         sale_events_compact = [
@@ -1752,7 +2068,7 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
                 "price": float(row[1]) if row[1] is not None else None,
                 "discount_percent": int(row[2]) if row[2] is not None else 0,
             }
-            for row in sale_rows
+            for row in prediction_sale_rows[:SALE_EVENTS_MAX]
         ]
 
         review_score = safe_num(game.review_score, default=0.0)
@@ -1823,6 +2139,18 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
             historical_low_hit=is_new_historical_low,
             trend_reason_summary=trend_reason_summary,
         )
+        buy_recommendation, buy_reason, price_vs_low_ratio = compute_buy_recommendation(
+            current_price=latest_price,
+            historical_low=historical_low,
+            discount_percent=latest_discount_percent,
+            days_since_last_sale=days_since_last_sale,
+        )
+        next_sale_prediction = compute_next_sale_prediction(
+            current_price=latest_price,
+            latest_original_price=latest_original_price,
+            historical_low_price=historical_low,
+            sale_rows=prediction_sale_rows,
+        )
 
         if snapshot is None:
             snapshot = GameSnapshot(game_id=game_id)
@@ -1885,6 +2213,15 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
         snapshot.recommended_score = recommended_score
         snapshot.trending_score = trending_score
         snapshot.buy_score = worth_buying_score
+        snapshot.buy_recommendation = buy_recommendation
+        snapshot.buy_reason = buy_reason
+        snapshot.price_vs_low_ratio = price_vs_low_ratio
+        snapshot.predicted_next_sale_price = next_sale_prediction.get("predicted_next_sale_price")
+        snapshot.predicted_next_discount_percent = next_sale_prediction.get("predicted_next_discount_percent")
+        snapshot.predicted_next_sale_window_days_min = next_sale_prediction.get("predicted_next_sale_window_days_min")
+        snapshot.predicted_next_sale_window_days_max = next_sale_prediction.get("predicted_next_sale_window_days_max")
+        snapshot.predicted_sale_confidence = next_sale_prediction.get("predicted_sale_confidence")
+        snapshot.predicted_sale_reason = next_sale_prediction.get("predicted_sale_reason")
         snapshot.worth_buying_score = worth_buying_score
         snapshot.worth_buying_score_version = WORTH_BUYING_SCORE_VERSION
         snapshot.worth_buying_reason_summary = worth_buying_reason_summary
@@ -1901,6 +2238,8 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
             "worth_buying": worth_buying_reason_summary,
             "momentum": trend_reason_summary,
             "heat": deal_heat_reason,
+            "buy_timing": buy_reason,
+            "next_sale_prediction": next_sale_prediction.get("predicted_sale_reason"),
         }
         snapshot.upcoming_hot_score = upcoming_hot_score
         snapshot.price_sparkline_90d = sparkline
@@ -2357,6 +2696,8 @@ def rebuild_dashboard_cache(session: Session) -> None:
         "home:top_played": {"items": payload.get("topPlayed", []), "generated_at": payload["generated_at"]},
         "home:upcoming": {"items": payload.get("upcoming", []), "generated_at": payload["generated_at"]},
     }
+    for legacy_cache_key in LEGACY_CACHE_KEYS:
+        section_payloads[legacy_cache_key] = payload
     now = utcnow()
     for cache_key, cache_payload in section_payloads.items():
         payload_json = json.dumps(cache_payload, ensure_ascii=False)
@@ -2375,23 +2716,35 @@ def _print_pipeline_health(session: Session) -> None:
     snapshot_prices = session.execute(
         text("SELECT COUNT(*) FROM game_snapshots WHERE latest_price IS NOT NULL")
     ).scalar() or 0
-    dirty_count = session.execute(
-        text("SELECT COUNT(*) FROM dirty_games")
-    ).scalar() or 0
+    dirty_count = get_dirty_games_backlog(session)
     print(f"latest_game_prices rows: {latest_price_rows}")
     print(f"snapshots with price: {snapshot_prices}")
     print(f"dirty_games backlog: {dirty_count}")
 
 
+def get_dirty_games_backlog(session: Session) -> int:
+    return int(
+        session.execute(text("SELECT COUNT(*) FROM dirty_games")).scalar()
+        or 0
+    )
+
+
 def run_once() -> None:
     assert_scale_schema_ready(direct_engine, component_name="refresh_snapshots worker (--once)")
+    print(
+        "refresh_snapshots single-run started "
+        f"batch_size={BATCH_SIZE} dirty_queue_fetch_size={DIRTY_QUEUE_FETCH_SIZE} "
+        f"max_batch_size={MAX_BATCH_SIZE}"
+    )
     print("running single refresh cycle...")
     session = DBSession()
     game_ids: list[int] = []
     try:
         print("checking dirty_games queue...")
+        dirty_backlog_before = get_dirty_games_backlog(session)
+        print(f"dirty_games backlog before claim: {dirty_backlog_before}")
         game_ids = claim_dirty_batch(session, BATCH_SIZE)
-        print(f"dirty_games found: {len(game_ids)}")
+        print(f"dirty_games selected for cycle: {len(game_ids)}")
 
         if game_ids:
             print(f"processing {len(game_ids)} dirty games")
@@ -2439,7 +2792,8 @@ def run_worker_forever() -> None:
     assert_scale_schema_ready(direct_engine, component_name="refresh_snapshots worker")
     print(
         "refresh_snapshots worker started "
-        f"batch_size={BATCH_SIZE} max_batch_size={MAX_BATCH_SIZE} "
+        f"batch_size={BATCH_SIZE} dirty_queue_fetch_size={DIRTY_QUEUE_FETCH_SIZE} "
+        f"max_batch_size={MAX_BATCH_SIZE} "
         f"cache_rebuild_every_batches={SNAPSHOT_CACHE_REBUILD_EVERY_BATCHES}"
     )
     first_cycle = True
@@ -2449,8 +2803,10 @@ def run_worker_forever() -> None:
         game_ids: list[int] = []
         try:
             print("checking dirty_games queue...")
+            dirty_backlog_before = get_dirty_games_backlog(session)
+            print(f"dirty_games backlog before claim: {dirty_backlog_before}")
             game_ids = claim_dirty_batch(session, BATCH_SIZE)
-            print(f"dirty_games found: {len(game_ids)}")
+            print(f"dirty_games selected for cycle: {len(game_ids)}")
             if not game_ids:
                 if first_cycle or batches_since_cache_rebuild > 0:
                     print("rebuilding dashboard cache...")

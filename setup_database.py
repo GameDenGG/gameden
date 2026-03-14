@@ -144,6 +144,15 @@ POSTGRES_SQL = [
     "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS recommended_score DOUBLE PRECISION DEFAULT 0;",
     "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS trending_score DOUBLE PRECISION DEFAULT 0;",
     "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS buy_score DOUBLE PRECISION DEFAULT 0;",
+    "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS buy_recommendation TEXT;",
+    "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS buy_reason TEXT;",
+    "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS price_vs_low_ratio DOUBLE PRECISION;",
+    "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS predicted_next_sale_price DOUBLE PRECISION;",
+    "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS predicted_next_discount_percent INTEGER;",
+    "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS predicted_next_sale_window_days_min INTEGER;",
+    "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS predicted_next_sale_window_days_max INTEGER;",
+    "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS predicted_sale_confidence TEXT;",
+    "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS predicted_sale_reason TEXT;",
     "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS worth_buying_score DOUBLE PRECISION DEFAULT 0;",
     "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS worth_buying_score_version TEXT;",
     "ALTER TABLE game_snapshots ADD COLUMN IF NOT EXISTS worth_buying_reason_summary TEXT;",
@@ -448,6 +457,15 @@ SQLITE_SQL = [
     "ALTER TABLE wishlist_items ADD COLUMN game_id INTEGER;",
     "ALTER TABLE game_snapshots ADD COLUMN trending_score REAL DEFAULT 0;",
     "ALTER TABLE game_snapshots ADD COLUMN buy_score REAL DEFAULT 0;",
+    "ALTER TABLE game_snapshots ADD COLUMN buy_recommendation TEXT;",
+    "ALTER TABLE game_snapshots ADD COLUMN buy_reason TEXT;",
+    "ALTER TABLE game_snapshots ADD COLUMN price_vs_low_ratio REAL;",
+    "ALTER TABLE game_snapshots ADD COLUMN predicted_next_sale_price REAL;",
+    "ALTER TABLE game_snapshots ADD COLUMN predicted_next_discount_percent INTEGER;",
+    "ALTER TABLE game_snapshots ADD COLUMN predicted_next_sale_window_days_min INTEGER;",
+    "ALTER TABLE game_snapshots ADD COLUMN predicted_next_sale_window_days_max INTEGER;",
+    "ALTER TABLE game_snapshots ADD COLUMN predicted_sale_confidence TEXT;",
+    "ALTER TABLE game_snapshots ADD COLUMN predicted_sale_reason TEXT;",
     "ALTER TABLE game_snapshots ADD COLUMN worth_buying_score REAL DEFAULT 0;",
     "ALTER TABLE game_snapshots ADD COLUMN worth_buying_score_version TEXT;",
     "ALTER TABLE game_snapshots ADD COLUMN worth_buying_reason_summary TEXT;",
@@ -588,10 +606,27 @@ def _is_tolerable_rerun_error(exc: Exception) -> bool:
     return "duplicate column name" in msg or "already exists" in msg
 
 
+def _normalize_statement_key(sql: str) -> str:
+    return " ".join(sql.strip().split()).lower()
+
+
+def _dedupe_sql_statements(statements: list[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for sql in statements:
+        key = _normalize_statement_key(sql)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(sql)
+    return deduped
+
+
 def run_sql_statements(statements: list[str], dialect: str) -> None:
-    total = len(statements)
+    deduped_statements = _dedupe_sql_statements(statements)
+    total = len(deduped_statements)
     with direct_engine.connect() as conn:
-        for idx, sql in enumerate(statements, start=1):
+        for idx, sql in enumerate(deduped_statements, start=1):
             cleaned_sql = sql.strip()
             print(f"[{idx}/{total}] RUNNING SQL:\n{cleaned_sql}")
             try:

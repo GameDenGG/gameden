@@ -55,6 +55,12 @@ REQUIRED_SCALE_COLUMNS: dict[str, set[str]] = {
         "deal_score",
         "worth_buying_score",
         "momentum_score",
+        "predicted_next_sale_price",
+        "predicted_next_discount_percent",
+        "predicted_next_sale_window_days_min",
+        "predicted_next_sale_window_days_max",
+        "predicted_sale_confidence",
+        "predicted_sale_reason",
         "updated_at",
     },
     "dashboard_cache": {

@@ -6408,19 +6408,39 @@ input:focus-visible {
                     }
                 }
             }
-            if (target.game_id === null) {
-                throw new Error("Wishlist actions require game_id");
+            if ((!target.game_name || !String(target.game_name).trim()) && target.game_id !== null) {
+                const fallbackById = uniqueGamesByIdentity([
+                    ...safeArray(state.allGames),
+                    ...safeArray(state.latestPrices),
+                    ...safeArray(state.dealRanked),
+                    ...safeArray(state.worthBuyingNow),
+                    ...safeArray(state.discoveryTrending),
+                    ...safeArray(state.wishlist),
+                    ...safeArray(state.watchlist),
+                ]).find((row) => Number(normalizeGameRow(row).game_id) === target.game_id);
+                if (fallbackById) {
+                    target.game_name = String(normalizeGameRow(fallbackById).game_name || "").trim();
+                }
+            }
+
+            if (target.game_id === null || !String(target.game_name || "").trim()) {
+                throw new Error("Wishlist actions require game_id and game_name");
             }
             const inWishlist = isInWishlist(target.game_name, target.game_id);
-            const endpoint = inWishlist ? "/wishlist/remove" : "/wishlist/add";
-            await fetchJson(endpoint, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    user_id: CURRENT_USER_ID,
-                    game_id: target.game_id,
-                }),
-            });
+            if (inWishlist) {
+                await fetchJson(`/wishlist/${encodeURIComponent(target.game_name)}`, {
+                    method: "DELETE",
+                });
+            } else {
+                await fetchJson("/wishlist", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        game_id: target.game_id,
+                        game_name: target.game_name,
+                    }),
+                });
+            }
             await loadUserWishlist();
 
             applyAllRenders();

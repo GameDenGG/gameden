@@ -1,20 +1,21 @@
-import os
 from time import sleep
 import time
 
+from config import (
+    INGESTION_GAMES_PER_RUN,
+    INGESTION_GAMES_PER_RUN_LIMIT,
+    INGESTION_LOOP_INTERVAL_SECONDS,
+    INGESTION_MAX_DELAY_SECONDS,
+    INGESTION_MIN_DELAY_SECONDS,
+    INGESTION_SHARD_INDEX,
+    INGESTION_SHARD_TOTAL,
+)
 from database import direct_engine
 from database.schema_guard import assert_scale_schema_ready
 
-# Backward-compatible alias: allow operators to set ingestion batch size
-# without changing TRACK_GAMES_PER_RUN directly.
-if os.getenv("INGESTION_BATCH_SIZE") and not os.getenv("TRACK_GAMES_PER_RUN"):
-    os.environ["TRACK_GAMES_PER_RUN"] = str(os.getenv("INGESTION_BATCH_SIZE"))
-if os.getenv("INGESTION_BATCH_SIZE_LIMIT") and not os.getenv("TRACK_GAMES_PER_RUN_LIMIT"):
-    os.environ["TRACK_GAMES_PER_RUN_LIMIT"] = str(os.getenv("INGESTION_BATCH_SIZE_LIMIT"))
-
 from jobs.ingest_prices import run_price_ingestion
 
-INTERVAL_SECONDS = max(5, int(os.getenv("INGESTION_LOOP_INTERVAL_SECONDS", "300")))
+INTERVAL_SECONDS = INGESTION_LOOP_INTERVAL_SECONDS
 
 
 def run_loop() -> None:
@@ -22,9 +23,10 @@ def run_loop() -> None:
     print(
         "price ingestion scheduler started "
         f"interval_seconds={INTERVAL_SECONDS} "
-        f"track_games_per_run={os.getenv('TRACK_GAMES_PER_RUN', 'default')} "
-        f"track_games_per_run_limit={os.getenv('TRACK_GAMES_PER_RUN_LIMIT', 'default')} "
-        f"shard={os.getenv('TRACK_SHARD_INDEX', '0')}/{os.getenv('TRACK_SHARD_TOTAL', '1')}"
+        f"track_games_per_run={INGESTION_GAMES_PER_RUN} "
+        f"track_games_per_run_limit={INGESTION_GAMES_PER_RUN_LIMIT} "
+        f"delay_range_seconds={INGESTION_MIN_DELAY_SECONDS:.2f}-{INGESTION_MAX_DELAY_SECONDS:.2f} "
+        f"shard={INGESTION_SHARD_INDEX}/{INGESTION_SHARD_TOTAL}"
     )
 
     while True:

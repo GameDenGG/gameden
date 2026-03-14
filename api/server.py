@@ -20,6 +20,15 @@ from sqlalchemy.exc import IntegrityError
 from api.cache import json_etag, rate_limit, ttl_cache
 from api.metrics import get_cache_stats, get_latency_stats, record_latency
 from config import (
+    API_DASHBOARD_CACHE_STALE_MINUTES,
+    API_DEFAULT_HISTORY_POINTS,
+    API_DEFAULT_LIST_LIMIT,
+    API_DEFAULT_PAGE_SIZE,
+    API_DEFAULT_USER_ID,
+    API_MAX_HISTORY_POINTS,
+    API_MAX_LIST_LIMIT,
+    API_MAX_PAGE_SIZE,
+    API_SEARCH_SIMILARITY_THRESHOLD,
     CANONICAL_HOST_REDIRECT,
     CANONICAL_REDIRECT_HOSTS,
     CORS_ALLOW_ALL_ORIGINS,
@@ -73,9 +82,9 @@ if Path("public").exists():
 
 PRIMARY_DASHBOARD_CACHE_KEY = "home_v1"
 LEGACY_DASHBOARD_CACHE_KEYS = ("home",)
-DASHBOARD_CACHE_STALE_AFTER = datetime.timedelta(minutes=20)
+DASHBOARD_CACHE_STALE_AFTER = datetime.timedelta(minutes=API_DASHBOARD_CACHE_STALE_MINUTES)
 DEAL_RADAR_CACHE_KEY = "home:deal_radar"
-DEFAULT_USER_ID = "legacy-user"
+DEFAULT_USER_ID = API_DEFAULT_USER_ID
 SITEMAP_PATHS = (
     "/",
     "/watchlist",
@@ -89,7 +98,7 @@ SITEMAP_PATHS = (
     "/historical-lows",
 )
 EXTENDED_PLATFORM_FILTER_OPTIONS = ("Steam Deck", "VR Compatibility")
-SEARCH_SIMILARITY_THRESHOLD = 0.18
+SEARCH_SIMILARITY_THRESHOLD = API_SEARCH_SIMILARITY_THRESHOLD
 HISTORY_RANGE_DAYS: dict[str, int] = {
     "30d": 30,
     "90d": 90,
@@ -1710,7 +1719,7 @@ def get_latest_prices():
 
 @app.get("/games/deal-ranked")
 def get_deal_ranked_games(
-    limit: int = Query(default=24, ge=1, le=100),
+    limit: int = Query(default=API_DEFAULT_PAGE_SIZE, ge=1, le=API_MAX_PAGE_SIZE),
     include_free: bool = Query(default=False),
 ):
     session = Session()
@@ -1742,7 +1751,7 @@ def get_deal_ranked_games(
 
 
 @app.get("/games/historical-lows")
-def get_historical_lows(limit: int = Query(default=50, ge=1, le=200)):
+def get_historical_lows(limit: int = Query(default=API_DEFAULT_LIST_LIMIT, ge=1, le=API_MAX_LIST_LIMIT)):
     session = Session()
 
     try:
@@ -2178,7 +2187,7 @@ def get_upcoming_games():
 def get_released_games(
     request: Request,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=24, ge=1, le=100),
+    page_size: int = Query(default=API_DEFAULT_PAGE_SIZE, ge=1, le=API_MAX_PAGE_SIZE),
     sort: str = Query(default="deal-score"),
     q: str = Query(default=""),
     genre: str = Query(default=""),
@@ -2381,7 +2390,7 @@ def search_deals(
     release_year_max: int | None = Query(default=None, ge=1970),
     sort: str = Query(default="trending"),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=24, ge=1, le=100),
+    limit: int = Query(default=API_DEFAULT_PAGE_SIZE, ge=1, le=API_MAX_PAGE_SIZE),
     q: str = Query(default=""),
     preset: str = Query(default=""),
 ):
@@ -3312,7 +3321,7 @@ def get_game_history_by_id(
     request: Request,
     game_id: int,
     range: str = Query(default="90d", pattern="^(30d|90d|1y|all)$"),
-    points: int = Query(default=120, ge=1, le=240),
+    points: int = Query(default=API_DEFAULT_HISTORY_POINTS, ge=1, le=API_MAX_HISTORY_POINTS),
 ):
     started = _start_timer()
     session = ReadSessionLocal()
@@ -3883,7 +3892,7 @@ def count_unread_alerts(user_id: str):
 @app.get("/api/alerts")
 def list_watchlist_alert_feed(
     user_id: str = Query(default=DEFAULT_USER_ID),
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int = Query(default=API_DEFAULT_LIST_LIMIT, ge=1, le=API_MAX_LIST_LIMIT),
 ):
     normalized_user_id = normalize_user_id(user_id)
     session = Session()
@@ -3903,7 +3912,7 @@ def list_watchlist_alert_feed(
 @ttl_cache(ttl_seconds=45, endpoint_key="/api/deal-radar")
 def list_deal_radar_feed(
     request: Request,
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int = Query(default=API_DEFAULT_LIST_LIMIT, ge=1, le=API_MAX_LIST_LIMIT),
 ):
     started = _start_timer()
     session = ReadSessionLocal()
@@ -3953,7 +3962,7 @@ def list_deal_radar_feed(
 @ttl_cache(ttl_seconds=45, endpoint_key="/api/market-radar")
 def list_market_radar_feed(
     request: Request,
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int = Query(default=API_DEFAULT_LIST_LIMIT, ge=1, le=API_MAX_LIST_LIMIT),
 ):
     return list_deal_radar_feed(request=request, limit=limit)
 

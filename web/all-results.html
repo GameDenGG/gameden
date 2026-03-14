@@ -5,31 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Browse the full GameDen.gg catalog with A-Z sorting, search, and filters.">
 <meta name="application-name" content="GameDen.gg">
-<link rel="canonical" href="https://gameden.gg/web/all-results.html">
-<link rel="icon" type="image/x-icon" href="/web/favicon.ico">
+<link rel="canonical" href="all-results.html">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="manifest" href="/site.webmanifest">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GameDen.gg">
 <meta property="og:title" content="GameDen.gg - All Games Directory">
 <meta property="og:description" content="Search and filter the full GameDen.gg catalog with snapshot-backed data.">
-<meta property="og:url" content="https://gameden.gg/web/all-results.html">
+<meta property="og:url" content="https://gameden.gg/all-results.html">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="GameDen.gg - All Games Directory">
 <meta name="twitter:description" content="Search and filter the full GameDen.gg catalog on GameDen.gg.">
-<meta name="twitter:url" content="https://gameden.gg/web/all-results.html">
+<meta name="twitter:url" content="https://gameden.gg/all-results.html">
 <title>GameDen.gg - All Games Directory</title>
+<link rel="preconnect" href="https://cdn.cloudflare.steamstatic.com" crossorigin>
 <script src="/site-config.js"></script>
-<script src="/web/site-branding.js"></script>
+<script src="/site-branding.js"></script>
 <script>
-window.GameDenSite.applyMetadata({
-  path: "/web/all-results.html",
-  title: "GameDen.gg - All Games Directory",
-  description: "Browse the full GameDen.gg catalog with A-Z sorting, search, and filters.",
-  ogTitle: "GameDen.gg - All Games Directory",
-  ogDescription: "Search and filter the full GameDen.gg catalog with snapshot-backed data.",
-  twitterTitle: "GameDen.gg - All Games Directory",
-  twitterDescription: "Search and filter the full GameDen.gg catalog on GameDen.gg."
-});
+if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
+  window.GameDenSite.applyMetadata({
+    path: "all-results.html",
+    title: "GameDen.gg - All Games Directory",
+    description: "Browse the full GameDen.gg catalog with A-Z sorting, search, and filters.",
+    ogTitle: "GameDen.gg - All Games Directory",
+    ogDescription: "Search and filter the full GameDen.gg catalog with snapshot-backed data.",
+    twitterTitle: "GameDen.gg - All Games Directory",
+    twitterDescription: "Search and filter the full GameDen.gg catalog on GameDen.gg."
+  });
+}
 </script>
 <style>
 :root{--bg:#050913;--panel:rgba(10,20,38,.92);--line:rgba(130,173,247,.24);--line2:rgba(130,173,247,.42);--text:#eff6ff;--muted:#9eb8e7;--accent:#6fe8ff;--good:#5ce4a9;--warn:#ffc77a}
@@ -82,8 +85,8 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
 <body>
 <main class="page">
   <header class="topbar">
-    <a class="back-link" href="/web/index.html">Back to Dashboard</a>
-    <a class="brand" href="/web/index.html">GameDen.gg</a>
+    <a class="back-link" href="index.html">Back to Dashboard</a>
+    <a class="brand" href="index.html">GameDen.gg</a>
   </header>
   <section class="hero">
     <span class="eyebrow">GameDen.gg Discovery Engine</span>
@@ -148,7 +151,7 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
   const byPath = (obj, path) => String(path || "").split(".").reduce((acc, key) => (acc && typeof acc === "object") ? acc[key] : null, obj);
   const keyOf = (g) => { const id = n(g?.id ?? g?.game_id, null); const name = String(g?.game_name || "").trim().toLowerCase(); return id !== null ? `id:${Math.trunc(id)}` : (name ? `name:${name}` : ""); };
   const unique = (rows) => { const out = []; const seen = new Set(); for (const row of rows || []) { const key = keyOf(row); if (!key || seen.has(key)) continue; seen.add(key); out.push(row); } return out; };
-  const detailHref = (g) => { const q = new URLSearchParams(); const id = n(g?.id ?? g?.game_id, null); const name = String(g?.game_name || "").trim(); if (id !== null) q.set("game_id", String(Math.trunc(id))); if (name) q.set("game_name", name); return `/web/game.html?${q.toString()}`; };
+  const detailHref = (g) => { const q = new URLSearchParams(); const id = n(g?.id ?? g?.game_id, null); const name = String(g?.game_name || "").trim(); if (id !== null) q.set("game_id", String(Math.trunc(id))); if (name) q.set("game_name", name); return `game.html?${q.toString()}`; };
   const setStatus = (msg, err = false) => { if (!msg) { ui.status.classList.add("hidden"); ui.status.classList.remove("error"); ui.status.textContent = ""; return; } ui.status.textContent = msg; ui.status.classList.remove("hidden"); ui.status.classList.toggle("error", !!err); };
   const setCount = (total, shown) => ui.count.textContent = Number.isFinite(total) ? `${Math.round(shown || 0).toLocaleString()} of ${Math.round(total).toLocaleString()}` : "--";
   const hasMore = () => state.page <= state.totalPages;
@@ -193,9 +196,9 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
     const title = h(g?.game_name || "Unknown game"); const img = String(g?.banner_url || g?.image_url || "").trim();
     return `<a class="card" href="${detailHref(g)}" aria-label="Open ${title} details">${img ? `<img src="${h(img)}" alt="${title} banner" loading="lazy">` : "<img alt=\"\" loading=\"lazy\">"}<div class="body"><h3 class="title">${title}</h3><div class="price"><strong>${h(p(g?.price))}</strong>${n(g?.original_price,null)!==null && n(g?.price,null)!==null && n(g.original_price)>n(g.price)?`<s>${h(p(g.original_price))}</s>`:""}</div><div class="meta-stack">${signalRow(g)}${dealRow(g)}${contextRow(g)}</div></div></a>`;
   }
-  function skeleton(count = PAGE_SIZE) { ui.grid.innerHTML = new Array(Math.max(6, Math.min(count, PAGE_SIZE))).fill("").map(() => '<article class="card skeleton"><img alt=""><div class="body"><div class="title">x</div><div class="price"><strong>x</strong><s>x</s></div><div class="meta-stack"><div class="meta-row signals"><span class="meta-chip">x</span><span class="meta-chip">x</span></div><div class="meta-row deal"><div class="meta-cluster primary"><span class="meta-chip">x</span></div><div class="meta-cluster secondary"><span class="meta-chip">x</span></div></div><div class="meta-row context"><span class="context-item">x</span><span class="context-item">x</span></div></div></div></article>').join(""); }
+  function skeleton(count = PAGE_SIZE) { ui.grid.innerHTML = new Array(Math.max(6, Math.min(count, PAGE_SIZE))).fill("").map(() => '<article class="card skeleton"><img alt="" loading="lazy"><div class="body"><div class="title">x</div><div class="price"><strong>x</strong><s>x</s></div><div class="meta-stack"><div class="meta-row signals"><span class="meta-chip">x</span><span class="meta-chip">x</span></div><div class="meta-row deal"><div class="meta-cluster primary"><span class="meta-chip">x</span></div><div class="meta-cluster secondary"><span class="meta-chip">x</span></div></div><div class="meta-row context"><span class="context-item">x</span><span class="context-item">x</span></div></div></div></article>').join(""); }
   function render(rows, append = false) { const safe = unique(rows); if (!append) ui.grid.innerHTML = ""; if (!append && !safe.length) { ui.grid.innerHTML = '<div class="status">No games match your current search and filters.</div>'; return; } const html = safe.map(card).join(""); if (append) ui.grid.insertAdjacentHTML("beforeend", html); else ui.grid.innerHTML = html; }
-  async function fetchJson(url, opt = {}) { const res = await fetch(url, opt); if (!res.ok) { const text = await res.text().catch(() => ""); throw new Error(text || `Request failed: ${res.status}`); } return res.json(); }
+  async function fetchJson(url, opt = {}) { const requestUrl = window.GameDenSite?.resolveApiUrl ? window.GameDenSite.resolveApiUrl(url) : url; const res = await fetch(requestUrl, opt); if (!res.ok) { const text = await res.text().catch(() => ""); throw new Error(text || `Request failed: ${res.status}`); } return res.json(); }
   function readQuery() {
     const q = new URLSearchParams(location.search); state.view = String(q.get("view") || RELEASED_VIEW).trim().toLowerCase() || RELEASED_VIEW;
     const fallbackTitle = state.view === RELEASED_VIEW ? "All Games Directory" : (DASHBOARD_VIEWS[state.view]?.title || "Discovery");
@@ -218,7 +221,7 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
     if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
       const title = `${SITE_NAME} - ${state.title}`;
       window.GameDenSite.applyMetadata({
-        path: "/web/all-results.html",
+        path: "all-results.html",
         title,
         description: subtitle,
         ogTitle: title,

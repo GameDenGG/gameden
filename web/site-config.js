@@ -9,7 +9,7 @@
     site_url: "https://gameden.gg",
     site_description:
       "Discover game deals, analytics, player trends, and price history on GameDen.gg.",
-    api_base: "https://gameden-web.onrender.com",
+    api_base: "https://gameden.onrender.com",
   };
 
   const existing =

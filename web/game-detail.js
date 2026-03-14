@@ -15,7 +15,8 @@ function setText(id, value) {
 }
 
 async function fetchJson(url) {
-  const res = await fetch(url);
+  const requestUrl = window.GameDenSite?.resolveApiUrl ? window.GameDenSite.resolveApiUrl(url) : url;
+  const res = await fetch(requestUrl);
   if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
   return res.json();
 }

@@ -5,31 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="GameDen.gg watchlist: tracked games with live deal signals and buy-score context.">
 <meta name="application-name" content="GameDen.gg">
-<link rel="canonical" href="https://gameden.gg/watchlist">
-<link rel="icon" type="image/x-icon" href="/web/favicon.ico">
+<link rel="canonical" href="watchlist.html">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="manifest" href="/site.webmanifest">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GameDen.gg">
 <meta property="og:title" content="GameDen.gg - Watchlist">
 <meta property="og:description" content="Track your games and monitor sale, low-price, and buy-signal events in one place.">
-<meta property="og:url" content="https://gameden.gg/watchlist">
+<meta property="og:url" content="https://gameden.gg/watchlist.html">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="GameDen.gg - Watchlist">
 <meta name="twitter:description" content="Track your games and monitor sale, low-price, and buy-signal events.">
-<meta name="twitter:url" content="https://gameden.gg/watchlist">
+<meta name="twitter:url" content="https://gameden.gg/watchlist.html">
 <title>GameDen.gg - Watchlist</title>
+<link rel="preconnect" href="https://cdn.cloudflare.steamstatic.com" crossorigin>
 <script src="/site-config.js"></script>
-<script src="/web/site-branding.js"></script>
+<script src="/site-branding.js"></script>
 <script>
-window.GameDenSite.applyMetadata({
-    path: "/watchlist",
-    title: "GameDen.gg - Watchlist",
-    description: "GameDen.gg watchlist: tracked games with live deal signals and buy-score context.",
-    ogTitle: "GameDen.gg - Watchlist",
-    ogDescription: "Track your games and monitor sale, low-price, and buy-signal events in one place.",
-    twitterTitle: "GameDen.gg - Watchlist",
-    twitterDescription: "Track your games and monitor sale, low-price, and buy-signal events."
-});
+if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
+    window.GameDenSite.applyMetadata({
+        path: "watchlist.html",
+        title: "GameDen.gg - Watchlist",
+        description: "GameDen.gg watchlist: tracked games with live deal signals and buy-score context.",
+        ogTitle: "GameDen.gg - Watchlist",
+        ogDescription: "Track your games and monitor sale, low-price, and buy-signal events in one place.",
+        twitterTitle: "GameDen.gg - Watchlist",
+        twitterDescription: "Track your games and monitor sale, low-price, and buy-signal events."
+    });
+}
 </script>
 <style>
 :root {
@@ -241,7 +244,7 @@ body {
     <div class="brand">GameDen.gg Watchlist</div>
         <div class="actions">
             <button class="btn" id="refreshBtn" type="button">Refresh</button>
-            <a class="btn" href="/web/index.html">Back to dashboard</a>
+            <a class="btn" href="index.html">Back to dashboard</a>
         </div>
     </div>
 
@@ -306,7 +309,8 @@ function buildAlertMap(alertItems) {
 }
 
 async function fetchJson(url, options = {}) {
-    const response = await fetch(url, options);
+    const requestUrl = window.GameDenSite?.resolveApiUrl ? window.GameDenSite.resolveApiUrl(url) : url;
+    const response = await fetch(requestUrl, options);
     if (!response.ok) {
         throw new Error(`Request failed: ${response.status}`);
     }
@@ -355,7 +359,7 @@ function render(items, alertsByGame = new Map()) {
                 const signals = mergedSignals.slice(0, 3);
                 return `
                     <article class="card">
-                        <a class="thumb" href="/web/game.html?game_name=${encodeURIComponent(item.game_name || "")}"${bannerStyle}></a>
+                        <a class="thumb" href="game.html?game_name=${encodeURIComponent(item.game_name || "")}"${bannerStyle}></a>
                         <div class="body">
                             <h2 class="name">${escapeHtml(item.game_name || "Unknown game")}</h2>
                             <div class="metrics">
@@ -378,7 +382,7 @@ function render(items, alertsByGame = new Map()) {
                                     : '<span class="signal">Watching for new signals</span>'}
                             </div>
                             <div class="card-actions">
-                                <a class="btn" href="/web/game.html?game_name=${encodeURIComponent(item.game_name || "")}">Open game</a>
+                                <a class="btn" href="game.html?game_name=${encodeURIComponent(item.game_name || "")}">Open game</a>
                                 <button class="btn" type="button" data-remove-watch="${Number(item.game_id || 0)}">Remove</button>
                             </div>
                         </div>

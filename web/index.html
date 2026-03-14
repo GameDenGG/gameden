@@ -6,8 +6,8 @@
 <meta name="color-scheme" content="dark">
 <meta name="description" content="GameDen.gg is a premium Steam market intelligence console for prices, discounts, player momentum, and deal discovery across thousands of games.">
 <meta name="application-name" content="GameDen.gg">
-<link rel="canonical" href="https://gameden.gg/">
-<link rel="icon" type="image/x-icon" href="/web/favicon.ico">
+<link rel="canonical" href="index.html">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="manifest" href="/site.webmanifest">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GameDen.gg">
@@ -19,22 +19,26 @@
 <meta name="twitter:description" content="Live Steam market intelligence for deals, momentum, and timing.">
 <meta name="twitter:url" content="https://gameden.gg/">
 <title>GameDen.gg</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.cloudflare.steamstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <script src="/site-config.js"></script>
-<script src="/web/site-branding.js"></script>
+<script src="/site-branding.js"></script>
 <script>
-window.GameDenSite.applyMetadata({
-    path: "/",
-    title: "GameDen.gg",
-    description: "GameDen.gg is a premium Steam market intelligence console for prices, discounts, player momentum, and deal discovery across thousands of games.",
-    ogTitle: "GameDen.gg",
-    ogDescription: "Snapshot-backed Steam deal and player intelligence across the full catalog.",
-    twitterTitle: "GameDen.gg",
-    twitterDescription: "Live Steam market intelligence for deals, momentum, and timing."
-});
+if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
+    window.GameDenSite.applyMetadata({
+        path: "/",
+        title: "GameDen.gg",
+        description: "GameDen.gg is a premium Steam market intelligence console for prices, discounts, player momentum, and deal discovery across thousands of games.",
+        ogTitle: "GameDen.gg",
+        ogDescription: "Snapshot-backed Steam deal and player intelligence across the full catalog.",
+        twitterTitle: "GameDen.gg",
+        twitterDescription: "Live Steam market intelligence for deals, momentum, and timing."
+    });
+}
 </script>
 <style>
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap");
-
 :root {
     --bg: #050913;
     --bg-2: #091322;
@@ -2030,7 +2034,7 @@ input:focus-visible {
             </div>
             <div class="hero-cta-row">
                 <a class="hero-cta primary" id="heroPrimaryCta" href="#dealRankedGrid">Explore Best Deals</a>
-                            <a class="hero-cta secondary" id="heroSecondaryCta" href="/web/all-results.html?view=released-games&title=All%20Games%20Directory">Browse Full Catalog</a>
+    <a class="hero-cta secondary" id="heroSecondaryCta" href="all-results.html?view=released-games&title=All%20Games%20Directory">Browse Full Catalog</a>
             </div>
         </section>
 
@@ -2361,7 +2365,7 @@ input:focus-visible {
                             <h2 class="panel-title">All Games</h2>
                             <div class="panel-subtitle" id="allGamesSubtitle">Two rotating top-selling picks from the full catalog.</div>
                         </div>
-                        <a class="panel-action" id="releasedGamesDirectoryBtn" href="/web/all-results.html?view=released-games&title=All%20Games%20Directory">
+                        <a class="panel-action" id="releasedGamesDirectoryBtn" href="all-results.html?view=released-games&title=All%20Games%20Directory">
                             Open Full Directory
                         </a>
                     </div>
@@ -2476,7 +2480,7 @@ input:focus-visible {
                             <h2 class="panel-title">Watchlist</h2>
                             <div class="panel-subtitle">Games you want to monitor closely for sale movement.</div>
                         </div>
-                        <a class="panel-action" href="/watchlist">Open Watchlist</a>
+                        <a class="panel-action" href="watchlist.html">Open Watchlist</a>
                     </div>
                     <div class="panel-body">
                         <div id="watchlistList" class="mini-list"></div>
@@ -3002,7 +3006,7 @@ input:focus-visible {
             }
 
             const query = params.toString();
-            return query ? `/web/game.html?${query}` : "/web/game.html";
+    return query ? `game.html?${query}` : "game.html";
         }
 
         function getRenderableItemKey(item, index = 0) {
@@ -4489,7 +4493,7 @@ input:focus-visible {
             if (view === "new-deals" && state.lastVisitTs > 0) {
                 params.set("lastVisitTs", String(state.lastVisitTs));
             }
-            return `/web/all-results.html?${params.toString()}`;
+    return `all-results.html?${params.toString()}`;
         }
 
         function updateShowAllButton(button, view, title, totalCount, visibleCount) {
@@ -5770,7 +5774,8 @@ input:focus-visible {
         }
 
         async function fetchJson(url, options = {}) {
-            const res = await fetch(url, options);
+            const requestUrl = window.GameDenSite?.resolveApiUrl ? window.GameDenSite.resolveApiUrl(url) : url;
+            const res = await fetch(requestUrl, options);
             if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
             if (res.status === 204) return null;
             return await res.json();

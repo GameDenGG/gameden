@@ -5,33 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="GameDen.gg game detail: price history, deal score, momentum, and market context.">
     <meta name="application-name" content="GameDen.gg">
-    <link rel="canonical" href="https://gameden.gg/web/game-detail.html">
-    <link rel="icon" type="image/x-icon" href="/web/favicon.ico">
+    <link rel="canonical" href="game-detail.html">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="manifest" href="/site.webmanifest">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="GameDen.gg">
     <meta property="og:title" content="GameDen.gg - Game Detail">
     <meta property="og:description" content="View deep game-level pricing and momentum insights in GameDen.gg.">
-    <meta property="og:url" content="https://gameden.gg/web/game-detail.html">
+    <meta property="og:url" content="https://gameden.gg/game-detail.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="GameDen.gg - Game Detail">
     <meta name="twitter:description" content="View deep game-level pricing and momentum insights in GameDen.gg.">
-    <meta name="twitter:url" content="https://gameden.gg/web/game-detail.html">
+    <meta name="twitter:url" content="https://gameden.gg/game-detail.html">
     <title>Game Detail | GameDen.gg</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <script src="/site-config.js"></script>
-    <script src="/web/site-branding.js"></script>
+    <script src="/site-branding.js"></script>
     <script>
-    window.GameDenSite.applyMetadata({
-        path: "/web/game-detail.html",
-        title: "Game Detail | GameDen.gg",
-        description: "GameDen.gg game detail: price history, deal score, momentum, and market context.",
-        ogTitle: "GameDen.gg - Game Detail",
-        ogDescription: "View deep game-level pricing and momentum insights in GameDen.gg.",
-        twitterTitle: "GameDen.gg - Game Detail",
-        twitterDescription: "View deep game-level pricing and momentum insights in GameDen.gg."
-    });
+    if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
+        window.GameDenSite.applyMetadata({
+            path: "game-detail.html",
+            title: "Game Detail | GameDen.gg",
+            description: "GameDen.gg game detail: price history, deal score, momentum, and market context.",
+            ogTitle: "GameDen.gg - Game Detail",
+            ogDescription: "View deep game-level pricing and momentum insights in GameDen.gg.",
+            twitterTitle: "GameDen.gg - Game Detail",
+            twitterDescription: "View deep game-level pricing and momentum insights in GameDen.gg."
+        });
+    }
     </script>
-    <link rel="stylesheet" href="/web/game-detail.css" />
+    <link rel="stylesheet" href="/game-detail.css" />
 </head>
 <body>
 <main class="page-shell">
@@ -100,6 +103,6 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="/web/game-detail.js"></script>
+<script src="/game-detail.js"></script>
 </body>
 </html>

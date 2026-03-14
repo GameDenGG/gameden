@@ -5,31 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="GameDen.gg game detail with price history, discounts, player trends, and deal intelligence.">
 <meta name="application-name" content="GameDen.gg">
-<link rel="canonical" href="https://gameden.gg/web/game.html">
-<link rel="icon" type="image/x-icon" href="/web/favicon.ico">
+<link rel="canonical" href="game.html">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="manifest" href="/site.webmanifest">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GameDen.gg">
 <meta property="og:title" content="GameDen.gg - Game Detail">
 <meta property="og:description" content="Game-level pricing, player movement, and market intelligence on GameDen.gg.">
-<meta property="og:url" content="https://gameden.gg/web/game.html">
+<meta property="og:url" content="https://gameden.gg/game.html">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="GameDen.gg - Game Detail">
 <meta name="twitter:description" content="Game-level pricing, player movement, and market intelligence on GameDen.gg.">
-<meta name="twitter:url" content="https://gameden.gg/web/game.html">
+<meta name="twitter:url" content="https://gameden.gg/game.html">
 <title>GameDen.gg - Game Detail</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://cdn.cloudflare.steamstatic.com" crossorigin>
 <script src="/site-config.js"></script>
-<script src="/web/site-branding.js"></script>
+<script src="/site-branding.js"></script>
 <script>
-window.GameDenSite.applyMetadata({
-    path: "/web/game.html",
-    title: "GameDen.gg - Game Detail",
-    description: "GameDen.gg game detail with price history, discounts, player trends, and deal intelligence.",
-    ogTitle: "GameDen.gg - Game Detail",
-    ogDescription: "Game-level pricing, player movement, and market intelligence on GameDen.gg.",
-    twitterTitle: "GameDen.gg - Game Detail",
-    twitterDescription: "Game-level pricing, player movement, and market intelligence on GameDen.gg."
-});
+if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
+    window.GameDenSite.applyMetadata({
+        path: "game.html",
+        title: "GameDen.gg - Game Detail",
+        description: "GameDen.gg game detail with price history, discounts, player trends, and deal intelligence.",
+        ogTitle: "GameDen.gg - Game Detail",
+        ogDescription: "Game-level pricing, player movement, and market intelligence on GameDen.gg.",
+        twitterTitle: "GameDen.gg - Game Detail",
+        twitterDescription: "Game-level pricing, player movement, and market intelligence on GameDen.gg."
+    });
+}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -420,7 +424,7 @@ a {
 </head>
 <body>
 <div class="page">
-    <a class="back-link" href="/web/index.html">&larr; Back to dashboard</a>
+    <a class="back-link" href="index.html">&larr; Back to dashboard</a>
 
     <section class="hero">
         <div class="hero-banner" id="heroBanner"></div>
@@ -594,7 +598,8 @@ function escapeHtml(value) {
 }
 
 async function fetchJson(url, options = {}) {
-    const res = await fetch(url, options);
+    const requestUrl = window.GameDenSite?.resolveApiUrl ? window.GameDenSite.resolveApiUrl(url) : url;
+    const res = await fetch(requestUrl, options);
     if (!res.ok) throw new Error(`Request failed: ${res.status}`);
     if (res.status === 204) return null;
     return await res.json();
@@ -719,7 +724,7 @@ async function loadRelatedGames(gameId) {
                             ? `${discount}% off`
                             : `Players ${fmtInt(row.current_players)}`;
                         return `
-                            <a class="related-item" href="/web/game.html?game_name=${encodeURIComponent(row.game_name || "")}">
+            <a class="related-item" href="game.html?game_name=${encodeURIComponent(row.game_name || "")}">
                                 <strong>${name}</strong>
                                 <span>${escapeHtml(metric)}</span>
                             </a>

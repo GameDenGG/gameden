@@ -5,31 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="GameDen.gg price history explorer for Steam games, discount history, and player movement context.">
     <meta name="application-name" content="GameDen.gg">
-    <link rel="canonical" href="https://gameden.gg/web/history.html">
-    <link rel="icon" type="image/x-icon" href="/web/favicon.ico">
+    <link rel="canonical" href="history.html">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="manifest" href="/site.webmanifest">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="GameDen.gg">
     <meta property="og:title" content="GameDen.gg - Price History">
     <meta property="og:description" content="Track historical prices, discount movement, and trends across Steam games on GameDen.gg.">
-    <meta property="og:url" content="https://gameden.gg/web/history.html">
+    <meta property="og:url" content="https://gameden.gg/history.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="GameDen.gg - Price History">
     <meta name="twitter:description" content="Track historical prices, discount movement, and trends across Steam games on GameDen.gg.">
-    <meta name="twitter:url" content="https://gameden.gg/web/history.html">
+    <meta name="twitter:url" content="https://gameden.gg/history.html">
     <title>GameDen.gg - Price History</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <script src="/site-config.js"></script>
-    <script src="/web/site-branding.js"></script>
+    <script src="/site-branding.js"></script>
     <script>
-    window.GameDenSite.applyMetadata({
-        path: "/web/history.html",
-        title: "GameDen.gg - Price History",
-        description: "GameDen.gg price history explorer for Steam games, discount history, and player movement context.",
-        ogTitle: "GameDen.gg - Price History",
-        ogDescription: "Track historical prices, discount movement, and trends across Steam games on GameDen.gg.",
-        twitterTitle: "GameDen.gg - Price History",
-        twitterDescription: "Track historical prices, discount movement, and trends across Steam games on GameDen.gg."
-    });
+    if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
+        window.GameDenSite.applyMetadata({
+            path: "history.html",
+            title: "GameDen.gg - Price History",
+            description: "GameDen.gg price history explorer for Steam games, discount history, and player movement context.",
+            ogTitle: "GameDen.gg - Price History",
+            ogDescription: "Track historical prices, discount movement, and trends across Steam games on GameDen.gg.",
+            twitterTitle: "GameDen.gg - Price History",
+            twitterDescription: "Track historical prices, discount movement, and trends across Steam games on GameDen.gg."
+        });
+    }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -494,7 +497,7 @@
 <body>
     <div class="page">
         <div class="back-row">
-        <a class="back-link" href="/">← Back to dashboard</a>
+        <a class="back-link" href="index.html">&larr; Back to dashboard</a>
         </div>
 
         <section class="hero">
@@ -803,7 +806,9 @@
         }
 
         async function fetchJson(path, options = {}) {
-            const response = await fetch(`${API_BASE}${path}`, {
+            const rawUrl = `${API_BASE}${path}`;
+            const requestUrl = window.GameDenSite?.resolveApiUrl ? window.GameDenSite.resolveApiUrl(rawUrl) : rawUrl;
+            const response = await fetch(requestUrl, {
                 headers: {
                     "Accept": "application/json",
                     ...(options.body ? { "Content-Type": "application/json" } : {})

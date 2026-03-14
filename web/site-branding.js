@@ -5,6 +5,8 @@
     site_name: "GameDen.gg",
     site_url: "https://gameden.gg",
     site_description: "Discover game deals, analytics, player trends, and price history on GameDen.gg.",
+    // Optional API origin for static deployments, e.g. "https://api.gameden.gg"
+    api_base: "",
   });
 
   function normalizeSiteUrl(rawValue) {
@@ -23,6 +25,7 @@
     site_name: String(runtimeConfig.site_name || fallbackConfig.site_name).trim() || fallbackConfig.site_name,
     site_url: normalizeSiteUrl(runtimeConfig.site_url || fallbackConfig.site_url),
     site_description: String(runtimeConfig.site_description || fallbackConfig.site_description).trim() || fallbackConfig.site_description,
+    api_base: String(runtimeConfig.api_base || runtimeConfig.api_origin || fallbackConfig.api_base).trim(),
   });
 
   function absoluteUrl(path) {
@@ -36,6 +39,110 @@
       return;
     }
     node.setAttribute(attribute, value);
+  }
+
+  function resolveApiUrl(url) {
+    const value = String(url || "").trim();
+    if (!value || /^(https?:)?\/\//i.test(value)) {
+      return value;
+    }
+
+    if (/^(mailto:|tel:|data:|javascript:)/i.test(value)) {
+      return value;
+    }
+
+    const apiBase = String(siteConfig.api_base || "").trim().replace(/\/+$/, "");
+    if (!apiBase) {
+      return value;
+    }
+
+    const match = value.match(/^([^?#]*)([?#].*)?$/);
+    const rawPath = match ? match[1] : value;
+    const suffix = match && match[2] ? match[2] : "";
+
+    if (!rawPath || rawPath.startsWith("../")) {
+      return value;
+    }
+
+    const normalizedPath = (function normalizeRelativePath(path) {
+      if (path.startsWith("/")) {
+        return path;
+      }
+      if (path.startsWith("./")) {
+        return `/${path.slice(2)}`;
+      }
+      return `/${path}`;
+    })(rawPath).replace(/^\/+/, "/");
+
+    const normalizedLower = normalizedPath.toLowerCase();
+    const staticPagePaths = new Set([
+      "/",
+      "/index.html",
+      "/game.html",
+      "/history.html",
+      "/watchlist.html",
+      "/all-results.html",
+      "/game-detail.html",
+    ]);
+    const staticAssetExtensions = [
+      ".html",
+      ".css",
+      ".js",
+      ".mjs",
+      ".ico",
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".gif",
+      ".svg",
+      ".webp",
+      ".avif",
+      ".woff",
+      ".woff2",
+      ".ttf",
+      ".map",
+      ".json",
+      ".xml",
+      ".txt",
+      ".webmanifest",
+      ".manifest",
+    ];
+    const isStaticPage = staticPagePaths.has(normalizedLower);
+    const isStaticAsset = staticAssetExtensions.some((ext) => normalizedLower.endsWith(ext));
+    if (isStaticPage || isStaticAsset) {
+      return value;
+    }
+
+    const apiExactPaths = new Set([
+      "/health",
+      "/metrics",
+      "/search",
+      "/alerts",
+      "/wishlist",
+      "/watchlist",
+      "/worth-buying-now",
+      "/trending-deals",
+      "/historical-lows",
+    ]);
+    const apiPathPrefixes = [
+      "/api/",
+      "/dashboard/",
+      "/sales/",
+      "/games/",
+      "/deals/",
+      "/leaderboards/",
+      "/deal-watchlists/",
+      "/notifications/",
+    ];
+    const isApiRoute =
+      apiExactPaths.has(normalizedLower) ||
+      apiPathPrefixes.some((prefix) => normalizedLower.startsWith(prefix));
+
+    if (!isApiRoute) {
+      return value;
+    }
+
+    return `${apiBase}${normalizedPath}${suffix}`;
   }
 
   function applyMetadata(meta) {
@@ -64,12 +171,12 @@
     updateMetaTag("meta[name='twitter:description']", "content", twitterDescription);
     updateMetaTag("meta[name='twitter:url']", "content", canonicalUrl);
     updateMetaTag("link[rel='canonical']", "href", canonicalUrl);
-    updateMetaTag("link[rel='manifest']", "href", "/site.webmanifest");
   }
 
   window.GameDenSite = Object.freeze({
     config: siteConfig,
     absoluteUrl,
+    resolveApiUrl,
     applyMetadata,
   });
 })();

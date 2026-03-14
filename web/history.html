@@ -694,7 +694,6 @@
     </div>
 
     <script>
-        const API_BASE = "";
         const query = new URLSearchParams(window.location.search);
         const gameName = query.get("game");
 
@@ -806,24 +805,15 @@
         }
 
         async function fetchJson(path, options = {}) {
-            const rawUrl = `${API_BASE}${path}`;
-            const requestUrl = window.GameDenSite?.resolveApiUrl ? window.GameDenSite.resolveApiUrl(rawUrl) : rawUrl;
-            const response = await fetch(requestUrl, {
-                headers: {
-                    "Accept": "application/json",
-                    ...(options.body ? { "Content-Type": "application/json" } : {})
-                },
-                ...options
+            const headers = {
+                "Accept": "application/json",
+                ...(options.body ? { "Content-Type": "application/json" } : {}),
+                ...(options.headers || {})
+            };
+            return window.GameDenSite.fetchJson(path, {
+                ...options,
+                headers
             });
-
-            const data = await response.json().catch(() => null);
-
-            if (!response.ok) {
-                const detail = data && data.detail ? data.detail : `Request failed (${response.status})`;
-                throw new Error(detail);
-            }
-
-            return data;
         }
 
         function buildHero(metadata, latestRow, rows) {

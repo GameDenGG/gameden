@@ -598,11 +598,7 @@ function escapeHtml(value) {
 }
 
 async function fetchJson(url, options = {}) {
-    const requestUrl = window.GameDenSite?.resolveApiUrl ? window.GameDenSite.resolveApiUrl(url) : url;
-    const res = await fetch(requestUrl, options);
-    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-    if (res.status === 204) return null;
-    return await res.json();
+    return window.GameDenSite.fetchJson(url, options);
 }
 
 function parseCsv(value) {

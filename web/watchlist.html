@@ -309,13 +309,7 @@ function buildAlertMap(alertItems) {
 }
 
 async function fetchJson(url, options = {}) {
-    const requestUrl = window.GameDenSite?.resolveApiUrl ? window.GameDenSite.resolveApiUrl(url) : url;
-    const response = await fetch(requestUrl, options);
-    if (!response.ok) {
-        throw new Error(`Request failed: ${response.status}`);
-    }
-    if (response.status === 204) return null;
-    return response.json();
+    return window.GameDenSite.fetchJson(url, options);
 }
 
 async function removeWatch(gameId) {

@@ -5811,39 +5811,7 @@ input:focus-visible {
         }
 
         async function fetchJson(url, options = {}) {
-            const requestUrl = window.GameDenSite?.resolveApiUrl ? window.GameDenSite.resolveApiUrl(url) : url;
-            const res = await fetch(requestUrl, options);
-            if (res.status === 204) return null;
-
-            const rawBody = await res.text();
-            const body = String(rawBody || "");
-            const hasBody = body.trim().length > 0;
-
-            let payload = null;
-            if (hasBody) {
-                try {
-                    payload = JSON.parse(body);
-                } catch (_error) {
-                    if (res.ok) {
-                        const parseError = new Error(`Invalid JSON response for ${url}`);
-                        parseError.status = res.status;
-                        parseError.url = url;
-                        throw parseError;
-                    }
-                }
-            }
-
-            if (!res.ok) {
-                const detail = payload && typeof payload === "object"
-                    ? payload.detail || payload.error || payload.message
-                    : null;
-                const error = new Error(detail || `Failed to load ${url}: ${res.status}`);
-                error.status = res.status;
-                error.url = url;
-                throw error;
-            }
-
-            return hasBody ? payload : null;
+            return window.GameDenSite.fetchJson(url, options);
         }
 
         function isAbortLikeError(error) {

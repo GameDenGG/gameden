@@ -5,9 +5,65 @@
     site_name: "GameDen.gg",
     site_url: "https://gameden.gg",
     site_description: "Discover game deals, analytics, player trends, and price history on GameDen.gg.",
-    // Optional API origin for static deployments, e.g. "https://api.gameden.gg"
+    // Optional API base for static deployments, e.g. "https://api.gameden.gg"
     api_base: "",
   });
+  const ABSOLUTE_URL_RE = /^(https?:)?\/\//i;
+  const SPECIAL_SCHEME_RE = /^(mailto:|tel:|data:|javascript:)/i;
+  const STATIC_PAGE_PATHS = new Set([
+    "/",
+    "/index.html",
+    "/game.html",
+    "/history.html",
+    "/watchlist.html",
+    "/all-results.html",
+    "/game-detail.html",
+  ]);
+  const STATIC_ASSET_EXTENSIONS = [
+    ".html",
+    ".css",
+    ".js",
+    ".mjs",
+    ".ico",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".svg",
+    ".webp",
+    ".avif",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".map",
+    ".json",
+    ".xml",
+    ".txt",
+    ".webmanifest",
+    ".manifest",
+  ];
+  const API_EXACT_PATHS = new Set([
+    "/health",
+    "/metrics",
+    "/search",
+    "/alerts",
+    "/wishlist",
+    "/watchlist",
+    "/worth-buying-now",
+    "/trending-deals",
+    "/historical-lows",
+  ]);
+  const API_PATH_PREFIXES = [
+    "/api/",
+    "/dashboard/",
+    "/sales/",
+    "/games/",
+    "/deals/",
+    "/leaderboards/",
+    "/wishlist/",
+    "/deal-watchlists/",
+    "/notifications/",
+  ];
 
   function normalizeSiteUrl(rawValue) {
     const value = String(rawValue || "").trim() || fallbackConfig.site_url;
@@ -25,7 +81,7 @@
     site_name: String(runtimeConfig.site_name || fallbackConfig.site_name).trim() || fallbackConfig.site_name,
     site_url: normalizeSiteUrl(runtimeConfig.site_url || fallbackConfig.site_url),
     site_description: String(runtimeConfig.site_description || fallbackConfig.site_description).trim() || fallbackConfig.site_description,
-    api_base: String(runtimeConfig.api_base || runtimeConfig.api_origin || fallbackConfig.api_base).trim(),
+    api_base: String(runtimeConfig.api_base || fallbackConfig.api_base).trim(),
   });
 
   function absoluteUrl(path) {
@@ -43,11 +99,11 @@
 
   function resolveApiUrl(url) {
     const value = String(url || "").trim();
-    if (!value || /^(https?:)?\/\//i.test(value)) {
+    if (!value || ABSOLUTE_URL_RE.test(value)) {
       return value;
     }
 
-    if (/^(mailto:|tel:|data:|javascript:)/i.test(value)) {
+    if (SPECIAL_SCHEME_RE.test(value)) {
       return value;
     }
 
@@ -65,85 +121,74 @@
     }
 
     const normalizedPath = (function normalizeRelativePath(path) {
-      if (path.startsWith("/")) {
-        return path;
-      }
-      if (path.startsWith("./")) {
-        return `/${path.slice(2)}`;
-      }
+      if (path.startsWith("/")) return path;
+      if (path.startsWith("./")) return `/${path.slice(2)}`;
       return `/${path}`;
     })(rawPath).replace(/^\/+/, "/");
 
     const normalizedLower = normalizedPath.toLowerCase();
-    const staticPagePaths = new Set([
-      "/",
-      "/index.html",
-      "/game.html",
-      "/history.html",
-      "/watchlist.html",
-      "/all-results.html",
-      "/game-detail.html",
-    ]);
-    const staticAssetExtensions = [
-      ".html",
-      ".css",
-      ".js",
-      ".mjs",
-      ".ico",
-      ".png",
-      ".jpg",
-      ".jpeg",
-      ".gif",
-      ".svg",
-      ".webp",
-      ".avif",
-      ".woff",
-      ".woff2",
-      ".ttf",
-      ".map",
-      ".json",
-      ".xml",
-      ".txt",
-      ".webmanifest",
-      ".manifest",
-    ];
-    const isStaticPage = staticPagePaths.has(normalizedLower);
-    const isStaticAsset = staticAssetExtensions.some((ext) => normalizedLower.endsWith(ext));
+    const isStaticPage = STATIC_PAGE_PATHS.has(normalizedLower);
+    const isStaticAsset = STATIC_ASSET_EXTENSIONS.some((ext) => normalizedLower.endsWith(ext));
     if (isStaticPage || isStaticAsset) {
       return value;
     }
 
-    const apiExactPaths = new Set([
-      "/health",
-      "/metrics",
-      "/search",
-      "/alerts",
-      "/wishlist",
-      "/watchlist",
-      "/worth-buying-now",
-      "/trending-deals",
-      "/historical-lows",
-    ]);
-    const apiPathPrefixes = [
-      "/api/",
-      "/dashboard/",
-      "/sales/",
-      "/games/",
-      "/deals/",
-      "/leaderboards/",
-      "/wishlist/",
-      "/deal-watchlists/",
-      "/notifications/",
-    ];
     const isApiRoute =
-      apiExactPaths.has(normalizedLower) ||
-      apiPathPrefixes.some((prefix) => normalizedLower.startsWith(prefix));
+      API_EXACT_PATHS.has(normalizedLower) ||
+      API_PATH_PREFIXES.some((prefix) => normalizedLower.startsWith(prefix));
 
     if (!isApiRoute) {
       return value;
     }
 
     return `${apiBase}${normalizedPath}${suffix}`;
+  }
+
+  function _parseJsonBody(responseText, url, status, isOk) {
+    const body = String(responseText || "");
+    if (!body.trim()) {
+      return { payload: null, hasBody: false, rawBody: "" };
+    }
+    try {
+      return { payload: JSON.parse(body), hasBody: true, rawBody: body };
+    } catch (_error) {
+      if (isOk) {
+        const parseError = new Error(`Invalid JSON response for ${url}`);
+        parseError.status = status;
+        parseError.url = url;
+        throw parseError;
+      }
+      return { payload: null, hasBody: true, rawBody: body };
+    }
+  }
+
+  function _extractErrorDetail(payload, rawBody, fallbackMessage) {
+    if (payload && typeof payload === "object") {
+      return payload.detail || payload.error || payload.message || fallbackMessage;
+    }
+    if (typeof rawBody === "string" && rawBody.trim()) {
+      return rawBody.trim();
+    }
+    return fallbackMessage;
+  }
+
+  async function fetchJson(url, options = {}) {
+    const requestUrl = resolveApiUrl(url);
+    const response = await fetch(requestUrl, options);
+    if (response.status === 204) return null;
+
+    const rawBody = await response.text();
+    const parsed = _parseJsonBody(rawBody, url, response.status, response.ok);
+
+    if (!response.ok) {
+      const fallbackMessage = `Failed to load ${url}: ${response.status}`;
+      const error = new Error(_extractErrorDetail(parsed.payload, parsed.rawBody, fallbackMessage));
+      error.status = response.status;
+      error.url = url;
+      throw error;
+    }
+
+    return parsed.hasBody ? parsed.payload : null;
   }
 
   function applyMetadata(meta) {
@@ -178,6 +223,7 @@
     config: siteConfig,
     absoluteUrl,
     resolveApiUrl,
+    fetchJson,
     applyMetadata,
   });
 })();

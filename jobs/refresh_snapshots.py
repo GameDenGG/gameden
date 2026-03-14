@@ -15,7 +15,7 @@ import uuid
 from statistics import median
 from typing import Any
 
-from sqlalchemy import case, desc, func, text
+from sqlalchemy import case, func, text
 from sqlalchemy.orm import Session
 
 from database import direct_engine

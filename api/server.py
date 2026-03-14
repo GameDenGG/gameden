@@ -2780,6 +2780,153 @@ def _rebuild_dashboard_cache_on_demand():
         session.close()
 
 
+def _dashboard_rows(payload: dict, *keys: str) -> list[dict]:
+    for key in keys:
+        value = payload.get(key)
+        if isinstance(value, list):
+            return [row for row in value if isinstance(row, dict)]
+    return []
+
+
+def _dashboard_identity_key(row: dict, index: int = 0) -> str:
+    game_id = row.get("game_id") or row.get("id")
+    try:
+        parsed_id = int(game_id)
+    except Exception:
+        parsed_id = 0
+    if parsed_id > 0:
+        return f"id:{parsed_id}"
+    name = str(row.get("game_name") or row.get("name") or "").strip().lower()
+    if name:
+        return f"name:{name}"
+    return f"idx:{index}"
+
+
+def _dedupe_dashboard_rows(rows: list[dict]) -> list[dict]:
+    deduped: list[dict] = []
+    seen: set[str] = set()
+    for idx, row in enumerate(rows):
+        key = _dashboard_identity_key(row, idx)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(row)
+    return deduped
+
+
+def _normalize_buy_recommendation(value) -> str:
+    normalized = str(value or "").strip().upper()
+    return normalized if normalized in {"BUY_NOW", "WAIT"} else ""
+
+
+def _decision_rows_by_recommendation(rows: list[dict], recommendation: str, limit: int = 24) -> list[dict]:
+    target = _normalize_buy_recommendation(recommendation)
+    if not target:
+        return []
+    picked: list[dict] = []
+    for row in rows:
+        if _normalize_buy_recommendation(row.get("buy_recommendation")) != target:
+            continue
+        picked.append(row)
+        if len(picked) >= limit:
+            break
+    return picked
+
+
+def _build_player_surges(alert_rows: list[dict], trending_rows: list[dict], limit: int = 24) -> list[dict]:
+    surge_rows: list[dict] = []
+    for row in alert_rows:
+        alert_type = str(row.get("alert_type") or row.get("signal_type") or "").strip().upper()
+        if alert_type == "PLAYER_SURGE":
+            surge_rows.append(row)
+    for row in trending_rows:
+        if safe_num(row.get("player_change"), 0.0) > 0 or safe_num(row.get("short_term_player_trend"), 0.0) > 0:
+            surge_rows.append(row)
+    return _dedupe_dashboard_rows(surge_rows)[:limit]
+
+
+def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
+    payload = dict(raw_payload)
+
+    worth_buying_now = _dedupe_dashboard_rows(_dashboard_rows(payload, "worth_buying_now", "worthBuyingNow"))
+    biggest_discounts = _dedupe_dashboard_rows(_dashboard_rows(payload, "biggest_discounts", "biggestDeals"))
+    trending_now = _dedupe_dashboard_rows(_dashboard_rows(payload, "trending_now", "trending", "trendingDeals"))
+    new_historical_lows = _dedupe_dashboard_rows(_dashboard_rows(payload, "new_historical_lows", "newHistoricalLows"))
+    deal_radar = _dedupe_dashboard_rows(_dashboard_rows(payload, "deal_radar", "marketRadar", "dealRadar"))
+    alert_signals = _dedupe_dashboard_rows(_dashboard_rows(payload, "alertSignals"))
+
+    decision_pool = _dedupe_dashboard_rows(
+        [
+            *worth_buying_now,
+            *_dashboard_rows(payload, "recommendedDeals"),
+            *_dashboard_rows(payload, "dealRanked", "topDealsToday"),
+            *biggest_discounts,
+            *_dashboard_rows(payload, "trendingDeals"),
+            *trending_now,
+            *new_historical_lows,
+        ]
+    )
+    buy_now_picks = _dedupe_dashboard_rows(_dashboard_rows(payload, "buy_now_picks"))
+    wait_picks = _dedupe_dashboard_rows(_dashboard_rows(payload, "wait_picks"))
+    if not buy_now_picks:
+        buy_now_picks = _decision_rows_by_recommendation(decision_pool, "BUY_NOW")
+    if not wait_picks:
+        wait_picks = _decision_rows_by_recommendation(decision_pool, "WAIT")
+    if not buy_now_picks:
+        buy_now_picks = worth_buying_now[:24]
+    if not wait_picks:
+        wait_picks = [
+            row
+            for row in decision_pool
+            if safe_num(row.get("price_vs_low_ratio"), 0.0) >= 1.08
+            or safe_num(row.get("predicted_next_discount_percent"), 0.0) >= 35
+        ][:24]
+
+    player_surges = _dedupe_dashboard_rows(_dashboard_rows(payload, "player_surges"))
+    if not player_surges:
+        player_surges = _build_player_surges(alert_signals, trending_now)
+
+    seasonal_summary = payload.get("seasonal_summary")
+    if not isinstance(seasonal_summary, dict):
+        seasonal_summary = payload.get("seasonalSale") if isinstance(payload.get("seasonalSale"), dict) else {}
+
+    payload["worth_buying_now"] = worth_buying_now
+    payload["biggest_discounts"] = biggest_discounts
+    payload["buy_now_picks"] = buy_now_picks
+    payload["wait_picks"] = wait_picks
+    payload["new_historical_lows"] = new_historical_lows
+    payload["trending_now"] = trending_now
+    payload["deal_radar"] = deal_radar
+    payload["player_surges"] = player_surges
+    payload["seasonal_summary"] = seasonal_summary
+    payload["decision_dashboard"] = {
+        "worth_buying_now": worth_buying_now,
+        "biggest_discounts": biggest_discounts,
+        "buy_now_picks": buy_now_picks,
+        "wait_picks": wait_picks,
+        "new_historical_lows": new_historical_lows,
+        "trending_now": trending_now,
+        "deal_radar": deal_radar,
+        "player_surges": player_surges,
+        "seasonal_summary": seasonal_summary,
+    }
+
+    if not _dashboard_rows(payload, "worthBuyingNow"):
+        payload["worthBuyingNow"] = worth_buying_now
+    if not _dashboard_rows(payload, "biggestDeals"):
+        payload["biggestDeals"] = biggest_discounts
+    if not _dashboard_rows(payload, "newHistoricalLows"):
+        payload["newHistoricalLows"] = new_historical_lows
+    if not _dashboard_rows(payload, "trending"):
+        payload["trending"] = trending_now
+    if not _dashboard_rows(payload, "dealRadar"):
+        payload["dealRadar"] = deal_radar
+    if not _dashboard_rows(payload, "marketRadar"):
+        payload["marketRadar"] = deal_radar
+
+    return payload
+
+
 @app.get("/dashboard/home")
 @json_etag()
 @ttl_cache(ttl_seconds=60, endpoint_key="/dashboard/home")
@@ -2820,7 +2967,7 @@ def get_dashboard_home(request: Request):
         if not isinstance(cached_payload, dict):
             raise HTTPException(status_code=503, detail="Dashboard cache payload has unexpected shape")
 
-        payload = dict(cached_payload)
+        payload = _augment_dashboard_home_payload(cached_payload)
         payload["_meta"] = {
             "cache_key": cache_row.cache_key,
             "generated_at": cache_row.updated_at.isoformat() if cache_row.updated_at else None,

@@ -2383,6 +2383,69 @@ def build_dashboard_filters(session: Session) -> dict[str, list[str]]:
     }
 
 
+def _normalize_buy_recommendation(value: Any) -> str:
+    normalized = str(value or "").strip().upper()
+    return normalized if normalized in {"BUY_NOW", "WAIT"} else ""
+
+
+def _snapshot_identity_key(row: dict, index: int = 0) -> str:
+    if not isinstance(row, dict):
+        return f"idx:{index}"
+    game_id = row.get("game_id") or row.get("id")
+    try:
+        numeric_id = int(game_id)
+    except Exception:
+        numeric_id = 0
+    if numeric_id > 0:
+        return f"id:{numeric_id}"
+    name = str(row.get("game_name") or row.get("name") or "").strip().lower()
+    if name:
+        return f"name:{name}"
+    return f"idx:{index}"
+
+
+def _dedupe_snapshot_rows(rows: list[dict]) -> list[dict]:
+    deduped: list[dict] = []
+    seen: set[str] = set()
+    for idx, row in enumerate(rows):
+        if not isinstance(row, dict):
+            continue
+        key = _snapshot_identity_key(row, idx)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(row)
+    return deduped
+
+
+def _build_decision_picks(rows: list[dict], recommendation: str, limit: int = HOMEPAGE_RAIL_LIMIT) -> list[dict]:
+    target = _normalize_buy_recommendation(recommendation)
+    if not target:
+        return []
+    picked: list[dict] = []
+    for row in rows:
+        if _normalize_buy_recommendation(row.get("buy_recommendation")) != target:
+            continue
+        picked.append(row)
+        if len(picked) >= limit:
+            break
+    return picked
+
+
+def _build_player_surges(alert_rows: list[dict], trending_rows: list[dict], limit: int = HOMEPAGE_RAIL_LIMIT) -> list[dict]:
+    candidates: list[dict] = []
+    for row in alert_rows:
+        alert_type = str(row.get("alert_type") or row.get("signal_type") or "").strip().upper()
+        if alert_type == ALERT_PLAYER_SURGE:
+            candidates.append(row)
+    for row in trending_rows:
+        change = safe_num(row.get("player_change"), 0.0)
+        short_term = safe_num(row.get("short_term_player_trend"), 0.0)
+        if change > 0 or short_term > 0:
+            candidates.append(row)
+    return _dedupe_snapshot_rows(candidates)[:limit]
+
+
 def rebuild_dashboard_cache(session: Session) -> None:
     hold_filter = func.upper(func.coalesce(Game.priority_tier, "")) == ROLLOUT_HOLD_TIER
     total_games = int(session.query(func.count(Game.id)).scalar() or 0)
@@ -2618,6 +2681,49 @@ def rebuild_dashboard_cache(session: Session) -> None:
 
     deal_radar = _build_deal_radar_feed(session, limit=DEAL_RADAR_LIMIT)
 
+    recommended_deals_rows = [_snapshot_row_to_dict(row) for row in recommended_deals]
+    worth_buying_now_rows = [_snapshot_row_to_dict(row) for row in worth_buying_now]
+    deal_ranked_rows = [_snapshot_row_to_dict(row) for row in deal_ranked]
+    biggest_deals_rows = [_snapshot_row_to_dict(row) for row in biggest_deals]
+    historical_lows_rows = [_snapshot_row_to_dict(row) for row in historical_lows]
+    trending_deals_rows = [_snapshot_row_to_dict(row) for row in trending_deals]
+    top_reviewed_rows = [_snapshot_row_to_dict(row) for row in top_reviewed]
+    top_played_rows = [_snapshot_row_to_dict(row) for row in top_played]
+    trending_rows = [_snapshot_row_to_dict(row) for row in trending]
+    leaderboard_rows = [_snapshot_row_to_dict(row) for row in leaderboard]
+    upcoming_rows = [_snapshot_row_to_dict(row) for row in upcoming]
+    new_historical_lows_rows = _dedupe_snapshot_rows(new_historical_lows)
+
+    decision_pool = _dedupe_snapshot_rows(
+        [
+            *worth_buying_now_rows,
+            *recommended_deals_rows,
+            *deal_ranked_rows,
+            *biggest_deals_rows,
+            *trending_deals_rows,
+            *trending_rows,
+            *new_historical_lows_rows,
+        ]
+    )
+    buy_now_picks = _build_decision_picks(decision_pool, "BUY_NOW")
+    wait_picks = _build_decision_picks(decision_pool, "WAIT")
+    if not buy_now_picks:
+        buy_now_picks = worth_buying_now_rows[:HOMEPAGE_RAIL_LIMIT]
+    if not wait_picks:
+        wait_candidates = [
+            row
+            for row in decision_pool
+            if safe_num(row.get("price_vs_low_ratio"), 0.0) >= 1.08
+            or safe_num(row.get("predicted_next_discount_percent"), 0.0) >= 35
+        ]
+        wait_picks = wait_candidates[:HOMEPAGE_RAIL_LIMIT]
+
+    trending_now_rows = trending_rows if trending_rows else trending_deals_rows
+    biggest_discounts_rows = biggest_deals_rows
+    worth_buying_rows = worth_buying_now_rows
+    player_surges = _build_player_surges(alert_signals, trending_rows)
+    seasonal_summary = {}
+
     # Homepage dashboard cache is shared and not user-scoped; keep personal lists
     # empty here and hydrate them via user-scoped API calls in the frontend.
     wishlist: list[dict] = []
@@ -2632,18 +2738,18 @@ def rebuild_dashboard_cache(session: Session) -> None:
             "rollout_hold_tier": ROLLOUT_HOLD_TIER,
             "updated_at": utcnow().isoformat(),
         },
-        "recommendedDeals": [_snapshot_row_to_dict(row) for row in recommended_deals],
-        "worthBuyingNow": [_snapshot_row_to_dict(row) for row in worth_buying_now],
-        "home:worth_buying": [_snapshot_row_to_dict(row) for row in worth_buying_now],
-        "topDealsToday": [_snapshot_row_to_dict(row) for row in deal_ranked],
-        "dealRanked": [_snapshot_row_to_dict(row) for row in deal_ranked],
-        "biggestDeals": [_snapshot_row_to_dict(row) for row in biggest_deals],
+        "recommendedDeals": recommended_deals_rows,
+        "worthBuyingNow": worth_buying_now_rows,
+        "home:worth_buying": worth_buying_now_rows,
+        "topDealsToday": deal_ranked_rows,
+        "dealRanked": deal_ranked_rows,
+        "biggestDeals": biggest_deals_rows,
         "historicalLowsThisWeek": historical_lows_this_week,
-        "historicalLows": [_snapshot_row_to_dict(row) for row in historical_lows],
-        "trendingDeals": [_snapshot_row_to_dict(row) for row in trending_deals],
-        "home:trending": [_snapshot_row_to_dict(row) for row in trending_deals],
-        "newHistoricalLows": new_historical_lows,
-        "home:historical_lows": new_historical_lows,
+        "historicalLows": historical_lows_rows,
+        "trendingDeals": trending_deals_rows,
+        "home:trending": trending_deals_rows,
+        "newHistoricalLows": new_historical_lows_rows,
+        "home:historical_lows": new_historical_lows_rows,
         "biggestPriceDrops": [
             {
                 "id": int(row.id),
@@ -2656,18 +2762,38 @@ def rebuild_dashboard_cache(session: Session) -> None:
             }
             for row in biggest_price_drop_events
         ],
-        "topReviewed": [_snapshot_row_to_dict(row) for row in top_reviewed],
-        "mostPlayedDeals": [_snapshot_row_to_dict(row) for row in top_played],
-        "topPlayed": [_snapshot_row_to_dict(row) for row in top_played],
-        "trending": [_snapshot_row_to_dict(row) for row in trending],
-        "leaderboard": [_snapshot_row_to_dict(row) for row in leaderboard],
-        "upcoming": [_snapshot_row_to_dict(row) for row in upcoming],
+        "topReviewed": top_reviewed_rows,
+        "mostPlayedDeals": top_played_rows,
+        "topPlayed": top_played_rows,
+        "trending": trending_rows,
+        "leaderboard": leaderboard_rows,
+        "upcoming": upcoming_rows,
         "wishlist": wishlist,
         "watchlist": watchlist,
         "filters": build_dashboard_filters(session),
         "alertSignals": alert_signals,
         "dealRadar": deal_radar,
         "marketRadar": deal_radar,
+        "worth_buying_now": worth_buying_rows,
+        "biggest_discounts": biggest_discounts_rows,
+        "buy_now_picks": buy_now_picks,
+        "wait_picks": wait_picks,
+        "new_historical_lows": new_historical_lows_rows,
+        "trending_now": trending_now_rows,
+        "deal_radar": deal_radar,
+        "player_surges": player_surges,
+        "seasonal_summary": seasonal_summary,
+        "decision_dashboard": {
+            "worth_buying_now": worth_buying_rows,
+            "biggest_discounts": biggest_discounts_rows,
+            "buy_now_picks": buy_now_picks,
+            "wait_picks": wait_picks,
+            "new_historical_lows": new_historical_lows_rows,
+            "trending_now": trending_now_rows,
+            "deal_radar": deal_radar,
+            "player_surges": player_surges,
+            "seasonal_summary": seasonal_summary,
+        },
         "generated_at": utcnow().isoformat(),
     }
 

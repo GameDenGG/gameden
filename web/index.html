@@ -2180,8 +2180,8 @@ input:focus-visible {
                 <section class="panel panel-deals" id="bestDealsPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Best Deals Today</h2>
-                            <div class="panel-subtitle">Ranked by discount, review quality, player count, and historical-low relevance.</div>
+                            <h2 class="panel-title">Biggest Discounts Today</h2>
+                            <div class="panel-subtitle">Deepest live markdowns with context on quality, historical low proximity, and momentum.</div>
                         </div>
                         <div class="row-nav">
                             <button class="row-nav-btn" type="button" data-row-left="dealRankedGrid">&lt;</button>
@@ -2226,8 +2226,8 @@ input:focus-visible {
                 <section class="panel panel-deals" id="trendingGamesPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Trending Games</h2>
-                            <div class="panel-subtitle">Games with the biggest recent changes in player activity.</div>
+                            <h2 class="panel-title">Trending Now</h2>
+                            <div class="panel-subtitle">Games with rising player activity and momentum signals right now.</div>
                         </div>
                         <div class="row-nav">
                             <button class="row-nav-btn" type="button" data-row-left="trendingDealsGrid">&lt;</button>
@@ -2266,8 +2266,8 @@ input:focus-visible {
                 <section class="panel panel-activity">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">New Deals Since Last Visit</h2>
-                            <div class="panel-subtitle">Deals that appeared since the last time you visited.</div>
+                            <h2 class="panel-title">Buy Now Picks</h2>
+                            <div class="panel-subtitle">Snapshot-backed BUY NOW recommendations with favorable current pricing.</div>
                         </div>
                         <div class="row-nav">
                             <button class="row-nav-btn" type="button" data-row-left="newDealsGrid">&lt;</button>
@@ -2292,8 +2292,8 @@ input:focus-visible {
                 <section class="panel panel-deals">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Deals You Should Not Miss</h2>
-                            <div class="panel-subtitle">Top opportunities based on your wishlist, watchlist, historical lows, and deal score.</div>
+                            <h2 class="panel-title">Wait for Next Sale</h2>
+                            <div class="panel-subtitle">WAIT recommendations where history suggests better discount depth may return.</div>
                         </div>
                         <div class="row-nav">
                             <button class="row-nav-btn" type="button" data-row-left="recommendedDealsGrid">&lt;</button>
@@ -2640,15 +2640,19 @@ input:focus-visible {
             latestPrices: [],
             allGames: [],
             biggestDeals: [],
+            biggestDiscounts: [],
             historicalLows: [],
             topReviewed: [],
             upcoming: [],
             topPlayed: [],
             trending: [],
+            trendingNow: [],
             discoveryTrending: [],
             leaderboard: [],
             dealRanked: [],
             worthBuyingNow: [],
+            buyNowPicks: [],
+            waitPicks: [],
             trendingDeals: [],
             newHistoricalLows: [],
             newDeals: [],
@@ -3000,6 +3004,23 @@ input:focus-visible {
                 tags: safeArray(row.tags),
                 platforms: Array.isArray(row.platforms) ? row.platforms : parsePlatformList(row.platforms),
             };
+        }
+
+        function normalizeBuyRecommendation(value) {
+            const normalized = String(value || "").trim().toUpperCase();
+            return normalized === "BUY_NOW" || normalized === "WAIT" ? normalized : "";
+        }
+
+        function pickByRecommendation(rows, recommendation, limit = 24) {
+            const target = normalizeBuyRecommendation(recommendation);
+            if (!target) return [];
+            const selected = [];
+            for (const row of rows) {
+                if (normalizeBuyRecommendation(row?.buy_recommendation) !== target) continue;
+                selected.push(row);
+                if (selected.length >= limit) break;
+            }
+            return selected;
         }
 
         function buildGameDetailHref(gameLike) {
@@ -3586,6 +3607,12 @@ input:focus-visible {
 
         function buildCardSignalItems(game) {
             const signals = [];
+            const recommendation = normalizeBuyRecommendation(game.buy_recommendation);
+            if (recommendation === "BUY_NOW") {
+                pushCardSignal(signals, "buy_now_pick", "Buy now pick", "good", 98);
+            } else if (recommendation === "WAIT") {
+                pushCardSignal(signals, "wait_pick", "Wait for next sale", "warn", 95);
+            }
             const historicalStatus = String(game.historical_status || "").trim();
             if (historicalStatus === "new_historical_low") {
                 pushCardSignal(signals, "new_historical_low", "New historical low", "good", 100);
@@ -3668,6 +3695,7 @@ input:focus-visible {
             const worthScore = Number(game.worth_buying_score ?? game.buy_score);
             const reviewScore = Number(game.review_score || 0);
             const historicalStatus = String(game.historical_status || "").trim();
+            const recommendation = normalizeBuyRecommendation(game.buy_recommendation);
 
             let qualityFlag = "";
             if (discount >= 80) qualityFlag = "Huge discount";
@@ -3679,6 +3707,11 @@ input:focus-visible {
             const discountChip = discount > 0
                 ? `<span class="meta-chip deal-primary">${Math.round(discount)}% off</span>`
                 : '<span class="meta-chip deal-neutral">No active discount</span>';
+            const recommendationChip = recommendation === "BUY_NOW"
+                ? '<span class="meta-chip deal-flag">Buy now</span>'
+                : recommendation === "WAIT"
+                    ? '<span class="meta-chip deal-neutral">Wait</span>'
+                    : "";
             const qualityChip = qualityFlag ? `<span class="meta-chip deal-flag">${escapeHtml(qualityFlag)}</span>` : "";
             const dealScoreChip = Number.isFinite(dealScore) ? `<span class="meta-chip metric">Deal ${Math.round(dealScore)}</span>` : "";
             const worthScoreChip = Number.isFinite(worthScore) ? `<span class="meta-chip metric">Worth ${Math.round(worthScore)}</span>` : "";
@@ -3687,6 +3720,7 @@ input:focus-visible {
                 <div class="card-meta-row deal-quality">
                     <div class="card-meta-cluster primary">
                         ${discountChip}
+                        ${recommendationChip}
                         ${qualityChip}
                     </div>
                     <div class="card-meta-cluster secondary">
@@ -4235,9 +4269,27 @@ input:focus-visible {
             backdrop.setAttribute("aria-hidden", "true");
         }
 
+        function buildDecisionSubtext(game) {
+            const recommendation = normalizeBuyRecommendation(game.buy_recommendation);
+            const buyReason = String(game.buy_reason || "").trim();
+            const predictedReason = String(game.predicted_sale_reason || "").trim();
+            const heatReason = String(game.deal_heat_reason || "").trim();
+            const worthReason = String(game.worth_buying_reason_summary || "").trim();
+
+            if (recommendation === "BUY_NOW" && buyReason) {
+                return `Buy now: ${buyReason}`;
+            }
+            if (recommendation === "WAIT") {
+                if (buyReason) return `Wait: ${buyReason}`;
+                if (predictedReason) return `Wait: ${predictedReason}`;
+            }
+            return heatReason || worthReason || "";
+        }
+
         function gameCardHtml(game) {
             const detailHref = buildGameDetailHref(game);
             const gameName = escapeHtml(game.game_name || "Unknown game");
+            const decisionSubtext = buildDecisionSubtext(game);
             return `
                 <article class="game-card">
                     <a class="game-card-link-overlay" href="${detailHref}" aria-label="Open ${gameName} details"></a>
@@ -4255,7 +4307,7 @@ input:focus-visible {
                     </div>
                     ${buildActionButtons(game)}
                     ${buildCardMetadataStack(game)}
-                    ${game.deal_heat_reason ? `<div class="card-subtext">${escapeHtml(game.deal_heat_reason)}</div>` : (game.worth_buying_reason_summary ? `<div class="card-subtext">${escapeHtml(game.worth_buying_reason_summary)}</div>` : "")}
+                    ${decisionSubtext ? `<div class="card-subtext">${escapeHtml(decisionSubtext)}</div>` : ""}
                     <div class="meta-grid">
                         <div class="meta-item">
                             <div class="meta-label">Historical low</div>
@@ -4679,13 +4731,13 @@ input:focus-visible {
         }
 
         function renderNewDeals() {
-            if (!state.newDeals.length) {
+            if (!state.buyNowPicks.length) {
                 renderEmpty(
                     ui.newDealsGrid,
-                    "No new deals have appeared since your last visit.",
+                    "No strong buy-now picks currently.",
                     {
                         tone: "neutral",
-                        detail: "We'll surface fresh discounts here as soon as they are detected.",
+                        detail: "Recommendation quality updates as new snapshot cycles complete.",
                     },
                 );
                 ui.newDealsShowAllBtn.classList.add("hidden");
@@ -4693,33 +4745,40 @@ input:focus-visible {
             }
             renderPagedCards({
                 container: ui.newDealsGrid,
-                items: state.newDeals,
+                items: state.buyNowPicks,
                 renderer: gameCardHtml,
                 visibleKey: "newDealsGrid",
                 toggleButton: null,
                 showAllButton: ui.newDealsShowAllBtn,
-                view: "new-deals",
-                title: "New Deals Since Last Visit",
+                view: "buy-now-picks",
+                title: "Buy Now Picks",
                 initialCount: 12,
             });
         }
 
         function renderRecommendedDeals() {
-            if (!state.recommendedDeals.length) {
-                renderEmpty(ui.recommendedDealsGrid, "No recommended deals right now.");
+            if (!state.waitPicks.length) {
+                renderEmpty(
+                    ui.recommendedDealsGrid,
+                    "No clear wait-for-next-sale picks right now.",
+                    {
+                        tone: "neutral",
+                        detail: "Games with stronger wait signals will appear here automatically.",
+                    },
+                );
                 ui.recommendedDealsShowAllBtn.classList.add("hidden");
                 return;
             }
 
             renderPagedCards({
                 container: ui.recommendedDealsGrid,
-                items: state.recommendedDeals,
+                items: state.waitPicks,
                 renderer: gameCardHtml,
                 visibleKey: "recommendedDealsGrid",
                 toggleButton: null,
                 showAllButton: ui.recommendedDealsShowAllBtn,
-                view: "recommended-deals",
-                title: "Deals You Should Not Miss",
+                view: "wait-for-next-sale",
+                title: "Wait for Next Sale",
                 initialCount: 12,
             });
         }
@@ -5424,15 +5483,18 @@ input:focus-visible {
         }
 
         function renderDealRanked() {
+            const sectionItems = state.biggestDiscounts.length
+                ? state.biggestDiscounts
+                : state.dealRanked;
             renderPagedCards({
                 container: ui.dealRankedGrid,
-                items: state.dealRanked,
+                items: sectionItems,
                 renderer: gameCardHtml,
                 visibleKey: "dealRankedGrid",
                 toggleButton: null,
                 showAllButton: null,
-                view: "deal-ranked",
-                title: "Best Deals Today",
+                view: "biggest-discounts",
+                title: "Biggest Discounts Today",
                 initialCount: 8,
             });
         }
@@ -5452,15 +5514,18 @@ input:focus-visible {
         }
 
         function renderTrendingDeals() {
+            const sectionItems = state.trendingNow.length
+                ? state.trendingNow
+                : (state.discoveryTrending.length ? state.discoveryTrending : state.trendingDeals);
             renderPagedCards({
                 container: ui.trendingDealsGrid,
-                items: state.discoveryTrending,
+                items: sectionItems,
                 renderer: gameCardHtml,
                 visibleKey: "trendingDealsGrid",
                 toggleButton: null,
                 showAllButton: null,
-                view: "trending-games",
-                title: "Trending Games",
+                view: "trending-now",
+                title: "Trending Now",
                 initialCount: 12,
             });
         }
@@ -6163,29 +6228,84 @@ input:focus-visible {
         }
 
         function hydrateDashboardState(dashboardPayload, seasonalPayload, releasedPayload, dealRadarPayload) {
-            const biggestDeals = uniqueGamesByName(dashboardPayload?.biggestDeals || []);
+            const biggestDiscounts = uniqueGamesByName(
+                dashboardPayload?.biggest_discounts
+                || dashboardPayload?.biggestDeals
+                || []
+            );
             const dealRanked = uniqueGamesByName(dashboardPayload?.dealRanked || dashboardPayload?.topDealsToday || []);
             const recommendedDeals = uniqueGamesByName(dashboardPayload?.recommendedDeals || []);
             const topReviewed = uniqueGamesByName(dashboardPayload?.topReviewed || []);
             const topPlayed = uniqueGamesByName(dashboardPayload?.topPlayed || dashboardPayload?.mostPlayedDeals || []);
             const trendingDeals = uniqueGamesByName(dashboardPayload?.trendingDeals || []);
-            const trending = uniqueGamesByName(dashboardPayload?.trending || []);
+            const trending = uniqueGamesByName(dashboardPayload?.trending || dashboardPayload?.trending_now || []);
             const leaderboard = uniqueGamesByName(dashboardPayload?.leaderboard || []);
             const historicalLows = uniqueGamesByName(dashboardPayload?.historicalLows || []);
             const upcoming = uniqueGamesByName(dashboardPayload?.upcoming || []);
-            const worthBuyingNow = uniqueGamesByName(dashboardPayload?.worthBuyingNow || []);
+            const worthBuyingNow = uniqueGamesByName(
+                dashboardPayload?.worth_buying_now
+                || dashboardPayload?.worthBuyingNow
+                || []
+            );
+            const trendingNow = uniqueGamesByName(
+                dashboardPayload?.trending_now
+                || dashboardPayload?.trending
+                || dashboardPayload?.trendingDeals
+                || []
+            );
+            const newHistoricalLows = uniqueGamesByName(
+                dashboardPayload?.new_historical_lows
+                || dashboardPayload?.newHistoricalLows
+                || []
+            );
             const alertSignals = uniqueAlertSignals(dashboardPayload?.alertSignals || []);
             const dealRadarFromEndpoint = uniqueDealRadarSignals(dealRadarPayload?.items || dealRadarPayload || []);
             const dealRadarFromDashboard = uniqueDealRadarSignals(
-                dashboardPayload?.marketRadar || dashboardPayload?.dealRadar || []
+                dashboardPayload?.deal_radar
+                || dashboardPayload?.marketRadar
+                || dashboardPayload?.dealRadar
+                || []
             );
             const dealRadar = uniqueDealRadarSignals([
                 ...dealRadarFromEndpoint,
                 ...dealRadarFromDashboard,
             ]);
+            const decisionPool = uniqueGamesByName([
+                ...worthBuyingNow,
+                ...dealRanked,
+                ...recommendedDeals,
+                ...biggestDiscounts,
+                ...trendingNow,
+                ...newHistoricalLows,
+            ]);
+            const buyNowFromPayload = uniqueGamesByName(dashboardPayload?.buy_now_picks || []);
+            const waitFromPayload = uniqueGamesByName(dashboardPayload?.wait_picks || []);
+            const derivedBuyNowPicks = pickByRecommendation(decisionPool, "BUY_NOW", 24);
+            const derivedWaitPicks = pickByRecommendation(decisionPool, "WAIT", 24);
+            const buyNowPicks = buyNowFromPayload.length
+                ? buyNowFromPayload
+                : (
+                    derivedBuyNowPicks.length
+                        ? derivedBuyNowPicks
+                        : worthBuyingNow.slice(0, 24)
+                );
+            const waitPicks = waitFromPayload.length
+                ? waitFromPayload
+                : (
+                    derivedWaitPicks.length
+                        ? derivedWaitPicks
+                        : decisionPool
+                            .filter((row) =>
+                                Number(row?.price_vs_low_ratio || 0) >= 1.08
+                                || Number(row?.predicted_next_discount_percent || 0) >= 35
+                            )
+                            .slice(0, 24)
+                );
             const releasedItems = uniqueGamesByName(releasedPayload?.items || []);
             const seasonalFromEndpoint = normalizeSeasonalPayload(seasonalPayload);
-            const seasonalFromDashboard = normalizeSeasonalPayload(dashboardPayload?.seasonalSale);
+            const seasonalFromDashboard = normalizeSeasonalPayload(
+                dashboardPayload?.seasonal_summary || dashboardPayload?.seasonalSale
+            );
             const seasonalStateSource = (seasonalFromEndpoint.sale_event || seasonalFromEndpoint.expected_games.length)
                 ? seasonalFromEndpoint
                 : seasonalFromDashboard;
@@ -6221,13 +6341,14 @@ input:focus-visible {
                 ? releasedItems
                 : uniqueGamesByName([
                     ...dealRanked,
-                    ...biggestDeals,
+                    ...biggestDiscounts,
                     ...topReviewed,
                     ...trendingDeals,
                     ...topPlayed,
                     ...historicalLows,
                 ]);
-            state.biggestDeals = biggestDeals;
+            state.biggestDeals = biggestDiscounts;
+            state.biggestDiscounts = biggestDiscounts;
             state.historicalLows = historicalLows;
             state.topReviewed = topReviewed;
             state.upcoming = upcoming;
@@ -6235,8 +6356,13 @@ input:focus-visible {
             state.recommendedDeals = recommendedDeals;
             state.worthBuyingNow = diversifiedDiscoveryRails.worthBuyingNow || [];
             state.trendingDeals = trendingDeals;
+            state.trendingNow = trendingNow.length
+                ? trendingNow
+                : (diversifiedDiscoveryRails.discoveryTrending || discoveryTrendingCandidates);
             state.discoveryTrending = diversifiedDiscoveryRails.discoveryTrending || discoveryTrendingCandidates;
-            state.newHistoricalLows = uniqueGamesByName(dashboardPayload?.newHistoricalLows || []);
+            state.newHistoricalLows = newHistoricalLows;
+            state.buyNowPicks = buyNowPicks;
+            state.waitPicks = waitPicks;
             state.seasonalSale = seasonalState;
             state.catalogSummary = normalizeCatalogSummary(dashboardPayload?.catalogSummary);
             // Personal lists are user-scoped and should not be hydrated from shared dashboard cache.
@@ -6294,18 +6420,26 @@ input:focus-visible {
                     ...safeArray(dashboardData?.released),
                     ...safeArray(dashboardData?.dealRanked),
                     ...safeArray(dashboardData?.worthBuyingNow),
+                    ...safeArray(dashboardData?.worth_buying_now),
                     ...safeArray(dashboardData?.biggestDeals),
+                    ...safeArray(dashboardData?.biggest_discounts),
                     ...safeArray(dashboardData?.topReviewed),
                     ...safeArray(dashboardData?.trendingDeals),
+                    ...safeArray(dashboardData?.trending_now),
+                    ...safeArray(dashboardData?.buy_now_picks),
+                    ...safeArray(dashboardData?.wait_picks),
                     ...safeArray(dashboardData?.topPlayed),
                     ...safeArray(dashboardData?.historicalLows),
+                    ...safeArray(dashboardData?.new_historical_lows),
                     ...safeArray(dashboardData?.upcoming),
                 ]);
                 releasedData = dashboardReleasedSeed.length
                     ? { items: dashboardReleasedSeed }
                     : await fetchJson(`/games/released?${releasedParams.toString()}`).catch(() => emptyReleased);
 
-                const dashboardDealRadarSeed = safeArray(dashboardData?.marketRadar).length
+                const dashboardDealRadarSeed = safeArray(dashboardData?.deal_radar).length
+                    ? safeArray(dashboardData?.deal_radar)
+                    : safeArray(dashboardData?.marketRadar).length
                     ? safeArray(dashboardData?.marketRadar)
                     : safeArray(dashboardData?.dealRadar);
                 dealRadarData = dashboardDealRadarSeed.length
@@ -6322,9 +6456,15 @@ input:focus-visible {
                     topDealsToday: [],
                     dealRanked: [],
                     biggestDeals: [],
+                    biggest_discounts: [],
                     historicalLows: [],
                     trendingDeals: [],
                     newHistoricalLows: [],
+                    worth_buying_now: [],
+                    trending_now: [],
+                    buy_now_picks: [],
+                    wait_picks: [],
+                    new_historical_lows: [],
                     topReviewed: [],
                     mostPlayedDeals: [],
                     topPlayed: [],
@@ -6335,6 +6475,7 @@ input:focus-visible {
                     alertSignals: [],
                     dealRadar: [],
                     marketRadar: [],
+                    deal_radar: [],
                 };
                 [seasonalData, releasedData, dealRadarData] = await Promise.all([
                     fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal),
@@ -7004,12 +7145,12 @@ input:focus-visible {
                 state.lastVisitTs = getStoredLastVisitTs();
                 ui.seasonalSaleTopGrid.innerHTML = '<div class="loading">Loading seasonal radar...</div>';
                 ui.seasonalSaleLowerGrid.innerHTML = '<div class="loading">Loading seasonal radar...</div>';
-                ui.dealRankedGrid.innerHTML = '<div class="loading">Loading deals…</div>';
+                ui.dealRankedGrid.innerHTML = '<div class="loading">Loading biggest discounts…</div>';
                 ui.worthBuyingGrid.innerHTML = '<div class="loading">Loading worth-buying picks…</div>';
-                ui.trendingDealsGrid.innerHTML = '<div class="loading">Loading trending games…</div>';
+                ui.trendingDealsGrid.innerHTML = '<div class="loading">Loading trending now…</div>';
                 ui.newHistoricalLowsGrid.innerHTML = '<div class="loading">Loading new historical lows…</div>';
-                ui.newDealsGrid.innerHTML = '<div class="loading">Loading new deals…</div>';
-                ui.recommendedDealsGrid.innerHTML = '<div class="loading">Loading recommendations…</div>';
+                ui.newDealsGrid.innerHTML = '<div class="loading">Loading buy-now picks…</div>';
+                ui.recommendedDealsGrid.innerHTML = '<div class="loading">Loading wait picks…</div>';
                 ui.historicalLowsGrid.innerHTML = '<div class="loading">Loading historical lows…</div>';
                 ui.releasedGamesGrid.innerHTML = '<div class="loading">Loading top-selling picks…</div>';
                 ui.topReviewedGrid.innerHTML = '<div class="loading">Loading top reviewed games…</div>';
@@ -7067,10 +7208,12 @@ input:focus-visible {
                 setPanelVisibility(ui.watchlistPanel, true);
                 renderError(ui.seasonalSaleTopGrid, "Failed to load seasonal radar.");
                 renderError(ui.seasonalSaleLowerGrid, "Failed to load seasonal radar.");
-                renderError(ui.dealRankedGrid, "Failed to load deal ranking.");
+                renderError(ui.dealRankedGrid, "Failed to load biggest discounts.");
                 renderError(ui.worthBuyingGrid, "Failed to load worth-buying picks.");
-                renderError(ui.trendingDealsGrid, "Failed to load trending games.");
+                renderError(ui.trendingDealsGrid, "Failed to load trending now.");
                 renderError(ui.newHistoricalLowsGrid, "Failed to load new historical lows.");
+                renderError(ui.newDealsGrid, "Failed to load buy-now picks.");
+                renderError(ui.recommendedDealsGrid, "Failed to load wait picks.");
                 renderError(ui.historicalLowsGrid, "Failed to load historical lows.");
                 renderError(ui.releasedGamesGrid, "Failed to load featured games.");
                 renderError(ui.topReviewedGrid, "Failed to load top reviewed games.");

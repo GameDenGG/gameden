@@ -215,12 +215,64 @@ a {
     padding: 10px 14px;
     font-weight: 800;
     cursor: pointer;
+    transition:
+        transform 0.15s ease,
+        border-color 0.18s ease,
+        background 0.18s ease,
+        box-shadow 0.18s ease,
+        color 0.18s ease,
+        opacity 0.18s ease;
+    will-change: transform, box-shadow;
+}
+
+.hero-watch-btn:hover {
+    border-color: rgba(154, 182, 255, 0.56);
+    background: rgba(121, 168, 255, 0.12);
+    box-shadow: 0 10px 20px rgba(2, 8, 20, 0.24);
+    transform: translateY(-1px);
+}
+
+.hero-watch-btn:active {
+    transform: scale(0.97);
+}
+
+.hero-watch-btn:focus-visible {
+    outline: 2px solid rgba(121, 222, 255, 0.88);
+    outline-offset: 2px;
 }
 
 .hero-watch-btn.active {
     border-color: rgba(74, 222, 128, 0.6);
     background: rgba(74, 222, 128, 0.16);
     color: #ddffe9;
+    box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.22);
+}
+
+.hero-watch-btn.is-pending {
+    opacity: 0.7;
+    cursor: progress;
+}
+
+.hero-watch-btn.is-action-success {
+    animation: heroWatchSuccessPulse 0.62s ease-out 1;
+}
+
+@keyframes heroWatchSuccessPulse {
+    0% {
+        box-shadow:
+            0 0 0 0 rgba(121, 168, 255, 0),
+            0 0 0 0 rgba(121, 168, 255, 0);
+    }
+    45% {
+        box-shadow:
+            0 0 0 1px rgba(121, 168, 255, 0.32),
+            0 0 16px rgba(121, 168, 255, 0.24);
+    }
+    100% {
+        box-shadow:
+            0 0 0 0 rgba(121, 168, 255, 0),
+            0 0 0 0 rgba(121, 168, 255, 0);
+    }
 }
 
 .stats-grid {
@@ -308,6 +360,29 @@ a {
     padding: 9px 14px;
     cursor: pointer;
     font-weight: 800;
+    transition:
+        transform 0.14s ease,
+        border-color 0.18s ease,
+        background 0.18s ease,
+        box-shadow 0.18s ease,
+        color 0.18s ease;
+    will-change: transform;
+}
+
+.range-btn:hover {
+    border-color: rgba(154, 182, 255, 0.48);
+    background: rgba(121, 168, 255, 0.16);
+    box-shadow: 0 8px 16px rgba(2, 8, 20, 0.2);
+    transform: translateY(-1px);
+}
+
+.range-btn:active {
+    transform: scale(0.98);
+}
+
+.range-btn:focus-visible {
+    outline: 2px solid rgba(121, 222, 255, 0.86);
+    outline-offset: 2px;
 }
 
 .range-btn.active {
@@ -468,6 +543,24 @@ a {
 
     .hero-banner {
         height: 200px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero-watch-btn.is-action-success {
+        animation: none;
+    }
+
+    .hero-watch-btn,
+    .range-btn {
+        transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease, opacity 0.18s ease;
+    }
+
+    .hero-watch-btn:hover,
+    .hero-watch-btn:active,
+    .range-btn:hover,
+    .range-btn:active {
+        transform: none;
     }
 }
 </style>
@@ -1179,21 +1272,55 @@ async function fetchUserWatchlist() {
     return Array.isArray(payload?.items) ? payload.items : [];
 }
 
+function setWatchButtonState(isWatching) {
+    if (!watchButton) return;
+    const active = !!isWatching;
+    watchButton.classList.toggle("active", active);
+    watchButton.setAttribute("aria-pressed", active ? "true" : "false");
+    watchButton.textContent = active ? "Watching" : "Watch";
+}
+
+function setWatchButtonPending(isPending) {
+    if (!watchButton) return;
+    const pending = !!isPending;
+    watchButton.classList.toggle("is-pending", pending);
+    watchButton.disabled = pending;
+    if (pending) {
+        watchButton.setAttribute("aria-busy", "true");
+    } else {
+        watchButton.removeAttribute("aria-busy");
+    }
+}
+
+function pulseWatchButtonSuccess() {
+    if (!watchButton) return;
+    const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return;
+    watchButton.classList.remove("is-action-success");
+    void watchButton.offsetWidth;
+    watchButton.classList.add("is-action-success");
+    window.setTimeout(() => {
+        watchButton?.classList.remove("is-action-success");
+    }, 720);
+}
+
 async function syncWatchButton() {
     if (!watchButton || !Number.isFinite(currentGameId) || currentGameId <= 0) return;
     const items = await fetchUserWatchlist().catch(() => []);
     const watched = items.some((item) => Number(item.game_id) === Number(currentGameId));
-    watchButton.classList.toggle("active", watched);
-    watchButton.setAttribute("aria-pressed", watched ? "true" : "false");
-    watchButton.textContent = watched ? "Watching" : "Watch";
+    setWatchButtonState(watched);
 }
 
 async function toggleWatch() {
     if (!watchButton || !Number.isFinite(currentGameId) || currentGameId <= 0) return;
-    watchButton.disabled = true;
+    if (watchButton.disabled || watchButton.classList.contains("is-pending")) return;
+    const wasActive = watchButton.classList.contains("active");
+    const nextActive = !wasActive;
+    setWatchButtonState(nextActive);
+    setWatchButtonPending(true);
+    let mutationApplied = false;
     try {
-        const isActive = watchButton.classList.contains("active");
-        if (isActive) {
+        if (wasActive) {
             await fetchJson(`/api/watchlist/${encodeURIComponent(currentGameId)}?user_id=${encodeURIComponent(CURRENT_USER_ID)}`, {
                 method: "DELETE",
             });
@@ -1207,9 +1334,16 @@ async function toggleWatch() {
                 }),
             });
         }
+        mutationApplied = true;
         await syncWatchButton();
+    } catch (error) {
+        setWatchButtonState(wasActive);
+        throw error;
     } finally {
-        watchButton.disabled = false;
+        setWatchButtonPending(false);
+        if (mutationApplied) {
+            pulseWatchButtonSuccess();
+        }
     }
 }
 

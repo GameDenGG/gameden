@@ -97,9 +97,62 @@ body {
     font-weight: 700;
     cursor: pointer;
     text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition:
+        transform 0.15s ease,
+        border-color 0.18s ease,
+        background 0.18s ease,
+        box-shadow 0.18s ease,
+        color 0.18s ease,
+        opacity 0.18s ease;
+    will-change: transform;
 }
 
-.btn:hover { border-color: rgba(121, 168, 255, 0.58); }
+.btn:hover {
+    border-color: rgba(121, 168, 255, 0.58);
+    background: rgba(121, 168, 255, 0.16);
+    box-shadow: 0 10px 20px rgba(2, 8, 20, 0.22);
+    transform: translateY(-1px);
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn:focus-visible {
+    outline: 2px solid rgba(121, 222, 255, 0.88);
+    outline-offset: 2px;
+}
+
+.btn.is-pending {
+    opacity: 0.68;
+    cursor: progress;
+}
+
+.btn.is-action-success {
+    animation: watchlistActionPulse 0.62s ease-out 1;
+}
+
+@keyframes watchlistActionPulse {
+    0% {
+        box-shadow:
+            0 0 0 0 rgba(121, 168, 255, 0),
+            0 0 0 0 rgba(121, 168, 255, 0);
+    }
+    45% {
+        box-shadow:
+            0 0 0 1px rgba(121, 168, 255, 0.32),
+            0 0 14px rgba(121, 168, 255, 0.22);
+    }
+    100% {
+        box-shadow:
+            0 0 0 0 rgba(121, 168, 255, 0),
+            0 0 0 0 rgba(121, 168, 255, 0);
+    }
+}
 
 .hero {
     border-radius: 24px;
@@ -233,6 +286,21 @@ body {
     color: #ffd9df;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .btn.is-action-success {
+        animation: none;
+    }
+
+    .btn {
+        transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease, opacity 0.18s ease;
+    }
+
+    .btn:hover,
+    .btn:active {
+        transform: none;
+    }
+}
+
 @media (max-width: 720px) {
     .topbar {
         flex-direction: column;
@@ -331,6 +399,32 @@ async function fetchJson(url, options = {}) {
     return window.GameDenSite.fetchJson(url, options);
 }
 
+function setActionPending(button, isPending) {
+    if (!(button instanceof HTMLElement)) return;
+    const pending = !!isPending;
+    button.classList.toggle("is-pending", pending);
+    if (button instanceof HTMLButtonElement) {
+        button.disabled = pending;
+    }
+    if (pending) {
+        button.setAttribute("aria-busy", "true");
+    } else {
+        button.removeAttribute("aria-busy");
+    }
+}
+
+function pulseActionSuccess(button) {
+    if (!(button instanceof HTMLElement)) return;
+    const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return;
+    button.classList.remove("is-action-success");
+    void button.offsetWidth;
+    button.classList.add("is-action-success");
+    window.setTimeout(() => {
+        button.classList.remove("is-action-success");
+    }, 720);
+}
+
 async function removeWatch(gameId) {
     await fetchJson(`/api/watchlist/${encodeURIComponent(gameId)}?user_id=${encodeURIComponent(CURRENT_USER_ID)}`, {
         method: "DELETE",
@@ -409,12 +503,13 @@ function render(items, alertsByGame = new Map()) {
         button.addEventListener("click", async () => {
             const gameId = Number(button.getAttribute("data-remove-watch") || 0);
             if (!Number.isFinite(gameId) || gameId <= 0) return;
-            button.disabled = true;
+            if (button.disabled || button.classList.contains("is-pending")) return;
+            setActionPending(button, true);
             try {
                 await removeWatch(gameId);
             } catch (error) {
                 console.error(error);
-                button.disabled = false;
+                setActionPending(button, false);
             }
         });
     });
@@ -432,16 +527,26 @@ async function loadWatchlist() {
         const items = Array.isArray(watchlistPayload?.items) ? watchlistPayload.items : [];
         const alertsByGame = buildAlertMap(Array.isArray(alertsPayload?.items) ? alertsPayload.items : []);
         render(items, alertsByGame);
+        return true;
     } catch (error) {
         console.error(error);
         contentEl.innerHTML = `<div class="error">Failed to load watchlist data.</div>`;
+        return false;
     } finally {
         contentEl.setAttribute("aria-busy", "false");
     }
 }
 
-document.getElementById("refreshBtn").addEventListener("click", () => {
-    void loadWatchlist();
+document.getElementById("refreshBtn").addEventListener("click", async () => {
+    const refreshButton = document.getElementById("refreshBtn");
+    if (!(refreshButton instanceof HTMLButtonElement)) return;
+    if (refreshButton.disabled || refreshButton.classList.contains("is-pending")) return;
+    setActionPending(refreshButton, true);
+    const loaded = await loadWatchlist();
+    setActionPending(refreshButton, false);
+    if (loaded) {
+        pulseActionSuccess(refreshButton);
+    }
 });
 
 void loadWatchlist();

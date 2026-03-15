@@ -67,6 +67,26 @@ body {
   border-radius: 10px;
   padding: 6px 10px;
   cursor: pointer;
+  transition:
+    transform 0.14s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.18s ease;
+  will-change: transform;
+}
+.range-btn:hover {
+  border-color: rgba(125, 211, 252, 0.52);
+  background: rgba(125, 211, 252, 0.14);
+  box-shadow: 0 8px 16px rgba(2, 8, 20, 0.2);
+  transform: translateY(-1px);
+}
+.range-btn:active {
+  transform: scale(0.98);
+}
+.range-btn:focus-visible {
+  outline: 2px solid rgba(121, 222, 255, 0.88);
+  outline-offset: 2px;
 }
 .range-btn.active { background: rgba(125, 211, 252, 0.18); border-color: rgba(125, 211, 252, 0.45); }
 
@@ -88,4 +108,15 @@ body {
 
 @media (max-width: 640px) {
   .price-row, .meta-grid, .insights-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .range-btn {
+    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+  }
+
+  .range-btn:hover,
+  .range-btn:active {
+    transform: none;
+  }
 }

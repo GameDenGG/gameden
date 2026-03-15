@@ -39,8 +39,10 @@ if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function"
 *{box-sizing:border-box}html,body{margin:0;padding:0}body{font-family:"IBM Plex Sans","Segoe UI",sans-serif;color:var(--text);background:radial-gradient(920px 540px at 4% -10%,rgba(103,234,255,.16),transparent 60%),radial-gradient(980px 700px at 98% 6%,rgba(188,168,255,.16),transparent 58%),linear-gradient(180deg,#050913 0,#040a16 100%)}
 a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0 44px}
 .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}.brand{font-size:26px;font-weight:900;letter-spacing:.02em;text-decoration:none}
-.back-link{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(111,232,255,.08);text-decoration:none;color:var(--text);font-weight:700}
-.back-link:hover{border-color:var(--line2);background:rgba(111,232,255,.14)}
+.back-link{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(111,232,255,.08);text-decoration:none;color:var(--text);font-weight:700;transition:transform .15s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease,color .18s ease;will-change:transform}
+.back-link:hover{border-color:var(--line2);background:rgba(111,232,255,.14);box-shadow:0 10px 20px rgba(2,8,22,.22);transform:translateY(-1px)}
+.back-link:active{transform:scale(.985)}
+.back-link:focus-visible{outline:2px solid rgba(121,222,255,.9);outline-offset:2px}
 .hero{border-radius:22px;border:1px solid var(--line);background:radial-gradient(circle at 88% 2%,rgba(111,232,255,.2),transparent 34%),linear-gradient(170deg,rgba(15,28,52,.96),rgba(8,16,29,.96));padding:22px;margin-bottom:14px}
 .hero h1{margin:10px 0 8px;font-size:clamp(30px,4.3vw,52px);line-height:.95;letter-spacing:-.04em}.hero p{margin:0;color:var(--muted);line-height:1.55}
 .eyebrow{display:inline-block;padding:5px 11px;border-radius:999px;border:1px solid rgba(111,232,255,.45);background:rgba(111,232,255,.12);color:#dcfbff;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
@@ -51,7 +53,10 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
 .field input,.field select{width:100%;border:1px solid rgba(130,173,247,.3);border-radius:10px;background:rgba(255,255,255,.04);color:var(--text);padding:10px 11px;font-size:14px}
 .check{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(130,173,247,.3);border-radius:10px;background:rgba(255,255,255,.04);padding:10px 11px;min-height:40px}
 .count{border:1px solid rgba(130,173,247,.3);border-radius:10px;background:rgba(255,255,255,.04);min-height:40px;display:inline-flex;align-items:center;justify-content:center;font-weight:800}
-.btn{border:1px solid var(--line);border-radius:10px;background:rgba(121,168,255,.11);color:var(--text);padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer}
+.btn{border:1px solid var(--line);border-radius:10px;background:rgba(121,168,255,.11);color:var(--text);padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer;transition:transform .15s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease,color .18s ease;will-change:transform}
+.btn:hover{border-color:var(--line2);background:rgba(121,168,255,.18);box-shadow:0 10px 20px rgba(2,8,22,.22);transform:translateY(-1px)}
+.btn:active{transform:scale(.985)}
+.btn:focus-visible{outline:2px solid rgba(121,222,255,.9);outline-offset:2px}
 .chips{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}.chip{border-radius:999px;border:1px solid rgba(111,232,255,.36);background:rgba(111,232,255,.12);color:#d8fbff;font-size:11px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;padding:5px 9px}
 .status{border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:12px 14px;margin-bottom:12px}.status.error{border-color:rgba(255,143,159,.45);background:rgba(48,12,20,.75);color:#ffd9df}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:12px}.card{display:grid;grid-template-rows:130px auto;border-radius:16px;border:1px solid rgba(130,173,247,.18);background:linear-gradient(180deg,rgba(14,27,48,.95),rgba(8,16,30,.95));text-decoration:none;transform:translateY(0) scale(1);box-shadow:0 9px 20px rgba(2,8,22,.22);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;will-change:transform,box-shadow;position:relative;overflow:hidden}
@@ -84,7 +89,7 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
 @keyframes cardNewSignalIntro{0%{border-color:rgba(92,228,169,.52);box-shadow:0 0 0 1px rgba(92,228,169,.14),0 12px 24px rgba(2,8,22,.28)}100%{border-color:rgba(130,173,247,.18);box-shadow:0 9px 20px rgba(2,8,22,.22)}}
 @keyframes cardNewSignalSweep{0%{opacity:0;transform:translateX(-8%)}32%{opacity:1}100%{opacity:0;transform:translateX(8%)}}
 @keyframes newSignalBadgePulse{0%{transform:scale(1);box-shadow:none}45%{transform:scale(1.03);box-shadow:0 0 0 1px rgba(130,173,247,.24)}100%{transform:scale(1);box-shadow:none}}
-@media (prefers-reduced-motion:reduce){.card.is-new-signal,.card.is-new-signal::after,.card.is-new-signal .meta-chip.deal-primary,.card.is-new-signal .meta-chip.deal-flag,.card.is-new-signal .meta-chip.signal.good{animation:none}}
+@media (prefers-reduced-motion:reduce){.card.is-new-signal,.card.is-new-signal::after,.card.is-new-signal .meta-chip.deal-primary,.card.is-new-signal .meta-chip.deal-flag,.card.is-new-signal .meta-chip.signal.good{animation:none}.btn,.back-link{transition:border-color .18s ease,background .18s ease,box-shadow .18s ease,color .18s ease}.btn:hover,.btn:active,.back-link:hover,.back-link:active{transform:none}}
 @media (max-width:1180px){.search-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:760px){.page{width:min(1420px,100% - 16px)}.topbar{flex-direction:column;align-items:flex-start}.search-grid,.filter-grid,.grid{grid-template-columns:1fr}.meta-row.deal{flex-direction:column;align-items:flex-start}.meta-cluster.secondary{justify-content:flex-start}}
 </style>

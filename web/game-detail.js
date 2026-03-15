@@ -1,9 +1,30 @@
 const API_BASE = "/games";
 const params = new URLSearchParams(window.location.search);
 const gameId = params.get("game_id");
+const WATCHLIST_STORAGE_KEY = "gameden.user_id";
+const DEFAULT_USER_ID = "legacy-user";
 
 let priceChart;
+let currentGameDetail = null;
 const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
+const targetPriceInput = document.getElementById("targetPriceInput");
+const targetDiscountInput = document.getElementById("targetDiscountInput");
+const saveTargetAlertBtn = document.getElementById("saveTargetAlertBtn");
+const clearTargetAlertBtn = document.getElementById("clearTargetAlertBtn");
+const targetAlertStatus = document.getElementById("targetAlertStatus");
+
+function getCurrentUserId() {
+  try {
+    const stored = String(localStorage.getItem(WATCHLIST_STORAGE_KEY) || "").trim();
+    if (stored) return stored;
+    localStorage.setItem(WATCHLIST_STORAGE_KEY, DEFAULT_USER_ID);
+    return DEFAULT_USER_ID;
+  } catch {
+    return DEFAULT_USER_ID;
+  }
+}
+
+const CURRENT_USER_ID = getCurrentUserId();
 
 if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
   skeletonUi.ensureStyles();
@@ -94,6 +115,187 @@ function renderLoadFailureState(message) {
   const marketNode = document.getElementById("marketInsights");
   if (marketNode) {
     marketNode.innerHTML = `<div class="meta-item"><span>Status</span><strong>${escapeHtml(safeMessage)}</strong></div>`;
+  }
+}
+
+function parseOptionalNumberInput(inputEl, { integer = false } = {}) {
+  if (!(inputEl instanceof HTMLInputElement)) return null;
+  const raw = String(inputEl.value || "").trim();
+  if (!raw) return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return null;
+  if (integer) return Math.round(value);
+  return Number(value.toFixed(2));
+}
+
+function getSuggestedTargetPrice(detail) {
+  const low = Number(detail?.historical_low_price);
+  if (Number.isFinite(low) && low > 0) return Number(low.toFixed(2));
+  const current = Number(detail?.current_price);
+  if (Number.isFinite(current) && current > 0) return Number((current * 0.9).toFixed(2));
+  return null;
+}
+
+function getSuggestedTargetDiscount(detail) {
+  const discount = Number(detail?.discount_percent);
+  if (!Number.isFinite(discount)) return null;
+  return Math.max(0, Math.min(100, Math.round(discount + 10)));
+}
+
+function setTargetAlertStatus(message, tone = "muted") {
+  if (!targetAlertStatus) return;
+  const text = String(message || "").trim();
+  targetAlertStatus.textContent = text;
+  if (!text || tone === "muted") {
+    targetAlertStatus.removeAttribute("data-tone");
+    return;
+  }
+  targetAlertStatus.setAttribute("data-tone", tone);
+}
+
+function pulseTargetAlertButton(button) {
+  if (!(button instanceof HTMLButtonElement)) return;
+  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduceMotion) return;
+  button.classList.remove("is-action-success");
+  void button.offsetWidth;
+  button.classList.add("is-action-success");
+  window.setTimeout(() => button.classList.remove("is-action-success"), 720);
+}
+
+function setTargetAlertPending(isPending) {
+  const pending = !!isPending;
+  [saveTargetAlertBtn, clearTargetAlertBtn].forEach((button) => {
+    if (!(button instanceof HTMLButtonElement)) return;
+    button.classList.toggle("is-pending", pending);
+    button.disabled = pending;
+    if (pending) {
+      button.setAttribute("aria-busy", "true");
+    } else {
+      button.removeAttribute("aria-busy");
+    }
+  });
+}
+
+function describeTargetAlert(row) {
+  if (!row) return "No target alert set yet.";
+  const parts = [];
+  const price = Number(row?.target_price);
+  const discount = Number(row?.target_discount_percent);
+  if (Number.isFinite(price) && price >= 0) parts.push(`price <= $${price.toFixed(2)}`);
+  if (Number.isFinite(discount) && discount >= 0) parts.push(`discount >= ${Math.round(discount)}%`);
+  if (!parts.length) return "Target alert active.";
+  return `Active alert: ${parts.join(" or ")}`;
+}
+
+function prefillTargetInputs(detail) {
+  if (targetPriceInput instanceof HTMLInputElement && !String(targetPriceInput.value || "").trim()) {
+    const suggestedPrice = getSuggestedTargetPrice(detail);
+    if (suggestedPrice !== null) {
+      targetPriceInput.value = suggestedPrice.toFixed(2);
+    }
+  }
+  if (targetDiscountInput instanceof HTMLInputElement && !String(targetDiscountInput.value || "").trim()) {
+    const suggestedDiscount = getSuggestedTargetDiscount(detail);
+    if (suggestedDiscount !== null) {
+      targetDiscountInput.value = String(suggestedDiscount);
+    }
+  }
+}
+
+async function syncTargetAlert() {
+  if (!Number.isFinite(Number(gameId)) || Number(gameId) <= 0) {
+    if (clearTargetAlertBtn) clearTargetAlertBtn.hidden = true;
+    setTargetAlertStatus("Target alerts require a valid game.", "error");
+    return;
+  }
+  const rows = await fetchJson(`/deal-watchlists/${encodeURIComponent(CURRENT_USER_ID)}`).catch(() => []);
+  const row = Array.isArray(rows)
+    ? rows.find((item) => Number(item?.game_id) === Number(gameId) && item?.active !== false)
+    : null;
+
+  if (row) {
+    if (targetPriceInput instanceof HTMLInputElement) {
+      targetPriceInput.value = row.target_price !== null && row.target_price !== undefined
+        ? Number(row.target_price).toFixed(2)
+        : "";
+    }
+    if (targetDiscountInput instanceof HTMLInputElement) {
+      targetDiscountInput.value = row.target_discount_percent !== null && row.target_discount_percent !== undefined
+        ? String(Math.round(Number(row.target_discount_percent)))
+        : "";
+    }
+    if (clearTargetAlertBtn) clearTargetAlertBtn.hidden = false;
+    setTargetAlertStatus(describeTargetAlert(row));
+    return;
+  }
+
+  if (clearTargetAlertBtn) clearTargetAlertBtn.hidden = true;
+  prefillTargetInputs(currentGameDetail);
+  setTargetAlertStatus("No target alert set yet.");
+}
+
+function readTargetAlertForm() {
+  const targetPrice = parseOptionalNumberInput(targetPriceInput);
+  const targetDiscountPercent = parseOptionalNumberInput(targetDiscountInput, { integer: true });
+  if (targetPrice !== null && targetPrice < 0) {
+    throw new Error("Target price must be 0 or greater.");
+  }
+  if (targetDiscountPercent !== null && (targetDiscountPercent < 0 || targetDiscountPercent > 100)) {
+    throw new Error("Target discount must be between 0 and 100.");
+  }
+  if (targetPrice === null && targetDiscountPercent === null) {
+    throw new Error("Enter a target price or target discount.");
+  }
+  return { targetPrice, targetDiscountPercent };
+}
+
+async function saveTargetAlert() {
+  if (!Number.isFinite(Number(gameId)) || Number(gameId) <= 0) {
+    setTargetAlertStatus("Target alerts require a valid game.", "error");
+    return;
+  }
+  const { targetPrice, targetDiscountPercent } = readTargetAlertForm();
+  setTargetAlertPending(true);
+  try {
+    const row = await fetchJson("/deal-watchlists/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: CURRENT_USER_ID,
+        game_id: Number(gameId),
+        target_price: targetPrice,
+        target_discount_percent: targetDiscountPercent,
+      }),
+    });
+    if (clearTargetAlertBtn) clearTargetAlertBtn.hidden = false;
+    setTargetAlertStatus(describeTargetAlert(row || null), "success");
+    pulseTargetAlertButton(saveTargetAlertBtn);
+  } finally {
+    setTargetAlertPending(false);
+  }
+}
+
+async function clearTargetAlert() {
+  if (!Number.isFinite(Number(gameId)) || Number(gameId) <= 0) return;
+  setTargetAlertPending(true);
+  try {
+    await fetchJson("/deal-watchlists/remove", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: CURRENT_USER_ID,
+        game_id: Number(gameId),
+      }),
+    });
+    if (targetPriceInput instanceof HTMLInputElement) targetPriceInput.value = "";
+    if (targetDiscountInput instanceof HTMLInputElement) targetDiscountInput.value = "";
+    if (clearTargetAlertBtn) clearTargetAlertBtn.hidden = true;
+    prefillTargetInputs(currentGameDetail);
+    setTargetAlertStatus("Target alert removed.", "success");
+    pulseTargetAlertButton(clearTargetAlertBtn);
+  } finally {
+    setTargetAlertPending(false);
   }
 }
 
@@ -246,14 +448,15 @@ function renderDealHighlights(detail) {
   list.innerHTML = lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("");
 }
 
-async function fetchJson(url) {
+async function fetchJson(url, options = {}) {
   if (!window.GameDenSite || typeof window.GameDenSite.fetchJson !== "function") {
     throw new Error("GameDen runtime is not initialized. Ensure /site-branding.js loads before page scripts.");
   }
-  return window.GameDenSite.fetchJson(url);
+  return window.GameDenSite.fetchJson(url, options);
 }
 
 function renderDetail(detail) {
+  currentGameDetail = detail || null;
   setText("gameTitle", detail.name);
   setText("dealSummary", detail.deal_summary);
   setText("currentPrice", fmtPrice(detail.current_price));
@@ -482,11 +685,41 @@ function bindRangeButtons() {
   });
 }
 
+function bindTargetAlertControls() {
+  saveTargetAlertBtn?.addEventListener("click", () => {
+    void saveTargetAlert().catch((error) => {
+      console.error(error);
+      setTargetAlertStatus(error instanceof Error ? error.message : "Failed to save target alert.", "error");
+    });
+  });
+
+  clearTargetAlertBtn?.addEventListener("click", () => {
+    void clearTargetAlert().catch((error) => {
+      console.error(error);
+      setTargetAlertStatus("Failed to remove target alert.", "error");
+    });
+  });
+
+  [targetPriceInput, targetDiscountInput].forEach((input) => {
+    input?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      void saveTargetAlert().catch((error) => {
+        console.error(error);
+        setTargetAlertStatus(error instanceof Error ? error.message : "Failed to save target alert.", "error");
+      });
+    });
+  });
+}
+
 async function init() {
   renderLoadingSkeletons();
+  setTargetAlertStatus("Set a target price or discount.");
+  bindTargetAlertControls();
 
   if (!gameId) {
     renderLoadFailureState("Missing game_id query parameter.");
+    setTargetAlertStatus("Target alerts require a valid game.", "error");
     return;
   }
 
@@ -497,12 +730,14 @@ async function init() {
     await Promise.all([
       loadPriceHistory("90d"),
       loadDealExplanation(),
+      syncTargetAlert(),
     ]);
 
     bindRangeButtons();
   } catch (err) {
     console.error(err);
     renderLoadFailureState("Failed to load game data.");
+    setTargetAlertStatus("Failed to load target alert settings.", "error");
   }
 }
 

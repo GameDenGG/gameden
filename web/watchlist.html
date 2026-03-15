@@ -376,6 +376,7 @@ function fmtPrice(value) {
 
 function signalTone(signal) {
     const type = String(signal?.type || "").toUpperCase();
+    if (type.includes("TARGET_HIT")) return "good";
     if (type.includes("LOW") || type.includes("BUY")) return "good";
     if (type.includes("SALE") || type.includes("DROP")) return "warn";
     return "";

@@ -7237,14 +7237,26 @@ input:focus-visible {
             }
             hydrateDashboardState(dashboardData, seasonalData, releasedData, dealRadarData);
             seedCatalogFromPayload(releasedData);
-            await Promise.all([
+            const [, , userAlertSignals] = await Promise.all([
                 loadUserWatchlist().catch((error) => {
                     console.warn("Failed to load user watchlist", error);
+                    return [];
                 }),
                 loadUserWishlist().catch((error) => {
                     console.warn("Failed to load user wishlist", error);
+                    return [];
+                }),
+                loadUserAlertSignals().catch((error) => {
+                    console.warn("Failed to load user alerts", error);
+                    return [];
                 }),
             ]);
+            if (safeArray(userAlertSignals).length) {
+                state.alertSignals = uniqueAlertSignals([
+                    ...safeArray(state.alertSignals),
+                    ...safeArray(userAlertSignals),
+                ]);
+            }
             const hasDashboardFilters = !!(
                 dashboardData?.filters
                 && (
@@ -7314,6 +7326,31 @@ input:focus-visible {
             } finally {
                 state.personalListStatus.wishlistLoading = false;
             }
+        }
+
+        async function loadUserAlertSignals() {
+            const payload = await fetchJson(`/api/alerts?user_id=${encodeURIComponent(CURRENT_USER_ID)}&limit=120`);
+            const items = safeArray(payload?.items || payload)
+                .map((row) => {
+                    const normalized = normalizeGameRow(row);
+                    const createdAt = String(row?.alert_created_at || row?.created_at || "").trim();
+                    const metadata = row?.alert_metadata && typeof row.alert_metadata === "object"
+                        ? row.alert_metadata
+                        : row?.metadata && typeof row.metadata === "object"
+                            ? row.metadata
+                            : {};
+                    return {
+                        ...normalized,
+                        alert_type: String(row?.alert_type || normalized?.alert_type || "").trim().toUpperCase(),
+                        alert_label: row?.alert_label || normalized?.alert_label || "",
+                        alert_created_at: createdAt || null,
+                        created_at: createdAt || row?.created_at || null,
+                        alert_metadata: metadata,
+                        metadata,
+                    };
+                })
+                .filter((row) => row && row.game_name && row.alert_type);
+            return uniqueAlertSignals(items);
         }
 
         async function toggleWishlist(gameOrName, gameId = null) {

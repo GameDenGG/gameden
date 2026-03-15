@@ -774,8 +774,28 @@ def _alert_label(alert_type: str | None) -> str:
         "NEW_HISTORICAL_LOW": "New historical low",
         "SALE_STARTED": "Sale started",
         "PLAYER_SURGE": "Major player increase",
+        "PRICE_TARGET_HIT": "Price target hit",
+        "DISCOUNT_TARGET_HIT": "Discount target hit",
     }
     return label_map.get(str(alert_type or "").upper(), "Market signal")
+
+
+def _format_user_alert_label(
+    alert_type: str | None,
+    *,
+    price: float | None = None,
+    discount_percent: int | None = None,
+) -> str:
+    normalized_type = str(alert_type or "").upper()
+    if normalized_type == "PRICE_TARGET_HIT":
+        if price is not None:
+            return f"Price target hit (${safe_num(price, 0.0):.2f})"
+        return "Price target hit"
+    if normalized_type == "DISCOUNT_TARGET_HIT":
+        if discount_percent is not None:
+            return f"Discount target hit ({int(safe_num(discount_percent, 0.0))}% off)"
+        return "Discount target hit"
+    return _alert_label(normalized_type)
 
 
 def build_watchlist_signals(snapshot: GameSnapshot | None, latest_row: LatestGamePrice | None, alerts: list[Alert]) -> list[dict]:
@@ -935,24 +955,43 @@ def build_watchlist_entries_payload(session: Session, user_id: str) -> list[dict
 
 def build_user_watchlist_alert_feed(session: Session, user_id: str, limit: int = 50) -> list[dict]:
     normalized_user_id = normalize_user_id(user_id)
-    rows = (
-        session.query(Alert, Game, GameSnapshot)
-        .join(
-            Watchlist,
-            and_(
-                Watchlist.game_id == Alert.game_id,
-                Watchlist.user_id == normalized_user_id,
-            ),
+    normalized_limit = max(1, min(int(limit), 200))
+    watchlist_game_ids = [
+        int(game_id)
+        for (game_id,) in (
+            session.query(Watchlist.game_id)
+            .filter(Watchlist.user_id == normalized_user_id)
+            .distinct()
+            .all()
         )
-        .outerjoin(Game, Game.id == Alert.game_id)
-        .outerjoin(GameSnapshot, GameSnapshot.game_id == Alert.game_id)
-        .order_by(Alert.created_at.desc(), Alert.id.desc())
-        .limit(max(1, min(int(limit), 200)))
+        if game_id is not None
+    ]
+
+    global_rows: list[tuple[Alert, Game | None, GameSnapshot | None]] = []
+    if watchlist_game_ids:
+        global_rows = (
+            session.query(Alert, Game, GameSnapshot)
+            .outerjoin(Game, Game.id == Alert.game_id)
+            .outerjoin(GameSnapshot, GameSnapshot.game_id == Alert.game_id)
+            .filter(Alert.game_id.in_(watchlist_game_ids))
+            .order_by(Alert.created_at.desc(), Alert.id.desc())
+            .limit(min(400, normalized_limit * 4))
+            .all()
+        )
+
+    user_target_rows = (
+        session.query(UserAlert, Game, GameSnapshot)
+        .outerjoin(Game, Game.id == UserAlert.game_id)
+        .outerjoin(GameSnapshot, GameSnapshot.game_id == UserAlert.game_id)
+        .filter(UserAlert.user_id == normalized_user_id)
+        .order_by(UserAlert.created_at.desc(), UserAlert.id.desc())
+        .limit(min(400, normalized_limit * 4))
         .all()
     )
-    feed: list[dict] = []
+
+    ranked_feed: list[tuple[datetime.datetime, dict]] = []
     seen: set[tuple[int, str, str | None]] = set()
-    for alert, game, snapshot in rows:
+    for alert, game, snapshot in global_rows:
         alert_type = str(alert.alert_type or "").upper()
         created_at = alert.created_at.isoformat() if alert.created_at else None
         dedupe_key = (int(alert.game_id), alert_type, created_at)
@@ -968,30 +1007,102 @@ def build_user_watchlist_alert_feed(session: Session, user_id: str, limit: int =
             if game and game.name
             else f"Game {int(alert.game_id)}"
         )
-        feed.append(
-            {
-                "id": int(alert.id),
-                "game_id": int(alert.game_id),
-                "game_name": game_name,
-                "steam_appid": snapshot.steam_appid if snapshot else (game.appid if game else None),
-                "banner_url": snapshot.banner_url if snapshot else None,
-                "alert_type": alert_type,
-                "alert_label": _alert_label(alert_type),
-                "created_at": created_at,
-                "metadata": metadata,
-                "latest_price": snapshot.latest_price if snapshot else None,
-                "latest_discount_percent": snapshot.latest_discount_percent if snapshot else None,
-                "current_players": snapshot.current_players if snapshot else None,
-                "buy_score": (
-                    snapshot.buy_score
-                    if snapshot and snapshot.buy_score is not None
-                    else snapshot.worth_buying_score
-                    if snapshot
-                    else None
-                ),
-            }
+        created_dt = alert.created_at if isinstance(alert.created_at, datetime.datetime) else utc_now()
+        if created_dt.tzinfo is None:
+            created_dt = created_dt.replace(tzinfo=datetime.timezone.utc)
+        ranked_feed.append(
+            (
+                created_dt,
+                {
+                    "id": int(alert.id),
+                    "game_id": int(alert.game_id),
+                    "game_name": game_name,
+                    "steam_appid": snapshot.steam_appid if snapshot else (game.appid if game else None),
+                    "banner_url": snapshot.banner_url if snapshot else None,
+                    "alert_type": alert_type,
+                    "alert_label": _alert_label(alert_type),
+                    "created_at": created_at,
+                    "alert_created_at": created_at,
+                    "metadata": metadata,
+                    "alert_metadata": metadata,
+                    "latest_price": snapshot.latest_price if snapshot else None,
+                    "latest_discount_percent": snapshot.latest_discount_percent if snapshot else None,
+                    "current_players": snapshot.current_players if snapshot else None,
+                    "buy_score": (
+                        snapshot.buy_score
+                        if snapshot and snapshot.buy_score is not None
+                        else snapshot.worth_buying_score
+                        if snapshot
+                        else None
+                    ),
+                },
+            )
         )
-    return feed
+
+    for alert, game, snapshot in user_target_rows:
+        alert_type = str(alert.alert_type or "").upper()
+        created_at = alert.created_at.isoformat() if alert.created_at else None
+        dedupe_key = (int(alert.game_id), alert_type, created_at)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+
+        metadata = {
+            "price": alert.price,
+            "discount_percent": alert.discount_percent,
+            "read": bool(alert.read),
+        }
+        game_name = (
+            snapshot.game_name
+            if snapshot and snapshot.game_name
+            else game.name
+            if game and game.name
+            else f"Game {int(alert.game_id)}"
+        )
+        created_dt = alert.created_at if isinstance(alert.created_at, datetime.datetime) else utc_now()
+        if created_dt.tzinfo is None:
+            created_dt = created_dt.replace(tzinfo=datetime.timezone.utc)
+        ranked_feed.append(
+            (
+                created_dt,
+                {
+                    "id": int(alert.id),
+                    "game_id": int(alert.game_id),
+                    "game_name": game_name,
+                    "steam_appid": snapshot.steam_appid if snapshot else (game.appid if game else None),
+                    "banner_url": snapshot.banner_url if snapshot else None,
+                    "alert_type": alert_type,
+                    "alert_label": _format_user_alert_label(
+                        alert_type,
+                        price=alert.price,
+                        discount_percent=alert.discount_percent,
+                    ),
+                    "created_at": created_at,
+                    "alert_created_at": created_at,
+                    "price": alert.price,
+                    "discount_percent": alert.discount_percent,
+                    "metadata": metadata,
+                    "alert_metadata": metadata,
+                    "latest_price": snapshot.latest_price if snapshot and snapshot.latest_price is not None else alert.price,
+                    "latest_discount_percent": (
+                        snapshot.latest_discount_percent
+                        if snapshot and snapshot.latest_discount_percent is not None
+                        else alert.discount_percent
+                    ),
+                    "current_players": snapshot.current_players if snapshot else None,
+                    "buy_score": (
+                        snapshot.buy_score
+                        if snapshot and snapshot.buy_score is not None
+                        else snapshot.worth_buying_score
+                        if snapshot
+                        else None
+                    ),
+                },
+            )
+        )
+
+    ranked_feed.sort(key=lambda item: item[0], reverse=True)
+    return [payload for _, payload in ranked_feed[:normalized_limit]]
 
 
 def _normalize_deal_radar_item(item: dict) -> dict | None:
@@ -4022,12 +4133,34 @@ def list_user_alerts(user_id: str):
                 "id": int(alert.id),
                 "user_id": alert.user_id,
                 "game_id": int(alert.game_id),
-                "game_name": game.name if game else None,
-                "alert_type": alert.alert_type,
+                "game_name": snapshot.game_name if snapshot and snapshot.game_name else (game.name if game else None),
+                "alert_type": str(alert.alert_type or "").upper(),
+                "alert_label": _format_user_alert_label(
+                    alert.alert_type,
+                    price=alert.price,
+                    discount_percent=alert.discount_percent,
+                ),
                 "price": alert.price,
                 "discount_percent": alert.discount_percent,
                 "read": bool(alert.read),
                 "created_at": alert.created_at.isoformat() if alert.created_at else None,
+                "alert_created_at": alert.created_at.isoformat() if alert.created_at else None,
+                "metadata": {
+                    "price": alert.price,
+                    "discount_percent": alert.discount_percent,
+                    "read": bool(alert.read),
+                },
+                "alert_metadata": {
+                    "price": alert.price,
+                    "discount_percent": alert.discount_percent,
+                    "read": bool(alert.read),
+                },
+                "latest_price": snapshot.latest_price if snapshot and snapshot.latest_price is not None else alert.price,
+                "latest_discount_percent": (
+                    snapshot.latest_discount_percent
+                    if snapshot and snapshot.latest_discount_percent is not None
+                    else alert.discount_percent
+                ),
                 "banner_url": snapshot.banner_url if snapshot else None,
             }
             for alert, game, snapshot in rows

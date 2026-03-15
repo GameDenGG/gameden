@@ -296,6 +296,123 @@ a {
     }
 }
 
+.target-alert-card {
+    width: min(320px, 100%);
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(154, 182, 255, 0.2);
+    background: linear-gradient(180deg, rgba(20, 36, 62, 0.88), rgba(11, 22, 39, 0.92));
+    display: grid;
+    gap: 9px;
+}
+
+.target-alert-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--muted);
+    font-weight: 800;
+}
+
+.target-alert-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+}
+
+.target-alert-label {
+    font-size: 12px;
+    color: var(--muted-2);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.target-alert-input {
+    width: 100%;
+    border: 1px solid rgba(154, 182, 255, 0.3);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    padding: 8px 10px;
+    font-size: 13px;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.target-alert-input:focus-visible {
+    outline: none;
+    border-color: rgba(121, 222, 255, 0.72);
+    box-shadow: 0 0 0 2px rgba(121, 222, 255, 0.2);
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.target-alert-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.target-alert-btn {
+    border: 1px solid rgba(154, 182, 255, 0.3);
+    background: rgba(121, 168, 255, 0.14);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 8px 11px;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition:
+        transform 0.14s ease,
+        border-color 0.18s ease,
+        background 0.18s ease,
+        box-shadow 0.18s ease,
+        color 0.18s ease,
+        opacity 0.18s ease;
+}
+
+.target-alert-btn:hover {
+    border-color: rgba(121, 168, 255, 0.56);
+    background: rgba(121, 168, 255, 0.2);
+    box-shadow: 0 10px 18px rgba(2, 8, 20, 0.2);
+    transform: translateY(-1px);
+}
+
+.target-alert-btn:active {
+    transform: scale(0.98);
+}
+
+.target-alert-btn:focus-visible {
+    outline: 2px solid rgba(121, 222, 255, 0.86);
+    outline-offset: 2px;
+}
+
+.target-alert-btn.ghost {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.target-alert-btn.is-pending {
+    opacity: 0.68;
+    cursor: progress;
+}
+
+.target-alert-btn.is-action-success {
+    animation: heroWatchSuccessPulse 0.62s ease-out 1;
+}
+
+.target-alert-status {
+    min-height: 16px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.target-alert-status[data-tone="success"] {
+    color: #a7f3d0;
+}
+
+.target-alert-status[data-tone="error"] {
+    color: #fecdd3;
+}
+
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -554,6 +671,11 @@ a {
         flex-direction: column;
     }
 
+    .hero-actions {
+        width: 100%;
+        justify-items: stretch;
+    }
+
     .stats-grid {
         grid-template-columns: 1fr;
     }
@@ -572,13 +694,20 @@ a {
         animation: none;
     }
 
+    .target-alert-btn.is-action-success {
+        animation: none;
+    }
+
     .hero-watch-btn,
+    .target-alert-btn,
     .range-btn {
         transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease, opacity 0.18s ease;
     }
 
     .hero-watch-btn:hover,
     .hero-watch-btn:active,
+    .target-alert-btn:hover,
+    .target-alert-btn:active,
     .range-btn:hover,
     .range-btn:active {
         transform: none;
@@ -605,6 +734,22 @@ a {
                 <div class="hero-actions">
                     <div class="hero-badge" id="dealBadge"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40" aria-hidden="true"></span></div>
                     <button class="hero-watch-btn" id="watchButton" type="button" aria-pressed="false">Watch</button>
+                    <section class="target-alert-card" aria-label="Price target alerts">
+                        <div class="target-alert-title">Price Target Alert</div>
+                        <label class="target-alert-row">
+                            <span class="target-alert-label">Below $</span>
+                            <input class="target-alert-input" id="targetPriceInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="19.99">
+                        </label>
+                        <label class="target-alert-row">
+                            <span class="target-alert-label">Discount %</span>
+                            <input class="target-alert-input" id="targetDiscountInput" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="60">
+                        </label>
+                        <div class="target-alert-actions">
+                            <button class="target-alert-btn" id="saveTargetAlertButton" type="button">Save alert</button>
+                            <button class="target-alert-btn ghost" id="clearTargetAlertButton" type="button" hidden>Clear</button>
+                        </div>
+                        <div class="target-alert-status" id="targetAlertStatus" aria-live="polite"></div>
+                    </section>
                 </div>
             </div>
 
@@ -717,6 +862,11 @@ const DEFAULT_USER_ID = "legacy-user";
 const gameName = getQueryParam("game_name");
 const gameIdParam = getQueryParam("game_id");
 const watchButton = document.getElementById("watchButton");
+const targetPriceInput = document.getElementById("targetPriceInput");
+const targetDiscountInput = document.getElementById("targetDiscountInput");
+const saveTargetAlertButton = document.getElementById("saveTargetAlertButton");
+const clearTargetAlertButton = document.getElementById("clearTargetAlertButton");
+const targetAlertStatus = document.getElementById("targetAlertStatus");
 const relatedGamesEl = document.getElementById("relatedGames");
 const HIGH_VALUE_DISCOUNT_THRESHOLD = 60;
 let priceChart = null;
@@ -724,6 +874,7 @@ let playerChart = null;
 let activeRange = "90d";
 let currentGameId = null;
 let currentGamePayload = null;
+let currentDealTarget = null;
 const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
 
 if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
@@ -794,6 +945,208 @@ function getCurrentUserId() {
 }
 
 const CURRENT_USER_ID = getCurrentUserId();
+
+function parseOptionalNumberInput(inputEl, { integer = false } = {}) {
+    if (!(inputEl instanceof HTMLInputElement)) return null;
+    const raw = String(inputEl.value || "").trim();
+    if (!raw) return null;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return null;
+    if (integer) return Math.round(parsed);
+    return Number(parsed.toFixed(2));
+}
+
+function setTargetAlertStatus(message, tone = "muted") {
+    if (!targetAlertStatus) return;
+    const text = String(message || "").trim();
+    targetAlertStatus.textContent = text;
+    if (!text || tone === "muted") {
+        targetAlertStatus.removeAttribute("data-tone");
+        return;
+    }
+    targetAlertStatus.setAttribute("data-tone", tone);
+}
+
+function setTargetAlertPending(isPending) {
+    const pending = !!isPending;
+    [saveTargetAlertButton, clearTargetAlertButton].forEach((button) => {
+        if (!(button instanceof HTMLButtonElement)) return;
+        button.classList.toggle("is-pending", pending);
+        button.disabled = pending;
+        if (pending) {
+            button.setAttribute("aria-busy", "true");
+        } else {
+            button.removeAttribute("aria-busy");
+        }
+    });
+}
+
+function pulseTargetAlertButton(button) {
+    if (!(button instanceof HTMLButtonElement)) return;
+    const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return;
+    button.classList.remove("is-action-success");
+    void button.offsetWidth;
+    button.classList.add("is-action-success");
+    window.setTimeout(() => {
+        button.classList.remove("is-action-success");
+    }, 720);
+}
+
+function getSuggestedTargetPrice(payload) {
+    const historicalLow = Number(payload?.historical_low ?? payload?.historical_low_price);
+    if (Number.isFinite(historicalLow) && historicalLow > 0) {
+        return Number(historicalLow.toFixed(2));
+    }
+    const currentPrice = Number(payload?.price ?? payload?.current_price);
+    if (Number.isFinite(currentPrice) && currentPrice > 0) {
+        return Number((currentPrice * 0.9).toFixed(2));
+    }
+    return null;
+}
+
+function getSuggestedTargetDiscount(payload) {
+    const currentDiscount = Number(payload?.discount_percent ?? payload?.latest_discount_percent);
+    if (!Number.isFinite(currentDiscount)) return null;
+    return Math.max(0, Math.min(100, Math.round(currentDiscount + 10)));
+}
+
+function describeTargetAlert(row) {
+    if (!row) return "No target alert set yet.";
+    const pieces = [];
+    const targetPrice = Number(row.target_price);
+    const targetDiscount = Number(row.target_discount_percent);
+    if (Number.isFinite(targetPrice) && targetPrice >= 0) {
+        pieces.push(`price <= $${targetPrice.toFixed(2)}`);
+    }
+    if (Number.isFinite(targetDiscount) && targetDiscount >= 0) {
+        pieces.push(`discount >= ${Math.round(targetDiscount)}%`);
+    }
+    if (!pieces.length) return "Target alert active.";
+    return `Active alert: ${pieces.join(" or ")}`;
+}
+
+function applyDealTargetState(row, { prefillFromPayload = null } = {}) {
+    currentDealTarget = row && row.active !== false ? row : null;
+    if (clearTargetAlertButton) {
+        clearTargetAlertButton.hidden = !currentDealTarget;
+    }
+
+    if (currentDealTarget) {
+        if (targetPriceInput instanceof HTMLInputElement) {
+            targetPriceInput.value = currentDealTarget.target_price !== null && currentDealTarget.target_price !== undefined
+                ? Number(currentDealTarget.target_price).toFixed(2)
+                : "";
+        }
+        if (targetDiscountInput instanceof HTMLInputElement) {
+            targetDiscountInput.value = currentDealTarget.target_discount_percent !== null && currentDealTarget.target_discount_percent !== undefined
+                ? String(Math.round(Number(currentDealTarget.target_discount_percent)))
+                : "";
+        }
+        setTargetAlertStatus(describeTargetAlert(currentDealTarget));
+        return;
+    }
+
+    const payload = prefillFromPayload || currentGamePayload;
+    if (targetPriceInput instanceof HTMLInputElement && !String(targetPriceInput.value || "").trim()) {
+        const suggestedPrice = getSuggestedTargetPrice(payload);
+        if (suggestedPrice !== null) {
+            targetPriceInput.value = suggestedPrice.toFixed(2);
+        }
+    }
+    if (targetDiscountInput instanceof HTMLInputElement && !String(targetDiscountInput.value || "").trim()) {
+        const suggestedDiscount = getSuggestedTargetDiscount(payload);
+        if (suggestedDiscount !== null) {
+            targetDiscountInput.value = String(suggestedDiscount);
+        }
+    }
+    setTargetAlertStatus("No target alert set yet.");
+}
+
+async function syncDealTargetAlert() {
+    if (!Number.isFinite(currentGameId) || currentGameId <= 0) {
+        applyDealTargetState(null);
+        setTargetAlertStatus("Target alerts require a valid game.", "error");
+        return;
+    }
+    const rows = await fetchJson(`/deal-watchlists/${encodeURIComponent(CURRENT_USER_ID)}`).catch(() => []);
+    const row = Array.isArray(rows)
+        ? rows.find((item) => Number(item?.game_id) === Number(currentGameId) && item?.active !== false)
+        : null;
+    applyDealTargetState(row || null);
+}
+
+function readDealTargetForm() {
+    const targetPrice = parseOptionalNumberInput(targetPriceInput);
+    const targetDiscountPercent = parseOptionalNumberInput(targetDiscountInput, { integer: true });
+    if (targetPrice !== null && targetPrice < 0) {
+        throw new Error("Target price must be 0 or greater.");
+    }
+    if (targetDiscountPercent !== null && (targetDiscountPercent < 0 || targetDiscountPercent > 100)) {
+        throw new Error("Target discount must be between 0 and 100.");
+    }
+    if (targetPrice === null && targetDiscountPercent === null) {
+        throw new Error("Enter a target price or target discount.");
+    }
+    return { targetPrice, targetDiscountPercent };
+}
+
+async function saveDealTargetAlert() {
+    if (!Number.isFinite(currentGameId) || currentGameId <= 0) {
+        setTargetAlertStatus("Target alerts require a valid game.", "error");
+        return;
+    }
+    if (saveTargetAlertButton?.disabled || saveTargetAlertButton?.classList.contains("is-pending")) return;
+
+    const { targetPrice, targetDiscountPercent } = readDealTargetForm();
+    setTargetAlertPending(true);
+    try {
+        const saved = await fetchJson("/deal-watchlists/add", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                user_id: CURRENT_USER_ID,
+                game_id: currentGameId,
+                target_price: targetPrice,
+                target_discount_percent: targetDiscountPercent,
+            }),
+        });
+        applyDealTargetState(saved || null);
+        setTargetAlertStatus(describeTargetAlert(saved || null), "success");
+        if (saveTargetAlertButton instanceof HTMLButtonElement) {
+            pulseTargetAlertButton(saveTargetAlertButton);
+        }
+    } finally {
+        setTargetAlertPending(false);
+    }
+}
+
+async function clearDealTargetAlert() {
+    if (!Number.isFinite(currentGameId) || currentGameId <= 0) return;
+    if (clearTargetAlertButton?.disabled || clearTargetAlertButton?.classList.contains("is-pending")) return;
+
+    setTargetAlertPending(true);
+    try {
+        await fetchJson("/deal-watchlists/remove", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                user_id: CURRENT_USER_ID,
+                game_id: currentGameId,
+            }),
+        });
+        currentDealTarget = null;
+        if (targetPriceInput instanceof HTMLInputElement) targetPriceInput.value = "";
+        if (targetDiscountInput instanceof HTMLInputElement) targetDiscountInput.value = "";
+        applyDealTargetState(null, { prefillFromPayload: currentGamePayload });
+        setTargetAlertStatus("Target alert removed.", "success");
+        if (clearTargetAlertButton instanceof HTMLButtonElement) {
+            pulseTargetAlertButton(clearTargetAlertButton);
+        }
+    } finally {
+        setTargetAlertPending(false);
+    }
+}
 
 function fmtPrice(value) {
     if (value === null || value === undefined) return "—";
@@ -1072,8 +1425,11 @@ async function loadGame() {
             loadPlayerHistory(currentGameId),
             loadRelatedGames(currentGameId),
             syncWatchButton(),
+            syncDealTargetAlert(),
         ]);
     } else {
+        applyDealTargetState(null);
+        setTargetAlertStatus("Target alerts require a valid game.", "error");
         renderRelatedFallback("Related discovery requires a valid game id.");
     }
 }
@@ -1531,6 +1887,32 @@ watchButton?.addEventListener("click", () => {
     void toggleWatch().catch((error) => console.error(error));
 });
 
+saveTargetAlertButton?.addEventListener("click", () => {
+    void saveDealTargetAlert().catch((error) => {
+        console.error(error);
+        setTargetAlertStatus(error instanceof Error ? error.message : "Failed to save target alert.", "error");
+    });
+});
+
+clearTargetAlertButton?.addEventListener("click", () => {
+    void clearDealTargetAlert().catch((error) => {
+        console.error(error);
+        setTargetAlertStatus("Failed to remove target alert.", "error");
+    });
+});
+
+[targetPriceInput, targetDiscountInput].forEach((input) => {
+    input?.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        void saveDealTargetAlert().catch((error) => {
+            console.error(error);
+            setTargetAlertStatus(error instanceof Error ? error.message : "Failed to save target alert.", "error");
+        });
+    });
+});
+
+setTargetAlertStatus("Set a target price or discount.");
 renderGameLoadingSkeletons();
 wireRangeButtons();
 void loadGame().catch((error) => {

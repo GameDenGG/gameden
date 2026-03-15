@@ -71,6 +71,25 @@
         </div>
 
         <div id="tagList" class="tag-list"></div>
+
+        <section class="target-alert-panel" aria-label="Price target alerts">
+            <div class="target-alert-heading">Price Target Alert</div>
+            <div class="target-alert-grid">
+                <label class="target-alert-field">
+                    <span>Price below ($)</span>
+                    <input id="targetPriceInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="19.99" />
+                </label>
+                <label class="target-alert-field">
+                    <span>Discount at (%)</span>
+                    <input id="targetDiscountInput" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="60" />
+                </label>
+            </div>
+            <div class="target-alert-actions">
+                <button id="saveTargetAlertBtn" class="range-btn" type="button">Save alert</button>
+                <button id="clearTargetAlertBtn" class="range-btn" type="button" hidden>Clear</button>
+            </div>
+            <p id="targetAlertStatus" class="target-alert-status" aria-live="polite"></p>
+        </section>
     </section>
 
     <section class="content-grid">

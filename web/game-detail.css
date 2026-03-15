@@ -51,6 +51,106 @@ body {
   font-size: 12px;
 }
 
+.target-alert-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.target-alert-heading {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.target-alert-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.target-alert-field {
+  display: grid;
+  gap: 6px;
+}
+
+.target-alert-field span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.target-alert-field input {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.target-alert-field input:focus-visible {
+  outline: 2px solid rgba(121, 222, 255, 0.56);
+  outline-offset: 1px;
+}
+
+.target-alert-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.target-alert-actions .range-btn {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.target-alert-actions .range-btn.is-pending {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.target-alert-actions .range-btn.is-action-success {
+  animation: targetAlertPulse 0.62s ease-out 1;
+}
+
+.target-alert-status {
+  margin: 0;
+  min-height: 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.target-alert-status[data-tone="success"] {
+  color: #a7f3d0;
+}
+
+.target-alert-status[data-tone="error"] {
+  color: #fecdd3;
+}
+
+@keyframes targetAlertPulse {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(125, 211, 252, 0),
+      0 0 0 0 rgba(125, 211, 252, 0);
+  }
+  45% {
+    box-shadow:
+      0 0 0 1px rgba(125, 211, 252, 0.3),
+      0 0 16px rgba(125, 211, 252, 0.22);
+  }
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(125, 211, 252, 0),
+      0 0 0 0 rgba(125, 211, 252, 0);
+  }
+}
+
 .content-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -108,11 +208,16 @@ body {
 
 @media (max-width: 640px) {
   .price-row, .meta-grid, .insights-grid { grid-template-columns: 1fr; }
+  .target-alert-grid { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .range-btn {
     transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+  }
+
+  .target-alert-actions .range-btn.is-action-success {
+    animation: none;
   }
 
   .range-btn:hover,

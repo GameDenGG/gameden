@@ -36,6 +36,14 @@ function renderLoadingSkeletons() {
     banner.classList.add("gd-skeleton-surface");
   }
 
+  const highlights = document.getElementById("dealHighlights");
+  if (highlights) {
+    highlights.innerHTML = `
+      <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></li>
+      <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-56" aria-hidden="true"></span></li>
+    `;
+  }
+
   const tagList = document.getElementById("tagList");
   if (tagList) {
     tagList.innerHTML = [
@@ -64,6 +72,8 @@ function renderLoadFailureState(message) {
   const safeMessage = String(message || "Failed to load game data.");
   setText("gameTitle", safeMessage);
   setText("dealSummary", "Please try refreshing this page.");
+  const highlights = document.getElementById("dealHighlights");
+  if (highlights) highlights.innerHTML = "";
 
   const banner = document.getElementById("heroBanner");
   if (banner) {
@@ -106,6 +116,136 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function normalizeReasonSnippet(value) {
+  const raw = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!raw) return "";
+
+  const lower = raw.toLowerCase();
+  if (lower.includes("historical low")) return "Near historical low";
+  if (
+    (lower.includes("player") || lower.includes("momentum"))
+    && (
+      lower.includes("up")
+      || lower.includes("growth")
+      || lower.includes("rising")
+      || lower.includes("surge")
+      || lower.includes("climbing")
+    )
+  ) {
+    return "Strong player growth";
+  }
+  if (
+    lower.includes("discount")
+    || lower.includes("sale")
+    || lower.includes("price favorable")
+    || lower.includes("better sale")
+  ) {
+    return "Large discount vs normal price";
+  }
+  if (
+    lower.includes("popular")
+    || lower.includes("trending")
+    || lower.includes("interest")
+  ) {
+    return "Popular game currently trending";
+  }
+
+  const firstSentence = raw
+    .split(/[.!?]/)
+    .map((segment) => segment.trim())
+    .find(Boolean) || raw;
+  const compact = firstSentence.length > 74
+    ? `${firstSentence.slice(0, 71).trimEnd()}...`
+    : firstSentence;
+  return compact.charAt(0).toUpperCase() + compact.slice(1);
+}
+
+function pushUniqueHighlight(lines, line) {
+  const normalized = String(line || "").trim();
+  if (!normalized) return;
+  const token = normalized.toLowerCase();
+  if (lines.some((entry) => String(entry).toLowerCase() === token)) return;
+  lines.push(normalized);
+}
+
+function buildDetailHighlightLines(detail) {
+  const lines = [];
+  const recommendation = String(detail?.buy_recommendation || "").trim().toUpperCase();
+  const buyReason = normalizeReasonSnippet(detail?.buy_reason);
+  const predictedReason = normalizeReasonSnippet(detail?.predicted_sale_reason ?? detail?.next_sale_prediction?.reason);
+  const worthReason = normalizeReasonSnippet(detail?.worth_buying?.reason ?? detail?.worth_buying_reason_summary);
+  const trendReason = normalizeReasonSnippet(detail?.momentum?.reason ?? detail?.trend_reason_summary);
+  const heatReason = normalizeReasonSnippet(detail?.deal_heat?.reason ?? detail?.deal_heat_reason);
+  const lowRadarReason = normalizeReasonSnippet(detail?.historical_low_radar?.reason);
+  const discount = Math.max(0, Number(detail?.discount_percent ?? 0) || 0);
+  const currentPrice = Number(detail?.current_price);
+  const historicalLow = Number(detail?.historical_low_price);
+  const priceVsLowRatio = Number(detail?.price_vs_low_ratio);
+  const growthRatio = Number(detail?.momentum?.player_growth_ratio);
+  const heatLevel = String(detail?.deal_heat?.level || "").trim().toUpperCase();
+
+  if (recommendation === "BUY_NOW") {
+    pushUniqueHighlight(lines, buyReason || "Buy-now timing signal");
+  } else if (recommendation === "WAIT") {
+    pushUniqueHighlight(lines, buyReason || predictedReason || "Better value likely on next sale");
+  }
+
+  if (detail?.historical_low_radar?.hit) {
+    pushUniqueHighlight(lines, "Near historical low");
+  } else if (
+    Number.isFinite(currentPrice)
+    && Number.isFinite(historicalLow)
+    && historicalLow > 0
+    && currentPrice <= historicalLow * 1.08
+  ) {
+    pushUniqueHighlight(lines, "Near historical low");
+  } else if (Number.isFinite(priceVsLowRatio) && priceVsLowRatio > 0 && priceVsLowRatio <= 1.08) {
+    pushUniqueHighlight(lines, "Near historical low");
+  } else if (lowRadarReason) {
+    pushUniqueHighlight(lines, lowRadarReason);
+  }
+
+  if (trendReason) {
+    pushUniqueHighlight(lines, trendReason);
+  } else if (Number.isFinite(growthRatio) && growthRatio >= 1.1) {
+    pushUniqueHighlight(lines, "Strong player growth");
+  }
+
+  if (discount >= 60) {
+    pushUniqueHighlight(lines, "Large discount vs normal price");
+  } else if (discount >= 35) {
+    pushUniqueHighlight(lines, "Meaningful discount right now");
+  }
+
+  if (heatReason) {
+    pushUniqueHighlight(lines, heatReason);
+  } else if (heatLevel === "HOT") {
+    pushUniqueHighlight(lines, "Popular game currently trending");
+  }
+
+  if (!lines.length && worthReason) {
+    pushUniqueHighlight(lines, worthReason);
+  }
+  if (!lines.length && predictedReason) {
+    pushUniqueHighlight(lines, predictedReason);
+  }
+
+  return lines.slice(0, 3);
+}
+
+function renderDealHighlights(detail) {
+  const list = document.getElementById("dealHighlights");
+  if (!list) return;
+  const lines = buildDetailHighlightLines(detail);
+  if (!lines.length) {
+    list.innerHTML = "";
+    return;
+  }
+  list.innerHTML = lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("");
+}
+
 async function fetchJson(url) {
   if (!window.GameDenSite || typeof window.GameDenSite.fetchJson !== "function") {
     throw new Error("GameDen runtime is not initialized. Ensure /site-branding.js loads before page scripts.");
@@ -128,6 +268,7 @@ function renderDetail(detail) {
   setText("worthBuyingScore", detail.worth_buying?.score != null ? Number(detail.worth_buying.score).toFixed(1) : "-");
   setText("momentumScore", detail.momentum?.score != null ? Number(detail.momentum.score).toFixed(1) : "-");
   setText("predictionConfidence", detail.prediction?.confidence || "-");
+  renderDealHighlights(detail);
 
   const banner = document.getElementById("heroBanner");
   if (banner) {

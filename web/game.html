@@ -148,6 +148,27 @@ a {
     line-height: 1.6;
 }
 
+.hero-explain-list {
+    margin: 10px 0 0;
+    padding-left: 18px;
+    max-width: 780px;
+    display: grid;
+    gap: 4px;
+    color: var(--muted-2);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.hero-explain-list.hidden {
+    display: none;
+}
+
+.hero-explain-list.is-skeleton {
+    list-style: none;
+    padding-left: 0;
+    gap: 6px;
+}
+
 .hero-badge {
     display: inline-flex;
     align-items: center;
@@ -576,6 +597,10 @@ a {
                 <div class="hero-title">
                     <h1 id="gameTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></h1>
                     <div class="hero-sub" id="gameSub"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></div>
+                    <ul class="hero-explain-list is-skeleton" id="heroExplainList" aria-live="polite">
+                        <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></li>
+                        <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></li>
+                    </ul>
                 </div>
                 <div class="hero-actions">
                     <div class="hero-badge" id="dealBadge"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40" aria-hidden="true"></span></div>
@@ -730,6 +755,16 @@ function renderGameLoadingSkeletons() {
     setInlineSkeleton("dealScore", "gd-skeleton-w-40");
     setInlineSkeleton("playerCount", "gd-skeleton-w-40");
 
+    const explainList = document.getElementById("heroExplainList");
+    if (explainList) {
+        explainList.classList.remove("hidden");
+        explainList.classList.add("is-skeleton");
+        explainList.innerHTML = `
+            <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></li>
+            <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></li>
+        `;
+    }
+
     const heroBanner = document.getElementById("heroBanner");
     if (heroBanner) {
         heroBanner.classList.add("gd-skeleton-surface");
@@ -809,6 +844,142 @@ function getReviewLabel(payload) {
         || "Review label unavailable";
 }
 
+function normalizeReasonSnippet(value) {
+    const raw = String(value || "")
+        .replace(/\s+/g, " ")
+        .trim();
+    if (!raw) return "";
+
+    const lower = raw.toLowerCase();
+    if (lower.includes("historical low")) return "Near historical low";
+    if (
+        (lower.includes("player") || lower.includes("momentum"))
+        && (
+            lower.includes("up")
+            || lower.includes("growth")
+            || lower.includes("rising")
+            || lower.includes("surge")
+            || lower.includes("climbing")
+        )
+    ) {
+        return "Strong player growth";
+    }
+    if (
+        lower.includes("discount")
+        || lower.includes("sale")
+        || lower.includes("price favorable")
+        || lower.includes("better sale")
+    ) {
+        return "Large discount vs normal price";
+    }
+    if (
+        lower.includes("popular")
+        || lower.includes("trending")
+        || lower.includes("interest")
+    ) {
+        return "Popular game currently trending";
+    }
+
+    const firstSentence = raw
+        .split(/[.!?]/)
+        .map((segment) => segment.trim())
+        .find(Boolean) || raw;
+    const compact = firstSentence.length > 74
+        ? `${firstSentence.slice(0, 71).trimEnd()}...`
+        : firstSentence;
+    return compact.charAt(0).toUpperCase() + compact.slice(1);
+}
+
+function pushUniqueExplanationLine(lines, line) {
+    const normalized = String(line || "").trim();
+    if (!normalized) return;
+    const token = normalized.toLowerCase();
+    if (lines.some((entry) => String(entry).toLowerCase() === token)) return;
+    lines.push(normalized);
+}
+
+function buildHeroExplanationLines(payload) {
+    const lines = [];
+    const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
+    const buyReason = normalizeReasonSnippet(payload?.buy_reason);
+    const predictedReason = normalizeReasonSnippet(payload?.predicted_sale_reason ?? payload?.next_sale_prediction?.reason);
+    const worthReason = normalizeReasonSnippet(payload?.worth_buying_reason_summary ?? payload?.worth_buying?.reason);
+    const trendReason = normalizeReasonSnippet(payload?.trend_reason_summary ?? payload?.momentum?.reason);
+    const heatReason = normalizeReasonSnippet(payload?.deal_heat_reason ?? payload?.deal_heat?.reason);
+    const historicalStatus = String(payload?.historical_status || "").trim().toLowerCase();
+    const discount = Math.max(0, Number(payload?.discount_percent ?? payload?.latest_discount_percent ?? 0) || 0);
+    const priceVsLowRatio = Number(payload?.price_vs_low_ratio);
+    const playerChange = Number(payload?.player_change);
+    const playerTrend = Number(payload?.short_term_player_trend ?? payload?.momentum?.short_term_player_trend);
+    const popularityScore = Number(payload?.popularity_score);
+    const heatLevel = String(payload?.deal_heat_level ?? payload?.deal_heat?.level || "").trim().toUpperCase();
+
+    if (recommendation === "BUY_NOW") {
+        pushUniqueExplanationLine(lines, buyReason || "Buy-now timing signal");
+    } else if (recommendation === "WAIT") {
+        pushUniqueExplanationLine(lines, buyReason || predictedReason || "Better value likely on next sale");
+    }
+
+    if (
+        historicalStatus === "new_historical_low"
+        || historicalStatus === "matches_historical_low"
+        || historicalStatus === "near_historical_low"
+    ) {
+        pushUniqueExplanationLine(lines, "Near historical low");
+    } else if (Number.isFinite(priceVsLowRatio) && priceVsLowRatio > 0 && priceVsLowRatio <= 1.08) {
+        pushUniqueExplanationLine(lines, "Near historical low");
+    }
+
+    if (trendReason) {
+        pushUniqueExplanationLine(lines, trendReason);
+    } else if (
+        (Number.isFinite(playerChange) && playerChange > 0)
+        || (Number.isFinite(playerTrend) && playerTrend > 0)
+    ) {
+        pushUniqueExplanationLine(lines, "Strong player growth");
+    }
+
+    if (discount >= 60) {
+        pushUniqueExplanationLine(lines, "Large discount vs normal price");
+    } else if (discount >= 35) {
+        pushUniqueExplanationLine(lines, "Meaningful discount right now");
+    }
+
+    if (heatReason) {
+        pushUniqueExplanationLine(lines, heatReason);
+    } else if (
+        (Number.isFinite(popularityScore) && popularityScore >= 65)
+        || heatLevel === "HOT"
+    ) {
+        pushUniqueExplanationLine(lines, "Popular game currently trending");
+    }
+
+    if (!lines.length && worthReason) {
+        pushUniqueExplanationLine(lines, worthReason);
+    }
+    if (!lines.length && predictedReason) {
+        pushUniqueExplanationLine(lines, predictedReason);
+    }
+
+    return lines.slice(0, 3);
+}
+
+function renderHeroExplanation(payload) {
+    const explainList = document.getElementById("heroExplainList");
+    if (!explainList) return;
+
+    const lines = buildHeroExplanationLines(payload);
+    explainList.classList.remove("is-skeleton");
+    if (!lines.length) {
+        explainList.classList.add("hidden");
+        explainList.innerHTML = "";
+        return;
+    }
+
+    explainList.classList.remove("hidden");
+    explainList.innerHTML = lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("");
+}
+
 function applyDealBadgeGlow(payload) {
     const badge = document.getElementById("dealBadge");
     if (!badge) return;
@@ -873,6 +1044,7 @@ async function loadGame() {
     document.getElementById("gameTitle").innerText = payload.game_name || gameName;
     document.getElementById("gameSub").innerText =
         `${getReviewLabel(payload)} • ${payload.release_date_text || payload.release_date || "Released"}`;
+    renderHeroExplanation(payload);
 
     document.getElementById("currentPrice").innerText = fmtPrice(payload.price ?? payload.current_price);
     document.getElementById("historicalLow").innerText = fmtPrice(payload.historical_low ?? payload.historical_low_price);

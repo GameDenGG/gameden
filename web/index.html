@@ -1145,6 +1145,20 @@ input:focus-visible {
     padding: 8px 14px 0;
 }
 
+.card-explain-list {
+    margin: 0;
+    padding: 8px 14px 0 27px;
+    display: grid;
+    gap: 4px;
+    color: var(--muted-2);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.card-explain-list li {
+    margin: 0;
+}
+
 .pill,
 .deal-score-badge {
     display: inline-flex;
@@ -4856,27 +4870,132 @@ input:focus-visible {
             backdrop.setAttribute("aria-hidden", "true");
         }
 
-        function buildDecisionSubtext(game) {
-            const recommendation = normalizeBuyRecommendation(game.buy_recommendation);
-            const buyReason = String(game.buy_reason || "").trim();
-            const predictedReason = String(game.predicted_sale_reason || "").trim();
-            const heatReason = String(game.deal_heat_reason || "").trim();
-            const worthReason = String(game.worth_buying_reason_summary || "").trim();
+        function normalizeReasonSnippet(value) {
+            const raw = String(value || "")
+                .replace(/\s+/g, " ")
+                .trim();
+            if (!raw) return "";
 
-            if (recommendation === "BUY_NOW" && buyReason) {
-                return `Buy now: ${buyReason}`;
+            const lower = raw.toLowerCase();
+            if (lower.includes("historical low")) {
+                return "Near historical low";
             }
-            if (recommendation === "WAIT") {
-                if (buyReason) return `Wait: ${buyReason}`;
-                if (predictedReason) return `Wait: ${predictedReason}`;
+            if (
+                (lower.includes("player") || lower.includes("momentum"))
+                && (
+                    lower.includes("up")
+                    || lower.includes("growth")
+                    || lower.includes("rising")
+                    || lower.includes("surge")
+                    || lower.includes("climbing")
+                )
+            ) {
+                return "Strong player growth";
             }
-            return heatReason || worthReason || "";
+            if (
+                lower.includes("discount")
+                || lower.includes("sale")
+                || lower.includes("price favorable")
+                || lower.includes("better sale")
+            ) {
+                return "Large discount vs normal price";
+            }
+            if (
+                lower.includes("popular")
+                || lower.includes("trending")
+                || lower.includes("interest")
+            ) {
+                return "Popular game currently trending";
+            }
+
+            const firstSentence = raw
+                .split(/[.!?]/)
+                .map((segment) => segment.trim())
+                .find(Boolean) || raw;
+            const compact = firstSentence.length > 72
+                ? `${firstSentence.slice(0, 69).trimEnd()}...`
+                : firstSentence;
+            return compact.charAt(0).toUpperCase() + compact.slice(1);
+        }
+
+        function pushDecisionLine(lines, line) {
+            const normalized = String(line || "").trim();
+            if (!normalized) return;
+            const token = normalized.toLowerCase();
+            if (lines.some((entry) => String(entry).toLowerCase() === token)) return;
+            lines.push(normalized);
+        }
+
+        function buildDecisionExplainLines(game) {
+            const lines = [];
+            const recommendation = normalizeBuyRecommendation(game.buy_recommendation);
+            const buyReason = normalizeReasonSnippet(game.buy_reason);
+            const predictedReason = normalizeReasonSnippet(game.predicted_sale_reason);
+            const worthReason = normalizeReasonSnippet(game.worth_buying_reason_summary);
+            const trendReason = normalizeReasonSnippet(game.trend_reason_summary);
+            const heatReason = normalizeReasonSnippet(game.deal_heat_reason);
+            const historicalStatus = String(game.historical_status || "").trim().toLowerCase();
+            const discount = Math.max(0, Number(game.discount_percent) || 0);
+            const priceVsLowRatio = Number(game.price_vs_low_ratio);
+            const playerChange = Number(game.player_change);
+            const playerTrend = Number(game.short_term_player_trend);
+            const popularityScore = Number(game.popularity_score);
+            const heatLevel = String(game.deal_heat_level || "").trim().toUpperCase();
+
+            if (recommendation === "BUY_NOW") {
+                pushDecisionLine(lines, buyReason || "Buy-now timing signal");
+            } else if (recommendation === "WAIT") {
+                pushDecisionLine(lines, buyReason || predictedReason || "Better value likely on next sale");
+            }
+
+            if (
+                historicalStatus === "new_historical_low"
+                || historicalStatus === "matches_historical_low"
+                || historicalStatus === "near_historical_low"
+            ) {
+                pushDecisionLine(lines, "Near historical low");
+            } else if (Number.isFinite(priceVsLowRatio) && priceVsLowRatio > 0 && priceVsLowRatio <= 1.08) {
+                pushDecisionLine(lines, "Near historical low");
+            }
+
+            if (trendReason) {
+                pushDecisionLine(lines, trendReason);
+            } else if (
+                (Number.isFinite(playerChange) && playerChange > 0)
+                || (Number.isFinite(playerTrend) && playerTrend > 0)
+            ) {
+                pushDecisionLine(lines, "Strong player growth");
+            }
+
+            if (discount >= 60) {
+                pushDecisionLine(lines, "Large discount vs normal price");
+            } else if (discount >= 35) {
+                pushDecisionLine(lines, "Meaningful discount right now");
+            }
+
+            if (heatReason) {
+                pushDecisionLine(lines, heatReason);
+            } else if (
+                (Number.isFinite(popularityScore) && popularityScore >= 65)
+                || heatLevel === "HOT"
+            ) {
+                pushDecisionLine(lines, "Popular game currently trending");
+            }
+
+            if (!lines.length && worthReason) {
+                pushDecisionLine(lines, worthReason);
+            }
+            if (!lines.length && predictedReason) {
+                pushDecisionLine(lines, predictedReason);
+            }
+
+            return lines.slice(0, 3);
         }
 
         function gameCardHtml(game, context = {}) {
             const detailHref = buildGameDetailHref(game);
             const gameName = escapeHtml(game.game_name || "Unknown game");
-            const decisionSubtext = buildDecisionSubtext(game);
+            const decisionExplainLines = buildDecisionExplainLines(game);
             const newSignalClass = shouldRenderNewSignalCard(game, context) ? " is-new-signal" : "";
             return `
                 <article class="game-card${newSignalClass}">
@@ -4895,7 +5014,11 @@ input:focus-visible {
                     </div>
                     ${buildActionButtons(game)}
                     ${buildCardMetadataStack(game)}
-                    ${decisionSubtext ? `<div class="card-subtext">${escapeHtml(decisionSubtext)}</div>` : ""}
+                    ${decisionExplainLines.length ? `
+                        <ul class="card-explain-list">
+                            ${decisionExplainLines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
+                        </ul>
+                    ` : ""}
                     <div class="meta-grid">
                         <div class="meta-item">
                             <div class="meta-label">Historical low</div>

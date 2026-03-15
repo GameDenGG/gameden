@@ -157,6 +157,43 @@ a {
     white-space: nowrap;
 }
 
+.hero-badge.signal-glow {
+    --signal-glow-rgb: 154, 182, 255;
+    box-shadow: 0 0 0 0 rgba(var(--signal-glow-rgb), 0);
+}
+
+.hero-badge.signal-glow-low {
+    --signal-glow-rgb: 74, 222, 128;
+}
+
+.hero-badge.signal-glow-discount {
+    --signal-glow-rgb: 255, 199, 122;
+}
+
+.hero-badge.signal-glow-buy {
+    --signal-glow-rgb: 96, 201, 255;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .hero-badge.signal-glow {
+        animation: detailDealPulse 2.6s ease-in-out infinite;
+    }
+}
+
+@keyframes detailDealPulse {
+    0%,
+    100% {
+        box-shadow:
+            0 0 0 0 rgba(var(--signal-glow-rgb), 0),
+            0 0 0 0 rgba(var(--signal-glow-rgb), 0);
+    }
+    50% {
+        box-shadow:
+            0 0 0 1px rgba(var(--signal-glow-rgb), 0.2),
+            0 0 14px rgba(var(--signal-glow-rgb), 0.24);
+    }
+}
+
 .hero-watch-btn {
     border: 1px solid rgba(154,182,255,0.32);
     background: rgba(255,255,255,0.05);
@@ -550,6 +587,7 @@ const gameName = getQueryParam("game_name");
 const gameIdParam = getQueryParam("game_id");
 const watchButton = document.getElementById("watchButton");
 const relatedGamesEl = document.getElementById("relatedGames");
+const HIGH_VALUE_DISCOUNT_THRESHOLD = 60;
 let priceChart = null;
 let playerChart = null;
 let activeRange = "90d";
@@ -618,6 +656,34 @@ function getReviewLabel(payload) {
         || "Review label unavailable";
 }
 
+function applyDealBadgeGlow(payload) {
+    const badge = document.getElementById("dealBadge");
+    if (!badge) return;
+
+    badge.classList.remove(
+        "signal-glow",
+        "signal-glow-low",
+        "signal-glow-discount",
+        "signal-glow-buy",
+    );
+
+    const status = String(payload?.historical_status || "").trim();
+    const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
+    const discount = Number(payload?.discount_percent ?? payload?.latest_discount_percent ?? 0);
+
+    if (status === "new_historical_low" || status === "matches_historical_low") {
+        badge.classList.add("signal-glow", "signal-glow-low");
+        return;
+    }
+    if (recommendation === "BUY_NOW") {
+        badge.classList.add("signal-glow", "signal-glow-buy");
+        return;
+    }
+    if (Number.isFinite(discount) && discount >= HIGH_VALUE_DISCOUNT_THRESHOLD) {
+        badge.classList.add("signal-glow", "signal-glow-discount");
+    }
+}
+
 async function loadGame() {
     const requestedGameId = Number(gameIdParam);
     const hasValidGameId = Number.isFinite(requestedGameId) && requestedGameId > 0;
@@ -658,6 +724,7 @@ async function loadGame() {
     document.getElementById("dealScore").innerText = payload.deal_score ?? "—";
     document.getElementById("playerCount").innerText = fmtInt(payload.current_players);
     document.getElementById("dealBadge").innerText = payload.deal_label || `Deal score ${payload.deal_score ?? "—"}`;
+    applyDealBadgeGlow(payload);
 
     if (payload.banner_url || payload.header_image || payload.banner_image) {
         document.getElementById("heroBanner").style.backgroundImage =

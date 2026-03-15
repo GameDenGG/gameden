@@ -693,6 +693,60 @@ input:focus-visible {
 .panel-personal .panel-title { color: #e1d6ff; }
 .panel-activity .panel-title { color: #ffe2ba; }
 
+.panel-deal-radar .panel-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.deal-radar-title-live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: rgba(102, 240, 176, 0.9);
+    box-shadow: 0 0 0 0 rgba(102, 240, 176, 0.18);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .deal-radar-title-live-dot {
+        animation: radarTitlePulse 2.8s ease-in-out infinite;
+    }
+}
+
+@keyframes radarTitlePulse {
+    0%,
+    100% {
+        opacity: 0.75;
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(102, 240, 176, 0.1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.08);
+        box-shadow: 0 0 0 5px rgba(102, 240, 176, 0.03);
+    }
+}
+
+.reveal-enabled .panel-reveal {
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    will-change: opacity, transform;
+}
+
+.reveal-enabled .panel-reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reveal-enabled .panel-reveal {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+}
+
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1046,6 +1100,43 @@ input:focus-visible {
 .deal-score-badge.purple { color: #d9b8ff; }
 .deal-score-badge.gold { color: #ffd76d; }
 
+.signal-glow {
+    --signal-glow-rgb: 121, 168, 255;
+    box-shadow: 0 0 0 0 rgba(var(--signal-glow-rgb), 0);
+}
+
+.signal-glow.signal-glow-low {
+    --signal-glow-rgb: 142, 240, 171;
+}
+
+.signal-glow.signal-glow-discount {
+    --signal-glow-rgb: 255, 215, 109;
+}
+
+.signal-glow.signal-glow-buy {
+    --signal-glow-rgb: 153, 195, 255;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .signal-glow {
+        animation: dealSignalPulse 2.4s ease-in-out infinite;
+    }
+}
+
+@keyframes dealSignalPulse {
+    0%,
+    100% {
+        box-shadow:
+            0 0 0 0 rgba(var(--signal-glow-rgb), 0),
+            0 0 0 0 rgba(var(--signal-glow-rgb), 0);
+    }
+    50% {
+        box-shadow:
+            0 0 0 1px rgba(var(--signal-glow-rgb), 0.2),
+            0 0 14px rgba(var(--signal-glow-rgb), 0.24);
+    }
+}
+
 .meta-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1295,24 +1386,89 @@ input:focus-visible {
 
 .deal-radar-card {
     display: grid;
+    position: relative;
     grid-template-columns: 88px 1fr auto;
     gap: 11px;
     padding: 10px 11px;
     border-radius: 14px;
+    overflow: hidden;
     border: 1px solid rgba(255, 196, 111, 0.25);
     background: linear-gradient(180deg, rgba(46, 32, 19, 0.6), rgba(21, 17, 12, 0.86));
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
     transition:
-        transform 0.16s ease,
-        border-color 0.16s ease,
-        box-shadow 0.16s ease,
-        background 0.16s ease;
+        transform 0.18s ease,
+        border-color 0.18s ease,
+        box-shadow 0.18s ease,
+        background 0.18s ease;
+    transform: translateY(0) scale(1);
+    will-change: transform, box-shadow;
+}
+
+.deal-radar-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: 0;
+}
+
+.deal-radar-card.radar-new {
+    animation: radarNewHighlight 0.95s ease-out 1;
+}
+
+.deal-radar-card.radar-new::after {
+    background: linear-gradient(
+        105deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.08) 46%,
+        transparent 68%
+    );
+    opacity: 0;
+    animation: radarNewShimmer 0.7s ease-out 1;
+}
+
+@keyframes radarNewHighlight {
+    0% {
+        border-color: rgba(184, 255, 215, 0.44);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.05),
+            0 0 0 1px rgba(184, 255, 215, 0.14);
+        background: linear-gradient(180deg, rgba(66, 107, 74, 0.52), rgba(24, 35, 25, 0.9));
+    }
+    100% {
+        border-color: rgba(255, 196, 111, 0.25);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        background: linear-gradient(180deg, rgba(46, 32, 19, 0.6), rgba(21, 17, 12, 0.86));
+    }
+}
+
+@keyframes radarNewShimmer {
+    0% {
+        opacity: 0;
+        transform: translateX(-28%);
+    }
+    28% {
+        opacity: 0.22;
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(28%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .deal-radar-title-live-dot,
+    .deal-radar-card.radar-new,
+    .deal-radar-card.radar-new::after {
+        animation: none;
+    }
 }
 
 .deal-radar-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-4px) scale(1.015);
     border-color: rgba(255, 196, 111, 0.45);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.24);
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
     background: linear-gradient(180deg, rgba(58, 40, 23, 0.75), rgba(30, 23, 15, 0.92));
 }
 
@@ -1623,12 +1779,13 @@ input:focus-visible {
     position: relative;
     transform: translateY(0) scale(1) translateZ(0);
     transition:
-        transform 0.22s ease,
-        box-shadow 0.22s ease,
-        border-color 0.22s ease,
-        background 0.22s ease;
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        border-color 0.18s ease,
+        background 0.18s ease;
     animation: cardFadeIn 0.35s ease;
     content-visibility: auto;
+    will-change: transform, box-shadow;
 }
 
 .game-card > .game-card-link-overlay {
@@ -1645,7 +1802,7 @@ input:focus-visible {
 }
 
 .game-card:hover {
-    transform: translateY(-4px) scale(1.01);
+    transform: translateY(-4px) scale(1.015);
     border-color: rgba(121, 168, 255, 0.45);
     box-shadow:
         0 18px 34px rgba(2, 8, 24, 0.34),
@@ -1662,8 +1819,8 @@ input:focus-visible {
 }
 
 .game-card:hover .card-banner-img {
-    transform: scale(1.04);
-    filter: saturate(1.1) brightness(1.05);
+    transform: scale(1.02);
+    filter: saturate(1.06) brightness(1.03);
 }
 
 .game-card:hover .card-banner-overlay {
@@ -1672,14 +1829,14 @@ input:focus-visible {
 
 .card-banner-img {
     transition:
-        transform 0.4s ease,
-        filter 0.4s ease;
+        transform 0.18s ease,
+        filter 0.18s ease;
     transform: scale(1);
     content-visibility: auto;
 }
 
 .card-banner-overlay {
-    transition: background 0.3s ease;
+    transition: background 0.18s ease;
 }
 
 .game-name a,
@@ -1688,11 +1845,11 @@ input:focus-visible {
 .deal-score-badge,
 .meta-item {
     transition:
-        transform 0.2s ease,
-        background 0.2s ease,
-        border-color 0.2s ease,
-        color 0.2s ease,
-        box-shadow 0.2s ease;
+        transform 0.18s ease,
+        background 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease,
+        box-shadow 0.18s ease;
 }
 
 .game-card:hover .game-name a {
@@ -1737,7 +1894,7 @@ input:focus-visible {
         radial-gradient(circle at 20% 0%, rgba(255,255,255,0.08), transparent 30%),
         radial-gradient(circle at 80% 120%, rgba(121,168,255,0.14), transparent 36%);
     opacity: 0;
-    transition: opacity 0.28s ease;
+    transition: opacity 0.18s ease;
     pointer-events: none;
     z-index: 0;
 }
@@ -1827,14 +1984,13 @@ input:focus-visible {
         rgba(255,255,255,0.00) 62%,
         transparent 100%
     );
-    transform: translateX(-120%);
-    transition: transform 0.65s cubic-bezier(.25,.8,.25,1);
-    will-change: transform;
+    opacity: 0;
+    transition: opacity 0.18s ease;
     pointer-events: none;
 }
 
 .game-card:hover .card-banner::after {
-    transform: translateX(120%);
+    opacity: 1;
 }
 
 /* Quick View modal (SteamDB-style) */
@@ -2530,7 +2686,7 @@ input:focus-visible {
                 <section class="panel panel-deal-radar" id="dealRadarPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Market Radar</h2>
+                            <h2 class="panel-title">Market Radar <span class="deal-radar-title-live-dot" aria-hidden="true"></span></h2>
                             <div class="panel-subtitle">Live market feed for fresh lows, major price moves, and player momentum shifts.</div>
                         </div>
                     </div>
@@ -2660,6 +2816,8 @@ input:focus-visible {
             recentlyUpdated: [],
             alertSignals: [],
             dealRadar: [],
+            dealRadarSeenKeys: new Set(),
+            dealRadarPrimed: false,
             seasonalSale: {
                 sale_event: null,
                 expected_games: [],
@@ -3445,14 +3603,53 @@ input:focus-visible {
             return `${days}d`;
         }
 
+        const HIGH_VALUE_DISCOUNT_THRESHOLD = 60;
+
+        function isHighValueHistoricalStatus(status) {
+            const normalized = String(status || "").trim();
+            return normalized === "new_historical_low" || normalized === "matches_historical_low";
+        }
+
+        function isLargeDiscount(discountValue) {
+            const discount = Number(discountValue);
+            return Number.isFinite(discount) && discount >= HIGH_VALUE_DISCOUNT_THRESHOLD;
+        }
+
+        function signalGlowClass(variant) {
+            return variant ? ` signal-glow signal-glow-${variant}` : "";
+        }
+
+        function glowClassForSignalKey(signalKey) {
+            const normalized = String(signalKey || "").trim().toLowerCase();
+            if (normalized === "new_historical_low" || normalized === "matches_historical_low") {
+                return signalGlowClass("low");
+            }
+            if (normalized === "buy_now_pick") {
+                return signalGlowClass("buy");
+            }
+            return "";
+        }
+
+        function dealRadarGlowClass(signalType, discountValue) {
+            const normalized = String(signalType || "").trim().toUpperCase();
+            if (normalized === "NEW_HISTORICAL_LOW") {
+                return signalGlowClass("low");
+            }
+            if (normalized === "BIG_DISCOUNT" || isLargeDiscount(discountValue)) {
+                return signalGlowClass("discount");
+            }
+            return "";
+        }
+
         function buildLowestPriceIndicator(game) {
-            const status = game.historical_status;
+            const status = String(game.historical_status || "").trim();
+            const lowGlowClass = signalGlowClass("low");
 
             if (status === "new_historical_low") {
-                return `<span class="pill good">💎 Lowest price ever</span>`;
+                return `<span class="pill good${lowGlowClass}">💎 Lowest price ever</span>`;
             }
             if (status === "matches_historical_low") {
-                return `<span class="pill info">🟦 Matches all-time low</span>`;
+                return `<span class="pill info${lowGlowClass}">🟦 Matches all-time low</span>`;
             }
             if (status === "near_historical_low") {
                 return `<span class="pill purple">🟣 Near lowest price</span>`;
@@ -3463,7 +3660,8 @@ input:focus-visible {
         function buildDealPill(game) {
             const discount = Number(game.discount_percent || 0);
             if (discount <= 0) return "";
-            return `<span class="pill warn">🏷️ ${Number(discount).toFixed(0)}% off</span>`;
+            const discountGlowClass = isLargeDiscount(discount) ? signalGlowClass("discount") : "";
+            return `<span class="pill warn${discountGlowClass}">🏷️ ${Number(discount).toFixed(0)}% off</span>`;
         }
 
         function buildPlayerMovementPill(game) {
@@ -3507,10 +3705,11 @@ input:focus-visible {
 
         function buildBuyNowVsWaitBadge(game) {
             const discount = Math.max(0, Number(game.discount_percent) || 0);
-            const status = game.historical_status;
+            const status = String(game.historical_status || "").trim();
+            const buyGlowClass = signalGlowClass("buy");
 
-            if (status === "new_historical_low") return `<span class="pill good">✅ Buy now</span>`;
-            if (status === "matches_historical_low") return `<span class="pill good">✅ Lowest (match)</span>`;
+            if (status === "new_historical_low") return `<span class="pill good${buyGlowClass}">✅ Buy now</span>`;
+            if (status === "matches_historical_low") return `<span class="pill good${buyGlowClass}">✅ Lowest (match)</span>`;
             if (discount < 25) return `<span class="pill purple">⏳ Wait</span>`;
             return "";
         }
@@ -3589,7 +3788,7 @@ input:focus-visible {
             const reviewScore = Number(game.review_score || 0);
             if (!Number.isFinite(discount)) return "";
 
-            if (discount >= 80) return `<span class="pill warn">🔥 Huge Discount</span>`;
+            if (discount >= 80) return `<span class="pill warn${signalGlowClass("discount")}">🔥 Huge Discount</span>`;
             if (dealScore >= 92) return `<span class="pill gold">🏆 Best Deal</span>`;
             if (reviewScore >= 90 && discount >= 50) return `<span class="pill good">💎 Hidden Gem</span>`;
             return "";
@@ -3684,7 +3883,10 @@ input:focus-visible {
             }
             return `
                 <div class="card-meta-row signals">
-                    ${signals.map((entry) => `<span class="meta-chip signal ${escapeHtml(entry.tone)}">${escapeHtml(entry.label)}</span>`).join("")}
+                    ${signals.map((entry) => {
+                        const glowClass = glowClassForSignalKey(entry.key);
+                        return `<span class="meta-chip signal ${escapeHtml(entry.tone)}${glowClass}">${escapeHtml(entry.label)}</span>`;
+                    }).join("")}
                 </div>
             `;
         }
@@ -3696,6 +3898,7 @@ input:focus-visible {
             const reviewScore = Number(game.review_score || 0);
             const historicalStatus = String(game.historical_status || "").trim();
             const recommendation = normalizeBuyRecommendation(game.buy_recommendation);
+            const isBuyNowRecommendation = recommendation === "BUY_NOW";
 
             let qualityFlag = "";
             if (discount >= 80) qualityFlag = "Huge discount";
@@ -3704,15 +3907,25 @@ input:focus-visible {
             else if (historicalStatus === "new_historical_low") qualityFlag = "Buy-now signal";
             else if (historicalStatus === "near_historical_low" && discount < 25) qualityFlag = "Likely better sale ahead";
 
+            const discountGlowClass = isLargeDiscount(discount) ? signalGlowClass("discount") : "";
+            const recommendationGlowClass = isBuyNowRecommendation ? signalGlowClass("buy") : "";
+            const qualityGlowClass = (
+                qualityFlag === "Huge discount"
+                || qualityFlag === "Buy-now signal"
+                || isHighValueHistoricalStatus(historicalStatus)
+            )
+                ? signalGlowClass(qualityFlag === "Huge discount" ? "discount" : "buy")
+                : "";
+
             const discountChip = discount > 0
-                ? `<span class="meta-chip deal-primary">${Math.round(discount)}% off</span>`
+                ? `<span class="meta-chip deal-primary${discountGlowClass}">${Math.round(discount)}% off</span>`
                 : '<span class="meta-chip deal-neutral">No active discount</span>';
-            const recommendationChip = recommendation === "BUY_NOW"
-                ? '<span class="meta-chip deal-flag">Buy now</span>'
+            const recommendationChip = isBuyNowRecommendation
+                ? `<span class="meta-chip deal-flag${recommendationGlowClass}">Buy now</span>`
                 : recommendation === "WAIT"
                     ? '<span class="meta-chip deal-neutral">Wait</span>'
                     : "";
-            const qualityChip = qualityFlag ? `<span class="meta-chip deal-flag">${escapeHtml(qualityFlag)}</span>` : "";
+            const qualityChip = qualityFlag ? `<span class="meta-chip deal-flag${qualityGlowClass}">${escapeHtml(qualityFlag)}</span>` : "";
             const dealScoreChip = Number.isFinite(dealScore) ? `<span class="meta-chip metric">Deal ${Math.round(dealScore)}</span>` : "";
             const worthScoreChip = Number.isFinite(worthScore) ? `<span class="meta-chip metric">Worth ${Math.round(worthScore)}</span>` : "";
 
@@ -5346,6 +5559,13 @@ input:focus-visible {
             }
         }
 
+        function dealRadarEntryKey(entry) {
+            const gameId = Number(entry?.game_id || 0);
+            const signalType = String(entry?.signal_type || "").trim().toUpperCase();
+            const timestamp = String(entry?.timestamp || "").trim();
+            return `${Number.isFinite(gameId) ? gameId : 0}:${signalType}:${timestamp}`;
+        }
+
         function renderDealRadar() {
             if (!ui.dealRadarFeed || !ui.dealRadarMoreBtn) return;
 
@@ -5365,6 +5585,7 @@ input:focus-visible {
 
             const visibleCount = Math.min(state.visibleCounts.dealRadarFeed || 12, entries.length);
             const rows = entries.slice(0, visibleCount);
+            const isPrimed = Boolean(state.dealRadarPrimed);
             ui.dealRadarFeed.innerHTML = rows.map((entry) => {
                 const timestampMs = Date.parse(entry.timestamp || "");
                 const when = Number.isFinite(timestampMs) ? `${formatDetectedLabel(timestampMs)} ago` : "just now";
@@ -5376,13 +5597,18 @@ input:focus-visible {
                 const discountLabel = Number.isFinite(discountValue) && discountValue > 0
                     ? `${discountValue.toFixed(0)}% off`
                     : "No active discount";
+                const radarGlowClass = dealRadarGlowClass(entry.signal_type, discountValue);
+                const entryKey = dealRadarEntryKey(entry);
+                const isNewEntry = isPrimed && !state.dealRadarSeenKeys.has(entryKey);
+                state.dealRadarSeenKeys.add(entryKey);
+                const newEntryClass = isNewEntry ? " radar-new" : "";
                 const bannerStyle = entry.image ? ` style='background-image:url("${escapeCssUrl(entry.image)}");'` : "";
                 return `
-                    <a class="deal-radar-card" href="${buildGameDetailHref(entry)}">
+                    <a class="deal-radar-card${newEntryClass}" href="${buildGameDetailHref(entry)}">
                         <div class="deal-radar-thumb"${bannerStyle}></div>
                         <div class="deal-radar-content">
                             <div class="deal-radar-meta">
-                                <span class="deal-radar-badge ${signalTone}">${escapeHtml(signalLabel)}</span>
+                                <span class="deal-radar-badge ${signalTone}${radarGlowClass}">${escapeHtml(signalLabel)}</span>
                                 <span class="deal-radar-recency"><span class="deal-radar-live-dot" aria-hidden="true"></span>${escapeHtml(when)}</span>
                             </div>
                             <div class="deal-radar-title">${escapeHtml(entry.game_name)}</div>
@@ -5395,6 +5621,7 @@ input:focus-visible {
                     </a>
                 `;
             }).join("");
+            state.dealRadarPrimed = true;
 
             if (visibleCount >= entries.length) {
                 ui.dealRadarMoreBtn.classList.add("hidden");
@@ -6895,6 +7122,42 @@ input:focus-visible {
             onScroll();
         }
 
+        function wireSectionReveal() {
+            if (wireSectionReveal._wired) return;
+
+            const sectionPanels = Array.from(document.querySelectorAll(".dashboard-grid .panel"));
+            if (!sectionPanels.length) return;
+
+            document.documentElement.classList.add("reveal-enabled");
+            sectionPanels.forEach((panel) => panel.classList.add("panel-reveal"));
+
+            const prefersReducedMotion = Boolean(
+                window.matchMedia
+                && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+            );
+            if (prefersReducedMotion || typeof IntersectionObserver !== "function") {
+                sectionPanels.forEach((panel) => panel.classList.add("is-visible"));
+                wireSectionReveal._wired = true;
+                return;
+            }
+
+            const observer = new IntersectionObserver((entries, currentObserver) => {
+                entries.forEach((entry) => {
+                    if (!entry.isIntersecting) return;
+                    entry.target.classList.add("is-visible");
+                    currentObserver.unobserve(entry.target);
+                });
+            }, {
+                root: null,
+                rootMargin: "0px 0px -8% 0px",
+                threshold: 0.12,
+            });
+
+            sectionPanels.forEach((panel) => observer.observe(panel));
+            wireSectionReveal._observer = observer;
+            wireSectionReveal._wired = true;
+        }
+
         function wireRowNav() {
             document.querySelectorAll("[data-row-left]").forEach((btn) => {
                 btn.addEventListener("click", () => {
@@ -7132,6 +7395,10 @@ input:focus-visible {
             const stop = () => {
                 cancelCatalogLoad();
                 clearSearchRequest();
+                if (wireSectionReveal._observer) {
+                    wireSectionReveal._observer.disconnect();
+                    wireSectionReveal._observer = null;
+                }
             };
             window.addEventListener("pagehide", stop);
             window.addEventListener("beforeunload", stop);
@@ -7172,6 +7439,7 @@ input:focus-visible {
 
                 wireFilters();
                 wireScrollBehavior();
+                wireSectionReveal();
                 wireSeasonalToggles();
                 wireRecentlyUpdatedToggle();
                 wireDealRadarMore();

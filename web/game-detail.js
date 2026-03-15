@@ -3,6 +3,89 @@ const params = new URLSearchParams(window.location.search);
 const gameId = params.get("game_id");
 
 let priceChart;
+const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
+
+if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
+  skeletonUi.ensureStyles();
+}
+
+function setInlineSkeleton(id, widthClass = "gd-skeleton-w-56") {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = `<span class="gd-skeleton-block gd-skeleton-line ${widthClass}" aria-hidden="true"></span>`;
+}
+
+function renderLoadingSkeletons() {
+  setInlineSkeleton("gameTitle", "gd-skeleton-w-64");
+  setInlineSkeleton("dealSummary", "gd-skeleton-w-80");
+  setInlineSkeleton("currentPrice", "gd-skeleton-w-48");
+  setInlineSkeleton("originalPrice", "gd-skeleton-w-40");
+  setInlineSkeleton("discountPercent", "gd-skeleton-w-34");
+  setInlineSkeleton("historicalLow", "gd-skeleton-w-40");
+  setInlineSkeleton("playerCount", "gd-skeleton-w-40");
+  setInlineSkeleton("developer", "gd-skeleton-w-56");
+  setInlineSkeleton("publisher", "gd-skeleton-w-56");
+  setInlineSkeleton("releaseDate", "gd-skeleton-w-48");
+  setInlineSkeleton("dealScore", "gd-skeleton-w-48");
+  setInlineSkeleton("worthBuyingScore", "gd-skeleton-w-48");
+  setInlineSkeleton("momentumScore", "gd-skeleton-w-48");
+  setInlineSkeleton("predictionConfidence", "gd-skeleton-w-34");
+
+  const banner = document.getElementById("heroBanner");
+  if (banner) {
+    banner.classList.add("gd-skeleton-surface");
+  }
+
+  const tagList = document.getElementById("tagList");
+  if (tagList) {
+    tagList.innerHTML = [
+      '<span class="gd-skeleton-block gd-skeleton-badge gd-skeleton-w-30" aria-hidden="true"></span>',
+      '<span class="gd-skeleton-block gd-skeleton-badge gd-skeleton-w-24" aria-hidden="true"></span>',
+      '<span class="gd-skeleton-block gd-skeleton-badge gd-skeleton-w-34" aria-hidden="true"></span>',
+    ].join("");
+  }
+
+  const priceHistoryPanel = document.getElementById("priceChart")?.closest(".panel");
+  if (priceHistoryPanel) {
+    priceHistoryPanel.classList.add("gd-skeleton-surface");
+  }
+
+  if (skeletonUi && typeof skeletonUi.render === "function") {
+    skeletonUi.render(document.getElementById("dealFactors"), "panel-list", 4, { itemClass: "factor-item" });
+    skeletonUi.render(document.getElementById("predictionPanel"), "panel-list", 5, { itemClass: "prediction-stat" });
+    skeletonUi.render(document.getElementById("nextSalePredictionPanel"), "panel-list", 5, { itemClass: "prediction-stat" });
+    skeletonUi.render(document.getElementById("buyNowPanel"), "panel-list", 3, { itemClass: "prediction-stat" });
+    skeletonUi.render(document.getElementById("dealHeatPanel"), "panel-list", 4, { itemClass: "prediction-stat" });
+    skeletonUi.render(document.getElementById("marketInsights"), "meta-grid", 6, { itemClass: "meta-item" });
+  }
+}
+
+function renderLoadFailureState(message) {
+  const safeMessage = String(message || "Failed to load game data.");
+  setText("gameTitle", safeMessage);
+  setText("dealSummary", "Please try refreshing this page.");
+
+  const banner = document.getElementById("heroBanner");
+  if (banner) {
+    banner.classList.remove("gd-skeleton-surface");
+  }
+
+  const priceHistoryPanel = document.getElementById("priceChart")?.closest(".panel");
+  if (priceHistoryPanel) {
+    priceHistoryPanel.classList.remove("gd-skeleton-surface");
+  }
+
+  const panelError = `<div class="prediction-stat"><strong>Status</strong><div>${escapeHtml(safeMessage)}</div></div>`;
+  ["dealFactors", "predictionPanel", "nextSalePredictionPanel", "buyNowPanel", "dealHeatPanel"].forEach((id) => {
+    const node = document.getElementById(id);
+    if (node) node.innerHTML = panelError;
+  });
+
+  const marketNode = document.getElementById("marketInsights");
+  if (marketNode) {
+    marketNode.innerHTML = `<div class="meta-item"><span>Status</span><strong>${escapeHtml(safeMessage)}</strong></div>`;
+  }
+}
 
 function fmtPrice(value) {
   if (value === null || value === undefined) return "-";
@@ -47,7 +130,10 @@ function renderDetail(detail) {
   setText("predictionConfidence", detail.prediction?.confidence || "-");
 
   const banner = document.getElementById("heroBanner");
-  if (detail.banner_image) {
+  if (banner) {
+    banner.classList.remove("gd-skeleton-surface");
+  }
+  if (banner && detail.banner_image) {
     banner.style.backgroundImage = `url('${detail.banner_image}')`;
   }
 
@@ -200,6 +286,10 @@ function renderDealFactors(data) {
 function renderPriceChart(data) {
   const labels = (data.points || []).map((p) => new Date(p.timestamp).toLocaleDateString());
   const prices = (data.points || []).map((p) => p.price);
+  const priceHistoryPanel = document.getElementById("priceChart")?.closest(".panel");
+  if (priceHistoryPanel) {
+    priceHistoryPanel.classList.remove("gd-skeleton-surface");
+  }
 
   const ctx = document.getElementById("priceChart").getContext("2d");
   if (priceChart) priceChart.destroy();
@@ -252,8 +342,10 @@ function bindRangeButtons() {
 }
 
 async function init() {
+  renderLoadingSkeletons();
+
   if (!gameId) {
-    setText("gameTitle", "Missing game_id query parameter");
+    renderLoadFailureState("Missing game_id query parameter.");
     return;
   }
 
@@ -269,7 +361,7 @@ async function init() {
     bindRangeButtons();
   } catch (err) {
     console.error(err);
-    setText("gameTitle", "Failed to load game data");
+    renderLoadFailureState("Failed to load game data.");
   }
 }
 

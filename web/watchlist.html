@@ -33,6 +33,9 @@ if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function"
         twitterDescription: "Track your games and monitor sale, low-price, and buy-signal events."
     });
 }
+if (window.GameDenSite && window.GameDenSite.skeleton && typeof window.GameDenSite.skeleton.ensureStyles === "function") {
+    window.GameDenSite.skeleton.ensureStyles();
+}
 </script>
 <style>
 :root {
@@ -251,7 +254,7 @@ body {
     <section class="hero">
         <h1>Track What Matters</h1>
         <p>Watchlist entries surface sale starts, historical-low hits, and buy-score signals from snapshot-backed data.</p>
-        <div class="meta-row">User scope: <strong id="userScope">loading...</strong></div>
+        <div class="meta-row">User scope: <strong id="userScope"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-30" aria-hidden="true"></span></strong></div>
     </section>
 
     <section id="content"></section>
@@ -274,6 +277,19 @@ function getCurrentUserId() {
 
 const CURRENT_USER_ID = getCurrentUserId();
 const contentEl = document.getElementById("content");
+const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
+
+if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
+    skeletonUi.ensureStyles();
+}
+
+function renderWatchlistSkeleton() {
+    if (skeletonUi && typeof skeletonUi.markup === "function") {
+        contentEl.innerHTML = `<div class="grid">${skeletonUi.markup("watchlist-cards", 6, { cardClass: "card" })}</div>`;
+        return;
+    }
+    contentEl.innerHTML = `<div class="loading">Loading watchlist...</div>`;
+}
 
 function escapeHtml(value) {
     return String(value ?? "")
@@ -405,8 +421,9 @@ function render(items, alertsByGame = new Map()) {
 }
 
 async function loadWatchlist() {
+    contentEl.setAttribute("aria-busy", "true");
     document.getElementById("userScope").textContent = CURRENT_USER_ID;
-    contentEl.innerHTML = `<div class="loading">Loading watchlist...</div>`;
+    renderWatchlistSkeleton();
     try {
         const [watchlistPayload, alertsPayload] = await Promise.all([
             fetchJson(`/api/watchlist?user_id=${encodeURIComponent(CURRENT_USER_ID)}`),
@@ -418,6 +435,8 @@ async function loadWatchlist() {
     } catch (error) {
         console.error(error);
         contentEl.innerHTML = `<div class="error">Failed to load watchlist data.</div>`;
+    } finally {
+        contentEl.setAttribute("aria-busy", "false");
     }
 }
 

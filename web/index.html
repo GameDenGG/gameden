@@ -37,6 +37,9 @@ if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function"
         twitterDescription: "Live Steam market intelligence for deals, momentum, and timing."
     });
 }
+if (window.GameDenSite && window.GameDenSite.skeleton && typeof window.GameDenSite.skeleton.ensureStyles === "function") {
+    window.GameDenSite.skeleton.ensureStyles();
+}
 </script>
 <style>
 :root {
@@ -2405,7 +2408,7 @@ input:focus-visible {
                     </div>
                     <div class="panel-body" id="seasonalRadarTopBody">
                         <div class="sale-radar-head">
-                            <div class="sale-badge" id="saleEventBadgeTop">Loading sale radar…</div>
+                            <div class="sale-badge" id="saleEventBadgeTop"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></div>
                         </div>
                         <div class="sale-radar-content hidden-content" id="seasonalTopContent">
                             <div class="sale-radar-text" id="saleRadarTextTop"></div>
@@ -2688,7 +2691,7 @@ input:focus-visible {
                     </div>
                     <div class="panel-body" id="seasonalRadarLowerBody">
                         <div class="sale-radar-head">
-                            <div class="sale-badge" id="saleEventBadgeLower">Loading sale radar…</div>
+                            <div class="sale-badge" id="saleEventBadgeLower"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></div>
                         </div>
                         <div class="sale-radar-content hidden-content" id="seasonalLowerContent">
                             <div class="sale-radar-text" id="saleRadarTextLower"></div>
@@ -3055,6 +3058,20 @@ input:focus-visible {
             trackedGamesChip: document.getElementById("trackedGamesChip"),
             heroSecondaryCta: document.getElementById("heroSecondaryCta"),
         };
+
+        const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
+        if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
+            skeletonUi.ensureStyles();
+        }
+
+        function renderSkeleton(container, kind, count = 1, options = {}) {
+            if (!container) return;
+            if (skeletonUi && typeof skeletonUi.render === "function") {
+                skeletonUi.render(container, kind, count, options);
+                return;
+            }
+            container.innerHTML = '<div class="loading">Loading...</div>';
+        }
 
         function fmtPrice(value) {
             const num = Number(value);
@@ -5105,7 +5122,7 @@ input:focus-visible {
             updateAllGamesDirectoryLink();
             const items = getFeaturedAllGames();
             if (!items.length && state.catalog.loading) {
-                ui.releasedGamesGrid.innerHTML = '<div class="loading">Loading top-selling picks…</div>';
+                renderSkeleton(ui.releasedGamesGrid, "deal-cards", 2, { cardClass: "game-card", compact: true });
                 return;
             }
             if (!items.length && state.catalog.error) {
@@ -5844,7 +5861,7 @@ input:focus-visible {
             const wishlistError = !!state.personalListStatus?.wishlistError;
             setPanelVisibility(ui.wishlistPanel, wishlistItems.length > 0 || wishlistLoading || wishlistError);
             if (wishlistLoading) {
-                ui.wishlistList.innerHTML = '<div class="loading">Loading wishlist...</div>';
+                renderSkeleton(ui.wishlistList, "mini-list", 3, { itemClass: "mini-item" });
                 return;
             }
             if (wishlistError) {
@@ -5868,7 +5885,7 @@ input:focus-visible {
             const watchlistError = !!state.personalListStatus?.watchlistError;
             setPanelVisibility(ui.watchlistPanel, watchlistItems.length > 0 || watchlistLoading || watchlistError);
             if (watchlistLoading) {
-                ui.watchlistList.innerHTML = '<div class="loading">Loading watchlist...</div>';
+                renderSkeleton(ui.watchlistList, "mini-list", 3, { itemClass: "mini-item" });
                 return;
             }
             if (watchlistError) {
@@ -6254,7 +6271,7 @@ input:focus-visible {
             }
 
             if (state.search.loading) {
-                ui.searchResultsList.innerHTML = `<div class="search-result-empty">Searching games…</div>`;
+                renderSkeleton(ui.searchResultsList, "search-results", 4);
                 openSearchResults();
                 return;
             }
@@ -7605,26 +7622,26 @@ input:focus-visible {
                 applySiteBranding();
                 applyDiscoverySectionOrder();
                 state.lastVisitTs = getStoredLastVisitTs();
-                ui.seasonalSaleTopGrid.innerHTML = '<div class="loading">Loading seasonal radar...</div>';
-                ui.seasonalSaleLowerGrid.innerHTML = '<div class="loading">Loading seasonal radar...</div>';
-                ui.dealRankedGrid.innerHTML = '<div class="loading">Loading biggest discounts…</div>';
-                ui.worthBuyingGrid.innerHTML = '<div class="loading">Loading worth-buying picks…</div>';
-                ui.trendingDealsGrid.innerHTML = '<div class="loading">Loading trending now…</div>';
-                ui.newHistoricalLowsGrid.innerHTML = '<div class="loading">Loading new historical lows…</div>';
-                ui.newDealsGrid.innerHTML = '<div class="loading">Loading buy-now picks…</div>';
-                ui.recommendedDealsGrid.innerHTML = '<div class="loading">Loading wait picks…</div>';
-                ui.historicalLowsGrid.innerHTML = '<div class="loading">Loading historical lows…</div>';
-                ui.releasedGamesGrid.innerHTML = '<div class="loading">Loading top-selling picks…</div>';
-                ui.topReviewedGrid.innerHTML = '<div class="loading">Loading top reviewed games…</div>';
-                ui.upcomingGrid.innerHTML = '<div class="loading">Loading deals…</div>';
-                ui.recentlyUpdatedList.innerHTML = '<div class="loading">Loading recent updates…</div>';
-                ui.topPlayedList.innerHTML = '<div class="loading">Loading top played...</div>';
-                ui.trendingList.innerHTML = '<div class="loading">Loading trending...</div>';
-                ui.alertsList.innerHTML = '<div class="loading">Loading alerts...</div>';
-                ui.dealRadarFeed.innerHTML = '<div class="loading">Loading market radar...</div>';
-                ui.leaderboardList.innerHTML = '<div class="loading">Loading leaderboard...</div>';
-                ui.wishlistList.innerHTML = '<div class="loading">Loading wishlist...</div>';
-                ui.watchlistList.innerHTML = '<div class="loading">Loading watchlist...</div>';
+                renderSkeleton(ui.seasonalSaleTopGrid, "deal-cards", 4, { cardClass: "game-card" });
+                renderSkeleton(ui.seasonalSaleLowerGrid, "deal-cards", 4, { cardClass: "game-card" });
+                renderSkeleton(ui.dealRankedGrid, "deal-cards", 6, { cardClass: "game-card" });
+                renderSkeleton(ui.worthBuyingGrid, "deal-cards", 6, { cardClass: "game-card" });
+                renderSkeleton(ui.trendingDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+                renderSkeleton(ui.newHistoricalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
+                renderSkeleton(ui.newDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+                renderSkeleton(ui.recommendedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+                renderSkeleton(ui.historicalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
+                renderSkeleton(ui.releasedGamesGrid, "deal-cards", 2, { cardClass: "game-card", compact: true });
+                renderSkeleton(ui.topReviewedGrid, "deal-cards", 6, { cardClass: "game-card" });
+                renderSkeleton(ui.upcomingGrid, "deal-cards", 2, { cardClass: "game-card", compact: true });
+                renderSkeleton(ui.recentlyUpdatedList, "mini-list", 3, { itemClass: "mini-item" });
+                renderSkeleton(ui.topPlayedList, "mini-list", 4, { itemClass: "mini-item" });
+                renderSkeleton(ui.trendingList, "mini-list", 4, { itemClass: "mini-item" });
+                renderSkeleton(ui.alertsList, "mini-list", 4, { itemClass: "mini-item" });
+                renderSkeleton(ui.dealRadarFeed, "radar-list", 4, { itemClass: "deal-radar-card", thumbClass: "deal-radar-thumb" });
+                renderSkeleton(ui.leaderboardList, "mini-list", 4, { itemClass: "mini-item" });
+                renderSkeleton(ui.wishlistList, "mini-list", 3, { itemClass: "mini-item" });
+                renderSkeleton(ui.watchlistList, "mini-list", 3, { itemClass: "mini-item" });
                 state.personalListStatus.wishlistLoading = true;
                 state.personalListStatus.watchlistLoading = true;
                 state.personalListStatus.wishlistError = null;

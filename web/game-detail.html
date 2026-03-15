@@ -21,7 +21,7 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <script src="/site-config.js"></script>
     <script src="/site-branding.js"></script>
-    <script>
+<script>
     if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
         window.GameDenSite.applyMetadata({
             path: "game-detail.html",
@@ -33,6 +33,9 @@
             twitterDescription: "View deep game-level pricing and momentum insights in GameDen.gg."
         });
     }
+    if (window.GameDenSite && window.GameDenSite.skeleton && typeof window.GameDenSite.skeleton.ensureStyles === "function") {
+        window.GameDenSite.skeleton.ensureStyles();
+    }
     </script>
     <link rel="stylesheet" href="/game-detail.css" />
 </head>
@@ -41,8 +44,8 @@
     <section class="hero-card">
         <div class="hero-banner-wrap">
             <div id="heroBanner" class="hero-banner"></div>
-            <h1 id="gameTitle">Loading...</h1>
-            <p id="dealSummary" class="deal-summary">Fetching game detail...</p>
+            <h1 id="gameTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></h1>
+            <p id="dealSummary" class="deal-summary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
         </div>
 
         <div class="price-row">

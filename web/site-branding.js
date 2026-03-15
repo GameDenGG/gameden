@@ -67,6 +67,7 @@
   const warnedKeys = new Set();
   const NEW_SIGNAL_DEFAULT_CAP = 800;
   const newSignalBuckets = new Map();
+  const SKELETON_STYLE_ID = "gameden-skeleton-styles";
 
   function warnOnce(key, message) {
     if (warnedKeys.has(key)) {
@@ -297,6 +298,347 @@
     newSignalBuckets.delete(scopeToken);
   }
 
+  function _toClampedInt(value, fallback, min, max) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    const normalized = Math.trunc(parsed);
+    return Math.max(min, Math.min(max, normalized));
+  }
+
+  function _repeatMarkup(count, mapper) {
+    const rows = [];
+    for (let index = 0; index < count; index += 1) {
+      rows.push(mapper(index));
+    }
+    return rows.join("");
+  }
+
+  function _normalizeClassList(value) {
+    return String(value || "")
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter((token) => /^[A-Za-z0-9_-]+$/.test(token))
+      .join(" ");
+  }
+
+  function _joinClassNames(...parts) {
+    return parts
+      .map((part) => _normalizeClassList(part))
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  function ensureSkeletonStyles() {
+    if (typeof document === "undefined" || !document.head) return;
+    if (document.getElementById(SKELETON_STYLE_ID)) return;
+
+    const styleNode = document.createElement("style");
+    styleNode.id = SKELETON_STYLE_ID;
+    styleNode.textContent = `
+.gd-skeleton-surface {
+  position: relative;
+  overflow: hidden;
+  pointer-events: none !important;
+  user-select: none;
+}
+.gd-skeleton-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(108deg, transparent 10%, rgba(255, 255, 255, 0.09) 46%, transparent 76%);
+  transform: translateX(-110%);
+  animation: gdSkeletonSweep 1.45s ease-in-out infinite;
+}
+.gd-skeleton-card-shell {
+  display: grid;
+  grid-template-rows: 132px auto;
+  min-height: 318px;
+  border-radius: 16px;
+  border: 1px solid rgba(130, 173, 247, 0.2);
+  background: linear-gradient(180deg, rgba(16, 30, 52, 0.74), rgba(9, 18, 33, 0.86));
+}
+.gd-skeleton-card-shell.gd-skeleton-compact {
+  min-height: 228px;
+}
+.gd-skeleton-thumb {
+  display: block;
+  width: 100%;
+  height: 132px;
+  border-bottom: 1px solid rgba(130, 173, 247, 0.16);
+  background: linear-gradient(180deg, rgba(121, 168, 255, 0.26), rgba(121, 168, 255, 0.08));
+}
+.gd-skeleton-body {
+  padding: 12px;
+  display: grid;
+  gap: 9px;
+}
+.gd-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.gd-skeleton-grid3 {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.gd-skeleton-block {
+  display: block;
+  border-radius: 8px;
+  border: 1px solid rgba(153, 184, 246, 0.14);
+  background: linear-gradient(180deg, rgba(153, 184, 246, 0.2), rgba(153, 184, 246, 0.08));
+}
+.gd-skeleton-line {
+  height: 12px;
+}
+.gd-skeleton-badge {
+  height: 20px;
+  border-radius: 999px;
+}
+.gd-skeleton-w-80 { width: 80%; }
+.gd-skeleton-w-72 { width: 72%; }
+.gd-skeleton-w-64 { width: 64%; }
+.gd-skeleton-w-56 { width: 56%; }
+.gd-skeleton-w-48 { width: 48%; }
+.gd-skeleton-w-40 { width: 40%; }
+.gd-skeleton-w-34 { width: 34%; }
+.gd-skeleton-w-30 { width: 30%; }
+.gd-skeleton-w-24 { width: 24%; }
+.gd-skeleton-radar-item {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: center;
+  min-height: 72px;
+  padding: 10px 11px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 196, 111, 0.25);
+  background: linear-gradient(180deg, rgba(46, 32, 19, 0.6), rgba(21, 17, 12, 0.86));
+}
+.gd-skeleton-radar-thumb {
+  width: 88px;
+  height: 48px;
+  border-radius: 10px;
+  border-bottom: none;
+}
+.gd-skeleton-radar-main,
+.gd-skeleton-radar-side {
+  display: grid;
+  gap: 8px;
+}
+.gd-skeleton-radar-side {
+  justify-items: end;
+}
+.gd-skeleton-mini-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 62px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(130, 173, 247, 0.2);
+  background: linear-gradient(180deg, rgba(21, 35, 58, 0.78), rgba(12, 22, 40, 0.9));
+}
+.gd-skeleton-search-item {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 72px;
+  padding: 10px 11px;
+  border-bottom: 1px solid rgba(121, 168, 255, 0.14);
+}
+.gd-skeleton-search-thumb {
+  width: 84px;
+  height: 46px;
+  border-radius: 10px;
+  border-bottom: none;
+}
+.gd-skeleton-panel-row {
+  display: grid;
+  gap: 9px;
+  min-height: 78px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(130, 173, 247, 0.2);
+  background: linear-gradient(180deg, rgba(16, 30, 52, 0.72), rgba(11, 21, 38, 0.86));
+}
+.gd-skeleton-meta-row {
+  display: grid;
+  gap: 8px;
+  min-height: 72px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(130, 173, 247, 0.2);
+  background: linear-gradient(180deg, rgba(16, 30, 52, 0.72), rgba(11, 21, 38, 0.86));
+}
+@keyframes gdSkeletonSweep {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(110%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gd-skeleton-surface::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+`;
+    document.head.appendChild(styleNode);
+  }
+
+  function _skeletonDealCardMarkup(options = {}) {
+    const cardClass = _normalizeClassList(options.cardClass);
+    const compactClass = options.compact ? "gd-skeleton-compact" : "";
+    const classes = _joinClassNames(cardClass, "gd-skeleton-card-shell", compactClass, "gd-skeleton-surface");
+    return `
+<article class="${classes}" aria-hidden="true">
+  <div class="gd-skeleton-thumb"></div>
+  <div class="gd-skeleton-body">
+    <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72"></span>
+    <div class="gd-skeleton-row">
+      <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-34"></span>
+      <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-24"></span>
+    </div>
+    <div class="gd-skeleton-row">
+      <span class="gd-skeleton-block gd-skeleton-badge gd-skeleton-w-40"></span>
+      <span class="gd-skeleton-block gd-skeleton-badge gd-skeleton-w-30"></span>
+      <span class="gd-skeleton-block gd-skeleton-badge gd-skeleton-w-24"></span>
+    </div>
+    <div class="gd-skeleton-grid3">
+      <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64"></span>
+      <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-56"></span>
+      <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48"></span>
+    </div>
+  </div>
+</article>
+`;
+  }
+
+  function _skeletonMiniItemMarkup(options = {}) {
+    const itemClass = _normalizeClassList(options.itemClass);
+    const classes = _joinClassNames(itemClass, "gd-skeleton-mini-item", "gd-skeleton-surface");
+    return `
+<div class="${classes}" aria-hidden="true">
+  <div style="display:grid;gap:8px;">
+    <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64"></span>
+    <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40"></span>
+  </div>
+  <span class="gd-skeleton-block gd-skeleton-badge gd-skeleton-w-34"></span>
+</div>
+`;
+  }
+
+  function _skeletonRadarItemMarkup(options = {}) {
+    const itemClass = _normalizeClassList(options.itemClass || "deal-radar-card");
+    const thumbClass = _normalizeClassList(options.thumbClass || "deal-radar-thumb");
+    const classes = _joinClassNames(itemClass, "gd-skeleton-radar-item", "gd-skeleton-surface");
+    const thumbClasses = _joinClassNames(thumbClass, "gd-skeleton-thumb", "gd-skeleton-radar-thumb");
+    return `
+<div class="${classes}" aria-hidden="true">
+  <div class="${thumbClasses}"></div>
+  <div class="gd-skeleton-radar-main">
+    <span class="gd-skeleton-block gd-skeleton-badge gd-skeleton-w-40"></span>
+    <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72"></span>
+    <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-56"></span>
+  </div>
+  <div class="gd-skeleton-radar-side">
+    <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48"></span>
+    <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-34"></span>
+  </div>
+</div>
+`;
+  }
+
+  function _skeletonSearchItemMarkup(options = {}) {
+    const itemClass = _normalizeClassList(options.itemClass || "search-result-item");
+    const thumbClass = _normalizeClassList(options.thumbClass || "search-result-thumb");
+    const classes = _joinClassNames(itemClass, "gd-skeleton-search-item", "gd-skeleton-surface");
+    const thumbClasses = _joinClassNames(thumbClass, "gd-skeleton-thumb", "gd-skeleton-search-thumb");
+    return `
+<div class="${classes}" aria-hidden="true">
+  <div class="${thumbClasses}"></div>
+  <div style="display:grid;gap:8px;">
+    <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72"></span>
+    <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-56"></span>
+  </div>
+  <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-30"></span>
+</div>
+`;
+  }
+
+  function _skeletonPanelRowMarkup(options = {}) {
+    const itemClass = _normalizeClassList(options.itemClass);
+    const classes = _joinClassNames(itemClass, "gd-skeleton-panel-row", "gd-skeleton-surface");
+    return `
+<div class="${classes}" aria-hidden="true">
+  <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-56"></span>
+  <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80"></span>
+  <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40"></span>
+</div>
+`;
+  }
+
+  function _skeletonMetaRowMarkup(options = {}) {
+    const itemClass = _normalizeClassList(options.itemClass);
+    const classes = _joinClassNames(itemClass, "gd-skeleton-meta-row", "gd-skeleton-surface");
+    return `
+<div class="${classes}" aria-hidden="true">
+  <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48"></span>
+  <span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64"></span>
+</div>
+`;
+  }
+
+  function getSkeletonMarkup(kind, count = 1, options = {}) {
+    ensureSkeletonStyles();
+    const normalizedKind = String(kind || "").trim().toLowerCase();
+    const safeCount = _toClampedInt(count, 1, 1, 36);
+
+    switch (normalizedKind) {
+      case "deal-cards":
+      case "result-cards":
+      case "watchlist-cards":
+        return _repeatMarkup(safeCount, () => _skeletonDealCardMarkup(options));
+      case "mini-list":
+        return _repeatMarkup(safeCount, () => _skeletonMiniItemMarkup(options));
+      case "radar-list":
+        return _repeatMarkup(safeCount, () => _skeletonRadarItemMarkup(options));
+      case "search-results":
+        return _repeatMarkup(safeCount, () => _skeletonSearchItemMarkup(options));
+      case "panel-list":
+        return _repeatMarkup(safeCount, () => _skeletonPanelRowMarkup(options));
+      case "meta-grid":
+        return _repeatMarkup(safeCount, () => _skeletonMetaRowMarkup(options));
+      default:
+        return _skeletonPanelRowMarkup(options);
+    }
+  }
+
+  function _resolveSkeletonTarget(target) {
+    if (target && target.nodeType === 1) return target;
+    if (typeof target === "string" && target) {
+      return document.querySelector(target);
+    }
+    return null;
+  }
+
+  function renderSkeleton(target, kind, count = 1, options = {}) {
+    const node = _resolveSkeletonTarget(target);
+    if (!node) return "";
+    const html = getSkeletonMarkup(kind, count, options);
+    node.innerHTML = html;
+    return html;
+  }
+
+  const skeletonApi = Object.freeze({
+    ensureStyles: ensureSkeletonStyles,
+    markup: getSkeletonMarkup,
+    render: renderSkeleton,
+  });
+
   window.GameDenSite = Object.freeze({
     config: siteConfig,
     absoluteUrl,
@@ -305,5 +647,6 @@
     applyMetadata,
     markNewSignal,
     resetNewSignalScope,
+    skeleton: skeletonApi,
   });
 })();

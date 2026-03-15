@@ -34,6 +34,9 @@ if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function"
         twitterDescription: "Game-level pricing, player movement, and market intelligence on GameDen.gg."
     });
 }
+if (window.GameDenSite && window.GameDenSite.skeleton && typeof window.GameDenSite.skeleton.ensureStyles === "function") {
+    window.GameDenSite.skeleton.ensureStyles();
+}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -478,11 +481,11 @@ a {
         <div class="hero-body">
             <div class="hero-top">
                 <div class="hero-title">
-                    <h1 id="gameTitle">Loading...</h1>
-                    <div class="hero-sub" id="gameSub">Fetching game details...</div>
+                    <h1 id="gameTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></h1>
+                    <div class="hero-sub" id="gameSub"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></div>
                 </div>
                 <div class="hero-actions">
-                    <div class="hero-badge" id="dealBadge">Loading</div>
+                    <div class="hero-badge" id="dealBadge"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40" aria-hidden="true"></span></div>
                     <button class="hero-watch-btn" id="watchButton" type="button" aria-pressed="false">Watch</button>
                 </div>
             </div>
@@ -603,6 +606,53 @@ let playerChart = null;
 let activeRange = "90d";
 let currentGameId = null;
 let currentGamePayload = null;
+const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
+
+if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
+    skeletonUi.ensureStyles();
+}
+
+function setInlineSkeleton(id, widthClass = "gd-skeleton-w-56") {
+    const node = document.getElementById(id);
+    if (!node) return;
+    node.innerHTML = `<span class="gd-skeleton-block gd-skeleton-line ${widthClass}" aria-hidden="true"></span>`;
+}
+
+function clearLoadingChrome() {
+    const heroBanner = document.getElementById("heroBanner");
+    if (heroBanner) {
+        heroBanner.classList.remove("gd-skeleton-surface");
+    }
+    document.querySelectorAll(".chart-wrap").forEach((wrap) => {
+        wrap.classList.remove("gd-skeleton-surface");
+    });
+}
+
+function renderGameLoadingSkeletons() {
+    setInlineSkeleton("gameTitle", "gd-skeleton-w-64");
+    setInlineSkeleton("gameSub", "gd-skeleton-w-80");
+    setInlineSkeleton("dealBadge", "gd-skeleton-w-40");
+    setInlineSkeleton("currentPrice", "gd-skeleton-w-48");
+    setInlineSkeleton("historicalLow", "gd-skeleton-w-48");
+    setInlineSkeleton("dealScore", "gd-skeleton-w-40");
+    setInlineSkeleton("playerCount", "gd-skeleton-w-40");
+
+    const heroBanner = document.getElementById("heroBanner");
+    if (heroBanner) {
+        heroBanner.classList.add("gd-skeleton-surface");
+    }
+
+    document.querySelectorAll(".chart-wrap").forEach((wrap) => {
+        wrap.classList.add("gd-skeleton-surface");
+    });
+
+    if (skeletonUi && typeof skeletonUi.render === "function") {
+        skeletonUi.render(document.getElementById("dealExplanation"), "panel-list", 5, { itemClass: "break-row" });
+        skeletonUi.render(document.getElementById("marketInfo"), "meta-grid", 8, { itemClass: "info-item" });
+        skeletonUi.render(document.getElementById("prediction"), "panel-list", 5, { itemClass: "prediction-item" });
+        skeletonUi.render(document.getElementById("relatedGames"), "panel-list", 3, { itemClass: "related-block" });
+    }
+}
 
 function getCurrentUserId() {
     try {
@@ -698,6 +748,7 @@ async function loadGame() {
     const requestedGameId = Number(gameIdParam);
     const hasValidGameId = Number.isFinite(requestedGameId) && requestedGameId > 0;
     if (!hasValidGameId && !gameName) {
+        clearLoadingChrome();
         document.getElementById("gameTitle").innerText = "Missing game identifier";
         document.querySelector(".content-grid").innerHTML = `<div class="error">game_id or game_name is required in URL query.</div>`;
         return;
@@ -713,6 +764,7 @@ async function loadGame() {
 
     if (!payload || payload.error) {
         const message = payload?.error || "Game not found";
+        clearLoadingChrome();
         document.getElementById("gameTitle").innerText = message;
         document.querySelector(".content-grid").innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
         return;
@@ -735,6 +787,7 @@ async function loadGame() {
     document.getElementById("playerCount").innerText = fmtInt(payload.current_players);
     document.getElementById("dealBadge").innerText = payload.deal_label || `Deal score ${payload.deal_score ?? "—"}`;
     applyDealBadgeGlow(payload);
+    document.getElementById("heroBanner").classList.remove("gd-skeleton-surface");
 
     if (payload.banner_url || payload.header_image || payload.banner_image) {
         document.getElementById("heroBanner").style.backgroundImage =
@@ -928,6 +981,10 @@ function renderPrediction(payload) {
 
 function renderPriceChart(historyPayload) {
     const ctx = document.getElementById("priceChart").getContext("2d");
+    const priceWrap = document.getElementById("priceChart")?.closest(".chart-wrap");
+    if (priceWrap) {
+        priceWrap.classList.remove("gd-skeleton-surface");
+    }
     const legacyPoints = Array.isArray(historyPayload?.points) ? historyPayload.points : [];
     const sampledHistory = Array.isArray(historyPayload?.history)
         ? historyPayload.history.map((entry) => ({
@@ -1054,6 +1111,10 @@ function renderPriceChart(historyPayload) {
 
 function renderPlayerChart(historyPayload) {
     const ctx = document.getElementById("playerChart").getContext("2d");
+    const playerWrap = document.getElementById("playerChart")?.closest(".chart-wrap");
+    if (playerWrap) {
+        playerWrap.classList.remove("gd-skeleton-surface");
+    }
     const points = Array.isArray(historyPayload?.players) ? historyPayload.players : [];
     if (!points.length) {
         if (playerChart) playerChart.destroy();
@@ -1164,9 +1225,11 @@ watchButton?.addEventListener("click", () => {
     void toggleWatch().catch((error) => console.error(error));
 });
 
+renderGameLoadingSkeletons();
 wireRangeButtons();
 void loadGame().catch((error) => {
     console.error(error);
+    clearLoadingChrome();
     document.getElementById("gameTitle").innerText = "Failed to load game";
 });
 </script>

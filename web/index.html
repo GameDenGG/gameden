@@ -681,6 +681,7 @@ input:focus-visible {
 .panel-seasonal { --panel-accent: rgba(99, 239, 177, 0.95); }
 .panel-catalog { --panel-accent: rgba(121, 168, 255, 0.95); }
 .panel-opportunities { --panel-accent: rgba(143, 246, 206, 0.95); }
+.panel-personalized { --panel-accent: rgba(188, 168, 255, 0.95); }
 .panel-analytics { --panel-accent: rgba(94, 233, 255, 0.95); }
 .panel-alerts { --panel-accent: rgba(255, 140, 169, 0.95); }
 .panel-deal-radar { --panel-accent: rgba(255, 196, 111, 0.95); }
@@ -725,6 +726,7 @@ input:focus-visible {
 .panel-deals .panel-title { color: #ffe0b8; }
 .panel-catalog .panel-title { color: #d4e5ff; }
 .panel-opportunities .panel-title { color: #d4ffe9; }
+.panel-personalized .panel-title { color: #eadbff; }
 .panel-intel .panel-title { color: #cff0ff; }
 .panel-analytics .panel-title { color: #cbf6ff; }
 .panel-alerts .panel-title { color: #ffd3df; }
@@ -2612,6 +2614,26 @@ input:focus-visible {
                     </div>
                 </section>
 
+                <section class="panel panel-personalized hidden" id="recommendedForYouPanel" aria-hidden="true">
+                    <div class="panel-head">
+                        <div class="panel-title-wrap">
+                            <h2 class="panel-title">Recommended For You</h2>
+                            <div class="panel-subtitle">Personalized picks using your wishlist, watchlist, timing signals, and live market movement.</div>
+                        </div>
+                        <div class="row-nav">
+                            <button class="row-nav-btn" type="button" data-row-left="personalizedDealsGrid">&lt;</button>
+                            <button class="row-nav-btn" type="button" data-row-right="personalizedDealsGrid">&gt;</button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="row-section">
+                            <div class="row-fade-left"></div>
+                            <div class="row-fade-right"></div>
+                            <div id="personalizedDealsGrid" class="row-scroller"></div>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="panel panel-deals" id="worthBuyingPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -3060,6 +3082,7 @@ input:focus-visible {
             leaderboard: [],
             dealRanked: [],
             opportunitiesNow: [],
+            personalizedDeals: [],
             worthBuyingNow: [],
             buyNowPicks: [],
             waitPicks: [],
@@ -3084,6 +3107,11 @@ input:focus-visible {
                 watchlistLoading: false,
                 wishlistError: null,
                 watchlistError: null,
+            },
+            personalizedStatus: {
+                enabled: false,
+                loading: false,
+                error: null,
             },
             recentlyUpdatedExpanded: false,
             search: {
@@ -3131,6 +3159,7 @@ input:focus-visible {
             visibleCounts: {
                 dealRankedGrid: 8,
                 opportunitiesGrid: 12,
+                personalizedDealsGrid: 12,
                 worthBuyingGrid: 12,
                 trendingDealsGrid: 12,
                 newHistoricalLowsGrid: 12,
@@ -3178,6 +3207,8 @@ input:focus-visible {
             watchlistList: document.getElementById("watchlistList"),
             opportunitiesPanel: document.getElementById("opportunitiesPanel"),
             opportunitiesGrid: document.getElementById("opportunitiesGrid"),
+            recommendedForYouPanel: document.getElementById("recommendedForYouPanel"),
+            personalizedDealsGrid: document.getElementById("personalizedDealsGrid"),
             dealRankedGrid: document.getElementById("dealRankedGrid"),
             worthBuyingGrid: document.getElementById("worthBuyingGrid"),
             trendingDealsGrid: document.getElementById("trendingDealsGrid"),
@@ -3879,6 +3910,7 @@ input:focus-visible {
         const HIGH_VALUE_CARD_SECTIONS = new Set([
             "dealRankedGrid",
             "opportunitiesGrid",
+            "personalizedDealsGrid",
             "worthBuyingGrid",
             "newHistoricalLowsGrid",
             "historicalLowsGrid",
@@ -4968,11 +5000,21 @@ input:focus-visible {
             const playerTrend = Number(game.short_term_player_trend);
             const popularityScore = Number(game.popularity_score);
             const heatLevel = String(game.deal_heat_level || "").trim().toUpperCase();
+            const explicitPersonalizationLines = safeArray(game.personalization_reasons)
+                .map((line) => normalizeReasonSnippet(line))
+                .filter(Boolean);
+            const personalizationReason = normalizeReasonSnippet(game.personalization_reason);
             const explicitOpportunityLines = safeArray(game.opportunity_reasons)
                 .map((line) => normalizeReasonSnippet(line))
                 .filter(Boolean);
             const opportunityReason = normalizeReasonSnippet(game.opportunity_reason);
 
+            if (!explicitPersonalizationLines.length && personalizationReason) {
+                explicitPersonalizationLines.push(personalizationReason);
+            }
+            if (explicitPersonalizationLines.length) {
+                return explicitPersonalizationLines.slice(0, 2);
+            }
             if (!explicitOpportunityLines.length && opportunityReason) {
                 explicitOpportunityLines.push(opportunityReason);
             }
@@ -6294,6 +6336,51 @@ input:focus-visible {
             });
         }
 
+        function renderPersonalizedDeals() {
+            const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
+            if (!knownUser) {
+                setPanelVisibility(ui.recommendedForYouPanel, false);
+                return;
+            }
+
+            const loading = !!state.personalizedStatus?.loading;
+            const error = state.personalizedStatus?.error;
+            const items = safeArray(state.personalizedDeals);
+            setPanelVisibility(ui.recommendedForYouPanel, true);
+
+            if (loading) {
+                renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+                return;
+            }
+            if (error) {
+                renderError(ui.personalizedDealsGrid, "Failed to load personalized recommendations.");
+                return;
+            }
+            if (!items.length) {
+                renderEmpty(
+                    ui.personalizedDealsGrid,
+                    "No personalized recommendations yet.",
+                    {
+                        tone: "neutral",
+                        detail: "Add games to your wishlist or watchlist to improve recommendations.",
+                    },
+                );
+                return;
+            }
+
+            renderPagedCards({
+                container: ui.personalizedDealsGrid,
+                items,
+                renderer: gameCardHtml,
+                visibleKey: "personalizedDealsGrid",
+                toggleButton: null,
+                showAllButton: null,
+                view: "recommended-for-you",
+                title: "Recommended For You",
+                initialCount: 12,
+            });
+        }
+
         function renderWorthBuyingNow() {
             renderPagedCards({
                 container: ui.worthBuyingGrid,
@@ -6481,6 +6568,7 @@ input:focus-visible {
             const discoveryOrder = [
                 "bestDealsPanel",
                 "opportunitiesPanel",
+                "recommendedForYouPanel",
                 "worthBuyingPanel",
                 "trendingGamesPanel",
                 "seasonalSaleTopPanel",
@@ -6512,6 +6600,7 @@ input:focus-visible {
             renderTrackedGamesChip();
             renderDealRanked();
             renderOpportunities();
+            renderPersonalizedDeals();
             renderWorthBuyingNow();
             renderTrendingDeals();
             renderSeasonalSale();
@@ -7316,7 +7405,7 @@ input:focus-visible {
             }
             hydrateDashboardState(dashboardData, seasonalData, releasedData, dealRadarData, opportunitiesData);
             seedCatalogFromPayload(releasedData);
-            const [, , userAlertSignals] = await Promise.all([
+            const [, , userAlertSignals, personalizedDeals] = await Promise.all([
                 loadUserWatchlist().catch((error) => {
                     console.warn("Failed to load user watchlist", error);
                     return [];
@@ -7329,12 +7418,19 @@ input:focus-visible {
                     console.warn("Failed to load user alerts", error);
                     return [];
                 }),
+                loadPersonalizedDeals().catch((error) => {
+                    console.warn("Failed to load personalized deals", error);
+                    return [];
+                }),
             ]);
             if (safeArray(userAlertSignals).length) {
                 state.alertSignals = uniqueAlertSignals([
                     ...safeArray(state.alertSignals),
                     ...safeArray(userAlertSignals),
                 ]);
+            }
+            if (!state.personalizedStatus.error) {
+                state.personalizedDeals = uniqueGamesByName(personalizedDeals || []);
             }
             const hasDashboardFilters = !!(
                 dashboardData?.filters
@@ -7366,6 +7462,34 @@ input:focus-visible {
                 },
             );
             return dashboardData;
+        }
+
+        async function loadPersonalizedDeals() {
+            const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
+            state.personalizedStatus.enabled = knownUser;
+            state.personalizedStatus.error = null;
+
+            if (!knownUser) {
+                state.personalizedDeals = [];
+                state.personalizedStatus.loading = false;
+                return [];
+            }
+
+            state.personalizedStatus.loading = true;
+            try {
+                const payload = await fetchJson(
+                    `/api/personalized-deals?user_id=${encodeURIComponent(CURRENT_USER_ID)}&limit=48`,
+                );
+                const items = uniqueGamesByName(payload?.items || payload || []);
+                state.personalizedDeals = items;
+                return items;
+            } catch (error) {
+                state.personalizedDeals = [];
+                state.personalizedStatus.error = error;
+                throw error;
+            } finally {
+                state.personalizedStatus.loading = false;
+            }
         }
 
         async function loadUserWatchlist() {
@@ -8081,6 +8205,13 @@ input:focus-visible {
                 renderSkeleton(ui.seasonalSaleLowerGrid, "deal-cards", 4, { cardClass: "game-card" });
                 renderSkeleton(ui.dealRankedGrid, "deal-cards", 6, { cardClass: "game-card" });
                 renderSkeleton(ui.opportunitiesGrid, "deal-cards", 6, { cardClass: "game-card" });
+                state.personalizedStatus.enabled = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
+                state.personalizedStatus.loading = state.personalizedStatus.enabled;
+                state.personalizedStatus.error = null;
+                setPanelVisibility(ui.recommendedForYouPanel, state.personalizedStatus.enabled);
+                if (state.personalizedStatus.enabled) {
+                    renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+                }
                 renderSkeleton(ui.worthBuyingGrid, "deal-cards", 6, { cardClass: "game-card" });
                 renderSkeleton(ui.trendingDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
                 renderSkeleton(ui.newHistoricalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
@@ -8146,6 +8277,12 @@ input:focus-visible {
                 renderError(ui.seasonalSaleLowerGrid, "Failed to load seasonal radar.");
                 renderError(ui.dealRankedGrid, "Failed to load biggest discounts.");
                 renderError(ui.opportunitiesGrid, "Failed to load opportunities.");
+                if (!isDefaultOrAnonymousUserId(CURRENT_USER_ID)) {
+                    setPanelVisibility(ui.recommendedForYouPanel, true);
+                    renderError(ui.personalizedDealsGrid, "Failed to load personalized recommendations.");
+                } else {
+                    setPanelVisibility(ui.recommendedForYouPanel, false);
+                }
                 renderError(ui.worthBuyingGrid, "Failed to load worth-buying picks.");
                 renderError(ui.trendingDealsGrid, "Failed to load trending now.");
                 renderError(ui.newHistoricalLowsGrid, "Failed to load new historical lows.");

@@ -176,21 +176,31 @@ a {
 
 @media (prefers-reduced-motion: no-preference) {
     .hero-badge.signal-glow {
-        animation: detailDealPulse 2.6s ease-in-out infinite;
+        animation: detailDealPulse 1.05s ease-out 1;
     }
 }
 
 @keyframes detailDealPulse {
-    0%,
+    0% {
+        box-shadow:
+            0 0 0 0 rgba(var(--signal-glow-rgb), 0),
+            0 0 0 0 rgba(var(--signal-glow-rgb), 0);
+    }
+    45% {
+        box-shadow:
+            0 0 0 1px rgba(var(--signal-glow-rgb), 0.2),
+            0 0 14px rgba(var(--signal-glow-rgb), 0.24);
+    }
     100% {
         box-shadow:
             0 0 0 0 rgba(var(--signal-glow-rgb), 0),
             0 0 0 0 rgba(var(--signal-glow-rgb), 0);
     }
-    50% {
-        box-shadow:
-            0 0 0 1px rgba(var(--signal-glow-rgb), 0.2),
-            0 0 14px rgba(var(--signal-glow-rgb), 0.24);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero-badge.signal-glow {
+        animation: none;
     }
 }
 

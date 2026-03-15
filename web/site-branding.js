@@ -65,6 +65,8 @@
     "/notifications/",
   ];
   const warnedKeys = new Set();
+  const NEW_SIGNAL_DEFAULT_CAP = 800;
+  const newSignalBuckets = new Map();
 
   function warnOnce(key, message) {
     if (warnedKeys.has(key)) {
@@ -245,11 +247,63 @@
     updateMetaTag("link[rel='canonical']", "href", canonicalUrl);
   }
 
+  function _normalizeNewSignalToken(value) {
+    return String(value ?? "").trim().toLowerCase();
+  }
+
+  function markNewSignal(scope, itemKey, options = {}) {
+    const scopeToken = _normalizeNewSignalToken(scope);
+    const itemToken = _normalizeNewSignalToken(itemKey);
+    if (!scopeToken || !itemToken) {
+      return false;
+    }
+
+    const requestedCap = Number(options.maxEntries);
+    const maxEntries = Number.isFinite(requestedCap)
+      ? Math.max(50, Math.min(3000, Math.trunc(requestedCap)))
+      : NEW_SIGNAL_DEFAULT_CAP;
+
+    let bucket = newSignalBuckets.get(scopeToken);
+    if (!bucket || !(bucket.seen instanceof Set) || !Array.isArray(bucket.order)) {
+      bucket = {
+        seen: new Set(),
+        order: [],
+        maxEntries,
+      };
+      newSignalBuckets.set(scopeToken, bucket);
+    } else {
+      bucket.maxEntries = maxEntries;
+    }
+
+    if (bucket.seen.has(itemToken)) {
+      return false;
+    }
+
+    bucket.seen.add(itemToken);
+    bucket.order.push(itemToken);
+
+    while (bucket.order.length > bucket.maxEntries) {
+      const oldest = bucket.order.shift();
+      if (!oldest) continue;
+      bucket.seen.delete(oldest);
+    }
+
+    return true;
+  }
+
+  function resetNewSignalScope(scope) {
+    const scopeToken = _normalizeNewSignalToken(scope);
+    if (!scopeToken) return;
+    newSignalBuckets.delete(scopeToken);
+  }
+
   window.GameDenSite = Object.freeze({
     config: siteConfig,
     absoluteUrl,
     resolveApiUrl,
     fetchJson,
     applyMetadata,
+    markNewSignal,
+    resetNewSignalScope,
   });
 })();

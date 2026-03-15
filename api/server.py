@@ -121,9 +121,14 @@ SITEMAP_PATHS = (
     "/web/game-detail.html",
     "/web/game.html",
     "/web/history.html",
-    "/worth-buying-now",
-    "/trending-deals",
     "/historical-lows",
+    "/best-deals",
+    "/trending",
+    "/buy-now",
+    "/wait-for-sale",
+    "/under-10",
+    "/under-20",
+    "/popular-discounts",
 )
 EXTENDED_PLATFORM_FILTER_OPTIONS = ("Steam Deck", "VR Compatibility")
 SEARCH_SIMILARITY_THRESHOLD = API_SEARCH_SIMILARITY_THRESHOLD
@@ -131,6 +136,80 @@ HISTORY_RANGE_DAYS: dict[str, int] = {
     "30d": 30,
     "90d": 90,
     "1y": 365,
+}
+SEO_DISCOVERY_PAGE_DEFINITIONS: dict[str, dict[str, str]] = {
+    "best-deals": {
+        "slug": "best-deals",
+        "path": "/best-deals",
+        "title": "Best Steam Deals Right Now | GameDen.gg",
+        "heading": "Best Deals Right Now",
+        "intro": "High-conviction Steam deals ranked by discount depth, deal score, and buy-timing signals.",
+        "description": "Snapshot-ranked Steam deals blending discount depth, deal score, and timing signals.",
+        "empty_message": "No strong live deals are available right now.",
+    },
+    "historical-lows": {
+        "slug": "historical-lows",
+        "path": "/historical-lows",
+        "title": "Steam Games Near Historical Lows | GameDen.gg",
+        "heading": "Steam Games Near Historical Lows",
+        "intro": "Games at, matching, or close to tracked historical lows from snapshot-backed price intelligence.",
+        "description": "Steam games currently near historical lows using snapshot-backed price signals.",
+        "empty_message": "No near-low opportunities are available right now.",
+    },
+    "trending": {
+        "slug": "trending",
+        "path": "/trending",
+        "title": "Trending Steam Games Today | GameDen.gg",
+        "heading": "Trending Steam Games",
+        "intro": "Momentum-led games with strong player activity and active deal context right now.",
+        "description": "Trending Steam games with rising player momentum and current deal signals.",
+        "empty_message": "No strong trending deal candidates are available right now.",
+    },
+    "buy-now": {
+        "slug": "buy-now",
+        "path": "/buy-now",
+        "title": "Buy Now Picks on Steam | GameDen.gg",
+        "heading": "Buy Now Picks",
+        "intro": "Games currently flagged BUY NOW by GameDen snapshot signals and pricing context.",
+        "description": "Snapshot-backed BUY NOW Steam picks with current pricing and momentum context.",
+        "empty_message": "No buy-now picks are available right now.",
+    },
+    "wait-for-sale": {
+        "slug": "wait-for-sale",
+        "path": "/wait-for-sale",
+        "title": "Steam Games to Wait For Sale | GameDen.gg",
+        "heading": "Wait for Next Sale",
+        "intro": "Games currently flagged WAIT where a stronger future discount is likely.",
+        "description": "Steam games where snapshot signals suggest waiting for a better sale.",
+        "empty_message": "No wait-for-sale picks are available right now.",
+    },
+    "under-10": {
+        "slug": "under-10",
+        "path": "/under-10",
+        "title": "Best Steam Games Under $10 | GameDen.gg",
+        "heading": "Best Steam Games Under $10",
+        "intro": "Released Steam games currently priced at $10 or less with live quality and deal context.",
+        "description": "Snapshot-backed Steam deals under $10 with quality and momentum signals.",
+        "empty_message": "No qualifying under-$10 deals are available right now.",
+    },
+    "under-20": {
+        "slug": "under-20",
+        "path": "/under-20",
+        "title": "Best Steam Games Under $20 | GameDen.gg",
+        "heading": "Best Steam Games Under $20",
+        "intro": "Released Steam games currently priced above $10 and up to $20 with strong deal context.",
+        "description": "Snapshot-backed Steam deals under $20 with quality and momentum context.",
+        "empty_message": "No qualifying under-$20 deals are available right now.",
+    },
+    "popular-discounts": {
+        "slug": "popular-discounts",
+        "path": "/popular-discounts",
+        "title": "Popular Steam Games on Discount | GameDen.gg",
+        "heading": "Popular Games on Discount",
+        "intro": "Popular Steam titles with meaningful live discounts and current momentum context.",
+        "description": "Popular Steam games currently discounted, ranked by discount and momentum signals.",
+        "empty_message": "No popular discounted games are available right now.",
+    },
 }
 
 
@@ -1536,6 +1615,288 @@ def _build_personalized_deal_item(
     }
 
 
+def _normalize_seo_slug(value: str | None) -> str:
+    return str(value or "").strip().lower()
+
+
+def _get_seo_page_definition(slug: str) -> dict[str, str] | None:
+    return SEO_DISCOVERY_PAGE_DEFINITIONS.get(_normalize_seo_slug(slug))
+
+
+def _is_near_historical_low(snapshot: GameSnapshot) -> bool:
+    historical_status = str(snapshot.historical_status or "").strip().lower()
+    if historical_status in {"new_historical_low", "matches_historical_low", "near_historical_low"}:
+        return True
+    ratio = safe_num(snapshot.price_vs_low_ratio, 0.0)
+    return ratio > 0 and ratio <= 1.08
+
+
+def _has_rising_player_signal(snapshot: GameSnapshot) -> bool:
+    return (
+        safe_num(snapshot.short_term_player_trend, 0.0) >= 0.06
+        or safe_num(snapshot.player_growth_ratio, 0.0) >= 1.08
+        or (safe_num(snapshot.momentum_score, 0.0) >= 60 and safe_num(snapshot.current_players, 0.0) >= 300)
+    )
+
+
+def _build_seo_reason_lines(snapshot: GameSnapshot, slug: str, *, limit: int = 2) -> list[str]:
+    reasons: list[str] = []
+    normalized_slug = _normalize_seo_slug(slug)
+    recommendation = _normalize_buy_recommendation(snapshot.buy_recommendation)
+    discount = max(0, int(round(safe_num(snapshot.latest_discount_percent, 0.0))))
+    popularity_score = safe_num(snapshot.popularity_score, 0.0)
+
+    if _is_near_historical_low(snapshot):
+        _append_unique_reason(reasons, "Near historical low")
+    if recommendation == "BUY_NOW":
+        _append_unique_reason(reasons, "Buy-now recommendation")
+    elif recommendation == "WAIT":
+        _append_unique_reason(reasons, "Wait recommendation")
+
+    if discount >= 65:
+        _append_unique_reason(reasons, "Strong discount")
+    elif discount >= 35:
+        _append_unique_reason(reasons, "Meaningful discount")
+
+    if _has_rising_player_signal(snapshot):
+        _append_unique_reason(reasons, "Players rising")
+
+    if popularity_score >= 70 and discount >= 20:
+        _append_unique_reason(reasons, "Popular game on sale")
+
+    if normalized_slug == "under-10":
+        _append_unique_reason(reasons, "Under $10 right now")
+    elif normalized_slug == "under-20":
+        _append_unique_reason(reasons, "Under $20 right now")
+    elif normalized_slug == "popular-discounts":
+        _append_unique_reason(reasons, "Popular game currently discounted")
+    elif normalized_slug == "historical-lows":
+        _append_unique_reason(reasons, "Historical low opportunity")
+    elif normalized_slug == "wait-for-sale":
+        _append_unique_reason(reasons, "Better future sale likely")
+
+    for summary in (
+        snapshot.buy_reason,
+        snapshot.worth_buying_reason_summary,
+        snapshot.trend_reason_summary,
+        snapshot.deal_heat_reason,
+        snapshot.predicted_sale_reason,
+    ):
+        if len(reasons) >= limit:
+            break
+        _append_unique_reason(reasons, _normalize_opportunity_reason(summary))
+
+    if not reasons:
+        _append_unique_reason(reasons, "Snapshot-backed deal signal")
+
+    return reasons[: max(1, min(3, int(limit)))]
+
+
+def _serialize_seo_landing_item(snapshot: GameSnapshot, slug: str) -> dict:
+    explanation_lines = _build_seo_reason_lines(snapshot, slug, limit=2)
+    updated_at = _coerce_utc_datetime(snapshot.updated_at) or utc_now()
+    buy_score = snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score
+
+    return {
+        "game_id": int(snapshot.game_id),
+        "id": int(snapshot.game_id),
+        "game_name": snapshot.game_name,
+        "steam_appid": snapshot.steam_appid,
+        "banner_url": snapshot.banner_url,
+        "image_url": snapshot.banner_url,
+        "store_url": snapshot.store_url,
+        "price": snapshot.latest_price,
+        "original_price": snapshot.latest_original_price,
+        "discount_percent": snapshot.latest_discount_percent,
+        "historical_low": snapshot.historical_low,
+        "historical_status": snapshot.historical_status,
+        "price_vs_low_ratio": snapshot.price_vs_low_ratio,
+        "current_players": snapshot.current_players,
+        "player_growth_ratio": snapshot.player_growth_ratio,
+        "short_term_player_trend": snapshot.short_term_player_trend,
+        "momentum_score": snapshot.momentum_score,
+        "trending_score": snapshot.trending_score,
+        "popularity_score": snapshot.popularity_score,
+        "deal_score": snapshot.deal_score,
+        "buy_score": buy_score,
+        "buy_recommendation": snapshot.buy_recommendation,
+        "buy_reason": snapshot.buy_reason,
+        "predicted_next_sale_price": snapshot.predicted_next_sale_price,
+        "predicted_next_discount_percent": snapshot.predicted_next_discount_percent,
+        "predicted_sale_confidence": snapshot.predicted_sale_confidence,
+        "predicted_sale_reason": snapshot.predicted_sale_reason,
+        "worth_buying_reason_summary": snapshot.worth_buying_reason_summary,
+        "trend_reason_summary": snapshot.trend_reason_summary,
+        "deal_heat_reason": snapshot.deal_heat_reason,
+        "review_score": snapshot.review_score,
+        "review_score_label": snapshot.review_score_label,
+        "review_label": snapshot.review_score_label,
+        "review_total_count": snapshot.review_count,
+        "genres": parse_csv_field(snapshot.genres),
+        "tags": parse_csv_field(snapshot.tags),
+        "platforms": parse_csv_field(snapshot.platforms),
+        "seo_reason_lines": explanation_lines,
+        "explanation_lines": explanation_lines,
+        "seo_reason": " and ".join(explanation_lines),
+        "updated_at": updated_at.isoformat(),
+    }
+
+
+def _build_seo_discovery_query(session, slug: str):
+    normalized_slug = _normalize_seo_slug(slug)
+    recommendation_expr = func.upper(func.coalesce(GameSnapshot.buy_recommendation, ""))
+    historical_priority = case(
+        (GameSnapshot.historical_status == "new_historical_low", 3),
+        (GameSnapshot.historical_status == "matches_historical_low", 2),
+        (GameSnapshot.historical_status == "near_historical_low", 1),
+        else_=0,
+    )
+    near_low_predicate = or_(
+        GameSnapshot.historical_low_hit.is_(True),
+        GameSnapshot.historical_status.in_(["new_historical_low", "matches_historical_low", "near_historical_low"]),
+        and_(GameSnapshot.price_vs_low_ratio.isnot(None), GameSnapshot.price_vs_low_ratio <= 1.08),
+    )
+    rising_players_predicate = or_(
+        GameSnapshot.short_term_player_trend >= 0.05,
+        GameSnapshot.player_growth_ratio >= 1.05,
+        and_(
+            GameSnapshot.momentum_score >= 58,
+            GameSnapshot.current_players >= 250,
+        ),
+    )
+    base_query = (
+        session.query(GameSnapshot)
+        .filter(
+            GameSnapshot.is_released == 1,
+            or_(GameSnapshot.is_upcoming.is_(False), GameSnapshot.is_upcoming.is_(None)),
+            GameSnapshot.latest_price.isnot(None),
+        )
+    )
+
+    if normalized_slug == "best-deals":
+        return (
+            base_query
+            .filter(
+                or_(
+                    GameSnapshot.latest_discount_percent >= 20,
+                    GameSnapshot.deal_score >= 72,
+                    recommendation_expr == "BUY_NOW",
+                    near_low_predicate,
+                )
+            )
+            .order_by(
+                GameSnapshot.deal_score.desc().nullslast(),
+                GameSnapshot.latest_discount_percent.desc().nullslast(),
+                GameSnapshot.buy_score.desc().nullslast(),
+                GameSnapshot.worth_buying_score.desc().nullslast(),
+                GameSnapshot.popularity_score.desc().nullslast(),
+                GameSnapshot.game_id.asc(),
+            )
+        )
+    if normalized_slug == "historical-lows":
+        return (
+            base_query
+            .filter(near_low_predicate)
+            .order_by(
+                historical_priority.desc(),
+                GameSnapshot.price_vs_low_ratio.asc().nullslast(),
+                GameSnapshot.latest_discount_percent.desc().nullslast(),
+                GameSnapshot.deal_score.desc().nullslast(),
+                GameSnapshot.game_id.asc(),
+            )
+        )
+    if normalized_slug == "trending":
+        return (
+            base_query
+            .filter(
+                or_(
+                    GameSnapshot.trending_score >= 55,
+                    GameSnapshot.momentum_score >= 58,
+                    rising_players_predicate,
+                )
+            )
+            .order_by(
+                GameSnapshot.trending_score.desc().nullslast(),
+                GameSnapshot.momentum_score.desc().nullslast(),
+                GameSnapshot.current_players.desc().nullslast(),
+                GameSnapshot.deal_score.desc().nullslast(),
+                GameSnapshot.latest_discount_percent.desc().nullslast(),
+                GameSnapshot.game_id.asc(),
+            )
+        )
+    if normalized_slug == "buy-now":
+        return (
+            base_query
+            .filter(recommendation_expr == "BUY_NOW")
+            .order_by(
+                GameSnapshot.buy_score.desc().nullslast(),
+                GameSnapshot.worth_buying_score.desc().nullslast(),
+                GameSnapshot.deal_score.desc().nullslast(),
+                GameSnapshot.latest_discount_percent.desc().nullslast(),
+                GameSnapshot.game_id.asc(),
+            )
+        )
+    if normalized_slug == "wait-for-sale":
+        return (
+            base_query
+            .filter(recommendation_expr == "WAIT")
+            .order_by(
+                GameSnapshot.predicted_next_discount_percent.desc().nullslast(),
+                GameSnapshot.price_vs_low_ratio.desc().nullslast(),
+                GameSnapshot.popularity_score.desc().nullslast(),
+                GameSnapshot.deal_score.desc().nullslast(),
+                GameSnapshot.game_id.asc(),
+            )
+        )
+    if normalized_slug == "under-10":
+        return (
+            base_query
+            .filter(
+                GameSnapshot.latest_price > 0,
+                GameSnapshot.latest_price <= 10,
+            )
+            .order_by(
+                GameSnapshot.deal_score.desc().nullslast(),
+                GameSnapshot.latest_discount_percent.desc().nullslast(),
+                GameSnapshot.popularity_score.desc().nullslast(),
+                GameSnapshot.game_id.asc(),
+            )
+        )
+    if normalized_slug == "under-20":
+        return (
+            base_query
+            .filter(
+                GameSnapshot.latest_price > 10,
+                GameSnapshot.latest_price <= 20,
+            )
+            .order_by(
+                GameSnapshot.deal_score.desc().nullslast(),
+                GameSnapshot.latest_discount_percent.desc().nullslast(),
+                GameSnapshot.popularity_score.desc().nullslast(),
+                GameSnapshot.game_id.asc(),
+            )
+        )
+    if normalized_slug == "popular-discounts":
+        return (
+            base_query
+            .filter(
+                GameSnapshot.latest_discount_percent >= 20,
+                or_(
+                    GameSnapshot.popularity_score >= 60,
+                    GameSnapshot.current_players >= 500,
+                ),
+            )
+            .order_by(
+                GameSnapshot.latest_discount_percent.desc().nullslast(),
+                GameSnapshot.popularity_score.desc().nullslast(),
+                GameSnapshot.momentum_score.desc().nullslast(),
+                GameSnapshot.deal_score.desc().nullslast(),
+                GameSnapshot.game_id.asc(),
+            )
+        )
+    return None
+
+
 def get_history_range_start(range_key: str) -> datetime.datetime | None:
     days = HISTORY_RANGE_DAYS.get(str(range_key or "").strip())
     if days is None:
@@ -1995,19 +2356,58 @@ def favicon():
     return FileResponse("web/favicon.ico")
 
 
-@app.get("/worth-buying-now")
-def worth_buying_now_page():
-    return RedirectResponse(url="/web/all-results.html?view=worth-buying-now&title=Worth%20Buying%20Now")
+def _serve_all_results_page():
+    return FileResponse("web/all-results.html")
 
 
-@app.get("/trending-deals")
-def trending_deals_page():
-    return RedirectResponse(url="/web/all-results.html?view=trending-deals&title=Trending%20Deals")
+@app.get("/best-deals")
+def best_deals_page():
+    return _serve_all_results_page()
 
 
 @app.get("/historical-lows")
 def historical_lows_page():
-    return RedirectResponse(url="/web/all-results.html?view=historical-lows&title=Historical%20Lows")
+    return _serve_all_results_page()
+
+
+@app.get("/trending")
+def trending_page():
+    return _serve_all_results_page()
+
+
+@app.get("/buy-now")
+def buy_now_page():
+    return _serve_all_results_page()
+
+
+@app.get("/wait-for-sale")
+def wait_for_sale_page():
+    return _serve_all_results_page()
+
+
+@app.get("/under-10")
+def under_ten_page():
+    return _serve_all_results_page()
+
+
+@app.get("/under-20")
+def under_twenty_page():
+    return _serve_all_results_page()
+
+
+@app.get("/popular-discounts")
+def popular_discounts_page():
+    return _serve_all_results_page()
+
+
+@app.get("/worth-buying-now")
+def worth_buying_now_page():
+    return RedirectResponse(url="/buy-now", status_code=308)
+
+
+@app.get("/trending-deals")
+def trending_deals_page():
+    return RedirectResponse(url="/trending", status_code=308)
 
 
 @app.get("/health")
@@ -4725,6 +5125,44 @@ def list_deal_opportunities(
     finally:
         session.close()
         _log_timing("/api/deal-opportunities", started)
+
+
+@app.get("/api/seo/discovery/{slug}")
+@json_etag()
+@ttl_cache(ttl_seconds=90, endpoint_key="/api/seo/discovery")
+def get_seo_discovery_page(
+    request: Request,
+    slug: str,
+    limit: int = Query(default=60, ge=1, le=120),
+):
+    started = _start_timer()
+    normalized_slug = _normalize_seo_slug(slug)
+    page_definition = _get_seo_page_definition(normalized_slug)
+    if page_definition is None:
+        raise HTTPException(status_code=404, detail="SEO discovery page not found")
+
+    session = ReadSessionLocal()
+    try:
+        query = _build_seo_discovery_query(session, normalized_slug)
+        if query is None:
+            raise HTTPException(status_code=404, detail="SEO discovery page not found")
+
+        rows = query.limit(max(1, int(limit))).all()
+        items = [_serialize_seo_landing_item(row, normalized_slug) for row in rows]
+        page_payload = dict(page_definition)
+        page_payload["canonical_url"] = _build_canonical_url(page_definition["path"])
+        page_payload["slug"] = normalized_slug
+
+        return {
+            "slug": normalized_slug,
+            "page": page_payload,
+            "count": len(items),
+            "items": items,
+            "generated_at": utc_now().isoformat(),
+        }
+    finally:
+        session.close()
+        _log_timing("/api/seo/discovery", started)
 
 
 @app.get("/api/personalized-deals")

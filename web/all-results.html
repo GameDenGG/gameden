@@ -70,6 +70,8 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
 .meta-row.signals{flex-wrap:wrap}
 .meta-row.deal{justify-content:space-between}
 .meta-row.context{flex-wrap:wrap;color:var(--muted);font-size:12px}
+.meta-row.explain{flex-wrap:wrap;color:#c9d8f6;font-size:12px;line-height:1.35}
+.explain-item{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .meta-cluster{display:flex;align-items:center;gap:7px;min-width:0}
 .meta-cluster.primary{flex-wrap:wrap}
 .meta-cluster.secondary{justify-content:flex-end;flex-wrap:wrap}
@@ -151,8 +153,19 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
     "new-deals": { key: "newDealsSinceLastVisit", title: "New Deals Since Last Visit", subtitle: "Deals detected after your most recent visit marker." },
     "seasonal-sale": { key: "seasonalSale.expected_games", title: "Seasonal Sale Radar", subtitle: "Current seasonal discounts or upcoming sale candidates." },
   };
+  const SEO_PAGE_DEFINITIONS = {
+    "best-deals": { path: "/best-deals", title: "Best Deals Right Now", subtitle: "High-conviction Steam deals ranked by discount depth, deal score, and buy-timing signals.", endpoint: "/api/seo/discovery/best-deals", empty: "No strong live deals are available right now." },
+    "historical-lows": { path: "/historical-lows", title: "Steam Games Near Historical Lows", subtitle: "Games at, matching, or close to tracked historical lows from snapshot-backed price intelligence.", endpoint: "/api/seo/discovery/historical-lows", empty: "No near-low opportunities are available right now." },
+    "trending": { path: "/trending", title: "Trending Steam Games", subtitle: "Momentum-led games with strong player activity and active deal context right now.", endpoint: "/api/seo/discovery/trending", empty: "No strong trending deal candidates are available right now." },
+    "buy-now": { path: "/buy-now", title: "Buy Now Picks", subtitle: "Games currently flagged BUY NOW by GameDen snapshot signals and pricing context.", endpoint: "/api/seo/discovery/buy-now", empty: "No buy-now picks are available right now." },
+    "wait-for-sale": { path: "/wait-for-sale", title: "Wait for Next Sale", subtitle: "Games currently flagged WAIT where a stronger future discount is likely.", endpoint: "/api/seo/discovery/wait-for-sale", empty: "No wait-for-sale picks are available right now." },
+    "under-10": { path: "/under-10", title: "Best Steam Games Under $10", subtitle: "Released Steam games currently priced at $10 or less with live quality and deal context.", endpoint: "/api/seo/discovery/under-10", empty: "No qualifying under-$10 deals are available right now." },
+    "under-20": { path: "/under-20", title: "Best Steam Games Under $20", subtitle: "Released Steam games currently priced above $10 and up to $20 with strong deal context.", endpoint: "/api/seo/discovery/under-20", empty: "No qualifying under-$20 deals are available right now." },
+    "popular-discounts": { path: "/popular-discounts", title: "Popular Games on Discount", subtitle: "Popular Steam titles with meaningful live discounts and current momentum context.", endpoint: "/api/seo/discovery/popular-discounts", empty: "No popular discounted games are available right now." },
+  };
+  const SEO_SLUGS = new Set(Object.keys(SEO_PAGE_DEFINITIONS));
   const ui = { title: document.getElementById("title"), subtitle: document.getElementById("subtitle"), controls: document.getElementById("controls"), search: document.getElementById("search"), genre: document.getElementById("genre"), platform: document.getElementById("platform"), sort: document.getElementById("sort"), tag: document.getElementById("tag"), review: document.getElementById("review"), minDiscount: document.getElementById("minDiscount"), maxPrice: document.getElementById("maxPrice"), minPlayers: document.getElementById("minPlayers"), dealsOnly: document.getElementById("dealsOnly"), includeFree: document.getElementById("includeFree"), reset: document.getElementById("reset"), count: document.getElementById("count"), chips: document.getElementById("chips"), status: document.getElementById("status"), grid: document.getElementById("grid"), moreWrap: document.getElementById("moreWrap"), more: document.getElementById("more"), sentinel: document.getElementById("sentinel") };
-  const state = { view: RELEASED_VIEW, title: "All Games Directory", filters: { search: "", genre: "", platform: "", sort: "alpha-asc", tag: "", reviewLabel: "", minDiscount: null, maxPrice: null, minPlayers: null, dealsOnly: false, includeFree: true }, rows: [], page: 1, total: 0, totalPages: 0, loading: false, loadingMore: false, requestId: 0, controller: null, observer: null, timer: null };
+  const state = { view: RELEASED_VIEW, title: "All Games Directory", seoSlug: "", seoPage: null, filters: { search: "", genre: "", platform: "", sort: "alpha-asc", tag: "", reviewLabel: "", minDiscount: null, maxPrice: null, minPlayers: null, dealsOnly: false, includeFree: true }, rows: [], page: 1, total: 0, totalPages: 0, loading: false, loadingMore: false, requestId: 0, controller: null, observer: null, timer: null };
   const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
   if (skeletonUi && typeof skeletonUi.ensureStyles === "function") skeletonUi.ensureStyles();
   const n = (v, d = null) => { const x = Number(v); return Number.isFinite(x) ? x : d; };
@@ -172,11 +185,18 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
   const stopRequest = () => { if (state.controller) { try { state.controller.abort(); } catch {} state.controller = null; } };
   const updateMore = () => { const show = state.view === RELEASED_VIEW && hasMore() && !state.loading; ui.moreWrap.classList.toggle("hidden", !show); ui.more.disabled = state.loadingMore; ui.more.textContent = state.loadingMore ? "Loading..." : "Load more"; };
   const parseTs = (value) => { if (value === null || value === undefined || value === "") return null; if (typeof value === "number" && Number.isFinite(value)) return value < 1e12 ? value * 1000 : value; const parsed = Date.parse(String(value)); return Number.isFinite(parsed) ? parsed : null; };
+  const cleanPath = (value) => { const raw = String(value || "/").split("?")[0].split("#")[0] || "/"; const trimmed = raw.replace(/\/+$/, ""); return trimmed || "/"; };
+  const seoSlugFromPath = () => { const path = cleanPath(location.pathname).toLowerCase(); if (path === "/") return ""; const token = path.startsWith("/") ? path.slice(1) : path; return SEO_SLUGS.has(token) ? token : ""; };
+  const currentSeoPage = () => {
+    if (state.seoPage && typeof state.seoPage === "object") return state.seoPage;
+    if (state.seoSlug && SEO_PAGE_DEFINITIONS[state.seoSlug]) return SEO_PAGE_DEFINITIONS[state.seoSlug];
+    return null;
+  };
   const HIGH_VALUE_DISCOUNT_THRESHOLD = 60;
   const HIGH_VALUE_DEAL_SCORE_THRESHOLD = 88;
   const HIGH_VALUE_WORTH_SCORE_THRESHOLD = 72;
   const NEW_SIGNAL_TRACKER_LIMIT = 1200;
-  const HIGH_VALUE_FEED_VIEWS = new Set(["deal-ranked", "worth-buying-now", "new-historical-lows", "historical-lows", "biggest-deals", "recommended-deals", "new-deals", "buy-now-picks", "wait-for-next-sale", "trending-games", "trending-now", "seasonal-sale"]);
+  const HIGH_VALUE_FEED_VIEWS = new Set(["deal-ranked", "worth-buying-now", "new-historical-lows", "historical-lows", "biggest-deals", "recommended-deals", "new-deals", "buy-now-picks", "wait-for-next-sale", "trending-games", "trending-now", "seasonal-sale", "best-deals", "trending", "buy-now", "wait-for-sale", "popular-discounts", "under-10", "under-20"]);
   const normalizeRecommendation = (value) => { const token = String(value || "").trim().toUpperCase(); return token === "BUY_NOW" || token === "WAIT" ? token : ""; };
   const isHistoricalLowSignal = (status) => { const token = String(status || "").trim(); return token === "new_historical_low" || token === "matches_historical_low" || token === "near_historical_low"; };
   const isTopValueDeal = (g) => { const discount = Math.max(0, n(g?.discount_percent, 0) || 0); const dealScore = n(g?.deal_score, null); const worthScore = n(g?.buy_score ?? g?.worth_buying_score, null); const recommendation = normalizeRecommendation(g?.buy_recommendation); return recommendation === "BUY_NOW" || isHistoricalLowSignal(g?.historical_status) || discount >= HIGH_VALUE_DISCOUNT_THRESHOLD || (dealScore !== null && dealScore >= HIGH_VALUE_DEAL_SCORE_THRESHOLD) || (worthScore !== null && worthScore >= HIGH_VALUE_WORTH_SCORE_THRESHOLD); };
@@ -201,6 +221,26 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
     if (!signals.length) return '<div class="meta-row signals"><span class="meta-chip signal info">No major movement</span></div>';
     return `<div class="meta-row signals">${signals.map((entry) => `<span class="meta-chip signal ${h(entry.tone)}">${h(entry.label)}</span>`).join("")}</div>`;
   }
+  function explanationLines(g) {
+    const lines = [];
+    const push = (value) => {
+      const text = String(value || "").trim();
+      if (!text) return;
+      const token = text.toLowerCase();
+      if (lines.some((line) => line.toLowerCase() === token)) return;
+      lines.push(text);
+    };
+    for (const candidate of (g?.seo_reason_lines || g?.explanation_lines || g?.opportunity_reasons || g?.personalization_reasons || [])) push(candidate);
+    push(g?.seo_reason);
+    push(g?.opportunity_reason);
+    push(g?.personalization_reason);
+    return lines.slice(0, 2);
+  }
+  function explanationRow(g) {
+    const lines = explanationLines(g);
+    if (!lines.length) return "";
+    return `<div class="meta-row explain">${lines.map((line) => `<span class="explain-item">${h(line)}</span>`).join('<span class="context-item">&bull;</span>')}</div>`;
+  }
   function dealRow(g) {
     const discount = Math.max(0, n(g?.discount_percent, 0) || 0); const dScore = n(g?.deal_score, null); const buyScore = n(g?.buy_score ?? g?.worth_buying_score, null); const reviewScore = n(g?.review_score, 0) || 0;
     let quality = "";
@@ -219,7 +259,7 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
   function card(g) {
     const title = h(g?.game_name || "Unknown game"); const img = String(g?.banner_url || g?.image_url || "").trim();
     const newSignalClass = shouldRenderNewSignalCard(g) ? " is-new-signal" : "";
-    return `<a class="card${newSignalClass}" href="${detailHref(g)}" aria-label="Open ${title} details">${img ? `<img src="${h(img)}" alt="${title} banner" loading="lazy">` : "<img alt=\"\" loading=\"lazy\">"}<div class="body"><h3 class="title">${title}</h3><div class="price"><strong>${h(p(g?.price))}</strong>${n(g?.original_price,null)!==null && n(g?.price,null)!==null && n(g.original_price)>n(g.price)?`<s>${h(p(g.original_price))}</s>`:""}</div><div class="meta-stack">${signalRow(g)}${dealRow(g)}${contextRow(g)}</div></div></a>`;
+    return `<a class="card${newSignalClass}" href="${detailHref(g)}" aria-label="Open ${title} details">${img ? `<img src="${h(img)}" alt="${title} banner" loading="lazy">` : "<img alt=\"\" loading=\"lazy\">"}<div class="body"><h3 class="title">${title}</h3><div class="price"><strong>${h(p(g?.price))}</strong>${n(g?.original_price,null)!==null && n(g?.price,null)!==null && n(g.original_price)>n(g.price)?`<s>${h(p(g.original_price))}</s>`:""}</div><div class="meta-stack">${signalRow(g)}${explanationRow(g)}${dealRow(g)}${contextRow(g)}</div></div></a>`;
   }
   function skeleton(count = PAGE_SIZE) {
     const total = Math.max(6, Math.min(count, PAGE_SIZE));
@@ -229,7 +269,13 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
     }
     ui.grid.innerHTML = new Array(total).fill("").map(() => '<article class="card skeleton"><img alt="" loading="lazy"><div class="body"><div class="title">x</div><div class="price"><strong>x</strong><s>x</s></div><div class="meta-stack"><div class="meta-row signals"><span class="meta-chip">x</span><span class="meta-chip">x</span></div><div class="meta-row deal"><div class="meta-cluster primary"><span class="meta-chip">x</span></div><div class="meta-cluster secondary"><span class="meta-chip">x</span></div></div><div class="meta-row context"><span class="context-item">x</span><span class="context-item">x</span></div></div></div></article>').join("");
   }
-  function render(rows, append = false) { const safe = unique(rows); if (!append) ui.grid.innerHTML = ""; if (!append && !safe.length) { ui.grid.innerHTML = '<div class="status">No games match your current search and filters.</div>'; return; } const html = safe.map(card).join(""); if (append) ui.grid.insertAdjacentHTML("beforeend", html); else ui.grid.innerHTML = html; }
+  function defaultEmptyMessage() {
+    if (state.view === RELEASED_VIEW) return "No games match your current search and filters.";
+    const seoPage = currentSeoPage();
+    if (seoPage) return String(seoPage.empty_message || seoPage.empty || "No items are available for this page yet.");
+    return "No items are available for this section yet.";
+  }
+  function render(rows, append = false) { const safe = unique(rows); if (!append) ui.grid.innerHTML = ""; if (!append && !safe.length) { ui.grid.innerHTML = `<div class="status">${h(defaultEmptyMessage())}</div>`; return; } const html = safe.map(card).join(""); if (append) ui.grid.insertAdjacentHTML("beforeend", html); else ui.grid.innerHTML = html; }
   async function fetchJson(url, opt = {}) {
     if (!window.GameDenSite || typeof window.GameDenSite.fetchJson !== "function") {
       throw new Error("GameDen runtime is not initialized. Ensure /site-branding.js loads before page scripts.");
@@ -237,7 +283,22 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
     return window.GameDenSite.fetchJson(url, opt);
   }
   function readQuery() {
-    const q = new URLSearchParams(location.search); state.view = String(q.get("view") || RELEASED_VIEW).trim().toLowerCase() || RELEASED_VIEW;
+    const q = new URLSearchParams(location.search);
+    const seoFromQuery = String(q.get("seo") || "").trim().toLowerCase();
+    const seoFromPath = seoSlugFromPath();
+    const resolvedSeoSlug = SEO_SLUGS.has(seoFromQuery) ? seoFromQuery : seoFromPath;
+    if (resolvedSeoSlug) {
+      const definition = SEO_PAGE_DEFINITIONS[resolvedSeoSlug];
+      state.seoSlug = resolvedSeoSlug;
+      state.seoPage = definition ? { ...definition } : null;
+      state.view = resolvedSeoSlug;
+      state.title = String(definition?.title || "Discovery").trim() || "Discovery";
+      state.filters.sort = "deal-score";
+      return;
+    }
+    state.seoSlug = "";
+    state.seoPage = null;
+    state.view = String(q.get("view") || RELEASED_VIEW).trim().toLowerCase() || RELEASED_VIEW;
     const fallbackTitle = state.view === RELEASED_VIEW ? "All Games Directory" : (DASHBOARD_VIEWS[state.view]?.title || "Discovery");
     state.title = String(q.get("title") || fallbackTitle).trim();
     state.filters.search = String(q.get("search") || q.get("q") || "").trim(); state.filters.genre = String(q.get("genre") || "").trim(); state.filters.platform = String(q.get("platform") || "").trim(); state.filters.tag = String(q.get("tag") || "").trim(); state.filters.reviewLabel = String(q.get("reviewLabel") || q.get("review_label") || "").trim();
@@ -246,28 +307,48 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
     const s = String(q.get("releasedSort") || q.get("sort") || (state.view === RELEASED_VIEW ? "alpha-asc" : "deal-score")).trim(); state.filters.sort = s || (state.view === RELEASED_VIEW ? "alpha-asc" : "deal-score");
   }
   function writeQuery() {
+    if (state.seoSlug) return;
     const q = new URLSearchParams(); q.set("view", state.view); q.set("title", state.title);
     if (state.view === RELEASED_VIEW) { if (state.filters.search) q.set("search", state.filters.search); if (state.filters.genre) q.set("genre", state.filters.genre); if (state.filters.platform) q.set("platform", state.filters.platform); if (state.filters.tag) q.set("tag", state.filters.tag); if (state.filters.reviewLabel) q.set("reviewLabel", state.filters.reviewLabel); if (state.filters.minDiscount !== null) q.set("minDeal", String(state.filters.minDiscount)); if (state.filters.maxPrice !== null) q.set("maxPrice", String(state.filters.maxPrice)); if (state.filters.minPlayers !== null) q.set("minPlayers", String(state.filters.minPlayers)); if (state.filters.dealsOnly) q.set("dealsOnly", "1"); if (state.filters.includeFree) q.set("includeFree", "1"); q.set("releasedSort", state.filters.sort || "alpha-asc"); }
-    history.replaceState({}, "", `${location.pathname}?${q.toString()}`);
+    const query = q.toString();
+    history.replaceState({}, "", query ? `${location.pathname}?${query}` : location.pathname);
   }
   function syncUi() {
-    ui.title.textContent = state.title;
-    const subtitle = state.view !== RELEASED_VIEW
-      ? (DASHBOARD_VIEWS[state.view]?.subtitle || "Snapshot-backed discovery section.")
-      : "A-Z by default. Search and filter the full released catalog with snapshot-backed data.";
+    const seoPage = currentSeoPage();
+    const heading = seoPage
+      ? (String(seoPage.heading || seoPage.title || state.title).trim() || state.title)
+      : state.title;
+    ui.title.textContent = heading;
+    const subtitle = seoPage
+      ? (String(seoPage.intro || seoPage.subtitle || "Snapshot-backed discovery page.").trim() || "Snapshot-backed discovery page.")
+      : state.view !== RELEASED_VIEW
+        ? (DASHBOARD_VIEWS[state.view]?.subtitle || "Snapshot-backed discovery section.")
+        : "A-Z by default. Search and filter the full released catalog with snapshot-backed data.";
     if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
-      const title = `${SITE_NAME} - ${state.title}`;
+      const title = seoPage
+        ? (() => {
+            const baseTitle = String(seoPage.title || heading || "").trim() || `${heading} | ${SITE_NAME}`;
+            return baseTitle.toLowerCase().includes(String(SITE_NAME).toLowerCase()) ? baseTitle : `${baseTitle} | ${SITE_NAME}`;
+          })()
+        : `${SITE_NAME} - ${state.title}`;
+      const path = seoPage ? (String(seoPage.path || `/${state.seoSlug}`).trim() || "/") : "all-results.html";
+      const description = seoPage ? (String(seoPage.description || subtitle).trim() || subtitle) : subtitle;
       window.GameDenSite.applyMetadata({
-        path: "all-results.html",
+        path,
         title,
-        description: subtitle,
+        description,
         ogTitle: title,
-        ogDescription: subtitle,
+        ogDescription: description,
         twitterTitle: title,
-        twitterDescription: subtitle,
+        twitterDescription: description,
       });
     } else {
-      document.title = `${SITE_NAME} - ${state.title}`;
+      document.title = seoPage
+        ? (() => {
+            const baseTitle = String(seoPage.title || heading || "").trim() || `${heading} | ${SITE_NAME}`;
+            return baseTitle.toLowerCase().includes(String(SITE_NAME).toLowerCase()) ? baseTitle : `${baseTitle} | ${SITE_NAME}`;
+          })()
+        : `${SITE_NAME} - ${state.title}`;
     }
     if (state.view !== RELEASED_VIEW) { ui.controls.classList.add("hidden"); ui.subtitle.textContent = subtitle; return; }
     ui.controls.classList.remove("hidden"); ui.subtitle.textContent = subtitle;
@@ -299,8 +380,25 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
   }
   async function loadStatic() {
     state.loading = true; skeleton(12); setStatus("");
-    try { const payload = await fetchJson("/dashboard/home"); const rows = Array.isArray(byPath(payload, DASHBOARD_VIEWS[state.view]?.key)) ? byPath(payload, DASHBOARD_VIEWS[state.view]?.key) : []; state.rows = unique(rows); state.total = state.rows.length; state.totalPages = 1; render(state.rows, false); setCount(state.total, state.rows.length); if (!state.rows.length) setStatus("No items are available for this section yet."); }
-    catch { ui.grid.innerHTML = ""; setStatus("Failed to load this discovery section.", true); }
+    try {
+      const seoPage = currentSeoPage();
+      if (seoPage && seoPage.endpoint) {
+        const payload = await fetchJson(seoPage.endpoint);
+        if (payload && typeof payload.page === "object") {
+          const mergedPage = { ...seoPage, ...payload.page };
+          if (!mergedPage.subtitle && mergedPage.intro) mergedPage.subtitle = mergedPage.intro;
+          state.seoPage = mergedPage;
+          const heading = String(mergedPage.heading || mergedPage.title || state.title).trim();
+          if (heading) state.title = heading;
+          syncUi();
+        }
+        const rows = Array.isArray(payload?.items) ? payload.items : [];
+        state.rows = unique(rows); state.total = state.rows.length; state.totalPages = 1; render(state.rows, false); setCount(state.total, state.rows.length); if (!state.rows.length) setStatus(defaultEmptyMessage());
+        return;
+      }
+      const payload = await fetchJson("/dashboard/home"); const rows = Array.isArray(byPath(payload, DASHBOARD_VIEWS[state.view]?.key)) ? byPath(payload, DASHBOARD_VIEWS[state.view]?.key) : []; state.rows = unique(rows); state.total = state.rows.length; state.totalPages = 1; render(state.rows, false); setCount(state.total, state.rows.length); if (!state.rows.length) setStatus("No items are available for this section yet.");
+    }
+    catch { ui.grid.innerHTML = ""; setStatus(state.seoSlug ? "Failed to load this discovery page." : "Failed to load this discovery section.", true); }
     finally { state.loading = false; updateMore(); }
   }
   function readUi() { state.filters.search = String(ui.search.value || "").trim(); state.filters.genre = String(ui.genre.value || "").trim(); state.filters.platform = String(ui.platform.value || "").trim(); state.filters.sort = String(ui.sort.value || "alpha-asc").trim() || "alpha-asc"; state.filters.tag = String(ui.tag.value || "").trim(); state.filters.reviewLabel = String(ui.review.value || "").trim(); state.filters.minDiscount = n(ui.minDiscount.value, null); state.filters.maxPrice = n(ui.maxPrice.value, null); state.filters.minPlayers = n(ui.minPlayers.value, null); state.filters.dealsOnly = !!ui.dealsOnly.checked; state.filters.includeFree = !!ui.includeFree.checked; }

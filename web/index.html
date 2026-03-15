@@ -680,6 +680,7 @@ input:focus-visible {
 .panel-deals { --panel-accent: rgba(255, 183, 104, 0.95); }
 .panel-seasonal { --panel-accent: rgba(99, 239, 177, 0.95); }
 .panel-catalog { --panel-accent: rgba(121, 168, 255, 0.95); }
+.panel-opportunities { --panel-accent: rgba(143, 246, 206, 0.95); }
 .panel-analytics { --panel-accent: rgba(94, 233, 255, 0.95); }
 .panel-alerts { --panel-accent: rgba(255, 140, 169, 0.95); }
 .panel-deal-radar { --panel-accent: rgba(255, 196, 111, 0.95); }
@@ -723,6 +724,7 @@ input:focus-visible {
 .panel-seasonal .panel-title { color: #c9ffd8; }
 .panel-deals .panel-title { color: #ffe0b8; }
 .panel-catalog .panel-title { color: #d4e5ff; }
+.panel-opportunities .panel-title { color: #d4ffe9; }
 .panel-intel .panel-title { color: #cff0ff; }
 .panel-analytics .panel-title { color: #cbf6ff; }
 .panel-alerts .panel-title { color: #ffd3df; }
@@ -2590,6 +2592,26 @@ input:focus-visible {
                     </div>
                 </section>
 
+                <section class="panel panel-opportunities" id="opportunitiesPanel">
+                    <div class="panel-head">
+                        <div class="panel-title-wrap">
+                            <h2 class="panel-title">Opportunities Right Now</h2>
+                            <div class="panel-subtitle">High-conviction setups where multiple live signals align on timing, value, and momentum.</div>
+                        </div>
+                        <div class="row-nav">
+                            <button class="row-nav-btn" type="button" data-row-left="opportunitiesGrid">&lt;</button>
+                            <button class="row-nav-btn" type="button" data-row-right="opportunitiesGrid">&gt;</button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="row-section">
+                            <div class="row-fade-left"></div>
+                            <div class="row-fade-right"></div>
+                            <div id="opportunitiesGrid" class="row-scroller"></div>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="panel panel-deals" id="worthBuyingPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -3037,6 +3059,7 @@ input:focus-visible {
             discoveryTrending: [],
             leaderboard: [],
             dealRanked: [],
+            opportunitiesNow: [],
             worthBuyingNow: [],
             buyNowPicks: [],
             waitPicks: [],
@@ -3107,6 +3130,7 @@ input:focus-visible {
             },
             visibleCounts: {
                 dealRankedGrid: 8,
+                opportunitiesGrid: 12,
                 worthBuyingGrid: 12,
                 trendingDealsGrid: 12,
                 newHistoricalLowsGrid: 12,
@@ -3152,6 +3176,8 @@ input:focus-visible {
             watchlistPanel: document.getElementById("watchlistPanel"),
             wishlistList: document.getElementById("wishlistList"),
             watchlistList: document.getElementById("watchlistList"),
+            opportunitiesPanel: document.getElementById("opportunitiesPanel"),
+            opportunitiesGrid: document.getElementById("opportunitiesGrid"),
             dealRankedGrid: document.getElementById("dealRankedGrid"),
             worthBuyingGrid: document.getElementById("worthBuyingGrid"),
             trendingDealsGrid: document.getElementById("trendingDealsGrid"),
@@ -3852,6 +3878,7 @@ input:focus-visible {
         const NEW_SIGNAL_TRACKER_LIMIT = 1500;
         const HIGH_VALUE_CARD_SECTIONS = new Set([
             "dealRankedGrid",
+            "opportunitiesGrid",
             "worthBuyingGrid",
             "newHistoricalLowsGrid",
             "historicalLowsGrid",
@@ -4941,6 +4968,17 @@ input:focus-visible {
             const playerTrend = Number(game.short_term_player_trend);
             const popularityScore = Number(game.popularity_score);
             const heatLevel = String(game.deal_heat_level || "").trim().toUpperCase();
+            const explicitOpportunityLines = safeArray(game.opportunity_reasons)
+                .map((line) => normalizeReasonSnippet(line))
+                .filter(Boolean);
+            const opportunityReason = normalizeReasonSnippet(game.opportunity_reason);
+
+            if (!explicitOpportunityLines.length && opportunityReason) {
+                explicitOpportunityLines.push(opportunityReason);
+            }
+            if (explicitOpportunityLines.length) {
+                return explicitOpportunityLines.slice(0, 2);
+            }
 
             if (recommendation === "BUY_NOW") {
                 pushDecisionLine(lines, buyReason || "Buy-now timing signal");
@@ -6242,6 +6280,20 @@ input:focus-visible {
             });
         }
 
+        function renderOpportunities() {
+            renderPagedCards({
+                container: ui.opportunitiesGrid,
+                items: state.opportunitiesNow,
+                renderer: gameCardHtml,
+                visibleKey: "opportunitiesGrid",
+                toggleButton: null,
+                showAllButton: null,
+                view: "deal-opportunities",
+                title: "Opportunities Right Now",
+                initialCount: 12,
+            });
+        }
+
         function renderWorthBuyingNow() {
             renderPagedCards({
                 container: ui.worthBuyingGrid,
@@ -6428,6 +6480,7 @@ input:focus-visible {
 
             const discoveryOrder = [
                 "bestDealsPanel",
+                "opportunitiesPanel",
                 "worthBuyingPanel",
                 "trendingGamesPanel",
                 "seasonalSaleTopPanel",
@@ -6458,6 +6511,7 @@ input:focus-visible {
         function applyAllRenders() {
             renderTrackedGamesChip();
             renderDealRanked();
+            renderOpportunities();
             renderWorthBuyingNow();
             renderTrendingDeals();
             renderSeasonalSale();
@@ -6977,7 +7031,7 @@ input:focus-visible {
             select.innerHTML = options.join("");
         }
 
-        function hydrateDashboardState(dashboardPayload, seasonalPayload, releasedPayload, dealRadarPayload) {
+        function hydrateDashboardState(dashboardPayload, seasonalPayload, releasedPayload, dealRadarPayload, opportunitiesPayload) {
             const biggestDiscounts = uniqueGamesByName(
                 dashboardPayload?.biggest_discounts
                 || dashboardPayload?.biggestDeals
@@ -7020,7 +7074,18 @@ input:focus-visible {
                 ...dealRadarFromEndpoint,
                 ...dealRadarFromDashboard,
             ]);
+            const opportunitiesFromEndpoint = uniqueGamesByName(opportunitiesPayload?.items || opportunitiesPayload || []);
+            const opportunitiesFromDashboard = uniqueGamesByName(
+                dashboardPayload?.deal_opportunities
+                || dashboardPayload?.dealOpportunities
+                || []
+            );
+            const opportunitiesNow = uniqueGamesByName([
+                ...opportunitiesFromEndpoint,
+                ...opportunitiesFromDashboard,
+            ]);
             const decisionPool = uniqueGamesByName([
+                ...opportunitiesNow,
                 ...worthBuyingNow,
                 ...dealRanked,
                 ...recommendedDeals,
@@ -7103,6 +7168,7 @@ input:focus-visible {
             state.topReviewed = topReviewed;
             state.upcoming = upcoming;
             state.dealRanked = diversifiedDiscoveryRails.dealRanked || [];
+            state.opportunitiesNow = opportunitiesNow;
             state.recommendedDeals = recommendedDeals;
             state.worthBuyingNow = diversifiedDiscoveryRails.worthBuyingNow || [];
             state.trendingDeals = trendingDeals;
@@ -7149,11 +7215,13 @@ input:focus-visible {
             const emptySeasonal = { sale_event: null, expected_games: [], mode: "potential_sale" };
             const emptyReleased = { items: [] };
             const emptyDealRadar = { items: [] };
+            const emptyOpportunities = { items: [] };
 
             let dashboardData = null;
             let seasonalData = emptySeasonal;
             let releasedData = emptyReleased;
             let dealRadarData = emptyDealRadar;
+            let opportunitiesData = emptyOpportunities;
 
             try {
                 dashboardData = await fetchJson("/dashboard/home");
@@ -7197,6 +7265,14 @@ input:focus-visible {
                     : await fetchJson("/api/market-radar?limit=50")
                         .catch(() => fetchJson("/api/deal-radar?limit=50"))
                         .catch(() => emptyDealRadar);
+
+                const dashboardOpportunitySeed = safeArray(dashboardData?.deal_opportunities).length
+                    ? safeArray(dashboardData?.deal_opportunities)
+                    : safeArray(dashboardData?.dealOpportunities);
+                opportunitiesData = dashboardOpportunitySeed.length
+                    ? { items: dashboardOpportunitySeed }
+                    : await fetchJson("/api/deal-opportunities?limit=48")
+                        .catch(() => emptyOpportunities);
             } catch (dashboardError) {
                 console.warn("Failed to load /dashboard/home, using endpoint fallbacks", dashboardError);
                 dashboardData = {
@@ -7226,16 +7302,19 @@ input:focus-visible {
                     dealRadar: [],
                     marketRadar: [],
                     deal_radar: [],
+                    dealOpportunities: [],
+                    deal_opportunities: [],
                 };
-                [seasonalData, releasedData, dealRadarData] = await Promise.all([
+                [seasonalData, releasedData, dealRadarData, opportunitiesData] = await Promise.all([
                     fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal),
                     fetchJson(`/games/released?${releasedParams.toString()}`).catch(() => emptyReleased),
                     fetchJson("/api/market-radar?limit=50")
                         .catch(() => fetchJson("/api/deal-radar?limit=50"))
                         .catch(() => emptyDealRadar),
+                    fetchJson("/api/deal-opportunities?limit=48").catch(() => emptyOpportunities),
                 ]);
             }
-            hydrateDashboardState(dashboardData, seasonalData, releasedData, dealRadarData);
+            hydrateDashboardState(dashboardData, seasonalData, releasedData, dealRadarData, opportunitiesData);
             seedCatalogFromPayload(releasedData);
             const [, , userAlertSignals] = await Promise.all([
                 loadUserWatchlist().catch((error) => {
@@ -8001,6 +8080,7 @@ input:focus-visible {
                 renderSkeleton(ui.seasonalSaleTopGrid, "deal-cards", 4, { cardClass: "game-card" });
                 renderSkeleton(ui.seasonalSaleLowerGrid, "deal-cards", 4, { cardClass: "game-card" });
                 renderSkeleton(ui.dealRankedGrid, "deal-cards", 6, { cardClass: "game-card" });
+                renderSkeleton(ui.opportunitiesGrid, "deal-cards", 6, { cardClass: "game-card" });
                 renderSkeleton(ui.worthBuyingGrid, "deal-cards", 6, { cardClass: "game-card" });
                 renderSkeleton(ui.trendingDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
                 renderSkeleton(ui.newHistoricalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
@@ -8065,6 +8145,7 @@ input:focus-visible {
                 renderError(ui.seasonalSaleTopGrid, "Failed to load seasonal radar.");
                 renderError(ui.seasonalSaleLowerGrid, "Failed to load seasonal radar.");
                 renderError(ui.dealRankedGrid, "Failed to load biggest discounts.");
+                renderError(ui.opportunitiesGrid, "Failed to load opportunities.");
                 renderError(ui.worthBuyingGrid, "Failed to load worth-buying picks.");
                 renderError(ui.trendingDealsGrid, "Failed to load trending now.");
                 renderError(ui.newHistoricalLowsGrid, "Failed to load new historical lows.");

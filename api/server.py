@@ -112,6 +112,10 @@ OPPORTUNITY_MAX_CANDIDATES = 320
 PERSONALIZED_QUERY_MULTIPLIER = 12
 PERSONALIZED_MIN_CANDIDATES = 120
 PERSONALIZED_MAX_CANDIDATES = 360
+DAILY_DIGEST_WINDOW_HOURS = 24
+DAILY_DIGEST_EVENT_SCAN_LIMIT = 360
+DAILY_DIGEST_ALERT_SCAN_LIMIT = 320
+DAILY_DIGEST_SNAPSHOT_SCAN_LIMIT = 220
 DEFAULT_USER_ID = API_DEFAULT_USER_ID
 SITEMAP_PATHS = (
     "/",
@@ -1895,6 +1899,136 @@ def _build_seo_discovery_query(session, slug: str):
             )
         )
     return None
+
+
+def _daily_digest_section_label(section_key: str) -> str:
+    label_map = {
+        "biggest_price_drops": "Biggest Price Drops",
+        "new_historical_lows": "New Historical Lows",
+        "buy_now_opportunities": "Buy-Now Opportunities",
+        "trending_games": "Trending Games",
+        "radar_signals": "Radar Signals",
+    }
+    return label_map.get(str(section_key or "").strip().lower(), "Daily Signal")
+
+
+def _daily_digest_alert_priority(alert_type: str | None) -> int:
+    normalized = str(alert_type or "").strip().upper()
+    priority_map = {
+        "NEW_HISTORICAL_LOW": 7,
+        "PRICE_DROP": 6,
+        "SALE_STARTED": 5,
+        "PLAYER_SURGE": 4,
+        "PRICE_TARGET_HIT": 3,
+        "DISCOUNT_TARGET_HIT": 3,
+    }
+    return int(priority_map.get(normalized, 1))
+
+
+def _build_daily_digest_reason_lines(
+    snapshot: GameSnapshot,
+    section_key: str,
+    *,
+    reason_hint: str | None = None,
+    personalization_reasons: list[str] | None = None,
+) -> list[str]:
+    reasons: list[str] = []
+    normalized_section = str(section_key or "").strip().lower()
+
+    if normalized_section == "biggest_price_drops":
+        _append_unique_reason(reasons, "Large price drop")
+    elif normalized_section == "new_historical_lows":
+        _append_unique_reason(reasons, "New historical low")
+    elif normalized_section == "buy_now_opportunities":
+        _append_unique_reason(reasons, "Buy-now recommendation")
+    elif normalized_section == "trending_games":
+        _append_unique_reason(reasons, "Players surging")
+    elif normalized_section == "radar_signals":
+        _append_unique_reason(reasons, "Fresh radar signal")
+
+    _append_unique_reason(reasons, _normalize_opportunity_reason(reason_hint))
+    for personalization_reason in personalization_reasons or []:
+        _append_unique_reason(reasons, personalization_reason)
+    for fallback_reason in _build_seo_reason_lines(snapshot, "best-deals", limit=3):
+        _append_unique_reason(reasons, fallback_reason)
+
+    if not reasons:
+        reasons.append("Snapshot-backed daily signal")
+    return reasons[:2]
+
+
+def _build_daily_digest_item(
+    snapshot: GameSnapshot,
+    *,
+    section_key: str,
+    occurred_at: datetime.datetime | None = None,
+    event_type: str | None = None,
+    reason_hint: str | None = None,
+    metadata: dict | None = None,
+    personalization_reasons: list[str] | None = None,
+    personalization_score: float = 0.0,
+    priority_score: float = 0.0,
+) -> dict:
+    reason_lines = _build_daily_digest_reason_lines(
+        snapshot,
+        section_key,
+        reason_hint=reason_hint,
+        personalization_reasons=personalization_reasons,
+    )
+    updated_at = _coerce_utc_datetime(snapshot.updated_at) or utc_now()
+    occurred_dt = _coerce_utc_datetime(occurred_at) or updated_at
+    buy_score = snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score
+
+    return {
+        "game_id": int(snapshot.game_id),
+        "id": int(snapshot.game_id),
+        "game_name": snapshot.game_name,
+        "steam_appid": snapshot.steam_appid,
+        "banner_url": snapshot.banner_url,
+        "image_url": snapshot.banner_url,
+        "store_url": snapshot.store_url,
+        "price": snapshot.latest_price,
+        "original_price": snapshot.latest_original_price,
+        "discount_percent": snapshot.latest_discount_percent,
+        "historical_low": snapshot.historical_low,
+        "historical_status": snapshot.historical_status,
+        "price_vs_low_ratio": snapshot.price_vs_low_ratio,
+        "current_players": snapshot.current_players,
+        "player_growth_ratio": snapshot.player_growth_ratio,
+        "short_term_player_trend": snapshot.short_term_player_trend,
+        "momentum_score": snapshot.momentum_score,
+        "trending_score": snapshot.trending_score,
+        "popularity_score": snapshot.popularity_score,
+        "deal_score": snapshot.deal_score,
+        "buy_score": buy_score,
+        "buy_recommendation": snapshot.buy_recommendation,
+        "buy_reason": snapshot.buy_reason,
+        "predicted_next_sale_price": snapshot.predicted_next_sale_price,
+        "predicted_next_discount_percent": snapshot.predicted_next_discount_percent,
+        "predicted_sale_confidence": snapshot.predicted_sale_confidence,
+        "predicted_sale_reason": snapshot.predicted_sale_reason,
+        "worth_buying_reason_summary": snapshot.worth_buying_reason_summary,
+        "trend_reason_summary": snapshot.trend_reason_summary,
+        "deal_heat_reason": snapshot.deal_heat_reason,
+        "review_score": snapshot.review_score,
+        "review_score_label": snapshot.review_score_label,
+        "review_label": snapshot.review_score_label,
+        "review_total_count": snapshot.review_count,
+        "genres": parse_csv_field(snapshot.genres),
+        "tags": parse_csv_field(snapshot.tags),
+        "platforms": parse_csv_field(snapshot.platforms),
+        "section": section_key,
+        "section_label": _daily_digest_section_label(section_key),
+        "event_type": str(event_type or "").strip().upper() or None,
+        "occurred_at": occurred_dt.isoformat(),
+        "digest_reason_lines": reason_lines,
+        "key_signal_explanation": reason_lines[0],
+        "digest_reason": " and ".join(reason_lines),
+        "personalization_score": round(safe_num(personalization_score, 0.0), 2),
+        "priority_score": round(safe_num(priority_score, 0.0), 2),
+        "metadata": metadata if isinstance(metadata, dict) else {},
+        "updated_at": updated_at.isoformat(),
+    }
 
 
 def get_history_range_start(range_key: str) -> datetime.datetime | None:
@@ -5125,6 +5259,495 @@ def list_deal_opportunities(
     finally:
         session.close()
         _log_timing("/api/deal-opportunities", started)
+
+
+@app.get("/api/daily-digest")
+@json_etag()
+@ttl_cache(ttl_seconds=60, endpoint_key="/api/daily-digest")
+def get_daily_deal_digest(
+    request: Request,
+    user_id: str = Query(default=DEFAULT_USER_ID),
+    section_limit: int = Query(default=8, ge=3, le=20),
+):
+    started = _start_timer()
+    now = utc_now()
+    window_start = now - datetime.timedelta(hours=DAILY_DIGEST_WINDOW_HOURS)
+    normalized_user_id = normalize_user_id(user_id)
+    personalization_enabled = not _is_anonymous_user_id(normalized_user_id)
+    normalized_limit = max(3, int(section_limit))
+
+    session = ReadSessionLocal()
+    try:
+        wishlist_game_ids: set[int] = set()
+        watchlist_game_ids: set[int] = set()
+        target_game_ids: set[int] = set()
+        token_weights: dict[str, float] = {}
+
+        if personalization_enabled:
+            wishlist_game_ids = {
+                int(game_id)
+                for game_id, in (
+                    session.query(WishlistItem.game_id)
+                    .filter(WishlistItem.user_id == normalized_user_id)
+                    .all()
+                )
+                if game_id is not None
+            }
+            watchlist_game_ids = {
+                int(game_id)
+                for game_id, in (
+                    session.query(Watchlist.game_id)
+                    .filter(Watchlist.user_id == normalized_user_id)
+                    .all()
+                )
+                if game_id is not None
+            }
+            target_game_ids = {
+                int(game_id)
+                for game_id, in (
+                    session.query(DealWatchlist.game_id)
+                    .filter(DealWatchlist.user_id == normalized_user_id, DealWatchlist.active.is_(True))
+                    .all()
+                )
+                if game_id is not None
+            }
+
+            seed_game_ids = wishlist_game_ids | watchlist_game_ids | target_game_ids
+            if seed_game_ids:
+                seed_rows = [
+                    (int(game_id), tags, genres)
+                    for game_id, tags, genres in (
+                        session.query(GameSnapshot.game_id, GameSnapshot.tags, GameSnapshot.genres)
+                        .filter(GameSnapshot.game_id.in_(list(seed_game_ids)))
+                        .all()
+                    )
+                    if game_id is not None
+                ]
+                token_weights = _build_personalization_token_weights(
+                    seed_rows,
+                    wishlist_game_ids=wishlist_game_ids,
+                    watchlist_game_ids=watchlist_game_ids,
+                    target_game_ids=target_game_ids,
+                    recent_game_ids=set(),
+                )
+
+        def personalization_context(snapshot: GameSnapshot) -> tuple[float, list[str]]:
+            if not personalization_enabled:
+                return 0.0, []
+
+            score = 0.0
+            reasons: list[str] = []
+            game_id = int(snapshot.game_id)
+            if game_id in wishlist_game_ids:
+                score += 34.0
+                _append_unique_reason(reasons, "In your wishlist")
+            if game_id in watchlist_game_ids:
+                score += 30.0
+                _append_unique_reason(reasons, "In your watchlist")
+            if game_id in target_game_ids and game_id not in wishlist_game_ids and game_id not in watchlist_game_ids:
+                score += 18.0
+                _append_unique_reason(reasons, "In your price alerts")
+
+            similarity_bonus, overlap_count = _compute_personalization_similarity_bonus(snapshot, token_weights)
+            if similarity_bonus > 0:
+                score += min(18.0, similarity_bonus * 0.42)
+                if overlap_count >= 2:
+                    _append_unique_reason(reasons, "Similar to games you track")
+                elif overlap_count >= 1:
+                    _append_unique_reason(reasons, "Similar to your interests")
+
+            return round(score, 2), reasons[:2]
+
+        event_scan_limit = max(DAILY_DIGEST_EVENT_SCAN_LIMIT, normalized_limit * 30)
+        alert_scan_limit = max(DAILY_DIGEST_ALERT_SCAN_LIMIT, normalized_limit * 24)
+        snapshot_scan_limit = max(DAILY_DIGEST_SNAPSHOT_SCAN_LIMIT, normalized_limit * 20)
+
+        recent_event_rows = (
+            session.query(DealEvent, GameSnapshot)
+            .join(GameSnapshot, GameSnapshot.game_id == DealEvent.game_id)
+            .filter(
+                DealEvent.created_at >= window_start,
+                GameSnapshot.is_released == 1,
+                or_(GameSnapshot.is_upcoming.is_(False), GameSnapshot.is_upcoming.is_(None)),
+            )
+            .order_by(DealEvent.created_at.desc(), DealEvent.id.desc())
+            .limit(event_scan_limit)
+            .all()
+        )
+
+        recent_alert_rows = (
+            session.query(Alert, GameSnapshot)
+            .outerjoin(GameSnapshot, GameSnapshot.game_id == Alert.game_id)
+            .filter(Alert.created_at >= window_start)
+            .order_by(Alert.created_at.desc(), Alert.id.desc())
+            .limit(alert_scan_limit)
+            .all()
+        )
+
+        recommendation_expr = func.upper(func.coalesce(GameSnapshot.buy_recommendation, ""))
+        buy_now_rows = (
+            session.query(GameSnapshot)
+            .filter(
+                GameSnapshot.is_released == 1,
+                or_(GameSnapshot.is_upcoming.is_(False), GameSnapshot.is_upcoming.is_(None)),
+                GameSnapshot.latest_price.isnot(None),
+                recommendation_expr == "BUY_NOW",
+                or_(
+                    GameSnapshot.updated_at >= window_start,
+                    GameSnapshot.deal_detected_at >= window_start,
+                    GameSnapshot.last_discounted_at >= window_start,
+                ),
+            )
+            .order_by(
+                GameSnapshot.buy_score.desc().nullslast(),
+                GameSnapshot.worth_buying_score.desc().nullslast(),
+                GameSnapshot.deal_score.desc().nullslast(),
+                GameSnapshot.latest_discount_percent.desc().nullslast(),
+                GameSnapshot.updated_at.desc().nullslast(),
+                GameSnapshot.game_id.asc(),
+            )
+            .limit(snapshot_scan_limit)
+            .all()
+        )
+
+        trending_rows = (
+            session.query(GameSnapshot)
+            .filter(
+                GameSnapshot.is_released == 1,
+                or_(GameSnapshot.is_upcoming.is_(False), GameSnapshot.is_upcoming.is_(None)),
+                GameSnapshot.latest_price.isnot(None),
+                GameSnapshot.updated_at >= window_start,
+                or_(
+                    GameSnapshot.trending_score >= 55,
+                    GameSnapshot.momentum_score >= 58,
+                    GameSnapshot.short_term_player_trend >= 0.05,
+                    GameSnapshot.player_growth_ratio >= 1.05,
+                ),
+            )
+            .order_by(
+                GameSnapshot.trending_score.desc().nullslast(),
+                GameSnapshot.momentum_score.desc().nullslast(),
+                GameSnapshot.short_term_player_trend.desc().nullslast(),
+                GameSnapshot.current_players.desc().nullslast(),
+                GameSnapshot.game_id.asc(),
+            )
+            .limit(snapshot_scan_limit)
+            .all()
+        )
+
+        drops_by_game: dict[int, tuple[float, dict]] = {}
+        lows_by_game: dict[int, tuple[float, dict]] = {}
+        buy_now_by_game: dict[int, tuple[float, dict]] = {}
+        trending_by_game: dict[int, tuple[float, dict]] = {}
+        radar_by_game_and_type: dict[tuple[int, str], tuple[float, dict]] = {}
+
+        def keep_best_by_game(bucket: dict[int, tuple[float, dict]], game_id: int, score: float, item: dict) -> None:
+            existing = bucket.get(game_id)
+            if existing is None or score > existing[0]:
+                bucket[game_id] = (score, item)
+
+        for event_row, snapshot in recent_event_rows:
+            if snapshot is None:
+                continue
+            event_type = str(event_row.event_type or "").strip().upper()
+            metadata = event_row.metadata_json if isinstance(event_row.metadata_json, dict) else {}
+            event_time = _coerce_utc_datetime(event_row.created_at) or now
+            age_hours = max(0.0, (now - event_time).total_seconds() / 3600.0)
+            personalization_score, personalization_reasons = personalization_context(snapshot)
+
+            if event_type == "PRICE_DROP":
+                old_price = safe_num(event_row.old_price, safe_num(metadata.get("old_price"), 0.0))
+                new_price = safe_num(event_row.new_price, safe_num(metadata.get("new_price"), safe_num(snapshot.latest_price, 0.0)))
+                drop_amount = old_price - new_price if old_price > 0 else 0.0
+                drop_percent = (drop_amount / old_price * 100.0) if old_price > 0 and drop_amount > 0 else 0.0
+                discount = max(0, int(round(safe_num(
+                    event_row.discount_percent if event_row.discount_percent is not None else snapshot.latest_discount_percent,
+                    0.0,
+                ))))
+                if drop_amount <= 0 and drop_percent < 8 and discount < 20:
+                    continue
+
+                reason_hint = (
+                    event_row.event_reason_summary
+                    or metadata.get("event_reason_summary")
+                    or ("Large price drop" if drop_percent >= 15 else "Price dropped")
+                )
+                priority = (
+                    drop_amount * 11.0
+                    + drop_percent * 1.55
+                    + discount * 0.45
+                    + safe_num(snapshot.deal_score, 0.0) * 0.35
+                    + max(0.0, 16.0 - age_hours)
+                    + personalization_score
+                )
+                item = _build_daily_digest_item(
+                    snapshot,
+                    section_key="biggest_price_drops",
+                    occurred_at=event_time,
+                    event_type=event_type,
+                    reason_hint=reason_hint,
+                    metadata=metadata,
+                    personalization_reasons=personalization_reasons,
+                    personalization_score=personalization_score,
+                    priority_score=priority,
+                )
+                item["drop_amount"] = round(drop_amount, 2) if drop_amount > 0 else None
+                item["drop_percent"] = round(drop_percent, 2) if drop_percent > 0 else None
+                keep_best_by_game(drops_by_game, int(snapshot.game_id), priority, item)
+                continue
+
+            if event_type == "HISTORICAL_LOW":
+                discount = max(0, int(round(safe_num(snapshot.latest_discount_percent, 0.0))))
+                priority = (
+                    safe_num(snapshot.deal_score, 0.0) * 0.42
+                    + safe_num(snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score, 0.0) * 0.35
+                    + discount * 0.42
+                    + max(0.0, 18.0 - age_hours)
+                    + 12.0
+                    + personalization_score
+                )
+                item = _build_daily_digest_item(
+                    snapshot,
+                    section_key="new_historical_lows",
+                    occurred_at=event_time,
+                    event_type=event_type,
+                    reason_hint=event_row.event_reason_summary or "New historical low",
+                    metadata=metadata,
+                    personalization_reasons=personalization_reasons,
+                    personalization_score=personalization_score,
+                    priority_score=priority,
+                )
+                keep_best_by_game(lows_by_game, int(snapshot.game_id), priority, item)
+                continue
+
+            if event_type == "PLAYER_SPIKE":
+                trend_strength = (
+                    safe_num(snapshot.short_term_player_trend, 0.0) * 520.0
+                    + safe_num(snapshot.player_growth_ratio, 0.0) * 10.0
+                    + safe_num(snapshot.momentum_score, 0.0) * 0.9
+                )
+                priority = (
+                    trend_strength
+                    + safe_num(snapshot.current_players, 0.0) * 0.02
+                    + max(0.0, 14.0 - age_hours)
+                    + personalization_score
+                )
+                item = _build_daily_digest_item(
+                    snapshot,
+                    section_key="trending_games",
+                    occurred_at=event_time,
+                    event_type=event_type,
+                    reason_hint=event_row.event_reason_summary or "Players surging",
+                    metadata=metadata,
+                    personalization_reasons=personalization_reasons,
+                    personalization_score=personalization_score,
+                    priority_score=priority,
+                )
+                keep_best_by_game(trending_by_game, int(snapshot.game_id), priority, item)
+
+        for snapshot in buy_now_rows:
+            personalization_score, personalization_reasons = personalization_context(snapshot)
+            buy_score = safe_num(snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score, 0.0)
+            deal_score = safe_num(snapshot.deal_score, 0.0)
+            discount = max(0, int(round(safe_num(snapshot.latest_discount_percent, 0.0))))
+            near_low = _is_near_historical_low(snapshot)
+            if not near_low and discount < 20 and buy_score < 60 and deal_score < 65:
+                continue
+
+            updated_dt = _coerce_utc_datetime(snapshot.updated_at) or now
+            age_hours = max(0.0, (now - updated_dt).total_seconds() / 3600.0)
+            priority = (
+                buy_score * 0.78
+                + deal_score * 0.52
+                + discount * 0.42
+                + (12.0 if near_low else 0.0)
+                + max(0.0, 12.0 - age_hours)
+                + personalization_score
+            )
+            item = _build_daily_digest_item(
+                snapshot,
+                section_key="buy_now_opportunities",
+                occurred_at=updated_dt,
+                event_type="BUY_NOW",
+                reason_hint=snapshot.buy_reason or snapshot.worth_buying_reason_summary or "Buy-now recommendation",
+                metadata={},
+                personalization_reasons=personalization_reasons,
+                personalization_score=personalization_score,
+                priority_score=priority,
+            )
+            keep_best_by_game(buy_now_by_game, int(snapshot.game_id), priority, item)
+
+        for snapshot in trending_rows:
+            personalization_score, personalization_reasons = personalization_context(snapshot)
+            trend_strength = (
+                safe_num(snapshot.trending_score, 0.0) * 0.9
+                + safe_num(snapshot.momentum_score, 0.0) * 0.88
+                + safe_num(snapshot.short_term_player_trend, 0.0) * 460.0
+                + safe_num(snapshot.player_growth_ratio, 0.0) * 8.0
+                + safe_num(snapshot.current_players, 0.0) * 0.012
+            )
+            if trend_strength < 26.0:
+                continue
+
+            updated_dt = _coerce_utc_datetime(snapshot.updated_at) or now
+            age_hours = max(0.0, (now - updated_dt).total_seconds() / 3600.0)
+            priority = trend_strength + max(0.0, 10.0 - age_hours) + personalization_score
+            item = _build_daily_digest_item(
+                snapshot,
+                section_key="trending_games",
+                occurred_at=updated_dt,
+                event_type="TRENDING",
+                reason_hint=snapshot.trend_reason_summary or "Players surging",
+                metadata={},
+                personalization_reasons=personalization_reasons,
+                personalization_score=personalization_score,
+                priority_score=priority,
+            )
+            keep_best_by_game(trending_by_game, int(snapshot.game_id), priority, item)
+
+        for alert_row, snapshot in recent_alert_rows:
+            if snapshot is None:
+                continue
+            alert_type = str(alert_row.alert_type or "").strip().upper()
+            if not alert_type:
+                continue
+
+            metadata = alert_row.metadata_json if isinstance(alert_row.metadata_json, dict) else {}
+            alert_time = _coerce_utc_datetime(alert_row.created_at) or now
+            age_hours = max(0.0, (now - alert_time).total_seconds() / 3600.0)
+            personalization_score, personalization_reasons = personalization_context(snapshot)
+            reason_hint = _alert_label(alert_type)
+            if alert_type == "SALE_STARTED" and safe_num(snapshot.popularity_score, 0.0) >= 65:
+                reason_hint = "Rare sale on popular game"
+            elif alert_type == "PLAYER_SURGE":
+                reason_hint = "Players surging"
+            elif alert_type == "NEW_HISTORICAL_LOW":
+                reason_hint = "New historical low"
+            elif alert_type == "PRICE_DROP":
+                reason_hint = "Large price drop"
+
+            priority = (
+                _daily_digest_alert_priority(alert_type) * 9.0
+                + safe_num(snapshot.deal_score, 0.0) * 0.24
+                + safe_num(snapshot.momentum_score, 0.0) * 0.18
+                + max(0.0, 12.0 - age_hours)
+                + personalization_score
+            )
+            item = _build_daily_digest_item(
+                snapshot,
+                section_key="radar_signals",
+                occurred_at=alert_time,
+                event_type=alert_type,
+                reason_hint=reason_hint,
+                metadata=metadata,
+                personalization_reasons=personalization_reasons,
+                personalization_score=personalization_score,
+                priority_score=priority,
+            )
+            radar_key = (int(snapshot.game_id), alert_type)
+            existing = radar_by_game_and_type.get(radar_key)
+            if existing is None or priority > existing[0]:
+                radar_by_game_and_type[radar_key] = (priority, item)
+
+        def _parse_digest_item_timestamp(item: dict) -> float:
+            occurred_raw = str(item.get("occurred_at") or item.get("updated_at") or "").strip()
+            if not occurred_raw:
+                return 0.0
+            try:
+                parsed = datetime.datetime.fromisoformat(occurred_raw.replace("Z", "+00:00"))
+            except Exception:
+                return 0.0
+            normalized = _coerce_utc_datetime(parsed)
+            if normalized is None:
+                return 0.0
+            return float(normalized.timestamp())
+
+        def _item_sort_key(entry: tuple[float, dict]) -> tuple[float, float]:
+            score, item = entry
+            return safe_num(score, 0.0), _parse_digest_item_timestamp(item)
+
+        def _limit_bucket(bucket: dict[int, tuple[float, dict]], limit: int) -> list[dict]:
+            ranked = sorted(bucket.values(), key=_item_sort_key, reverse=True)
+            items: list[dict] = []
+            for score, item in ranked[:limit]:
+                item["priority_score"] = round(safe_num(score, 0.0), 2)
+                items.append(item)
+            return items
+
+        def _limit_radar_bucket(bucket: dict[tuple[int, str], tuple[float, dict]], limit: int) -> list[dict]:
+            ranked = sorted(bucket.values(), key=_item_sort_key, reverse=True)
+            seen_game_ids: set[int] = set()
+            items: list[dict] = []
+            for score, item in ranked:
+                game_id = int(safe_num(item.get("game_id"), 0.0))
+                if game_id <= 0 or game_id in seen_game_ids:
+                    continue
+                seen_game_ids.add(game_id)
+                item["priority_score"] = round(safe_num(score, 0.0), 2)
+                items.append(item)
+                if len(items) >= limit:
+                    break
+            return items
+
+        sections = {
+            "biggest_price_drops": _limit_bucket(drops_by_game, normalized_limit),
+            "new_historical_lows": _limit_bucket(lows_by_game, normalized_limit),
+            "buy_now_opportunities": _limit_bucket(buy_now_by_game, normalized_limit),
+            "trending_games": _limit_bucket(trending_by_game, normalized_limit),
+            "radar_signals": _limit_radar_bucket(radar_by_game_and_type, normalized_limit),
+        }
+
+        highlight_weights = {
+            "biggest_price_drops": 34.0,
+            "new_historical_lows": 32.0,
+            "buy_now_opportunities": 30.0,
+            "trending_games": 26.0,
+            "radar_signals": 24.0,
+        }
+        highlights_by_game: dict[int, tuple[float, dict]] = {}
+        for section_key, items in sections.items():
+            section_weight = safe_num(highlight_weights.get(section_key), 0.0)
+            for index, item in enumerate(items[: max(3, normalized_limit // 2)]):
+                game_id = int(safe_num(item.get("game_id"), 0.0))
+                if game_id <= 0:
+                    continue
+                highlight_score = (
+                    safe_num(item.get("priority_score"), 0.0)
+                    + section_weight
+                    - index * 1.6
+                )
+                existing = highlights_by_game.get(game_id)
+                if existing is None or highlight_score > existing[0]:
+                    highlights_by_game[game_id] = (highlight_score, item)
+
+        highlights = [
+            item
+            for _, item in sorted(
+                highlights_by_game.values(),
+                key=lambda entry: safe_num(entry[0], 0.0),
+                reverse=True,
+            )[: max(8, min(16, normalized_limit * 2))]
+        ]
+
+        return {
+            "user_id": normalized_user_id,
+            "personalized": personalization_enabled,
+            "window_hours": DAILY_DIGEST_WINDOW_HOURS,
+            "window_start": window_start.isoformat(),
+            "window_end": now.isoformat(),
+            "generated_at": now.isoformat(),
+            "counts": {key: len(value) for key, value in sections.items()},
+            "biggest_price_drops": sections.get("biggest_price_drops", []),
+            "new_historical_lows": sections.get("new_historical_lows", []),
+            "buy_now_opportunities": sections.get("buy_now_opportunities", []),
+            "trending_games": sections.get("trending_games", []),
+            "radar_signals": sections.get("radar_signals", []),
+            "sections": sections,
+            "highlights": highlights,
+        }
+    finally:
+        session.close()
+        _log_timing("/api/daily-digest", started)
 
 
 @app.get("/api/seo/discovery/{slug}")

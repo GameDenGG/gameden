@@ -684,6 +684,7 @@ input:focus-visible {
 .panel-personalized { --panel-accent: rgba(188, 168, 255, 0.95); }
 .panel-analytics { --panel-accent: rgba(94, 233, 255, 0.95); }
 .panel-alerts { --panel-accent: rgba(255, 140, 169, 0.95); }
+.panel-digest { --panel-accent: rgba(126, 214, 255, 0.95); }
 .panel-deal-radar { --panel-accent: rgba(255, 196, 111, 0.95); }
 .panel-personal { --panel-accent: rgba(185, 159, 255, 0.95); }
 .panel-activity { --panel-accent: rgba(255, 206, 122, 0.95); }
@@ -730,6 +731,7 @@ input:focus-visible {
 .panel-intel .panel-title { color: #cff0ff; }
 .panel-analytics .panel-title { color: #cbf6ff; }
 .panel-alerts .panel-title { color: #ffd3df; }
+.panel-digest .panel-title { color: #d5edff; }
 .panel-deal-radar .panel-title { color: #ffe1b8; }
 .panel-personal .panel-title { color: #e1d6ff; }
 .panel-activity .panel-title { color: #ffe2ba; }
@@ -1470,6 +1472,154 @@ input:focus-visible {
     background: linear-gradient(180deg, rgba(58, 25, 40, 0.45), rgba(30, 17, 26, 0.72));
 }
 
+.digest-list {
+    display: grid;
+    gap: 10px;
+}
+
+.digest-item {
+    position: relative;
+    border-radius: 14px;
+    border: 1px solid rgba(126, 214, 255, 0.24);
+    background: linear-gradient(180deg, rgba(26, 47, 74, 0.56), rgba(13, 24, 40, 0.78));
+    overflow: hidden;
+    transition:
+        transform 0.18s ease,
+        border-color 0.18s ease,
+        box-shadow 0.18s ease,
+        background 0.18s ease;
+}
+
+.digest-item:hover {
+    transform: translateY(-2px);
+    border-color: rgba(126, 214, 255, 0.42);
+    box-shadow: 0 12px 24px rgba(4, 12, 24, 0.24);
+    background: linear-gradient(180deg, rgba(35, 59, 89, 0.62), rgba(16, 30, 49, 0.82));
+}
+
+.digest-item-link {
+    display: block;
+    padding: 10px 11px;
+}
+
+.digest-item-link:focus-visible {
+    outline: 2px solid rgba(126, 214, 255, 0.82);
+    outline-offset: -2px;
+    border-radius: inherit;
+}
+
+.digest-item-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.digest-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(126, 214, 255, 0.3);
+    background: rgba(126, 214, 255, 0.12);
+    color: #cfe8ff;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.digest-badge.drop {
+    border-color: rgba(255, 196, 111, 0.35);
+    background: rgba(255, 196, 111, 0.14);
+    color: #ffe2b8;
+}
+
+.digest-badge.low {
+    border-color: rgba(109, 245, 180, 0.38);
+    background: rgba(109, 245, 180, 0.14);
+    color: #bdf6db;
+}
+
+.digest-badge.buy {
+    border-color: rgba(182, 151, 255, 0.36);
+    background: rgba(182, 151, 255, 0.14);
+    color: #e6d9ff;
+}
+
+.digest-badge.trending {
+    border-color: rgba(125, 205, 255, 0.36);
+    background: rgba(125, 205, 255, 0.14);
+    color: #d3efff;
+}
+
+.digest-badge.radar {
+    border-color: rgba(255, 140, 169, 0.36);
+    background: rgba(255, 140, 169, 0.14);
+    color: #ffd4df;
+}
+
+.digest-when {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.digest-title {
+    margin-top: 7px;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+}
+
+.digest-sub {
+    margin-top: 5px;
+    color: var(--muted-2);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.digest-item.is-new-signal {
+    animation: digestNewHighlight 1s ease-out 1;
+}
+
+.digest-item.is-new-signal::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background: linear-gradient(
+        102deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.08) 46%,
+        transparent 70%
+    );
+    opacity: 0;
+    animation: radarNewShimmer 0.8s ease-out 1;
+}
+
+.digest-item.is-new-signal .digest-badge {
+    animation: newSignalBadgePulse 0.9s ease-out 1;
+}
+
+@keyframes digestNewHighlight {
+    0% {
+        border-color: rgba(186, 236, 255, 0.48);
+        box-shadow:
+            0 0 0 1px rgba(186, 236, 255, 0.14),
+            0 12px 24px rgba(9, 17, 30, 0.24);
+        background: linear-gradient(180deg, rgba(62, 95, 132, 0.66), rgba(22, 37, 56, 0.88));
+    }
+    100% {
+        border-color: rgba(126, 214, 255, 0.24);
+        box-shadow: none;
+        background: linear-gradient(180deg, rgba(26, 47, 74, 0.56), rgba(13, 24, 40, 0.78));
+    }
+}
+
 .deal-radar-feed {
     display: grid;
     gap: 10px;
@@ -1557,6 +1707,9 @@ input:focus-visible {
     .deal-radar-card.is-new-signal,
     .deal-radar-card.is-new-signal::after,
     .deal-radar-card.is-new-signal .deal-radar-badge,
+    .digest-item.is-new-signal,
+    .digest-item.is-new-signal::after,
+    .digest-item.is-new-signal .digest-badge,
     .game-card.is-new-signal,
     .game-card.is-new-signal::after,
     .game-card.is-new-signal .meta-chip.deal-primary,
@@ -2918,6 +3071,18 @@ input:focus-visible {
                     </div>
                 </section>
 
+                <section class="panel panel-digest" id="dailyDigestPanel">
+                    <div class="panel-head">
+                        <div class="panel-title-wrap">
+                            <h2 class="panel-title">Daily Deal Digest</h2>
+                            <div class="panel-subtitle">Most important market changes from the last 24 hours.</div>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div id="dailyDigestList" class="digest-list"></div>
+                    </div>
+                </section>
+
                 <section class="panel panel-analytics" id="analyticsPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -3093,6 +3258,15 @@ input:focus-visible {
             recentlyUpdated: [],
             alertSignals: [],
             dealRadar: [],
+            dailyDigest: {
+                sections: {},
+                highlights: [],
+                counts: {},
+                personalized: false,
+                window_start: null,
+                window_end: null,
+                generated_at: null,
+            },
             seasonalSale: {
                 sale_event: null,
                 expected_games: [],
@@ -3110,6 +3284,10 @@ input:focus-visible {
             },
             personalizedStatus: {
                 enabled: false,
+                loading: false,
+                error: null,
+            },
+            dailyDigestStatus: {
                 loading: false,
                 error: null,
             },
@@ -3197,6 +3375,8 @@ input:focus-visible {
             recentlyUpdatedList: document.getElementById("recentlyUpdatedList"),
             recentlyUpdatedToggleBtn: document.getElementById("recentlyUpdatedToggleBtn"),
             trendingList: document.getElementById("trendingList"),
+            dailyDigestPanel: document.getElementById("dailyDigestPanel"),
+            dailyDigestList: document.getElementById("dailyDigestList"),
             alertsList: document.getElementById("alertsList"),
             dealRadarFeed: document.getElementById("dealRadarFeed"),
             dealRadarMoreBtn: document.getElementById("dealRadarMoreBtn"),
@@ -5957,6 +6137,221 @@ input:focus-visible {
                 .slice(0, 10);
         }
 
+        function formatDailyDigestSectionLabel(sectionKey) {
+            switch (String(sectionKey || "").trim().toLowerCase()) {
+                case "biggest_price_drops":
+                    return "Price Drop";
+                case "new_historical_lows":
+                    return "Historical Low";
+                case "buy_now_opportunities":
+                    return "Buy Now";
+                case "trending_games":
+                    return "Trending";
+                case "radar_signals":
+                    return "Radar";
+                default:
+                    return "Daily Signal";
+            }
+        }
+
+        function normalizeDailyDigestItem(item) {
+            if (!item || typeof item !== "object") return null;
+            const normalized = normalizeGameRow(item);
+            const gameId = Number(normalized.game_id || item.game_id || item.id || 0);
+            if (!Number.isFinite(gameId) || gameId <= 0) return null;
+
+            const section = String(item.section || "").trim().toLowerCase();
+            const sectionLabel = String(item.section_label || "").trim() || formatDailyDigestSectionLabel(section);
+            const eventType = String(item.event_type || item.alert_type || "").trim().toUpperCase();
+            const occurredAt = String(
+                item.occurred_at
+                || item.alert_created_at
+                || item.created_at
+                || item.updated_at
+                || "",
+            ).trim();
+
+            const reasons = [];
+            const seenReasons = new Set();
+            const appendReason = (value) => {
+                const text = String(value || "").trim();
+                if (!text) return;
+                const key = text.toLowerCase();
+                if (seenReasons.has(key)) return;
+                seenReasons.add(key);
+                reasons.push(text);
+            };
+            safeArray(item.digest_reason_lines).forEach(appendReason);
+            safeArray(item.explanation_lines).forEach(appendReason);
+            safeArray(item.opportunity_reasons).forEach(appendReason);
+            appendReason(item.key_signal_explanation || item.digest_reason || item.alert_label || item.signal_text);
+            appendReason(item.buy_reason || item.worth_buying_reason_summary || item.trend_reason_summary || item.deal_heat_reason);
+
+            const priorityScore = Number(item.priority_score);
+            const personalizationScore = Number(item.personalization_score);
+
+            return {
+                ...normalized,
+                game_id: gameId,
+                section,
+                section_label: sectionLabel,
+                event_type: eventType,
+                occurred_at: occurredAt || null,
+                digest_reason_lines: reasons.slice(0, 2),
+                priority_score: Number.isFinite(priorityScore) ? priorityScore : 0,
+                personalization_score: Number.isFinite(personalizationScore) ? personalizationScore : 0,
+            };
+        }
+
+        function dailyDigestEntryKey(item) {
+            const identity = gameIdentityKey(item) || `id:${Number(item?.game_id || 0)}`;
+            const section = String(item?.section || "").trim().toLowerCase();
+            const eventType = String(item?.event_type || "").trim().toUpperCase();
+            const occurredAt = String(item?.occurred_at || "").trim();
+            return `${identity}:${section}:${eventType}:${occurredAt}`;
+        }
+
+        function dailyDigestTone(item) {
+            const section = String(item?.section || "").trim().toLowerCase();
+            if (section === "biggest_price_drops") return "drop";
+            if (section === "new_historical_lows") return "low";
+            if (section === "buy_now_opportunities") return "buy";
+            if (section === "trending_games") return "trending";
+            if (section === "radar_signals") return "radar";
+            return "";
+        }
+
+        function isHighValueDailyDigestItem(item) {
+            const section = String(item?.section || "").trim().toLowerCase();
+            const eventType = String(item?.event_type || "").trim().toUpperCase();
+            if (section === "new_historical_lows" || section === "buy_now_opportunities") return true;
+            if (section === "biggest_price_drops") return true;
+            if (eventType === "NEW_HISTORICAL_LOW" || eventType === "PRICE_DROP" || eventType === "SALE_STARTED") return true;
+            return isTopValueDealGame(item);
+        }
+
+        function collectDailyDigestItems() {
+            const digest = state.dailyDigest && typeof state.dailyDigest === "object" ? state.dailyDigest : {};
+            const highlights = safeArray(digest.highlights).map(normalizeDailyDigestItem).filter(Boolean);
+            if (highlights.length) {
+                highlights.sort((a, b) => {
+                    const scoreDiff = Number(b.priority_score || 0) - Number(a.priority_score || 0);
+                    if (scoreDiff !== 0) return scoreDiff;
+                    const tsA = Date.parse(String(a.occurred_at || ""));
+                    const tsB = Date.parse(String(b.occurred_at || ""));
+                    return (Number.isFinite(tsB) ? tsB : 0) - (Number.isFinite(tsA) ? tsA : 0);
+                });
+                return highlights.slice(0, 10);
+            }
+
+            const sections = digest.sections && typeof digest.sections === "object" ? digest.sections : {};
+            const orderedSectionKeys = [
+                "biggest_price_drops",
+                "new_historical_lows",
+                "buy_now_opportunities",
+                "trending_games",
+                "radar_signals",
+            ];
+            const merged = [];
+            for (const sectionKey of orderedSectionKeys) {
+                const sectionItems = safeArray(sections[sectionKey]);
+                for (const row of sectionItems) {
+                    const normalized = normalizeDailyDigestItem({ ...row, section: row?.section || sectionKey });
+                    if (!normalized) continue;
+                    merged.push(normalized);
+                    if (merged.length >= 24) break;
+                }
+                if (merged.length >= 24) break;
+            }
+            merged.sort((a, b) => {
+                const scoreDiff = Number(b.priority_score || 0) - Number(a.priority_score || 0);
+                if (scoreDiff !== 0) return scoreDiff;
+                const tsA = Date.parse(String(a.occurred_at || ""));
+                const tsB = Date.parse(String(b.occurred_at || ""));
+                return (Number.isFinite(tsB) ? tsB : 0) - (Number.isFinite(tsA) ? tsA : 0);
+            });
+            return merged.slice(0, 10);
+        }
+
+        function renderDailyDigest() {
+            if (!ui.dailyDigestPanel || !ui.dailyDigestList) return;
+
+            const loading = !!state.dailyDigestStatus?.loading;
+            const hasError = !!state.dailyDigestStatus?.error;
+            setPanelVisibility(ui.dailyDigestPanel, true);
+
+            if (loading) {
+                renderSkeleton(ui.dailyDigestList, "panel-list", 4, { itemClass: "digest-item" });
+                return;
+            }
+            if (hasError) {
+                renderError(ui.dailyDigestList, "Failed to load daily digest.");
+                return;
+            }
+
+            const rows = collectDailyDigestItems();
+            if (!rows.length) {
+                renderEmpty(
+                    ui.dailyDigestList,
+                    "No major deal events in the last 24 hours.",
+                    {
+                        tone: "neutral",
+                        detail: "New lows, big drops, buy-now signals, and trending shifts will appear here.",
+                    },
+                );
+                return;
+            }
+
+            const deduped = [];
+            const seenGames = new Set();
+            for (const row of rows) {
+                const gameKey = gameIdentityKey(row);
+                if (gameKey && seenGames.has(gameKey)) continue;
+                if (gameKey) seenGames.add(gameKey);
+                deduped.push(row);
+                if (deduped.length >= 8) break;
+            }
+
+            ui.dailyDigestList.innerHTML = deduped.map((item) => {
+                const occurredMs = Date.parse(String(item.occurred_at || ""));
+                const whenLabel = Number.isFinite(occurredMs) ? `${formatDetectedLabel(occurredMs)} ago` : "recently";
+                const explanation = item.digest_reason_lines[0] || "Snapshot-backed market signal";
+                const secondaryExplanation = item.digest_reason_lines[1] || "";
+                const discount = Number(item.discount_percent || 0);
+                const players = Number(item.current_players || 0);
+                const detailParts = [explanation];
+                if (secondaryExplanation) {
+                    detailParts.push(secondaryExplanation);
+                }
+                if (Number.isFinite(discount) && discount > 0) {
+                    detailParts.push(`${discount.toFixed(0)}% off`);
+                } else if (Number.isFinite(players) && players > 0) {
+                    detailParts.push(`${fmtInt(players)} players`);
+                } else if (item.price !== null && item.price !== undefined) {
+                    detailParts.push(fmtPrice(item.price));
+                }
+                const detail = detailParts.slice(0, 3).join(" • ");
+                const toneClass = dailyDigestTone(item);
+                const digestKey = dailyDigestEntryKey(item);
+                const isNewSignal = isHighValueDailyDigestItem(item)
+                    && markNewSignal("index:daily-digest", digestKey);
+                const newSignalClass = isNewSignal ? " is-new-signal" : "";
+
+                return `
+                    <article class="digest-item${newSignalClass}">
+                        <a class="digest-item-link" href="${buildGameDetailHref(item)}" data-track-game="${encodeURIComponent(item.game_name || "")}">
+                            <div class="digest-item-meta">
+                                <span class="digest-badge ${toneClass}">${escapeHtml(item.section_label || "Daily Signal")}</span>
+                                <span class="digest-when">${escapeHtml(whenLabel)}</span>
+                            </div>
+                            <div class="digest-title">${escapeHtml(item.game_name || "Unknown game")}</div>
+                            <div class="digest-sub">${escapeHtml(detail)}</div>
+                        </a>
+                    </article>
+                `;
+            }).join("");
+        }
+
         function renderAlerts() {
             if (!ui.alertsList) return;
 
@@ -6587,7 +6982,7 @@ input:focus-visible {
                 insertBeforeNode = node.nextSibling;
             });
 
-            const sideOrder = ["wishlistPanel", "watchlistPanel", "dealRadarPanel", "alertsPanel"];
+            const sideOrder = ["wishlistPanel", "watchlistPanel", "dailyDigestPanel", "dealRadarPanel", "alertsPanel"];
             sideOrder.forEach((sectionId) => {
                 const node = document.getElementById(sectionId);
                 if (node) sideColumn.appendChild(node);
@@ -6607,6 +7002,7 @@ input:focus-visible {
             renderTopPlayed();
             renderTrending();
             renderLeaderboard();
+            renderDailyDigest();
             renderDealRadar();
             renderAlerts();
             renderNewHistoricalLows();
@@ -7120,7 +7516,14 @@ input:focus-visible {
             select.innerHTML = options.join("");
         }
 
-        function hydrateDashboardState(dashboardPayload, seasonalPayload, releasedPayload, dealRadarPayload, opportunitiesPayload) {
+        function hydrateDashboardState(
+            dashboardPayload,
+            seasonalPayload,
+            releasedPayload,
+            dealRadarPayload,
+            opportunitiesPayload,
+            dailyDigestPayload,
+        ) {
             const biggestDiscounts = uniqueGamesByName(
                 dashboardPayload?.biggest_discounts
                 || dashboardPayload?.biggestDeals
@@ -7275,6 +7678,22 @@ input:focus-visible {
             state.watchlist = [];
             state.alertSignals = alertSignals;
             state.dealRadar = dealRadar;
+            const digestSource = dailyDigestPayload && typeof dailyDigestPayload === "object" ? dailyDigestPayload : {};
+            const digestSections = digestSource.sections && typeof digestSource.sections === "object"
+                ? digestSource.sections
+                : {};
+            const digestHighlights = safeArray(digestSource.highlights);
+            state.dailyDigest = {
+                sections: digestSections,
+                highlights: digestHighlights,
+                counts: digestSource.counts && typeof digestSource.counts === "object" ? digestSource.counts : {},
+                personalized: !!digestSource.personalized,
+                window_start: digestSource.window_start || null,
+                window_end: digestSource.window_end || null,
+                generated_at: digestSource.generated_at || null,
+            };
+            state.dailyDigestStatus.loading = false;
+            state.dailyDigestStatus.error = null;
             const analyticsFallbackPool = uniqueGamesByName([
                 ...releasedItems,
                 ...topPlayed,
@@ -7305,12 +7724,14 @@ input:focus-visible {
             const emptyReleased = { items: [] };
             const emptyDealRadar = { items: [] };
             const emptyOpportunities = { items: [] };
+            const emptyDailyDigest = { sections: {}, highlights: [], counts: {} };
 
             let dashboardData = null;
             let seasonalData = emptySeasonal;
             let releasedData = emptyReleased;
             let dealRadarData = emptyDealRadar;
             let opportunitiesData = emptyOpportunities;
+            let dailyDigestData = emptyDailyDigest;
 
             try {
                 dashboardData = await fetchJson("/dashboard/home");
@@ -7362,6 +7783,19 @@ input:focus-visible {
                     ? { items: dashboardOpportunitySeed }
                     : await fetchJson("/api/deal-opportunities?limit=48")
                         .catch(() => emptyOpportunities);
+
+                const dashboardDigestSeed = dashboardData?.daily_digest || dashboardData?.dailyDigest;
+                const digestEndpointUrl = `/api/daily-digest?user_id=${encodeURIComponent(CURRENT_USER_ID)}&section_limit=8`;
+                dailyDigestData = (
+                    dashboardDigestSeed
+                    && typeof dashboardDigestSeed === "object"
+                    && (
+                        (dashboardDigestSeed.sections && typeof dashboardDigestSeed.sections === "object")
+                        || safeArray(dashboardDigestSeed.highlights).length
+                    )
+                )
+                    ? dashboardDigestSeed
+                    : await fetchJson(digestEndpointUrl).catch(() => emptyDailyDigest);
             } catch (dashboardError) {
                 console.warn("Failed to load /dashboard/home, using endpoint fallbacks", dashboardError);
                 dashboardData = {
@@ -7393,17 +7827,26 @@ input:focus-visible {
                     deal_radar: [],
                     dealOpportunities: [],
                     deal_opportunities: [],
+                    daily_digest: emptyDailyDigest,
                 };
-                [seasonalData, releasedData, dealRadarData, opportunitiesData] = await Promise.all([
+                [seasonalData, releasedData, dealRadarData, opportunitiesData, dailyDigestData] = await Promise.all([
                     fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal),
                     fetchJson(`/games/released?${releasedParams.toString()}`).catch(() => emptyReleased),
                     fetchJson("/api/market-radar?limit=50")
                         .catch(() => fetchJson("/api/deal-radar?limit=50"))
                         .catch(() => emptyDealRadar),
                     fetchJson("/api/deal-opportunities?limit=48").catch(() => emptyOpportunities),
+                    fetchJson(`/api/daily-digest?user_id=${encodeURIComponent(CURRENT_USER_ID)}&section_limit=8`).catch(() => emptyDailyDigest),
                 ]);
             }
-            hydrateDashboardState(dashboardData, seasonalData, releasedData, dealRadarData, opportunitiesData);
+            hydrateDashboardState(
+                dashboardData,
+                seasonalData,
+                releasedData,
+                dealRadarData,
+                opportunitiesData,
+                dailyDigestData,
+            );
             seedCatalogFromPayload(releasedData);
             const [, , userAlertSignals, personalizedDeals] = await Promise.all([
                 loadUserWatchlist().catch((error) => {
@@ -8208,6 +8651,8 @@ input:focus-visible {
                 state.personalizedStatus.enabled = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
                 state.personalizedStatus.loading = state.personalizedStatus.enabled;
                 state.personalizedStatus.error = null;
+                state.dailyDigestStatus.loading = true;
+                state.dailyDigestStatus.error = null;
                 setPanelVisibility(ui.recommendedForYouPanel, state.personalizedStatus.enabled);
                 if (state.personalizedStatus.enabled) {
                     renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
@@ -8224,6 +8669,7 @@ input:focus-visible {
                 renderSkeleton(ui.recentlyUpdatedList, "mini-list", 3, { itemClass: "mini-item" });
                 renderSkeleton(ui.topPlayedList, "mini-list", 4, { itemClass: "mini-item" });
                 renderSkeleton(ui.trendingList, "mini-list", 4, { itemClass: "mini-item" });
+                renderSkeleton(ui.dailyDigestList, "panel-list", 4, { itemClass: "digest-item" });
                 renderSkeleton(ui.alertsList, "mini-list", 4, { itemClass: "mini-item" });
                 renderSkeleton(ui.dealRadarFeed, "radar-list", 4, { itemClass: "deal-radar-card", thumbClass: "deal-radar-thumb" });
                 renderSkeleton(ui.leaderboardList, "mini-list", 4, { itemClass: "mini-item" });
@@ -8271,12 +8717,15 @@ input:focus-visible {
                 state.personalListStatus.watchlistLoading = false;
                 state.personalListStatus.wishlistError = error;
                 state.personalListStatus.watchlistError = error;
+                state.dailyDigestStatus.loading = false;
+                state.dailyDigestStatus.error = error;
                 setPanelVisibility(ui.wishlistPanel, true);
                 setPanelVisibility(ui.watchlistPanel, true);
                 renderError(ui.seasonalSaleTopGrid, "Failed to load seasonal radar.");
                 renderError(ui.seasonalSaleLowerGrid, "Failed to load seasonal radar.");
                 renderError(ui.dealRankedGrid, "Failed to load biggest discounts.");
                 renderError(ui.opportunitiesGrid, "Failed to load opportunities.");
+                renderError(ui.dailyDigestList, "Failed to load daily digest.");
                 if (!isDefaultOrAnonymousUserId(CURRENT_USER_ID)) {
                     setPanelVisibility(ui.recommendedForYouPanel, true);
                     renderError(ui.personalizedDealsGrid, "Failed to load personalized recommendations.");

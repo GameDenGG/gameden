@@ -668,15 +668,19 @@ input:focus-visible {
     gap: 16px;
 }
 
+.homepage-content-grid,
 .dashboard-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+    grid-template-columns: minmax(0, 1fr) 340px;
     grid-template-areas: "main rail";
     gap: 20px;
     align-items: start;
     width: 100%;
+    min-width: 0;
 }
 
+.homepage-content-grid > .main-column,
+.homepage-content-grid > .side-column,
 .dashboard-grid > .main-column,
 .dashboard-grid > .side-column {
     min-width: 0;
@@ -691,7 +695,9 @@ input:focus-visible {
 }
 
 .main-column,
-.side-column {
+.side-column,
+.homepage-main-column,
+.homepage-right-rail {
     display: grid;
     gap: 16px;
     align-content: start;
@@ -699,11 +705,13 @@ input:focus-visible {
     min-width: 0;
 }
 
-.main-column {
+.main-column,
+.homepage-main-column {
     grid-area: main;
 }
 
-.side-column {
+.side-column,
+.homepage-right-rail {
     grid-area: rail;
     grid-auto-rows: min-content;
     max-width: none;
@@ -714,7 +722,9 @@ input:focus-visible {
 }
 
 .side-column > .panel,
-.side-column > .side-zone-header {
+.side-column > .side-zone-header,
+.homepage-right-rail > .panel,
+.homepage-right-rail > .side-zone-header {
     width: 100%;
     min-width: 0;
 }
@@ -2806,13 +2816,15 @@ input:focus-visible {
     .homepage-content-shell {
         gap: 16px;
     }
+    .homepage-content-grid,
     .dashboard-grid {
         grid-template-columns: 1fr;
         grid-template-areas:
             "main"
             "rail";
     }
-    .side-column {
+    .side-column,
+    .homepage-right-rail {
         width: 100%;
         max-width: none;
         position: static;
@@ -3404,9 +3416,9 @@ input:focus-visible {
             </div>
 
             <div class="homepage-content-shell">
-                <main class="dashboard-grid">
-            <section class="main-column" aria-label="Main market intelligence">
-                <div class="column-zone-label main-zone-label">Main Content</div>
+                <div class="homepage-content-grid dashboard-grid">
+                    <main class="main-column homepage-main-column" aria-label="Main market intelligence">
+                        <div class="column-zone-label main-zone-label">Main Content</div>
                 <section class="panel panel-seasonal panel-secondary-intel hidden" id="seasonalSaleTopPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -3763,9 +3775,9 @@ input:focus-visible {
                     </div>
                 </section>
 
-            </section>
+                    </main>
 
-            <aside class="side-column" aria-label="Your radar rail">
+                    <aside class="side-column homepage-right-rail" aria-label="Your radar rail">
                 <div class="side-zone-header">
                     <div class="column-zone-label side-zone-label">Your Radar</div>
                     <button
@@ -3881,8 +3893,8 @@ input:focus-visible {
                         </div>
                     </div>
                 </section>
-            </aside>
-                </main>
+                    </aside>
+                </div>
 
                 <section class="lower-sections" id="lowerSections" aria-label="More market intelligence">
                     <section class="panel panel-secondary-intel more-intel-panel" id="moreIntelSection">

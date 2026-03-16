@@ -247,6 +247,48 @@ select {
     pointer-events: none;
 }
 
+.logo-hero {
+    display: grid;
+    place-items: center;
+    padding: 22px 24px;
+}
+
+.logo-hero-stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: min(760px, 100%);
+    min-height: clamp(92px, 19vw, 178px);
+}
+
+.logo-hero-image {
+    grid-area: 1 / 1;
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: clamp(92px, 19vw, 178px);
+    object-fit: contain;
+}
+
+.logo-hero-static {
+    position: relative;
+    z-index: 1;
+    opacity: 1;
+    transition: opacity 0.22s ease;
+}
+
+.logo-hero-animated {
+    position: relative;
+    z-index: 2;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease;
+}
+
+.logo-hero-stage.is-playing .logo-hero-animated {
+    opacity: 1;
+}
+
 .eyebrow {
     color: #c6d7ff;
     font-family: var(--font-mono);
@@ -2632,6 +2674,16 @@ input:focus-visible {
         border-radius: 20px;
         margin-bottom: 18px;
     }
+    .logo-hero {
+        padding: 16px 14px;
+    }
+    .logo-hero-stage {
+        width: min(640px, 100%);
+        min-height: clamp(80px, 20vw, 132px);
+    }
+    .logo-hero-image {
+        max-height: clamp(80px, 20vw, 132px);
+    }
     .hero h1 {
         margin: 8px 0 7px;
         font-size: clamp(30px, 9.2vw, 40px);
@@ -2894,6 +2946,16 @@ input:focus-visible {
         padding: 16px;
         border-radius: 18px;
     }
+    .logo-hero {
+        padding: 14px 12px;
+    }
+    .logo-hero-stage {
+        width: min(520px, 100%);
+        min-height: clamp(68px, 23vw, 104px);
+    }
+    .logo-hero-image {
+        max-height: clamp(68px, 23vw, 104px);
+    }
     .hero h1 {
         font-size: clamp(27px, 9vw, 33px);
     }
@@ -2951,21 +3013,27 @@ input:focus-visible {
             </div>
         </header>
 
-        <section class="hero">
-                <div class="eyebrow" id="heroEyebrow">GameDen.gg: The Game Market Radar</div>
-                <h1 id="heroHeading">GameDen.gg</h1>
-            <p id="heroLead">
-                Premium Steam-market intelligence for discovery, timing, and conviction. Track discounts, player momentum,
-                seasonal sale relevance, historical lows, and high-signal deal movement in one fast dashboard.
-            </p>
-            <div class="hero-chip-row">
-                <span class="hero-chip">Deal Quality Signals</span>
-                <span class="hero-chip">Player Momentum Tracking</span>
-                <span class="hero-chip">Snapshot-Backed Discovery</span>
-            </div>
-            <div class="hero-cta-row">
-                <a class="hero-cta primary" id="heroPrimaryCta" href="#dealRankedGrid">Explore Best Deals</a>
-    <a class="hero-cta secondary" id="heroSecondaryCta" href="all-results.html?view=released-games&title=All%20Games%20Directory">Browse Full Catalog</a>
+        <section class="hero logo-hero" aria-label="GameDen branded hero">
+            <div class="logo-hero-stage is-static" id="logoHeroStage">
+                <img
+                    class="logo-hero-image logo-hero-static"
+                    id="heroLogoStatic"
+                    src="/assets/logo/gameden-logo-static.png"
+                    alt="GameDen.gg logo"
+                    loading="eager"
+                    decoding="async"
+                    fetchpriority="high"
+                />
+                <img
+                    class="logo-hero-image logo-hero-animated"
+                    id="heroLogoAnimated"
+                    src="/assets/logo/gameden-logo-animated.gif"
+                    alt=""
+                    aria-hidden="true"
+                    loading="eager"
+                    decoding="async"
+                    fetchpriority="high"
+                />
             </div>
         </section>
 
@@ -3595,9 +3663,6 @@ input:focus-visible {
             name: "GameDen.gg",
             emblem: "GD",
             subtitle: "The Game Market Radar",
-            heroEyebrow: "GameDen.gg: The Game Market Radar",
-            heroHeading: "GameDen.gg",
-            heroLead: "Premium Steam-market intelligence for discovery, timing, and conviction. Track discounts, player momentum, seasonal sale relevance, historical lows, and high-signal deal movement in one fast dashboard.",
             footerSummary: "Snapshot-backed Steam intelligence for pricing, momentum, and timing decisions across the full catalog.",
             searchPlaceholder: "Search games, genres, or tags...",
             pageTitle: "GameDen.gg",
@@ -3605,6 +3670,8 @@ input:focus-visible {
 
         const WATCHLIST_STORAGE_KEY = "gameden.user_id";
         const DEFAULT_USER_ID = "legacy-user";
+        const HERO_LOGO_ANIMATION_DURATION_MS = 4200;
+        const HERO_LOGO_SESSION_KEY = "gameden.hero_logo_intro_played";
 
         function getCurrentUserId() {
             const fallback = DEFAULT_USER_ID;
@@ -3642,15 +3709,90 @@ input:focus-visible {
             setNodeText("brandEmblem", SITE_BRAND.emblem);
             setNodeText("brandName", SITE_BRAND.name);
             setNodeText("brandSubtitle", SITE_BRAND.subtitle);
-            setNodeText("heroEyebrow", SITE_BRAND.heroEyebrow);
-            setNodeText("heroHeading", SITE_BRAND.heroHeading);
-            setNodeText("heroLead", SITE_BRAND.heroLead);
             setNodeText("footerBrand", SITE_BRAND.name);
             setNodeText("footerSummary", SITE_BRAND.footerSummary);
             const searchInput = document.getElementById("searchInput");
             if (searchInput) {
                 searchInput.setAttribute("placeholder", SITE_BRAND.searchPlaceholder);
             }
+        }
+
+        function initializeHeroLogoPlayback() {
+            const logoStage = document.getElementById("logoHeroStage");
+            const animatedLogo = document.getElementById("heroLogoAnimated");
+            if (!logoStage || !animatedLogo) return;
+
+            const markPlayedInSession = () => {
+                try {
+                    sessionStorage.setItem(HERO_LOGO_SESSION_KEY, "1");
+                } catch {
+                    // Session storage can be unavailable in strict browser modes.
+                }
+            };
+
+            const setStaticState = (markPlayed = true) => {
+                logoStage.classList.remove("is-playing");
+                logoStage.classList.add("is-static");
+                if (markPlayed) markPlayedInSession();
+            };
+
+            const hasPlayedInSession = (() => {
+                try {
+                    return sessionStorage.getItem(HERO_LOGO_SESSION_KEY) === "1";
+                } catch {
+                    return false;
+                }
+            })();
+
+            if (hasPlayedInSession) {
+                setStaticState(false);
+                return;
+            }
+
+            let settled = false;
+            let playbackTimer = null;
+
+            const completePlayback = () => {
+                if (settled) return;
+                settled = true;
+                if (playbackTimer !== null) {
+                    clearTimeout(playbackTimer);
+                }
+                setStaticState(true);
+            };
+
+            const startPlayback = () => {
+                if (settled) return;
+                markPlayedInSession();
+                logoStage.classList.add("is-playing");
+                playbackTimer = window.setTimeout(completePlayback, HERO_LOGO_ANIMATION_DURATION_MS);
+            };
+
+            const handleAnimatedError = () => {
+                completePlayback();
+            };
+
+            if (animatedLogo.complete) {
+                if (animatedLogo.naturalWidth > 0) {
+                    startPlayback();
+                } else {
+                    handleAnimatedError();
+                }
+                return;
+            }
+
+            const onLoad = () => {
+                animatedLogo.removeEventListener("error", onError);
+                startPlayback();
+            };
+
+            const onError = () => {
+                animatedLogo.removeEventListener("load", onLoad);
+                handleAnimatedError();
+            };
+
+            animatedLogo.addEventListener("load", onLoad, { once: true });
+            animatedLogo.addEventListener("error", onError, { once: true });
         }
 
         const CATALOG_PAGE_SIZE = 100;
@@ -3879,7 +4021,6 @@ input:focus-visible {
             searchResultsPop: document.getElementById("searchResultsPop"),
             searchResultsList: document.getElementById("searchResultsList"),
             trackedGamesChip: document.getElementById("trackedGamesChip"),
-            heroSecondaryCta: document.getElementById("heroSecondaryCta"),
         };
 
         const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
@@ -6046,9 +6187,6 @@ input:focus-visible {
             const href = buildShowAllHref("released-games", "All Games Directory");
             if (ui.releasedGamesDirectoryBtn) {
                 ui.releasedGamesDirectoryBtn.href = href;
-            }
-            if (ui.heroSecondaryCta) {
-                ui.heroSecondaryCta.href = href;
             }
         }
 
@@ -9423,6 +9561,7 @@ input:focus-visible {
         async function init() {
             try {
                 applySiteBranding();
+                initializeHeroLogoPlayback();
                 applyDiscoverySectionOrder();
                 state.lastVisitTs = getStoredLastVisitTs();
                 renderSkeleton(ui.seasonalSaleTopGrid, "deal-cards", 4, { cardClass: "game-card" });

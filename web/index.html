@@ -360,18 +360,6 @@ select {
     transition: opacity 0.24s ease, transform 0.24s ease, filter 0.24s ease;
 }
 
-.global-filters-shell.scrolled {
-    opacity: 0.9;
-    transform: translateY(0);
-    filter: saturate(0.94);
-}
-
-.global-filters-shell.hidden-on-scroll {
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(-8px);
-}
-
 .global-filters {
     border-radius: 18px;
     border: 1px solid rgba(121, 168, 255, 0.28);
@@ -382,7 +370,7 @@ select {
 
 .mobile-filter-toggle-row {
     display: none;
-    margin-top: 10px;
+    margin: 0 0 10px;
     justify-content: flex-end;
 }
 
@@ -2511,10 +2499,6 @@ input:focus-visible {
         transform: translateY(102%);
         transition: transform 0.24s ease;
     }
-    .global-filters-shell.scrolled {
-        opacity: 1;
-        filter: none;
-    }
     body.mobile-filters-open .global-filters-shell {
         transform: translateY(0);
         pointer-events: auto;
@@ -2800,6 +2784,19 @@ input:focus-visible {
         </section>
 
         <div class="sticky-shell">
+            <div class="mobile-filter-toggle-row" id="mobileFilterToggleRow">
+                <button
+                    class="secondary-btn mobile-filters-toggle"
+                    id="mobileFiltersToggleBtn"
+                    type="button"
+                    aria-controls="filtersPanel"
+                    aria-expanded="false"
+                >
+                    Filters
+                    <span class="mobile-filter-count" id="mobileFilterCount" hidden>0</span>
+                </button>
+            </div>
+
             <div class="search-stack" id="searchStack">
                 <div class="search-bar-wrap" id="searchBarWrap">
                     <div class="search-bar">
@@ -2813,19 +2810,6 @@ input:focus-visible {
                     <div class="search-results-list" id="searchResultsList"></div>
                 </div>
             </div>
-
-            <div class="mobile-filter-toggle-row" id="mobileFilterToggleRow">
-                <button
-                    class="secondary-btn mobile-filters-toggle"
-                    id="mobileFiltersToggleBtn"
-                    type="button"
-                    aria-controls="filtersPanel"
-                    aria-expanded="false"
-                >
-                    Filters
-                    <span class="mobile-filter-count" id="mobileFilterCount" hidden>0</span>
-                </button>
-            </div>
             <button
                 class="mobile-filters-backdrop"
                 id="mobileFiltersBackdrop"
@@ -2837,7 +2821,15 @@ input:focus-visible {
                 <section class="global-filters show-fade" id="filtersPanel">
                     <div class="mobile-filters-head">
                         <div class="mobile-filters-title">Filters</div>
-                        <button class="secondary-btn mobile-filters-close" id="mobileFiltersCloseBtn" type="button">Close</button>
+                        <button
+                            class="secondary-btn mobile-filters-close"
+                            id="mobileFiltersCloseBtn"
+                            type="button"
+                            aria-label="Close filters panel"
+                            title="Close filters"
+                        >
+                            &#10005;
+                        </button>
                     </div>
                     <div class="filters-top-row">
                         <div class="field">
@@ -9057,9 +9049,7 @@ input:focus-visible {
                     pendingAnimationFrame = null;
                     const isScrolled = window.scrollY > SCROLL_DIM_THRESHOLD_PX;
                     ui.searchBarWrap.classList.toggle("scrolled", isScrolled);
-                    ui.filtersShell.classList.toggle("scrolled", isScrolled);
                 });
-                ui.filtersShell.classList.remove("hidden-on-scroll");
             };
 
             window.addEventListener("scroll", onScroll, { passive: true });

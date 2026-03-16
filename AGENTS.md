@@ -143,3 +143,7 @@ After changes, validate as applicable:
    - do not patch around it in application code
 
 7. Schema correctness is always preferred over temporary compatibility workarounds.
+
+8. App startup must refuse to run when Alembic current revision does not match head revision.
+
+9. `setup_database.py` is for local/bootstrap convenience only; production deploy schema changes must flow through Alembic migrations.

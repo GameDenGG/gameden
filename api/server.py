@@ -33,6 +33,7 @@ from config import (
     CANONICAL_REDIRECT_HOSTS,
     CORS_ALLOW_ALL_ORIGINS,
     CORS_ALLOW_ORIGINS,
+    IS_DEPLOYED_RUNTIME,
     SITE_DESCRIPTION,
     SITE_HOST,
     SITE_NAME,
@@ -41,6 +42,7 @@ from config import (
 )
 from database import ReadSessionLocal, direct_engine
 from database.dirty_games import mark_game_dirty
+from database.migration_guard import assert_database_revision_current, warn_if_model_schema_drift
 from database.schema_guard import assert_scale_schema_ready
 from database.models import (
     DealWatchlist,
@@ -88,7 +90,10 @@ if Path("public").exists():
 
 @app.on_event("startup")
 async def startup_guardrails() -> None:
+    assert_database_revision_current(component_name="api server", logger=logger)
     assert_scale_schema_ready(direct_engine, component_name="api server")
+    if not IS_DEPLOYED_RUNTIME:
+        warn_if_model_schema_drift(component_name="api server", logger=logger)
     logger.info(
         "api startup ready "
         "cache_stale_minutes=%s default_user_id=%s page_size_default=%s page_size_max=%s "

@@ -280,5 +280,5 @@ def assert_scale_schema_ready(engine: Engine, *, component_name: str) -> SchemaR
     detail_text = "; ".join(details) if details else "unknown schema mismatch"
     raise RuntimeError(
         f"{component_name} cannot start because required scale schema is missing ({detail_text}). "
-        "Run: python setup_database.py (or apply migrations with: alembic upgrade head)."
+        "Run: alembic upgrade head (or python setup_database.py for local convenience)."
     )

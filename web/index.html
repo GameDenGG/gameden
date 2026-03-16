@@ -360,6 +360,17 @@ select {
     transform: translateY(-1px);
 }
 
+.home-jump-chip.is-active {
+    border-color: rgba(255, 196, 111, 0.48);
+    background: rgba(255, 196, 111, 0.17);
+    color: #ffe7c2;
+    box-shadow: 0 8px 18px rgba(4, 12, 24, 0.22);
+}
+
+.home-jump-chip[aria-current="true"] {
+    border-color: rgba(255, 196, 111, 0.48);
+}
+
 .home-jump-chip:active {
     transform: translateY(0);
 }
@@ -3228,11 +3239,11 @@ input:focus-visible {
         </div>
 
         <nav class="home-jump-nav" id="homeJumpNav" aria-label="Jump to homepage zones">
-            <button class="home-jump-chip" type="button" data-home-jump-group="Buy Signals">Buy Signals</button>
-            <button class="home-jump-chip" type="button" data-home-jump-group="Your Radar">Your Radar</button>
-            <button class="home-jump-chip" type="button" data-home-jump-group="Discovery">Discovery</button>
-            <button class="home-jump-chip" type="button" data-home-jump-group="Upcoming">Upcoming</button>
-            <button class="home-jump-chip" type="button" data-home-jump-group="Analytics">Analytics</button>
+            <button class="home-jump-chip" type="button" data-home-jump-group="Buy Signals" data-home-jump-target="bestDealsPanel">Buy Signals</button>
+            <button class="home-jump-chip" type="button" data-home-jump-group="Your Radar" data-home-jump-target="recommendedForYouPanel">Your Radar</button>
+            <button class="home-jump-chip" type="button" data-home-jump-group="Discovery" data-home-jump-target="discoveryTabsShell">Discovery</button>
+            <button class="home-jump-chip" type="button" data-home-jump-group="Upcoming" data-home-jump-target="upcomingPanel">Upcoming</button>
+            <button class="home-jump-chip" type="button" data-home-jump-group="Analytics" data-home-jump-target="analyticsPanel">Analytics</button>
         </nav>
 
         <main class="dashboard-grid">
@@ -8058,10 +8069,88 @@ input:focus-visible {
             return visible || candidates[0];
         }
 
-        function scrollToHomepageGroup(groupName) {
-            const target = resolveGroupScrollTarget(groupName);
+        function resolveHomepageGroupTarget(groupName, explicitTargetId = "") {
+            const targetId = String(explicitTargetId || "").trim();
+            if (targetId) {
+                const explicitTarget = document.getElementById(targetId);
+                if (
+                    explicitTarget instanceof HTMLElement
+                    && !explicitTarget.classList.contains("hidden")
+                    && !explicitTarget.hidden
+                    && explicitTarget.offsetParent !== null
+                ) {
+                    return explicitTarget;
+                }
+            }
+            return resolveGroupScrollTarget(groupName);
+        }
+
+        function scrollToHomepageGroup(groupName, explicitTargetId = "") {
+            const target = resolveHomepageGroupTarget(groupName, explicitTargetId);
             if (!(target instanceof HTMLElement)) return;
-            target.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+            const prefersReducedMotion = Boolean(
+                window.matchMedia
+                && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+            );
+            target.scrollIntoView({
+                behavior: prefersReducedMotion ? "auto" : "smooth",
+                block: "start",
+                inline: "nearest",
+            });
+        }
+
+        function setHomepageJumpNavActiveGroup(groupName) {
+            const nav = ui.homeJumpNav;
+            if (!nav) return;
+            const targetGroup = String(groupName || "").trim();
+            nav.querySelectorAll("[data-home-jump-group]").forEach((button) => {
+                if (!(button instanceof HTMLButtonElement)) return;
+                const isActive = targetGroup && button.dataset.homeJumpGroup === targetGroup;
+                button.classList.toggle("is-active", isActive);
+                if (isActive) {
+                    button.setAttribute("aria-current", "true");
+                } else {
+                    button.removeAttribute("aria-current");
+                }
+            });
+        }
+
+        function resolveVisibleHomepageGroup() {
+            const focusLineBase = ui.searchBarWrap instanceof HTMLElement
+                ? ui.searchBarWrap.getBoundingClientRect().bottom + 16
+                : 120;
+            const focusLine = Math.max(92, Math.min(window.innerHeight * 0.62, focusLineBase));
+
+            let fallbackGroup = "";
+            let fallbackDistance = Number.POSITIVE_INFINITY;
+
+            for (const groupName of HOMEPAGE_GROUP_ORDER) {
+                const panel = resolveGroupScrollTarget(groupName);
+                if (!(panel instanceof HTMLElement)) continue;
+
+                const rect = panel.getBoundingClientRect();
+                if (rect.bottom <= 0 || rect.top >= window.innerHeight) continue;
+
+                if (rect.top <= focusLine && rect.bottom >= focusLine) {
+                    return groupName;
+                }
+
+                const distance = rect.top > focusLine
+                    ? rect.top - focusLine
+                    : focusLine - rect.bottom;
+                if (distance < fallbackDistance) {
+                    fallbackDistance = distance;
+                    fallbackGroup = groupName;
+                }
+            }
+
+            return fallbackGroup;
+        }
+
+        function syncHomepageJumpNavActiveState() {
+            const activeGroup = resolveVisibleHomepageGroup();
+            if (!activeGroup) return;
+            setHomepageJumpNavActiveGroup(activeGroup);
         }
 
         function wireHomepageJumpNav() {
@@ -8075,10 +8164,31 @@ input:focus-visible {
                 if (!(chip instanceof HTMLButtonElement)) return;
                 const groupName = String(chip.dataset.homeJumpGroup || "").trim();
                 if (!groupName) return;
-                scrollToHomepageGroup(groupName);
+                const jumpTargetId = String(chip.dataset.homeJumpTarget || "").trim();
+                setHomepageJumpNavActiveGroup(groupName);
+                scrollToHomepageGroup(groupName, jumpTargetId);
             });
 
+            syncHomepageJumpNavActiveState();
             wireHomepageJumpNav._wired = true;
+        }
+
+        function wireHomepageJumpNavActiveState() {
+            if (wireHomepageJumpNavActiveState._wired) return;
+
+            let pendingAnimationFrame = null;
+            const scheduleSync = () => {
+                if (pendingAnimationFrame !== null) return;
+                pendingAnimationFrame = requestAnimationFrame(() => {
+                    pendingAnimationFrame = null;
+                    syncHomepageJumpNavActiveState();
+                });
+            };
+
+            window.addEventListener("scroll", scheduleSync, { passive: true });
+            window.addEventListener("resize", scheduleSync, { passive: true });
+            wireHomepageJumpNavActiveState._wired = true;
+            scheduleSync();
         }
 
         function activateDiscoveryTab(tabKey, options = {}) {
@@ -8247,6 +8357,7 @@ input:focus-visible {
             dashboardGrid.classList.toggle("is-mobile-merged", isMobileLayout);
 
             applyDiscoverySectionOrder._mode = layoutMode;
+            syncHomepageJumpNavActiveState();
         }
 
         function wireResponsiveHomepageLayout() {
@@ -10178,6 +10289,7 @@ input:focus-visible {
                 wireFilters();
                 wireScrollBehavior();
                 wireHomepageJumpNav();
+                wireHomepageJumpNavActiveState();
                 wireSectionReveal();
                 wireSeasonalToggles();
                 wireRecentlyUpdatedToggle();

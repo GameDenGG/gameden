@@ -248,6 +248,64 @@
     updateMetaTag("link[rel='canonical']", "href", canonicalUrl);
   }
 
+  function _toFiniteNumber(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return null;
+    return parsed;
+  }
+
+  function getDealConfidence(payload) {
+    const source = payload && typeof payload === "object" ? payload : {};
+    const scoreCandidates = [
+      source.buy_score,
+      source.worth_buying_score,
+      source.deal_score,
+      source.score,
+    ];
+
+    let rawScore = null;
+    for (const candidate of scoreCandidates) {
+      const parsed = _toFiniteNumber(candidate);
+      if (parsed === null) continue;
+      rawScore = parsed;
+      break;
+    }
+    if (rawScore === null) {
+      return null;
+    }
+
+    const score = Math.max(0, Math.min(100, rawScore));
+    let confidenceLabel = "Wait";
+    let confidenceColor = "#9eb8e7";
+    let confidenceIcon = "WT";
+    let className = "wait";
+
+    if (score >= 85) {
+      confidenceLabel = "Strong Buy";
+      confidenceColor = "#5ce4a9";
+      confidenceIcon = "SB";
+      className = "strong-buy";
+    } else if (score >= 70) {
+      confidenceLabel = "Good Deal";
+      confidenceColor = "#6fe8ff";
+      confidenceIcon = "GD";
+      className = "good-deal";
+    } else if (score >= 50) {
+      confidenceLabel = "Fair Price";
+      confidenceColor = "#ffc77a";
+      confidenceIcon = "FP";
+      className = "fair-price";
+    }
+
+    return {
+      score: Math.round(score * 10) / 10,
+      confidence_label: confidenceLabel,
+      confidence_color: confidenceColor,
+      confidence_icon: confidenceIcon,
+      class_name: className,
+    };
+  }
+
   function _normalizeNewSignalToken(value) {
     return String(value ?? "").trim().toLowerCase();
   }
@@ -645,6 +703,7 @@
     resolveApiUrl,
     fetchJson,
     applyMetadata,
+    getDealConfidence,
     markNewSignal,
     resetNewSignalScope,
     skeleton: skeletonApi,

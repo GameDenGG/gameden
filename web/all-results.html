@@ -82,6 +82,11 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
 .meta-chip.deal-primary{border-color:rgba(255,199,122,.38);background:rgba(255,199,122,.16);color:#ffe5bf}
 .meta-chip.deal-flag{border-color:rgba(188,168,255,.4);background:rgba(188,168,255,.18);color:#e0d2ff}
 .meta-chip.metric{color:#dce9ff}
+.meta-chip.confidence-badge{display:inline-flex;align-items:center;gap:5px}
+.meta-chip.confidence-badge.strong-buy{border-color:rgba(92,228,169,.45);background:rgba(92,228,169,.16);color:#b8ffe0}
+.meta-chip.confidence-badge.good-deal{border-color:rgba(111,232,255,.44);background:rgba(111,232,255,.16);color:#d8fbff}
+.meta-chip.confidence-badge.fair-price{border-color:rgba(255,199,122,.44);background:rgba(255,199,122,.16);color:#ffe5bf}
+.meta-chip.confidence-badge.wait{border-color:rgba(188,205,236,.35);background:rgba(188,205,236,.12);color:#deecff}
 .context-item{white-space:nowrap}
 .context-item strong{color:#e8f0ff}
 .skeleton .title,.skeleton .price strong,.skeleton .price s,.skeleton .meta-chip,.skeleton .context-item{color:transparent;background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.18),rgba(255,255,255,.06));background-size:220% 100%;animation:shimmer 1.2s linear infinite}
@@ -202,6 +207,34 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
   const isTopValueDeal = (g) => { const discount = Math.max(0, n(g?.discount_percent, 0) || 0); const dealScore = n(g?.deal_score, null); const worthScore = n(g?.buy_score ?? g?.worth_buying_score, null); const recommendation = normalizeRecommendation(g?.buy_recommendation); return recommendation === "BUY_NOW" || isHistoricalLowSignal(g?.historical_status) || discount >= HIGH_VALUE_DISCOUNT_THRESHOLD || (dealScore !== null && dealScore >= HIGH_VALUE_DEAL_SCORE_THRESHOLD) || (worthScore !== null && worthScore >= HIGH_VALUE_WORTH_SCORE_THRESHOLD); };
   const markNewSignal = (scope, itemKey) => { const scopeKey = String(scope || "").trim().toLowerCase(); const signalKey = String(itemKey || "").trim().toLowerCase(); if (!scopeKey || !signalKey) return false; if (window.GameDenSite && typeof window.GameDenSite.markNewSignal === "function") return window.GameDenSite.markNewSignal(scopeKey, signalKey, { maxEntries: NEW_SIGNAL_TRACKER_LIMIT }); if (!(markNewSignal._fallback instanceof Map)) markNewSignal._fallback = new Map(); let bucket = markNewSignal._fallback.get(scopeKey); if (!bucket) { bucket = { seen: new Set(), order: [] }; markNewSignal._fallback.set(scopeKey, bucket); } if (bucket.seen.has(signalKey)) return false; bucket.seen.add(signalKey); bucket.order.push(signalKey); while (bucket.order.length > NEW_SIGNAL_TRACKER_LIMIT) { const oldest = bucket.order.shift(); if (!oldest) continue; bucket.seen.delete(oldest); } return true; };
   const shouldRenderNewSignalCard = (g) => { if (state.view === RELEASED_VIEW) return false; if (!HIGH_VALUE_FEED_VIEWS.has(state.view)) return false; if (state.view === "new-historical-lows" || state.view === "historical-lows") { if (!isHistoricalLowSignal(g?.historical_status)) return false; } else if (state.view === "new-deals" || state.view === "buy-now-picks") { if (normalizeRecommendation(g?.buy_recommendation) !== "BUY_NOW" && !isTopValueDeal(g)) return false; } else if (!isTopValueDeal(g)) return false; const identity = keyOf(g); return identity ? markNewSignal(`all-results:${state.view}`, identity) : false; };
+  const resolveDealConfidence = (row) => {
+    const helper = window.GameDenSite && window.GameDenSite.getDealConfidence;
+    if (typeof helper === "function") return helper(row);
+    const candidates = [row?.buy_score, row?.worth_buying_score, row?.deal_score];
+    let score = null;
+    for (const candidate of candidates) {
+      const parsed = Number(candidate);
+      if (!Number.isFinite(parsed)) continue;
+      score = Math.max(0, Math.min(100, parsed));
+      break;
+    }
+    if (score === null) return null;
+    if (score >= 85) return { score, confidence_label: "Strong Buy", confidence_icon: "SB", class_name: "strong-buy" };
+    if (score >= 70) return { score, confidence_label: "Good Deal", confidence_icon: "GD", class_name: "good-deal" };
+    if (score >= 50) return { score, confidence_label: "Fair Price", confidence_icon: "FP", class_name: "fair-price" };
+    return { score, confidence_label: "Wait", confidence_icon: "WT", class_name: "wait" };
+  };
+  const confidenceBadge = (row) => {
+    const confidence = resolveDealConfidence(row);
+    if (!confidence) return "";
+    const tone = String(confidence.class_name || "wait").trim() || "wait";
+    const label = String(confidence.confidence_label || "").trim();
+    if (!label) return "";
+    const icon = String(confidence.confidence_icon || "").trim();
+    const score = Number(confidence.score);
+    const title = Number.isFinite(score) ? `${label} (${Math.round(score)}/100)` : label;
+    return `<span class="meta-chip confidence-badge ${h(tone)}" title="${h(title)}">${h(icon)} ${h(label)}</span>`;
+  };
   function signalCandidates(g) {
     const signals = [];
     const push = (key, label, tone, priority) => { if (!label) return; signals.push({ key, label, tone, priority: Number(priority) || 0 }); };
@@ -242,14 +275,25 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
     return `<div class="meta-row explain">${lines.map((line) => `<span class="explain-item">${h(line)}</span>`).join('<span class="context-item">&bull;</span>')}</div>`;
   }
   function dealRow(g) {
-    const discount = Math.max(0, n(g?.discount_percent, 0) || 0); const dScore = n(g?.deal_score, null); const buyScore = n(g?.buy_score ?? g?.worth_buying_score, null); const reviewScore = n(g?.review_score, 0) || 0;
+    const discount = Math.max(0, n(g?.discount_percent, 0) || 0);
+    const dScore = n(g?.deal_score, null);
+    const buyScore = n(g?.buy_score ?? g?.worth_buying_score, null);
+    const reviewScore = n(g?.review_score, 0) || 0;
+
     let quality = "";
-    if (discount >= 80) quality = "Huge discount"; else if (dScore !== null && dScore >= 92) quality = "Top-ranked deal"; else if (reviewScore >= 90 && discount >= 50) quality = "Hidden gem value";
-    const discountChip = discount > 0 ? `<span class="meta-chip deal-primary">${Math.round(discount)}% off</span>` : '<span class="meta-chip">No active discount</span>';
+    if (discount >= 80) quality = "Huge discount";
+    else if (dScore !== null && dScore >= 92) quality = "Top-ranked deal";
+    else if (reviewScore >= 90 && discount >= 50) quality = "Hidden gem value";
+
+    const discountChip = discount > 0
+      ? `<span class="meta-chip deal-primary">${Math.round(discount)}% off</span>`
+      : '<span class="meta-chip">No active discount</span>';
+    const confidenceChip = confidenceBadge(g);
     const qualityChip = quality ? `<span class="meta-chip deal-flag">${h(quality)}</span>` : "";
     const dScoreChip = dScore !== null ? `<span class="meta-chip metric">Deal ${Math.round(dScore)}</span>` : "";
     const buyScoreChip = buyScore !== null ? `<span class="meta-chip metric">Worth ${Math.round(buyScore)}</span>` : "";
-    return `<div class="meta-row deal"><div class="meta-cluster primary">${discountChip}${qualityChip}</div><div class="meta-cluster secondary">${dScoreChip}${buyScoreChip}</div></div>`;
+
+    return `<div class="meta-row deal"><div class="meta-cluster primary">${discountChip}${confidenceChip}${qualityChip}</div><div class="meta-cluster secondary">${dScoreChip}${buyScoreChip}</div></div>`;
   }
   function contextRow(g) {
     const platforms = arr(g?.platforms).slice(0, 2).join(" • ") || "Unknown platform";

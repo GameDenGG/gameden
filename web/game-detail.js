@@ -84,6 +84,7 @@ function renderLoadingSkeletons() {
     skeletonUi.render(document.getElementById("predictionPanel"), "panel-list", 5, { itemClass: "prediction-stat" });
     skeletonUi.render(document.getElementById("nextSalePredictionPanel"), "panel-list", 5, { itemClass: "prediction-stat" });
     skeletonUi.render(document.getElementById("buyNowPanel"), "panel-list", 3, { itemClass: "prediction-stat" });
+    skeletonUi.render(document.getElementById("dealConfidencePanel"), "panel-list", 3, { itemClass: "prediction-stat" });
     skeletonUi.render(document.getElementById("dealHeatPanel"), "panel-list", 4, { itemClass: "prediction-stat" });
     skeletonUi.render(document.getElementById("marketInsights"), "meta-grid", 6, { itemClass: "meta-item" });
   }
@@ -107,7 +108,7 @@ function renderLoadFailureState(message) {
   }
 
   const panelError = `<div class="prediction-stat"><strong>Status</strong><div>${escapeHtml(safeMessage)}</div></div>`;
-  ["dealFactors", "predictionPanel", "nextSalePredictionPanel", "buyNowPanel", "dealHeatPanel"].forEach((id) => {
+  ["dealFactors", "predictionPanel", "nextSalePredictionPanel", "buyNowPanel", "dealConfidencePanel", "dealHeatPanel"].forEach((id) => {
     const node = document.getElementById(id);
     if (node) node.innerHTML = panelError;
   });
@@ -364,6 +365,49 @@ function normalizeReasonSnippet(value) {
   return compact.charAt(0).toUpperCase() + compact.slice(1);
 }
 
+function resolveDealConfidence(detail) {
+  const helper = window.GameDenSite && window.GameDenSite.getDealConfidence;
+  if (typeof helper === "function") {
+    return helper(detail);
+  }
+
+  const candidates = [
+    detail?.buy_score,
+    detail?.worth_buying?.score,
+    detail?.worth_buying_score,
+    detail?.deal_score,
+  ];
+  let score = null;
+  for (const candidate of candidates) {
+    const parsed = Number(candidate);
+    if (!Number.isFinite(parsed)) continue;
+    score = Math.max(0, Math.min(100, parsed));
+    break;
+  }
+  if (score === null) return null;
+
+  if (score >= 85) return { score, confidence_label: "Strong Buy", confidence_icon: "SB", class_name: "strong-buy" };
+  if (score >= 70) return { score, confidence_label: "Good Deal", confidence_icon: "GD", class_name: "good-deal" };
+  if (score >= 50) return { score, confidence_label: "Fair Price", confidence_icon: "FP", class_name: "fair-price" };
+  return { score, confidence_label: "Wait", confidence_icon: "WT", class_name: "wait" };
+}
+
+function buildDealConfidenceExplanation(detail) {
+  const lines = [];
+  const push = (value) => {
+    const text = normalizeReasonSnippet(value);
+    if (!text) return;
+    const token = text.toLowerCase();
+    if (lines.some((line) => String(line).toLowerCase() === token)) return;
+    lines.push(text);
+  };
+
+  push(detail?.buy_reason);
+  push(detail?.predicted_sale_reason ?? detail?.next_sale_prediction?.reason);
+  push(detail?.deal_heat?.reason ?? detail?.deal_heat_reason);
+  return lines.slice(0, 2);
+}
+
 function pushUniqueHighlight(lines, line) {
   const normalized = String(line || "").trim();
   if (!normalized) return;
@@ -470,7 +514,8 @@ function renderDetail(detail) {
   setText("dealScore", `${detail.deal_score} (${detail.deal_label})`);
   setText("worthBuyingScore", detail.worth_buying?.score != null ? Number(detail.worth_buying.score).toFixed(1) : "-");
   setText("momentumScore", detail.momentum?.score != null ? Number(detail.momentum.score).toFixed(1) : "-");
-  setText("predictionConfidence", detail.prediction?.confidence || "-");
+  const confidence = resolveDealConfidence(detail);
+  setText("predictionConfidence", confidence ? confidence.confidence_label : (detail.prediction?.confidence || "-"));
   renderDealHighlights(detail);
 
   const banner = document.getElementById("heroBanner");
@@ -501,6 +546,7 @@ function renderDetail(detail) {
   renderPrediction(detail.prediction || {});
   renderNextSalePrediction(detail);
   renderBuyRecommendation(detail);
+  renderDealConfidence(detail);
   renderDealHeat(detail.deal_heat || {}, detail.worth_buying || {}, detail.momentum || {}, detail.historical_low_radar || {});
 }
 
@@ -608,6 +654,36 @@ function renderBuyRecommendation(detail) {
     <div class="prediction-stat"><strong>Recommendation</strong><div>${escapeHtml(recommendationLabel)}</div></div>
     <div class="prediction-stat"><strong>Reason</strong><div>${escapeHtml(reason || "Snapshot-derived recommendation.")}</div></div>
     <div class="prediction-stat"><strong>Price vs Historical Low</strong><div>${escapeHtml(ratioSummary)}</div></div>
+  `;
+}
+
+function renderDealConfidence(detail) {
+  const panel = document.getElementById("dealConfidencePanel");
+  if (!panel) return;
+
+  const confidence = resolveDealConfidence(detail);
+  if (!confidence) {
+    panel.innerHTML = `
+      <div class="prediction-stat"><strong>Tier</strong><div>-</div></div>
+      <div class="prediction-stat"><strong>Why</strong><div>Confidence is unavailable until score data is populated.</div></div>
+    `;
+    return;
+  }
+
+  const explanationLines = buildDealConfidenceExplanation(detail);
+  const explanationText = explanationLines.length
+    ? explanationLines.join(" • ")
+    : "Signals are mixed and a better entry may appear later.";
+  const score = Number(confidence.score);
+  const scoreText = Number.isFinite(score) ? `${Math.round(score)}/100` : "-";
+  const tone = String(confidence.class_name || "wait").trim() || "wait";
+  const icon = String(confidence.confidence_icon || "").trim();
+  const label = String(confidence.confidence_label || "Deal Confidence").trim();
+
+  panel.innerHTML = `
+    <div class="prediction-stat"><strong>Tier</strong><div><span class="confidence-pill ${escapeHtml(tone)}">${escapeHtml(icon)} ${escapeHtml(label)}</span></div></div>
+    <div class="prediction-stat"><strong>Score</strong><div>${escapeHtml(scoreText)}</div></div>
+    <div class="prediction-stat"><strong>Why</strong><div>${escapeHtml(explanationText)}</div></div>
   `;
 }
 

@@ -198,6 +198,23 @@ body {
 
 .prediction-panel { display: flex; flex-direction: column; gap: 12px; }
 .prediction-stat { background: var(--card-2); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+.confidence-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(154, 182, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+.confidence-pill.strong-buy { border-color: rgba(92, 228, 169, 0.45); background: rgba(92, 228, 169, 0.16); color: #b8ffe0; }
+.confidence-pill.good-deal { border-color: rgba(111, 232, 255, 0.44); background: rgba(111, 232, 255, 0.16); color: #d8fbff; }
+.confidence-pill.fair-price { border-color: rgba(255, 199, 122, 0.44); background: rgba(255, 199, 122, 0.16); color: #ffe5bf; }
+.confidence-pill.wait { border-color: rgba(188, 205, 236, 0.35); background: rgba(188, 205, 236, 0.12); color: #deecff; }
 .reasoning-list { margin: 0; padding-left: 18px; color: var(--muted); }
 
 @media (max-width: 980px) {

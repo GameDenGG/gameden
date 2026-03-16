@@ -472,6 +472,18 @@ select {
     letter-spacing: -0.02em;
 }
 
+.search-result-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.search-result-title-row .search-result-title {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
 .search-result-sub {
     margin-top: 4px;
     color: var(--muted);
@@ -1134,6 +1146,46 @@ input:focus-visible {
 .meta-chip.metric {
     color: #d4e4ff;
     background: rgba(121, 168, 255, 0.06);
+}
+
+.deal-confidence-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 999px;
+    border: 1px solid rgba(154, 182, 255, 0.28);
+    background: rgba(255, 255, 255, 0.06);
+    color: #dce9ff;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+.deal-confidence-badge.strong-buy {
+    border-color: rgba(92, 228, 169, 0.45);
+    background: rgba(92, 228, 169, 0.16);
+    color: #b8ffe0;
+}
+
+.deal-confidence-badge.good-deal {
+    border-color: rgba(111, 232, 255, 0.44);
+    background: rgba(111, 232, 255, 0.16);
+    color: #d8fbff;
+}
+
+.deal-confidence-badge.fair-price {
+    border-color: rgba(255, 199, 122, 0.44);
+    background: rgba(255, 199, 122, 0.16);
+    color: #ffe5bf;
+}
+
+.deal-confidence-badge.wait {
+    border-color: rgba(188, 205, 236, 0.35);
+    background: rgba(188, 205, 236, 0.12);
+    color: #deecff;
 }
 
 .context-item {
@@ -1821,6 +1873,15 @@ input:focus-visible {
     color: var(--muted);
     font-size: 11px;
     line-height: 1.3;
+}
+
+.deal-radar-confidence-row {
+    margin-top: 6px;
+}
+
+.deal-radar-confidence {
+    font-size: 10px;
+    padding: 3px 7px;
 }
 
 .deal-radar-price {
@@ -4515,6 +4576,7 @@ input:focus-visible {
                     ? '<span class="meta-chip deal-neutral">Wait</span>'
                     : "";
             const qualityChip = qualityFlag ? `<span class="meta-chip deal-flag${qualityGlowClass}">${escapeHtml(qualityFlag)}</span>` : "";
+            const confidenceChip = buildDealConfidenceBadge(game, { className: "deal-confidence-badge" });
             const dealScoreChip = Number.isFinite(dealScore) ? `<span class="meta-chip metric">Deal ${Math.round(dealScore)}</span>` : "";
             const worthScoreChip = Number.isFinite(worthScore) ? `<span class="meta-chip metric">Worth ${Math.round(worthScore)}</span>` : "";
 
@@ -4524,6 +4586,7 @@ input:focus-visible {
                         ${discountChip}
                         ${recommendationChip}
                         ${qualityChip}
+                        ${confidenceChip}
                     </div>
                     <div class="card-meta-cluster secondary">
                         ${dealScoreChip}
@@ -5182,6 +5245,75 @@ input:focus-visible {
                 ? `${firstSentence.slice(0, 69).trimEnd()}...`
                 : firstSentence;
             return compact.charAt(0).toUpperCase() + compact.slice(1);
+        }
+
+        function resolveDealConfidence(game) {
+            const confidenceHelper = window.GameDenSite && window.GameDenSite.getDealConfidence;
+            if (typeof confidenceHelper === "function") {
+                return confidenceHelper(game);
+            }
+
+            const scoreCandidates = [
+                game?.buy_score,
+                game?.worth_buying_score,
+                game?.deal_score,
+            ];
+            let score = null;
+            for (const candidate of scoreCandidates) {
+                const parsed = Number(candidate);
+                if (!Number.isFinite(parsed)) continue;
+                score = Math.max(0, Math.min(100, parsed));
+                break;
+            }
+            if (score === null) return null;
+
+            if (score >= 85) {
+                return {
+                    score,
+                    confidence_label: "Strong Buy",
+                    confidence_icon: "SB",
+                    class_name: "strong-buy",
+                };
+            }
+            if (score >= 70) {
+                return {
+                    score,
+                    confidence_label: "Good Deal",
+                    confidence_icon: "GD",
+                    class_name: "good-deal",
+                };
+            }
+            if (score >= 50) {
+                return {
+                    score,
+                    confidence_label: "Fair Price",
+                    confidence_icon: "FP",
+                    class_name: "fair-price",
+                };
+            }
+            return {
+                score,
+                confidence_label: "Wait",
+                confidence_icon: "WT",
+                class_name: "wait",
+            };
+        }
+
+        function buildDealConfidenceBadge(game, options = {}) {
+            const confidence = resolveDealConfidence(game);
+            if (!confidence) return "";
+
+            const baseClass = String(options.className || "deal-confidence-badge").trim() || "deal-confidence-badge";
+            const toneClass = String(confidence.class_name || "wait").trim() || "wait";
+            const icon = String(confidence.confidence_icon || "").trim();
+            const label = String(confidence.confidence_label || "").trim();
+            if (!label) return "";
+            const score = Number(confidence.score);
+            const title = Number.isFinite(score)
+                ? `${label} (${Math.round(score)}/100)`
+                : label;
+
+            return `<span class="${escapeHtml(baseClass)} ${escapeHtml(toneClass)}" title="${escapeHtml(title)}">${escapeHtml(icon)} ${escapeHtml(label)}</span>`;
         }
 
         function pushDecisionLine(lines, line) {
@@ -6611,6 +6743,9 @@ input:focus-visible {
                 const signalLabel = formatDealRadarSignalLabel(entry.signal_type);
                 const signalTone = dealRadarSignalTone(entry.signal_type);
                 const detail = entry.signal_text || signalLabel;
+                const confidenceBadge = buildDealConfidenceBadge(entry, {
+                    className: "deal-confidence-badge deal-radar-confidence",
+                });
                 const priceLabel = fmtPrice(entry.price);
                 const discountValue = Number(entry.discount);
                 const discountLabel = Number.isFinite(discountValue) && discountValue > 0
@@ -6632,6 +6767,7 @@ input:focus-visible {
                             </div>
                             <div class="deal-radar-title">${escapeHtml(entry.game_name)}</div>
                             <div class="deal-radar-sub">${escapeHtml(detail)}</div>
+                            ${confidenceBadge ? `<div class="deal-radar-confidence-row">${confidenceBadge}</div>` : ""}
                         </div>
                         <div class="deal-radar-price">
                             ${escapeHtml(priceLabel)}
@@ -7191,12 +7327,18 @@ input:focus-visible {
                     Number(game.discount_percent || 0) > 0 ? `${Number(game.discount_percent || 0)}% off` : "No current sale",
                     `Score ${fmtInt(game.deal_score)}`,
                 ].join(" • ");
+                const confidenceBadge = buildDealConfidenceBadge(game, {
+                    className: "deal-confidence-badge",
+                });
 
                 return `
                     <a class="search-result-item" href="${buildGameDetailHref(game)}" data-track-game="${encodeURIComponent(game.game_name || "")}">
                         <div class="search-result-thumb" ${bannerUrl ? `style='background-image:url("${escapeCssUrl(bannerUrl)}");'` : ""}></div>
                         <div>
-                            <div class="search-result-title">${escapeHtml(game.game_name)}</div>
+                            <div class="search-result-title-row">
+                                <div class="search-result-title">${escapeHtml(game.game_name)}</div>
+                                ${confidenceBadge}
+                            </div>
                             <div class="search-result-sub">${escapeHtml(sub)}</div>
                         </div>
                         <div class="search-result-price">${fmtPrice(game.price)}</div>

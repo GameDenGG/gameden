@@ -572,6 +572,45 @@ a {
     font-weight: 700;
 }
 
+.deal-confidence-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(154, 182, 255, 0.28);
+    background: rgba(255, 255, 255, 0.06);
+    color: #dce9ff;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    line-height: 1;
+}
+
+.deal-confidence-badge.strong-buy {
+    border-color: rgba(92, 228, 169, 0.45);
+    background: rgba(92, 228, 169, 0.16);
+    color: #b8ffe0;
+}
+
+.deal-confidence-badge.good-deal {
+    border-color: rgba(111, 232, 255, 0.44);
+    background: rgba(111, 232, 255, 0.16);
+    color: #d8fbff;
+}
+
+.deal-confidence-badge.fair-price {
+    border-color: rgba(255, 199, 122, 0.44);
+    background: rgba(255, 199, 122, 0.16);
+    color: #ffe5bf;
+}
+
+.deal-confidence-badge.wait {
+    border-color: rgba(188, 205, 236, 0.35);
+    background: rgba(188, 205, 236, 0.12);
+    color: #deecff;
+}
+
 .breakdown {
     display: grid;
     gap: 12px;
@@ -834,6 +873,16 @@ a {
                 </div>
             </section>
 
+            <section class="panel" id="dealConfidencePanel" hidden>
+                <div class="panel-head">
+                    <h2 class="panel-title">Deal Confidence</h2>
+                    <div class="panel-subtitle">Snapshot guidance for buy strength and likely timing.</div>
+                </div>
+                <div class="panel-body">
+                    <div class="prediction-list" id="dealConfidence"></div>
+                </div>
+            </section>
+
             <section class="panel">
                 <div class="panel-head">
                     <h2 class="panel-title">Next Sale Prediction</h2>
@@ -931,9 +980,15 @@ function renderGameLoadingSkeletons() {
         wrap.classList.add("gd-skeleton-surface");
     });
 
+    const confidencePanel = document.getElementById("dealConfidencePanel");
+    if (confidencePanel) {
+        confidencePanel.hidden = false;
+    }
+
     if (skeletonUi && typeof skeletonUi.render === "function") {
         skeletonUi.render(document.getElementById("dealExplanation"), "panel-list", 5, { itemClass: "break-row" });
         skeletonUi.render(document.getElementById("marketInfo"), "meta-grid", 9, { itemClass: "info-item" });
+        skeletonUi.render(document.getElementById("dealConfidence"), "panel-list", 2, { itemClass: "prediction-item" });
         skeletonUi.render(document.getElementById("prediction"), "panel-list", 5, { itemClass: "prediction-item" });
         skeletonUi.render(document.getElementById("relatedGames"), "panel-list", 3, { itemClass: "related-block" });
     }
@@ -1249,6 +1304,95 @@ function normalizeReasonSnippet(value) {
     return compact.charAt(0).toUpperCase() + compact.slice(1);
 }
 
+function resolveDealConfidence(payload) {
+    const helper = window.GameDenSite && window.GameDenSite.getDealConfidence;
+    if (typeof helper === "function") {
+        return helper(payload);
+    }
+
+    const candidates = [
+        payload?.buy_score,
+        payload?.worth_buying_score,
+        payload?.deal_score,
+    ];
+    let score = null;
+    for (const candidate of candidates) {
+        const parsed = Number(candidate);
+        if (!Number.isFinite(parsed)) continue;
+        score = Math.max(0, Math.min(100, parsed));
+        break;
+    }
+    if (score === null) return null;
+
+    if (score >= 85) return { score, confidence_label: "Strong Buy", confidence_icon: "SB", class_name: "strong-buy" };
+    if (score >= 70) return { score, confidence_label: "Good Deal", confidence_icon: "GD", class_name: "good-deal" };
+    if (score >= 50) return { score, confidence_label: "Fair Price", confidence_icon: "FP", class_name: "fair-price" };
+    return { score, confidence_label: "Wait", confidence_icon: "WT", class_name: "wait" };
+}
+
+function buildDealConfidenceReasonLines(payload) {
+    const lines = [];
+    const candidates = [
+        payload?.buy_reason,
+        payload?.predicted_sale_reason ?? payload?.next_sale_prediction?.reason,
+        payload?.deal_heat_reason ?? payload?.deal_heat?.reason,
+    ];
+    candidates.forEach((candidate) => {
+        const normalized = normalizeReasonSnippet(candidate);
+        if (!normalized) return;
+        pushUniqueExplanationLine(lines, normalized);
+    });
+    return lines.slice(0, 2);
+}
+
+function buildDealConfidenceBadgeHtml(payload) {
+    const confidence = resolveDealConfidence(payload);
+    if (!confidence) return "";
+    const tone = String(confidence.class_name || "wait").trim() || "wait";
+    const icon = String(confidence.confidence_icon || "").trim();
+    const label = String(confidence.confidence_label || "").trim();
+    const score = Number(confidence.score);
+    const title = Number.isFinite(score) ? `${label} (${Math.round(score)}/100)` : label;
+    return `<span class="deal-confidence-badge ${escapeHtml(tone)}" title="${escapeHtml(title)}">${escapeHtml(icon)} ${escapeHtml(label)}</span>`;
+}
+
+function renderDealConfidence(payload) {
+    const panel = document.getElementById("dealConfidencePanel");
+    const container = document.getElementById("dealConfidence");
+    if (!panel || !container) return;
+
+    const confidence = resolveDealConfidence(payload);
+    if (!confidence) {
+        panel.hidden = true;
+        container.innerHTML = "";
+        return;
+    }
+
+    panel.hidden = false;
+    const reasonLines = buildDealConfidenceReasonLines(payload);
+    const reasonText = reasonLines.length
+        ? reasonLines.join(" • ")
+        : "Signals are mixed and a better entry may appear later.";
+    const scoreText = Number.isFinite(Number(confidence.score))
+        ? `${Math.round(Number(confidence.score))}/100`
+        : "—";
+
+    container.innerHTML = `
+        <div class="prediction-item">
+            <div class="prediction-title">Tier</div>
+            <div class="prediction-value">${buildDealConfidenceBadgeHtml(payload)}</div>
+        </div>
+        <div class="prediction-item">
+            <div class="prediction-title">Explanation</div>
+            <div class="prediction-value info-value-compact">${escapeHtml(reasonText)}</div>
+        </div>
+        <div class="prediction-item">
+            <div class="prediction-title">Score</div>
+            <div class="prediction-value">${escapeHtml(scoreText)}</div>
+        </div>
+    `;
+}
+
 function pushUniqueExplanationLine(lines, line) {
     const normalized = String(line || "").trim();
     if (!normalized) return;
@@ -1409,7 +1553,10 @@ async function loadGame() {
     document.getElementById("historicalLow").innerText = fmtPrice(payload.historical_low ?? payload.historical_low_price);
     document.getElementById("dealScore").innerText = payload.deal_score ?? "—";
     document.getElementById("playerCount").innerText = fmtInt(payload.current_players);
-    document.getElementById("dealBadge").innerText = payload.deal_label || `Deal score ${payload.deal_score ?? "—"}`;
+    const confidenceForBadge = resolveDealConfidence(payload);
+    document.getElementById("dealBadge").innerText = confidenceForBadge
+        ? `${confidenceForBadge.confidence_icon} ${confidenceForBadge.confidence_label}`
+        : (payload.deal_label || `Deal score ${payload.deal_score ?? "—"}`);
     applyDealBadgeGlow(payload);
     document.getElementById("heroBanner").classList.remove("gd-skeleton-surface");
 
@@ -1423,6 +1570,7 @@ async function loadGame() {
 
     renderMarketInfo(payload);
     renderDealExplanation(payload.deal_explanation || {});
+    renderDealConfidence(payload);
     renderPrediction(payload);
     await loadPriceHistory(activeRange);
 

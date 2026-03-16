@@ -175,6 +175,8 @@ class GameSnapshot(Base):
     predicted_next_sale_window_days_max = Column(Integer, nullable=True)
     predicted_sale_confidence = Column(String, nullable=True)
     predicted_sale_reason = Column(String, nullable=True)
+    deal_opportunity_score = Column(Float, default=0.0)
+    deal_opportunity_reason = Column(String, nullable=True)
     worth_buying_score = Column(Float, default=0.0)
     worth_buying_score_version = Column(String, nullable=True)
     worth_buying_reason_summary = Column(String, nullable=True)

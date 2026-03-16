@@ -681,6 +681,7 @@ input:focus-visible {
 .panel-seasonal { --panel-accent: rgba(99, 239, 177, 0.95); }
 .panel-catalog { --panel-accent: rgba(121, 168, 255, 0.95); }
 .panel-opportunities { --panel-accent: rgba(143, 246, 206, 0.95); }
+.panel-opportunity-radar { --panel-accent: rgba(124, 232, 255, 0.95); }
 .panel-personalized { --panel-accent: rgba(188, 168, 255, 0.95); }
 .panel-analytics { --panel-accent: rgba(94, 233, 255, 0.95); }
 .panel-alerts { --panel-accent: rgba(255, 140, 169, 0.95); }
@@ -727,6 +728,7 @@ input:focus-visible {
 .panel-deals .panel-title { color: #ffe0b8; }
 .panel-catalog .panel-title { color: #d4e5ff; }
 .panel-opportunities .panel-title { color: #d4ffe9; }
+.panel-opportunity-radar .panel-title { color: #d6f6ff; }
 .panel-personalized .panel-title { color: #eadbff; }
 .panel-intel .panel-title { color: #cff0ff; }
 .panel-analytics .panel-title { color: #cbf6ff; }
@@ -2767,6 +2769,26 @@ input:focus-visible {
                     </div>
                 </section>
 
+                <section class="panel panel-opportunity-radar" id="opportunityRadarPanel">
+                    <div class="panel-head">
+                        <div class="panel-title-wrap">
+                            <h2 class="panel-title">Deal Opportunity Radar</h2>
+                            <div class="panel-subtitle">Predicted opportunities ranked by upcoming sale timing, historical discount cadence, and live demand signals.</div>
+                        </div>
+                        <div class="row-nav">
+                            <button class="row-nav-btn" type="button" data-row-left="opportunityRadarGrid">&lt;</button>
+                            <button class="row-nav-btn" type="button" data-row-right="opportunityRadarGrid">&gt;</button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="row-section">
+                            <div class="row-fade-left"></div>
+                            <div class="row-fade-right"></div>
+                            <div id="opportunityRadarGrid" class="row-scroller"></div>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="panel panel-personalized hidden" id="recommendedForYouPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -3247,6 +3269,7 @@ input:focus-visible {
             leaderboard: [],
             dealRanked: [],
             opportunitiesNow: [],
+            opportunityRadar: [],
             personalizedDeals: [],
             worthBuyingNow: [],
             buyNowPicks: [],
@@ -3337,6 +3360,7 @@ input:focus-visible {
             visibleCounts: {
                 dealRankedGrid: 8,
                 opportunitiesGrid: 12,
+                opportunityRadarGrid: 12,
                 personalizedDealsGrid: 12,
                 worthBuyingGrid: 12,
                 trendingDealsGrid: 12,
@@ -3387,6 +3411,8 @@ input:focus-visible {
             watchlistList: document.getElementById("watchlistList"),
             opportunitiesPanel: document.getElementById("opportunitiesPanel"),
             opportunitiesGrid: document.getElementById("opportunitiesGrid"),
+            opportunityRadarPanel: document.getElementById("opportunityRadarPanel"),
+            opportunityRadarGrid: document.getElementById("opportunityRadarGrid"),
             recommendedForYouPanel: document.getElementById("recommendedForYouPanel"),
             personalizedDealsGrid: document.getElementById("personalizedDealsGrid"),
             dealRankedGrid: document.getElementById("dealRankedGrid"),
@@ -4090,6 +4116,7 @@ input:focus-visible {
         const HIGH_VALUE_CARD_SECTIONS = new Set([
             "dealRankedGrid",
             "opportunitiesGrid",
+            "opportunityRadarGrid",
             "personalizedDealsGrid",
             "worthBuyingGrid",
             "newHistoricalLowsGrid",
@@ -6731,6 +6758,20 @@ input:focus-visible {
             });
         }
 
+        function renderOpportunityRadar() {
+            renderPagedCards({
+                container: ui.opportunityRadarGrid,
+                items: state.opportunityRadar,
+                renderer: gameCardHtml,
+                visibleKey: "opportunityRadarGrid",
+                toggleButton: null,
+                showAllButton: null,
+                view: "opportunity-radar",
+                title: "Deal Opportunity Radar",
+                initialCount: 12,
+            });
+        }
+
         function renderPersonalizedDeals() {
             const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
             if (!knownUser) {
@@ -6963,6 +7004,7 @@ input:focus-visible {
             const discoveryOrder = [
                 "bestDealsPanel",
                 "opportunitiesPanel",
+                "opportunityRadarPanel",
                 "recommendedForYouPanel",
                 "worthBuyingPanel",
                 "trendingGamesPanel",
@@ -6995,6 +7037,7 @@ input:focus-visible {
             renderTrackedGamesChip();
             renderDealRanked();
             renderOpportunities();
+            renderOpportunityRadar();
             renderPersonalizedDeals();
             renderWorthBuyingNow();
             renderTrendingDeals();
@@ -7522,6 +7565,7 @@ input:focus-visible {
             releasedPayload,
             dealRadarPayload,
             opportunitiesPayload,
+            opportunityRadarPayload,
             dailyDigestPayload,
         ) {
             const biggestDiscounts = uniqueGamesByName(
@@ -7576,8 +7620,22 @@ input:focus-visible {
                 ...opportunitiesFromEndpoint,
                 ...opportunitiesFromDashboard,
             ]);
+            const opportunityRadarFromEndpoint = uniqueGamesByName(
+                opportunityRadarPayload?.items || opportunityRadarPayload || []
+            );
+            const opportunityRadarFromDashboard = uniqueGamesByName(
+                dashboardPayload?.opportunity_radar
+                || dashboardPayload?.opportunityRadar
+                || []
+            );
+            const opportunityRadar = uniqueGamesByName([
+                ...opportunityRadarFromEndpoint,
+                ...opportunityRadarFromDashboard,
+                ...opportunitiesNow,
+            ]);
             const decisionPool = uniqueGamesByName([
                 ...opportunitiesNow,
+                ...opportunityRadar,
                 ...worthBuyingNow,
                 ...dealRanked,
                 ...recommendedDeals,
@@ -7661,6 +7719,7 @@ input:focus-visible {
             state.upcoming = upcoming;
             state.dealRanked = diversifiedDiscoveryRails.dealRanked || [];
             state.opportunitiesNow = opportunitiesNow;
+            state.opportunityRadar = opportunityRadar.length ? opportunityRadar : opportunitiesNow;
             state.recommendedDeals = recommendedDeals;
             state.worthBuyingNow = diversifiedDiscoveryRails.worthBuyingNow || [];
             state.trendingDeals = trendingDeals;
@@ -7724,6 +7783,7 @@ input:focus-visible {
             const emptyReleased = { items: [] };
             const emptyDealRadar = { items: [] };
             const emptyOpportunities = { items: [] };
+            const emptyOpportunityRadar = { items: [] };
             const emptyDailyDigest = { sections: {}, highlights: [], counts: {} };
 
             let dashboardData = null;
@@ -7731,6 +7791,7 @@ input:focus-visible {
             let releasedData = emptyReleased;
             let dealRadarData = emptyDealRadar;
             let opportunitiesData = emptyOpportunities;
+            let opportunityRadarData = emptyOpportunityRadar;
             let dailyDigestData = emptyDailyDigest;
 
             try {
@@ -7784,6 +7845,14 @@ input:focus-visible {
                     : await fetchJson("/api/deal-opportunities?limit=48")
                         .catch(() => emptyOpportunities);
 
+                const dashboardOpportunityRadarSeed = safeArray(dashboardData?.opportunity_radar).length
+                    ? safeArray(dashboardData?.opportunity_radar)
+                    : safeArray(dashboardData?.opportunityRadar);
+                opportunityRadarData = dashboardOpportunityRadarSeed.length
+                    ? { items: dashboardOpportunityRadarSeed }
+                    : await fetchJson("/api/opportunity-radar?limit=48")
+                        .catch(() => emptyOpportunityRadar);
+
                 const dashboardDigestSeed = dashboardData?.daily_digest || dashboardData?.dailyDigest;
                 const digestEndpointUrl = `/api/daily-digest?user_id=${encodeURIComponent(CURRENT_USER_ID)}&section_limit=8`;
                 dailyDigestData = (
@@ -7827,15 +7896,18 @@ input:focus-visible {
                     deal_radar: [],
                     dealOpportunities: [],
                     deal_opportunities: [],
+                    opportunityRadar: [],
+                    opportunity_radar: [],
                     daily_digest: emptyDailyDigest,
                 };
-                [seasonalData, releasedData, dealRadarData, opportunitiesData, dailyDigestData] = await Promise.all([
+                [seasonalData, releasedData, dealRadarData, opportunitiesData, opportunityRadarData, dailyDigestData] = await Promise.all([
                     fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal),
                     fetchJson(`/games/released?${releasedParams.toString()}`).catch(() => emptyReleased),
                     fetchJson("/api/market-radar?limit=50")
                         .catch(() => fetchJson("/api/deal-radar?limit=50"))
                         .catch(() => emptyDealRadar),
                     fetchJson("/api/deal-opportunities?limit=48").catch(() => emptyOpportunities),
+                    fetchJson("/api/opportunity-radar?limit=48").catch(() => emptyOpportunityRadar),
                     fetchJson(`/api/daily-digest?user_id=${encodeURIComponent(CURRENT_USER_ID)}&section_limit=8`).catch(() => emptyDailyDigest),
                 ]);
             }
@@ -7845,6 +7917,7 @@ input:focus-visible {
                 releasedData,
                 dealRadarData,
                 opportunitiesData,
+                opportunityRadarData,
                 dailyDigestData,
             );
             seedCatalogFromPayload(releasedData);
@@ -8648,6 +8721,7 @@ input:focus-visible {
                 renderSkeleton(ui.seasonalSaleLowerGrid, "deal-cards", 4, { cardClass: "game-card" });
                 renderSkeleton(ui.dealRankedGrid, "deal-cards", 6, { cardClass: "game-card" });
                 renderSkeleton(ui.opportunitiesGrid, "deal-cards", 6, { cardClass: "game-card" });
+                renderSkeleton(ui.opportunityRadarGrid, "deal-cards", 6, { cardClass: "game-card" });
                 state.personalizedStatus.enabled = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
                 state.personalizedStatus.loading = state.personalizedStatus.enabled;
                 state.personalizedStatus.error = null;
@@ -8725,6 +8799,7 @@ input:focus-visible {
                 renderError(ui.seasonalSaleLowerGrid, "Failed to load seasonal radar.");
                 renderError(ui.dealRankedGrid, "Failed to load biggest discounts.");
                 renderError(ui.opportunitiesGrid, "Failed to load opportunities.");
+                renderError(ui.opportunityRadarGrid, "Failed to load opportunity radar.");
                 renderError(ui.dailyDigestList, "Failed to load daily digest.");
                 if (!isDefaultOrAnonymousUserId(CURRENT_USER_ID)) {
                     setPanelVisibility(ui.recommendedForYouPanel, true);

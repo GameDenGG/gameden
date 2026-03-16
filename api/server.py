@@ -1290,6 +1290,8 @@ def _build_deal_opportunity_item(snapshot: GameSnapshot) -> dict | None:
     recommendation = str(snapshot.buy_recommendation or "").strip().upper()
     historical_status = str(snapshot.historical_status or "").strip().lower()
     predicted_window_days_min = int(round(safe_num(snapshot.predicted_next_sale_window_days_min, 0.0)))
+    stored_opportunity_score = safe_num(snapshot.deal_opportunity_score, 0.0)
+    stored_opportunity_reason = _normalize_opportunity_reason(snapshot.deal_opportunity_reason)
 
     reasons: list[str] = []
     score = 0.0
@@ -1339,6 +1341,10 @@ def _build_deal_opportunity_item(snapshot: GameSnapshot) -> dict | None:
         score += 8.0
         _append_unique_reason(reasons, "Next sale likely not soon")
 
+    if stored_opportunity_score > 0:
+        score = max(score, stored_opportunity_score)
+        _append_unique_reason(reasons, stored_opportunity_reason)
+
     for summary in (
         snapshot.worth_buying_reason_summary,
         snapshot.trend_reason_summary,
@@ -1353,6 +1359,7 @@ def _build_deal_opportunity_item(snapshot: GameSnapshot) -> dict | None:
         return None
 
     reason_lines = reasons[:2]
+    computed_score = round(score, 2)
     updated_at = snapshot.updated_at if isinstance(snapshot.updated_at, datetime.datetime) else utc_now()
     if updated_at.tzinfo is None:
         updated_at = updated_at.replace(tzinfo=datetime.timezone.utc)
@@ -1389,6 +1396,8 @@ def _build_deal_opportunity_item(snapshot: GameSnapshot) -> dict | None:
         "worth_buying_reason_summary": snapshot.worth_buying_reason_summary,
         "trend_reason_summary": snapshot.trend_reason_summary,
         "deal_heat_reason": snapshot.deal_heat_reason,
+        "deal_opportunity_score": round(stored_opportunity_score, 2) if stored_opportunity_score > 0 else computed_score,
+        "deal_opportunity_reason": snapshot.deal_opportunity_reason or " and ".join(reason_lines),
         "historical_low_info": {
             "historical_low": snapshot.historical_low,
             "status": snapshot.historical_status,
@@ -1400,9 +1409,74 @@ def _build_deal_opportunity_item(snapshot: GameSnapshot) -> dict | None:
             "short_term_player_trend": snapshot.short_term_player_trend,
             "momentum_score": snapshot.momentum_score,
         },
-        "opportunity_score": round(score, 2),
+        "opportunity_score": computed_score,
         "opportunity_reasons": reason_lines,
         "opportunity_reason": " and ".join(reason_lines),
+        "updated_at": updated_at.isoformat(),
+    }
+
+
+def _build_opportunity_radar_item(snapshot: GameSnapshot) -> dict | None:
+    if snapshot.latest_price is None:
+        return None
+
+    score = round(safe_num(snapshot.deal_opportunity_score, 0.0), 2)
+    if score <= 0:
+        return None
+
+    reasons: list[str] = []
+    for candidate in (
+        snapshot.deal_opportunity_reason,
+        snapshot.buy_reason,
+        snapshot.predicted_sale_reason,
+        snapshot.worth_buying_reason_summary,
+        snapshot.trend_reason_summary,
+        snapshot.deal_heat_reason,
+    ):
+        _append_unique_reason(reasons, _normalize_opportunity_reason(candidate))
+        if len(reasons) >= 2:
+            break
+    if not reasons:
+        reasons = ["Snapshot timing and value signals align"]
+
+    updated_at = snapshot.updated_at if isinstance(snapshot.updated_at, datetime.datetime) else utc_now()
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=datetime.timezone.utc)
+    buy_score = snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score
+
+    return {
+        "game_id": int(snapshot.game_id),
+        "id": int(snapshot.game_id),
+        "game_name": snapshot.game_name,
+        "steam_appid": snapshot.steam_appid,
+        "banner_url": snapshot.banner_url,
+        "image_url": snapshot.banner_url,
+        "store_url": snapshot.store_url,
+        "price": snapshot.latest_price,
+        "original_price": snapshot.latest_original_price,
+        "discount_percent": snapshot.latest_discount_percent,
+        "historical_low": snapshot.historical_low,
+        "historical_status": snapshot.historical_status,
+        "price_vs_low_ratio": snapshot.price_vs_low_ratio,
+        "current_players": snapshot.current_players,
+        "player_growth_ratio": snapshot.player_growth_ratio,
+        "short_term_player_trend": snapshot.short_term_player_trend,
+        "momentum_score": snapshot.momentum_score,
+        "popularity_score": snapshot.popularity_score,
+        "deal_score": snapshot.deal_score,
+        "buy_score": buy_score,
+        "buy_recommendation": snapshot.buy_recommendation,
+        "buy_reason": snapshot.buy_reason,
+        "predicted_sale_confidence": snapshot.predicted_sale_confidence,
+        "predicted_sale_reason": snapshot.predicted_sale_reason,
+        "predicted_next_sale_window_days_min": snapshot.predicted_next_sale_window_days_min,
+        "predicted_next_sale_window_days_max": snapshot.predicted_next_sale_window_days_max,
+        "predicted_next_discount_percent": snapshot.predicted_next_discount_percent,
+        "deal_opportunity_score": score,
+        "deal_opportunity_reason": snapshot.deal_opportunity_reason or " and ".join(reasons[:2]),
+        "opportunity_score": score,
+        "opportunity_reasons": reasons[:2],
+        "opportunity_reason": " and ".join(reasons[:2]),
         "updated_at": updated_at.isoformat(),
     }
 
@@ -4182,6 +4256,12 @@ def get_game_detail(game_id: int):
         payload["predicted_next_sale_window_days_max"] = None
         payload["predicted_sale_confidence"] = None
         payload["predicted_sale_reason"] = None
+        payload["deal_opportunity_score"] = None
+        payload["deal_opportunity_reason"] = None
+        payload["deal_opportunity"] = {
+            "score": None,
+            "reason": None,
+        }
         payload["next_sale_prediction"] = {
             "expected_next_price": None,
             "expected_next_discount_percent": None,
@@ -4201,6 +4281,12 @@ def get_game_detail(game_id: int):
             payload["predicted_next_sale_window_days_max"] = snapshot.predicted_next_sale_window_days_max
             payload["predicted_sale_confidence"] = snapshot.predicted_sale_confidence
             payload["predicted_sale_reason"] = snapshot.predicted_sale_reason
+            payload["deal_opportunity_score"] = snapshot.deal_opportunity_score
+            payload["deal_opportunity_reason"] = snapshot.deal_opportunity_reason
+            payload["deal_opportunity"] = {
+                "score": snapshot.deal_opportunity_score,
+                "reason": snapshot.deal_opportunity_reason,
+            }
             payload["next_sale_prediction"] = {
                 "expected_next_price": snapshot.predicted_next_sale_price,
                 "expected_next_discount_percent": snapshot.predicted_next_discount_percent,
@@ -4337,6 +4423,12 @@ def get_game_by_name(request: Request, game_name: str):
             "predicted_next_sale_window_days_max": snapshot.predicted_next_sale_window_days_max if snapshot else None,
             "predicted_sale_confidence": snapshot.predicted_sale_confidence if snapshot else None,
             "predicted_sale_reason": snapshot.predicted_sale_reason if snapshot else None,
+            "deal_opportunity_score": snapshot.deal_opportunity_score if snapshot else None,
+            "deal_opportunity_reason": snapshot.deal_opportunity_reason if snapshot else None,
+            "deal_opportunity": {
+                "score": snapshot.deal_opportunity_score if snapshot else None,
+                "reason": snapshot.deal_opportunity_reason if snapshot else None,
+            },
             "next_sale_prediction": {
                 "expected_next_price": snapshot.predicted_next_sale_price if snapshot else None,
                 "expected_next_discount_percent": snapshot.predicted_next_discount_percent if snapshot else None,
@@ -5259,6 +5351,59 @@ def list_deal_opportunities(
     finally:
         session.close()
         _log_timing("/api/deal-opportunities", started)
+
+
+@app.get("/api/opportunity-radar")
+@json_etag()
+@ttl_cache(ttl_seconds=45, endpoint_key="/api/opportunity-radar")
+def list_opportunity_radar(
+    request: Request,
+    limit: int = Query(default=24, ge=1, le=120),
+):
+    started = _start_timer()
+    session = ReadSessionLocal()
+    try:
+        normalized_limit = max(1, int(limit))
+        candidate_limit = max(
+            OPPORTUNITY_MIN_CANDIDATES,
+            min(OPPORTUNITY_MAX_CANDIDATES, normalized_limit * OPPORTUNITY_QUERY_MULTIPLIER),
+        )
+
+        rows = (
+            session.query(GameSnapshot)
+            .filter(
+                GameSnapshot.is_released == 1,
+                or_(GameSnapshot.is_upcoming.is_(False), GameSnapshot.is_upcoming.is_(None)),
+                GameSnapshot.latest_price.isnot(None),
+                GameSnapshot.deal_opportunity_score.isnot(None),
+                GameSnapshot.deal_opportunity_score > 0,
+            )
+            .order_by(
+                GameSnapshot.deal_opportunity_score.desc().nullslast(),
+                GameSnapshot.updated_at.desc().nullslast(),
+                GameSnapshot.game_id.asc(),
+            )
+            .limit(candidate_limit)
+            .all()
+        )
+
+        items: list[dict] = []
+        for snapshot in rows:
+            parsed = _build_opportunity_radar_item(snapshot)
+            if parsed is None:
+                continue
+            items.append(parsed)
+            if len(items) >= normalized_limit:
+                break
+
+        return {
+            "count": len(items),
+            "items": items,
+            "generated_at": utc_now().isoformat(),
+        }
+    finally:
+        session.close()
+        _log_timing("/api/opportunity-radar", started)
 
 
 @app.get("/api/daily-digest")

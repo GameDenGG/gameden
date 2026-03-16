@@ -695,6 +695,109 @@ def compute_next_sale_prediction(
     }
 
 
+def compute_deal_opportunity_score(
+    *,
+    price_vs_low_ratio: float | None,
+    predicted_sale_confidence: str | None,
+    predicted_next_sale_window_days_min: int | None,
+    predicted_next_sale_window_days_max: int | None,
+    days_since_last_sale: int | None,
+    max_discount: int | None,
+    popularity_score: float | None,
+    trending_score: float | None,
+) -> tuple[float, str | None]:
+    score = 0.0
+    reasons: list[str] = []
+
+    def push_reason(text: str) -> None:
+        normalized = text.strip()
+        if not normalized:
+            return
+        token = normalized.lower()
+        if any(existing.lower() == token for existing in reasons):
+            return
+        reasons.append(normalized)
+
+    ratio = safe_num(price_vs_low_ratio, 0.0)
+    if ratio > 0:
+        if ratio <= 1.05:
+            score += 22.0
+            push_reason("Close to historical low")
+        elif ratio <= 1.12:
+            score += 16.0
+            push_reason("Near historical low")
+        elif ratio <= 1.25:
+            score += 9.0
+
+    confidence = str(predicted_sale_confidence or "").strip().upper()
+    confidence_weight = {
+        "HIGH": 24.0,
+        "MEDIUM": 16.0,
+        "LOW": 8.0,
+    }.get(confidence, 0.0)
+    score += confidence_weight
+    if confidence == "HIGH":
+        push_reason("Sale timing confidence is high")
+    elif confidence == "MEDIUM":
+        push_reason("Sale timing confidence is medium")
+
+    window_min = int(round(safe_num(predicted_next_sale_window_days_min, 0.0)))
+    window_max = int(round(safe_num(predicted_next_sale_window_days_max, 0.0)))
+    cadence_days = None
+    if window_min > 0 and window_max > 0:
+        cadence_days = int(round((window_min + window_max) / 2.0))
+    elif window_min > 0:
+        cadence_days = window_min
+    elif window_max > 0:
+        cadence_days = window_max
+
+    since_sale = int(round(safe_num(days_since_last_sale, -1.0)))
+    if since_sale < 0:
+        since_sale = None
+
+    if cadence_days is not None and since_sale is not None:
+        cadence = max(14, cadence_days)
+        overdue_ratio = since_sale / float(cadence)
+        if overdue_ratio >= 1.2:
+            score += 18.0
+            push_reason(f"Historically discounts every ~{cadence_days} days")
+        elif overdue_ratio >= 0.9:
+            score += 11.0
+            push_reason("Approaching a typical sale window")
+        elif overdue_ratio >= 0.6:
+            score += 6.0
+    elif since_sale is not None:
+        if since_sale >= 90:
+            score += 12.0
+            push_reason("Overdue for a new sale")
+        elif since_sale >= 45:
+            score += 7.0
+
+    historical_max_discount = max(0.0, safe_num(max_discount, 0.0))
+    if historical_max_discount >= 70:
+        score += 10.0
+        push_reason("Historically reaches deep discounts")
+    elif historical_max_discount >= 50:
+        score += 7.0
+    elif historical_max_discount >= 30:
+        score += 4.0
+
+    popularity = clamp(safe_num(popularity_score, 0.0), 0.0, 100.0)
+    trending = clamp(safe_num(trending_score, 0.0), 0.0, 100.0)
+    score += (popularity / 100.0) * 10.0
+    score += (trending / 100.0) * 10.0
+    if popularity >= 68 and (since_sale is None or since_sale >= 45):
+        push_reason("High popularity and overdue for sale")
+    elif popularity >= 70:
+        push_reason("High popularity")
+    if trending >= 65:
+        push_reason("Player momentum is rising")
+
+    normalized_score = round(clamp(score, 0.0, 100.0), 2)
+    reason = " and ".join(reasons[:2]) if reasons else None
+    return normalized_score, reason
+
+
 def compute_deal_heat(
     discount_percent: int | None,
     review_score: int | None,
@@ -1266,6 +1369,8 @@ def _snapshot_row_to_dict(snapshot: GameSnapshot) -> dict:
         "predicted_next_sale_window_days_max": snapshot.predicted_next_sale_window_days_max,
         "predicted_sale_confidence": snapshot.predicted_sale_confidence,
         "predicted_sale_reason": snapshot.predicted_sale_reason,
+        "deal_opportunity_score": snapshot.deal_opportunity_score,
+        "deal_opportunity_reason": snapshot.deal_opportunity_reason,
         "worth_buying_score": snapshot.worth_buying_score,
         "worth_buying_score_version": snapshot.worth_buying_score_version,
         "worth_buying_reason_summary": snapshot.worth_buying_reason_summary,
@@ -2138,6 +2243,16 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
             historical_low_price=historical_low,
             sale_rows=prediction_sale_rows,
         )
+        deal_opportunity_score, deal_opportunity_reason = compute_deal_opportunity_score(
+            price_vs_low_ratio=price_vs_low_ratio,
+            predicted_sale_confidence=next_sale_prediction.get("predicted_sale_confidence"),
+            predicted_next_sale_window_days_min=next_sale_prediction.get("predicted_next_sale_window_days_min"),
+            predicted_next_sale_window_days_max=next_sale_prediction.get("predicted_next_sale_window_days_max"),
+            days_since_last_sale=days_since_last_sale,
+            max_discount=max_discount,
+            popularity_score=popularity_score,
+            trending_score=trending_score,
+        )
 
         if snapshot is None:
             snapshot = GameSnapshot(game_id=game_id)
@@ -2209,6 +2324,8 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
         snapshot.predicted_next_sale_window_days_max = next_sale_prediction.get("predicted_next_sale_window_days_max")
         snapshot.predicted_sale_confidence = next_sale_prediction.get("predicted_sale_confidence")
         snapshot.predicted_sale_reason = next_sale_prediction.get("predicted_sale_reason")
+        snapshot.deal_opportunity_score = deal_opportunity_score
+        snapshot.deal_opportunity_reason = deal_opportunity_reason
         snapshot.worth_buying_score = worth_buying_score
         snapshot.worth_buying_score_version = WORTH_BUYING_SCORE_VERSION
         snapshot.worth_buying_reason_summary = worth_buying_reason_summary
@@ -2227,6 +2344,7 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
             "heat": deal_heat_reason,
             "buy_timing": buy_reason,
             "next_sale_prediction": next_sale_prediction.get("predicted_sale_reason"),
+            "deal_opportunity": deal_opportunity_reason,
         }
         snapshot.upcoming_hot_score = upcoming_hot_score
         snapshot.price_sparkline_90d = sparkline

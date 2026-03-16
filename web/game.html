@@ -566,6 +566,12 @@ a {
     font-weight: 900;
 }
 
+.info-value-compact {
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 700;
+}
+
 .breakdown {
     display: grid;
     gap: 12px;
@@ -927,7 +933,7 @@ function renderGameLoadingSkeletons() {
 
     if (skeletonUi && typeof skeletonUi.render === "function") {
         skeletonUi.render(document.getElementById("dealExplanation"), "panel-list", 5, { itemClass: "break-row" });
-        skeletonUi.render(document.getElementById("marketInfo"), "meta-grid", 8, { itemClass: "info-item" });
+        skeletonUi.render(document.getElementById("marketInfo"), "meta-grid", 9, { itemClass: "info-item" });
         skeletonUi.render(document.getElementById("prediction"), "panel-list", 5, { itemClass: "prediction-item" });
         skeletonUi.render(document.getElementById("relatedGames"), "panel-list", 3, { itemClass: "related-block" });
     }
@@ -1503,24 +1509,38 @@ function renderMarketInfo(data) {
     const historicalLow = Number(data.historical_low ?? data.historical_low_price);
     const genres = Array.isArray(data.genres) ? data.genres : parseCsv(data.genres);
     const platforms = Array.isArray(data.platforms) ? data.platforms : parseCsv(data.platforms);
+    const opportunityScore = Number(data.deal_opportunity_score ?? data?.deal_opportunity?.score);
+    const opportunityReasonRaw = String(data.deal_opportunity_reason ?? data?.deal_opportunity?.reason || "").trim();
+    const opportunityReason = normalizeReasonSnippet(opportunityReasonRaw);
+    const hasOpportunityScore = Number.isFinite(opportunityScore) && opportunityScore > 0;
+    const opportunityValue = opportunityReason
+        ? `${opportunityReason}${hasOpportunityScore ? ` • ${Math.round(opportunityScore)}/100` : ""}`
+        : hasOpportunityScore
+            ? `Opportunity score ${Math.round(opportunityScore)}/100`
+            : "—";
     const lowDelta = Number.isFinite(current) && Number.isFinite(historicalLow)
         ? `${current >= historicalLow ? "+" : ""}${(current - historicalLow).toFixed(2)} vs low`
         : "—";
     const items = [
-        ["Original Price", fmtPrice(data.original_price)],
-        ["Current Discount", data.discount_percent !== null && data.discount_percent !== undefined ? `${data.discount_percent}%` : "—"],
-        ["Historical Low Comparison", lowDelta],
-        ["Review Score", data.review_score ?? "—"],
-        ["Review Count", fmtInt(data.review_total_count ?? data.review_count)],
-        ["Buy Score", Number.isFinite(Number(data.buy_score)) ? Number(data.buy_score).toFixed(1) : "—"],
-        ["Genres", genres.slice(0, 3).join(", ") || "—"],
-        ["Platforms", platforms.slice(0, 3).join(", ") || "—"],
+        { label: "Original Price", value: fmtPrice(data.original_price), compact: false },
+        {
+            label: "Current Discount",
+            value: data.discount_percent !== null && data.discount_percent !== undefined ? `${data.discount_percent}%` : "—",
+            compact: false,
+        },
+        { label: "Historical Low Comparison", value: lowDelta, compact: false },
+        { label: "Deal Opportunity", value: opportunityValue, compact: true },
+        { label: "Review Score", value: data.review_score ?? "—", compact: false },
+        { label: "Review Count", value: fmtInt(data.review_total_count ?? data.review_count), compact: false },
+        { label: "Buy Score", value: Number.isFinite(Number(data.buy_score)) ? Number(data.buy_score).toFixed(1) : "—", compact: false },
+        { label: "Genres", value: genres.slice(0, 3).join(", ") || "—", compact: true },
+        { label: "Platforms", value: platforms.slice(0, 3).join(", ") || "—", compact: true },
     ];
 
-    el.innerHTML = items.map(([label, value]) => `
+    el.innerHTML = items.map(({ label, value, compact }) => `
         <div class="info-item">
             <div class="info-title">${escapeHtml(label)}</div>
-            <div class="info-value">${escapeHtml(value)}</div>
+            <div class="info-value${compact ? " info-value-compact" : ""}">${escapeHtml(value)}</div>
         </div>
     `).join("");
 }

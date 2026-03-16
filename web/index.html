@@ -2669,6 +2669,15 @@ input:focus-visible {
 
 @media (max-width: 1260px) {
     .dashboard-grid { grid-template-columns: 1fr; }
+    .dashboard-grid.is-mobile-merged .side-column {
+        display: none;
+    }
+    .dashboard-grid.is-mobile-merged .column-zone-label {
+        display: none;
+    }
+    .dashboard-grid.is-mobile-merged .main-column {
+        gap: 14px;
+    }
     .stats-grid, .advanced-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -2708,10 +2717,16 @@ input:focus-visible {
         padding-bottom: 4px;
     }
     .home-jump-chip {
-        min-height: 30px;
+        min-height: 34px;
         padding: 5px 10px;
         font-size: 9px;
         letter-spacing: 0.06em;
+    }
+    .home-jump-nav {
+        scroll-snap-type: x proximity;
+    }
+    .home-jump-chip {
+        scroll-snap-align: start;
     }
     .search-bar {
         padding-right: 130px;
@@ -2855,8 +2870,8 @@ input:focus-visible {
         padding-bottom: 2px;
     }
     .discovery-tab-btn {
-        min-height: 32px;
-        padding: 6px 10px;
+        min-height: 34px;
+        padding: 6px 11px;
         font-size: 10px;
     }
 
@@ -2990,7 +3005,7 @@ input:focus-visible {
         margin: 0 0 8px;
     }
     .home-jump-chip {
-        min-height: 28px;
+        min-height: 32px;
         padding: 4px 9px;
         font-size: 9px;
     }
@@ -3013,7 +3028,7 @@ input:focus-visible {
         font-size: 18px;
     }
     .discovery-tab-btn {
-        min-height: 30px;
+        min-height: 32px;
         padding: 5px 9px;
         font-size: 9px;
     }
@@ -3952,6 +3967,7 @@ input:focus-visible {
         const DISCOVERY_DEFAULT_TAB_KEY = "worth-buying";
         const EXTENDED_PLATFORM_FILTER_OPTIONS = Object.freeze(["Steam Deck", "VR Compatibility"]);
         const MOBILE_FILTER_BREAKPOINT_PX = 860;
+        const HOMEPAGE_MOBILE_LAYOUT_BREAKPOINT_PX = 1260;
         // Homepage IA scaffold: lightweight section metadata used to drive column composition.
         const HOMEPAGE_SECTION_GROUPS = Object.freeze({
             BUY_SIGNALS: "Buy Signals",
@@ -4176,6 +4192,9 @@ input:focus-visible {
         };
 
         const ui = {
+            dashboardGrid: document.querySelector(".dashboard-grid"),
+            mainColumn: document.querySelector(".main-column"),
+            sideColumn: document.querySelector(".side-column"),
             searchInput: document.getElementById("searchInput"),
             minDealInput: document.getElementById("minDealInput"),
             genreSelect: document.getElementById("genreSelect"),
@@ -8189,28 +8208,61 @@ input:focus-visible {
             activateDiscoveryTab(activeKey);
         }
 
-        function applyDiscoverySectionOrder() {
-            if (applyDiscoverySectionOrder._applied) return;
+        function isHomepageMobileLayout() {
+            const mediaQuery = `(max-width: ${HOMEPAGE_MOBILE_LAYOUT_BREAKPOINT_PX}px)`;
+            return Boolean(window.matchMedia && window.matchMedia(mediaQuery).matches);
+        }
 
-            const mainColumn = document.querySelector(".main-column");
-            const sideColumn = document.querySelector(".side-column");
-            if (!mainColumn || !sideColumn) return;
+        function applyDiscoverySectionOrder(options = {}) {
+            const force = options.force === true;
+            const mainColumn = ui.mainColumn;
+            const sideColumn = ui.sideColumn;
+            const dashboardGrid = ui.dashboardGrid;
+            if (!mainColumn || !sideColumn || !dashboardGrid) return;
+
+            const isMobileLayout = isHomepageMobileLayout();
+            const layoutMode = isMobileLayout ? "mobile" : "desktop";
+            if (!force && applyDiscoverySectionOrder._mode === layoutMode) return;
 
             const mainDefinitions = sortHomepageSectionDefinitions(getHomepageSectionDefinitions("main"));
             const sideDefinitions = sortHomepageSectionDefinitions(getHomepageSectionDefinitions("side"));
+            const allDefinitions = sortHomepageSectionDefinitions([...mainDefinitions, ...sideDefinitions]);
 
-            mainDefinitions.forEach(applyHomepageSectionMetadata);
-            sideDefinitions.forEach(applyHomepageSectionMetadata);
+            allDefinitions.forEach(applyHomepageSectionMetadata);
 
-            const discoveryTabDefinitions = mainDefinitions.filter((definition) => definition.discoveryTab === true);
+            const discoveryTabDefinitions = allDefinitions.filter((definition) => definition.discoveryTab === true);
+            const nonDiscoveryDefinitions = allDefinitions.filter((definition) => definition.discoveryTab !== true);
             const mainColumnDefinitions = mainDefinitions.filter((definition) => definition.discoveryTab !== true);
             const discoveryManagedIds = new Set(discoveryTabDefinitions.map((definition) => definition.id));
 
-            reorderHomepageColumnSections(mainColumn, mainColumnDefinitions, { excludeIds: discoveryManagedIds });
-            reorderHomepageColumnSections(sideColumn, sideDefinitions);
             mountDiscoveryTabs(discoveryTabDefinitions);
 
-            applyDiscoverySectionOrder._applied = true;
+            if (isMobileLayout) {
+                reorderHomepageColumnSections(mainColumn, nonDiscoveryDefinitions, { excludeIds: discoveryManagedIds });
+            } else {
+                reorderHomepageColumnSections(mainColumn, mainColumnDefinitions, { excludeIds: discoveryManagedIds });
+                reorderHomepageColumnSections(sideColumn, sideDefinitions);
+            }
+
+            dashboardGrid.classList.toggle("is-mobile-merged", isMobileLayout);
+
+            applyDiscoverySectionOrder._mode = layoutMode;
+        }
+
+        function wireResponsiveHomepageLayout() {
+            if (wireResponsiveHomepageLayout._wired) return;
+
+            let pendingAnimationFrame = null;
+            const onResize = () => {
+                if (pendingAnimationFrame !== null) return;
+                pendingAnimationFrame = requestAnimationFrame(() => {
+                    pendingAnimationFrame = null;
+                    applyDiscoverySectionOrder();
+                });
+            };
+
+            window.addEventListener("resize", onResize, { passive: true });
+            wireResponsiveHomepageLayout._wired = true;
         }
 
         function applyAllRenders() {
@@ -10082,6 +10134,7 @@ input:focus-visible {
                 applySiteBranding();
                 initializeHeroLogoPlayback();
                 applyDiscoverySectionOrder();
+                wireResponsiveHomepageLayout();
                 state.lastVisitTs = getStoredLastVisitTs();
                 renderSkeleton(ui.seasonalSaleTopGrid, "deal-cards", 4, { cardClass: "game-card" });
                 renderSkeleton(ui.seasonalSaleLowerGrid, "deal-cards", 4, { cardClass: "game-card" });

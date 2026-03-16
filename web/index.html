@@ -320,10 +320,11 @@ select {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 4px 0 14px;
-    padding: 2px 0 6px;
+    margin: 4px 0 12px;
+    padding: 2px 2px 6px;
     overflow-x: auto;
     overflow-y: hidden;
+    scroll-padding-left: 2px;
     scrollbar-width: thin;
     -webkit-overflow-scrolling: touch;
 }
@@ -346,6 +347,7 @@ select {
     letter-spacing: 0.07em;
     text-transform: uppercase;
     cursor: pointer;
+    line-height: 1;
     transition:
         border-color 0.18s ease,
         background 0.18s ease,
@@ -648,15 +650,15 @@ input:focus-visible {
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
-    gap: 22px;
+    grid-template-columns: minmax(0, 1fr) minmax(292px, 348px);
+    gap: 20px;
     align-items: start;
 }
 
 .main-column,
 .side-column {
     display: grid;
-    gap: 18px;
+    gap: 16px;
     align-content: start;
 }
 
@@ -668,7 +670,9 @@ input:focus-visible {
     display: inline-flex;
     align-items: center;
     justify-content: flex-start;
+    align-self: start;
     width: fit-content;
+    margin-bottom: -2px;
     padding: 6px 12px;
     border-radius: 999px;
     border: 1px solid rgba(121, 168, 255, 0.26);
@@ -693,12 +697,12 @@ input:focus-visible {
 
 .discovery-tabs-shell {
     display: grid;
-    gap: 10px;
+    gap: 8px;
 }
 
 .discovery-tabs-head {
     display: grid;
-    gap: 4px;
+    gap: 3px;
 }
 
 .discovery-tabs-title {
@@ -744,6 +748,7 @@ input:focus-visible {
     letter-spacing: 0.06em;
     text-transform: uppercase;
     cursor: pointer;
+    line-height: 1;
     transition:
         border-color 0.18s ease,
         background 0.18s ease,
@@ -821,11 +826,19 @@ input:focus-visible {
 .panel-head {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    gap: 16px;
+    align-items: flex-start;
+    gap: 14px;
     padding: 16px 16px 0;
     border-bottom: 1px solid rgba(121, 168, 255, 0.12);
-    padding-bottom: 10px;
+    padding-bottom: 9px;
+}
+
+.panel-head > * {
+    min-width: 0;
+}
+
+.panel-head .row-nav {
+    align-self: flex-start;
 }
 
 .panel-title-wrap {
@@ -848,7 +861,7 @@ input:focus-visible {
 }
 
 .panel-body {
-    padding: 13px 16px 16px;
+    padding: 12px 16px 15px;
 }
 
 .panel-seasonal .panel-title { color: #c9ffd8; }
@@ -2723,7 +2736,7 @@ input:focus-visible {
         margin-bottom: 14px;
     }
     .home-jump-nav {
-        margin: 2px 0 10px;
+        margin: 2px 0 8px;
         gap: 6px;
         padding-bottom: 4px;
     }
@@ -2832,11 +2845,11 @@ input:focus-visible {
         gap: 10px;
     }
     .dashboard-grid {
-        gap: 16px;
+        gap: 14px;
     }
     .main-column,
     .side-column {
-        gap: 14px;
+        gap: 12px;
     }
     .panel {
         border-radius: 18px;
@@ -2844,8 +2857,8 @@ input:focus-visible {
     }
     .panel-head {
         gap: 10px;
-        padding: 13px 13px 0;
-        padding-bottom: 8px;
+        padding: 12px 12px 0;
+        padding-bottom: 7px;
     }
     .panel-title {
         font-size: 18px;
@@ -2857,7 +2870,7 @@ input:focus-visible {
         line-height: 1.38;
     }
     .panel-body {
-        padding: 11px 13px 13px;
+        padding: 10px 12px 12px;
     }
     .column-zone-label {
         padding: 5px 10px;
@@ -2865,7 +2878,7 @@ input:focus-visible {
         letter-spacing: 0.1em;
     }
     .discovery-tabs-shell {
-        gap: 8px;
+        gap: 7px;
     }
     .discovery-tabs-title {
         font-size: 20px;
@@ -3013,7 +3026,7 @@ input:focus-visible {
         max-height: none;
     }
     .home-jump-nav {
-        margin: 0 0 8px;
+        margin: 0 0 7px;
     }
     .home-jump-chip {
         min-height: 32px;
@@ -8191,6 +8204,43 @@ input:focus-visible {
             scheduleSync();
         }
 
+        function getActiveDiscoveryTabKey() {
+            return String(state.discoveryTabs.activeKey || DISCOVERY_DEFAULT_TAB_KEY).trim() || DISCOVERY_DEFAULT_TAB_KEY;
+        }
+
+        function isDiscoveryTabActive(tabKey) {
+            return getActiveDiscoveryTabKey() === String(tabKey || "").trim();
+        }
+
+        function renderDiscoveryTabPane(tabKey) {
+            const key = String(tabKey || "").trim();
+            if (!key) return;
+            switch (key) {
+                case "worth-buying":
+                    renderWorthBuyingNow();
+                    break;
+                case "trending-now":
+                    renderTrendingDeals();
+                    break;
+                case "all-games":
+                    renderReleasedGames();
+                    break;
+                case "top-reviewed":
+                    renderTopReviewed();
+                    break;
+                case "historical-lows":
+                    renderHistoricalLows();
+                    break;
+                default:
+                    renderWorthBuyingNow();
+                    break;
+            }
+        }
+
+        function renderActiveDiscoveryTabPane() {
+            renderDiscoveryTabPane(getActiveDiscoveryTabKey());
+        }
+
         function activateDiscoveryTab(tabKey, options = {}) {
             const tabsList = ui.discoveryTabsList;
             const tabsBody = ui.discoveryTabsBody;
@@ -8222,6 +8272,8 @@ input:focus-visible {
                 pane.classList.toggle("is-active", isActive);
                 pane.setAttribute("aria-hidden", isActive ? "false" : "true");
             });
+
+            renderDiscoveryTabPane(key);
         }
 
         function mountDiscoveryTabs(definitions) {
@@ -8381,8 +8433,7 @@ input:focus-visible {
             renderOpportunities();
             renderOpportunityRadar();
             renderPersonalizedDeals();
-            renderWorthBuyingNow();
-            renderTrendingDeals();
+            renderActiveDiscoveryTabPane();
             renderSeasonalSale();
             renderTopPlayed();
             renderTrending();
@@ -8394,9 +8445,6 @@ input:focus-visible {
             renderNewDeals();
             renderRecommendedDeals();
             renderRecentlyUpdated();
-            renderHistoricalLows();
-            renderReleasedGames();
-            renderTopReviewed();
             renderUpcoming();
             renderWishlist();
             renderWatchlist();
@@ -8423,7 +8471,9 @@ input:focus-visible {
         function refreshReleasedAndSearch(options = {}) {
             const refreshSearch = options.refreshSearch === true;
             updateAllGamesSubtitle();
-            renderReleasedGames();
+            if (isDiscoveryTabActive("all-games")) {
+                renderReleasedGames();
+            }
             if (refreshSearch) {
                 void refreshSearchResults();
             }

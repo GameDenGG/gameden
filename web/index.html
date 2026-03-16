@@ -650,9 +650,14 @@ input:focus-visible {
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(292px, 348px);
+    grid-template-columns: minmax(0, 1fr) 340px;
     gap: 20px;
     align-items: start;
+}
+
+.dashboard-grid > .main-column,
+.dashboard-grid > .side-column {
+    min-width: 0;
 }
 
 .main-column,
@@ -664,6 +669,9 @@ input:focus-visible {
 
 .side-column {
     grid-auto-rows: min-content;
+    width: 340px;
+    max-width: 340px;
+    position: relative;
 }
 
 .column-zone-label {
@@ -2711,14 +2719,9 @@ input:focus-visible {
 
 @media (max-width: 1260px) {
     .dashboard-grid { grid-template-columns: 1fr; }
-    .dashboard-grid.is-mobile-merged .side-column {
-        display: none;
-    }
-    .dashboard-grid.is-mobile-merged .column-zone-label {
-        display: none;
-    }
-    .dashboard-grid.is-mobile-merged .main-column {
-        gap: 14px;
+    .side-column {
+        width: 100%;
+        max-width: none;
     }
     .stats-grid, .advanced-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -8521,10 +8524,6 @@ input:focus-visible {
             allDefinitions.forEach(applyHomepageSectionMetadata);
 
             const discoveryTabDefinitions = allDefinitions.filter((definition) => definition.discoveryTab === true);
-            const nonDiscoveryDefinitions = allDefinitions.filter((definition) => (
-                definition.discoveryTab !== true
-                && !isMoreMarketIntelSectionId(definition.id)
-            ));
             const mainColumnDefinitions = mainDefinitions.filter((definition) => (
                 definition.discoveryTab !== true
                 && !isMoreMarketIntelSectionId(definition.id)
@@ -8533,15 +8532,11 @@ input:focus-visible {
 
             mountDiscoveryTabs(discoveryTabDefinitions);
 
-            if (isMobileLayout) {
-                reorderHomepageColumnSections(mainColumn, nonDiscoveryDefinitions, { excludeIds: discoveryManagedIds });
-            } else {
-                reorderHomepageColumnSections(mainColumn, mainColumnDefinitions, { excludeIds: discoveryManagedIds });
-                reorderHomepageColumnSections(sideColumn, sideDefinitions);
-            }
+            reorderHomepageColumnSections(mainColumn, mainColumnDefinitions, { excludeIds: discoveryManagedIds });
+            reorderHomepageColumnSections(sideColumn, sideDefinitions);
             mountMoreMarketIntelSections(allDefinitions);
 
-            dashboardGrid.classList.toggle("is-mobile-merged", isMobileLayout);
+            dashboardGrid.classList.remove("is-mobile-merged");
 
             applyDiscoverySectionOrder._mode = layoutMode;
             syncHomepageJumpNavActiveState();

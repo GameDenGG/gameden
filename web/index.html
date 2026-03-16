@@ -135,50 +135,68 @@ select {
     position: relative;
     display: grid;
     place-items: center;
-    overflow: hidden;
-    margin-bottom: 22px;
-    padding: clamp(20px, 3.2vw, 42px) clamp(6px, 1.6vw, 20px) clamp(14px, 2.4vw, 26px);
-    min-height: clamp(148px, 22vw, 278px);
+    overflow: visible;
+    margin-bottom: clamp(18px, 3vw, 30px);
+    padding: clamp(34px, 6vw, 94px) clamp(4px, 2vw, 20px) clamp(26px, 4vw, 56px);
+    min-height: clamp(236px, 33vw, 438px);
     isolation: isolate;
 }
 
 .logo-hero::before {
     content: "";
     position: absolute;
-    inset: clamp(8px, 1.5vw, 18px) 0 clamp(2px, 0.9vw, 12px);
+    inset: clamp(-44px, -5vw, -12px) -9% clamp(-20px, -3vw, -4px);
     pointer-events: none;
-    z-index: -2;
+    z-index: -3;
     background:
-        radial-gradient(ellipse at 50% 42%, rgba(86, 156, 255, 0.26) 0%, rgba(86, 156, 255, 0.08) 52%, rgba(86, 156, 255, 0) 74%),
-        radial-gradient(ellipse at 50% 84%, rgba(103, 234, 255, 0.22) 0%, rgba(103, 234, 255, 0) 68%);
+        radial-gradient(ellipse at 50% 36%, rgba(102, 177, 255, 0.38) 0%, rgba(102, 177, 255, 0.2) 34%, rgba(102, 177, 255, 0.05) 56%, rgba(102, 177, 255, 0) 76%),
+        radial-gradient(ellipse at 18% 24%, rgba(99, 222, 255, 0.22) 0%, rgba(99, 222, 255, 0) 62%),
+        radial-gradient(ellipse at 82% 22%, rgba(157, 151, 255, 0.2) 0%, rgba(157, 151, 255, 0) 60%),
+        linear-gradient(180deg, rgba(17, 35, 61, 0.55) 0%, rgba(8, 17, 30, 0.18) 56%, rgba(8, 17, 30, 0) 100%);
+    filter: saturate(1.08);
+    mask-image: radial-gradient(ellipse at 50% 48%, rgba(0, 0, 0, 0.98) 0%, rgba(0, 0, 0, 0.9) 44%, rgba(0, 0, 0, 0.56) 68%, transparent 94%);
 }
 
 .logo-hero::after {
     content: "";
     position: absolute;
-    inset: auto 16% 8px;
-    height: clamp(44px, 8.5vw, 96px);
-    border-radius: 999px;
+    inset: auto 9% -24px;
+    height: clamp(108px, 16vw, 220px);
     pointer-events: none;
-    z-index: -1;
-    background: radial-gradient(circle, rgba(110, 181, 255, 0.26) 0%, rgba(110, 181, 255, 0.08) 44%, rgba(110, 181, 255, 0) 78%);
+    z-index: -2;
+    background:
+        radial-gradient(ellipse at 50% 32%, rgba(95, 169, 255, 0.34) 0%, rgba(95, 169, 255, 0.14) 40%, rgba(95, 169, 255, 0) 76%),
+        radial-gradient(ellipse at 50% 98%, rgba(12, 25, 44, 0.42) 0%, rgba(12, 25, 44, 0) 74%);
+    filter: blur(10px);
+    opacity: 0.92;
 }
 
 .logo-hero-stage {
     position: relative;
     display: grid;
     place-items: center;
-    width: min(1200px, 100%);
-    min-height: clamp(126px, 21vw, 248px);
+    width: min(1460px, 100%);
+    min-height: clamp(180px, 31vw, 382px);
     isolation: isolate;
+}
+
+.logo-hero-stage::before {
+    content: "";
+    position: absolute;
+    inset: 8% 12% 18%;
+    z-index: -1;
+    border-radius: 999px;
+    pointer-events: none;
+    background: radial-gradient(circle, rgba(146, 211, 255, 0.24) 0%, rgba(146, 211, 255, 0.09) 42%, rgba(146, 211, 255, 0) 74%);
+    filter: blur(14px);
 }
 
 .logo-hero-image {
     grid-area: 1 / 1;
     display: block;
-    width: min(100%, 1140px);
+    width: min(100%, 1340px);
     height: auto;
-    max-height: clamp(126px, 21vw, 248px);
+    max-height: clamp(180px, 31vw, 382px);
     object-fit: contain;
     will-change: opacity;
     transition:
@@ -190,6 +208,7 @@ select {
     position: relative;
     z-index: 1;
     opacity: 1;
+    filter: drop-shadow(0 26px 44px rgba(7, 15, 30, 0.5)) saturate(1.03);
 }
 
 .logo-hero-animated {
@@ -197,7 +216,7 @@ select {
     z-index: 2;
     opacity: 0;
     pointer-events: none;
-    filter: saturate(1.02);
+    filter: saturate(1.04) drop-shadow(0 26px 44px rgba(7, 15, 30, 0.5));
 }
 
 .logo-hero-stage.is-playing .logo-hero-animated {
@@ -205,8 +224,8 @@ select {
 }
 
 .logo-hero-stage.is-playing .logo-hero-static {
-    opacity: 0.08;
-    filter: saturate(0.9) blur(0.4px);
+    opacity: 0.06;
+    filter: saturate(0.88) blur(0.4px);
 }
 
 .stats-grid {
@@ -281,7 +300,7 @@ select {
     overflow: hidden;
     max-height: 420px;
     overflow-y: auto;
-    z-index: 40;
+    z-index: 58;
 }
 
 .search-results-pop.open {
@@ -370,13 +389,20 @@ select {
 
 .mobile-filter-toggle-row {
     display: none;
-    margin: 0 0 10px;
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    z-index: 56;
+    margin: 0;
     justify-content: flex-end;
+    transform: translateY(-38%);
 }
 
 .mobile-filters-toggle {
     min-height: 42px;
     border-radius: 12px;
+    box-shadow: 0 10px 20px rgba(3, 10, 21, 0.3);
+    backdrop-filter: blur(8px);
 }
 
 .mobile-filters-toggle[aria-expanded="true"] {
@@ -2459,19 +2485,40 @@ input:focus-visible {
     }
     .logo-hero {
         margin-bottom: 18px;
-        padding: clamp(14px, 3.8vw, 20px) 0 clamp(10px, 2.7vw, 16px);
-        min-height: clamp(118px, 24vw, 172px);
+        padding: clamp(26px, 7vw, 44px) 0 clamp(18px, 4vw, 32px);
+        min-height: clamp(188px, 40vw, 292px);
+    }
+    .logo-hero::before {
+        inset: -24px -14% -10px;
+    }
+    .logo-hero::after {
+        inset: auto 4% -16px;
+        height: clamp(90px, 22vw, 164px);
     }
     .logo-hero-stage {
-        width: min(760px, 100%);
-        min-height: clamp(96px, 23vw, 162px);
+        width: min(940px, 100%);
+        min-height: clamp(148px, 35vw, 244px);
     }
     .logo-hero-image {
-        max-height: clamp(96px, 23vw, 162px);
+        max-height: clamp(148px, 35vw, 244px);
     }
     .modal-body { grid-template-columns: 1fr; }
+    .search-stack {
+        margin-bottom: 14px;
+    }
+    .search-bar {
+        padding-right: 132px;
+    }
     .mobile-filter-toggle-row {
         display: flex;
+        top: 9px;
+        right: 12px;
+        transform: translateY(-36%);
+    }
+    .mobile-filters-toggle {
+        min-height: 38px;
+        padding: 8px 12px;
+        border-radius: 11px;
     }
     .mobile-filters-backdrop {
         display: block;
@@ -2706,15 +2753,31 @@ input:focus-visible {
     }
     .logo-hero {
         margin-bottom: 16px;
-        padding: 10px 0 8px;
-        min-height: clamp(96px, 27vw, 146px);
+        padding: clamp(18px, 8vw, 30px) 0 clamp(14px, 5vw, 22px);
+        min-height: clamp(152px, 47vw, 232px);
+    }
+    .logo-hero::after {
+        inset: auto 0 -12px;
+        height: clamp(72px, 22vw, 122px);
     }
     .logo-hero-stage {
-        width: min(520px, 100%);
-        min-height: clamp(78px, 26vw, 126px);
+        width: min(620px, 100%);
+        min-height: clamp(122px, 40vw, 184px);
     }
     .logo-hero-image {
-        max-height: clamp(78px, 26vw, 126px);
+        max-height: clamp(122px, 40vw, 184px);
+    }
+    .search-bar {
+        padding-right: 118px;
+    }
+    .mobile-filter-toggle-row {
+        top: 9px;
+        right: 10px;
+        transform: translateY(-42%);
+    }
+    .mobile-filters-toggle {
+        min-height: 36px;
+        padding: 7px 10px;
     }
     .panel-title {
         font-size: 17px;
@@ -2784,20 +2847,19 @@ input:focus-visible {
         </section>
 
         <div class="sticky-shell">
-            <div class="mobile-filter-toggle-row" id="mobileFilterToggleRow">
-                <button
-                    class="secondary-btn mobile-filters-toggle"
-                    id="mobileFiltersToggleBtn"
-                    type="button"
-                    aria-controls="filtersPanel"
-                    aria-expanded="false"
-                >
-                    Filters
-                    <span class="mobile-filter-count" id="mobileFilterCount" hidden>0</span>
-                </button>
-            </div>
-
             <div class="search-stack" id="searchStack">
+                <div class="mobile-filter-toggle-row" id="mobileFilterToggleRow">
+                    <button
+                        class="secondary-btn mobile-filters-toggle"
+                        id="mobileFiltersToggleBtn"
+                        type="button"
+                        aria-controls="filtersPanel"
+                        aria-expanded="false"
+                    >
+                        Filters
+                        <span class="mobile-filter-count" id="mobileFilterCount" hidden>0</span>
+                    </button>
+                </div>
                 <div class="search-bar-wrap" id="searchBarWrap">
                     <div class="search-bar">
                         <span aria-hidden="true">🔎</span>

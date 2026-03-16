@@ -118,3 +118,28 @@ After changes, validate as applicable:
 4. Code changes
 5. Validation steps
 6. Expected outcome
+
+## DATABASE MIGRATION SAFETY
+
+1. Any change to SQLAlchemy models that alters database structure MUST include an Alembic migration.
+
+2. Structural changes include:
+   - new columns
+   - removed columns
+   - column renames
+   - type changes
+   - index changes
+   - table creation
+   - table removal
+
+3. Code that references new columns must never be committed without a migration that creates them.
+
+4. Production deploys automatically run: `alembic upgrade head`.
+
+5. Agents must verify migrations exist by checking: `database/migrations/versions/`.
+
+6. If schema drift is detected:
+   - create a migration immediately
+   - do not patch around it in application code
+
+7. Schema correctness is always preferred over temporary compatibility workarounds.

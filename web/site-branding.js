@@ -5,8 +5,8 @@
     site_name: "GameDen.gg",
     site_url: "https://gameden.gg",
     site_description: "Discover game deals, analytics, player trends, and price history on GameDen.gg.",
-    // Optional API base for static deployments, e.g. "https://api.gameden.gg"
-    api_base: "",
+    // Explicit API base for production static deployments.
+    api_base: "https://gameden.onrender.com",
   });
   const ABSOLUTE_URL_RE = /^(https?:)?\/\//i;
   const SPECIAL_SCHEME_RE = /^(mailto:|tel:|data:|javascript:)/i;
@@ -91,11 +91,14 @@
   }
 
   const runtimeConfig = window.__GAMEDEN_SITE__ || {};
+  const runtimeApiBase = Object.prototype.hasOwnProperty.call(runtimeConfig, "api_base")
+    ? runtimeConfig.api_base
+    : fallbackConfig.api_base;
   const siteConfig = Object.freeze({
     site_name: String(runtimeConfig.site_name || fallbackConfig.site_name).trim() || fallbackConfig.site_name,
     site_url: normalizeSiteUrl(runtimeConfig.site_url || fallbackConfig.site_url),
     site_description: String(runtimeConfig.site_description || fallbackConfig.site_description).trim() || fallbackConfig.site_description,
-    api_base: String(runtimeConfig.api_base || fallbackConfig.api_base).trim(),
+    api_base: String(runtimeApiBase ?? "").trim(),
   });
 
   function absoluteUrl(path) {
@@ -215,54 +218,9 @@
     return parsed.hasBody ? parsed.payload : null;
   }
 
-  function _shouldRetryOnPageOrigin(url, requestUrl, options = {}) {
-    const method = String(options.method || "GET").trim().toUpperCase();
-    if (method !== "GET" && method !== "HEAD") return false;
-
-    const originalUrl = String(url || "").trim();
-    if (!originalUrl || ABSOLUTE_URL_RE.test(originalUrl) || SPECIAL_SCHEME_RE.test(originalUrl)) {
-      return false;
-    }
-
-    const resolvedUrl = String(requestUrl || "").trim();
-    if (!resolvedUrl || resolvedUrl === originalUrl || !ABSOLUTE_URL_RE.test(resolvedUrl)) {
-      return false;
-    }
-
-    try {
-      const targetOrigin = new URL(resolvedUrl, window.location.origin).origin;
-      return targetOrigin !== window.location.origin;
-    } catch (_error) {
-      return false;
-    }
-  }
-
-  function _isRetryableApiError(error) {
-    const status = Number(error && error.status);
-    if (!Number.isFinite(status)) return true;
-    if (status >= 500) return true;
-    if (status === 401 || status === 403 || status === 404 || status === 405 || status === 429) return true;
-    const message = String(error && error.message ? error.message : "");
-    return message.startsWith("Invalid JSON response for ");
-  }
-
   async function fetchJson(url, options = {}) {
     const requestUrl = resolveApiUrl(url);
-    const retryOnPageOrigin = _shouldRetryOnPageOrigin(url, requestUrl, options);
-
-    try {
-      return await _requestJson(url, requestUrl, options);
-    } catch (primaryError) {
-      if (!retryOnPageOrigin || !_isRetryableApiError(primaryError)) {
-        throw primaryError;
-      }
-      try {
-        return await _requestJson(url, String(url || "").trim(), options);
-      } catch (fallbackError) {
-        primaryError.fallbackError = fallbackError;
-        throw primaryError;
-      }
-    }
+    return _requestJson(url, requestUrl, options);
   }
 
   function applyMetadata(meta) {

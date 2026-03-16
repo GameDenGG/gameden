@@ -773,6 +773,15 @@ input:focus-visible {
     scroll-margin-top: 138px;
 }
 
+.panel-secondary-intel {
+    border-color: rgba(121, 168, 255, 0.17);
+    box-shadow: 0 16px 34px rgba(2, 7, 20, 0.26);
+}
+
+.panel-secondary-intel::before {
+    opacity: 0.72;
+}
+
 .panel::before {
     content: "";
     position: absolute;
@@ -3214,7 +3223,7 @@ input:focus-visible {
         <main class="dashboard-grid">
             <section class="main-column" aria-label="Main market intelligence">
                 <div class="column-zone-label main-zone-label">Main Content</div>
-                <section class="panel panel-seasonal hidden" id="seasonalSaleTopPanel">
+                <section class="panel panel-seasonal panel-secondary-intel hidden" id="seasonalSaleTopPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Seasonal Sale Radar</h2>
@@ -3566,7 +3575,7 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-seasonal hidden" id="seasonalSaleLowerPanel">
+                <section class="panel panel-seasonal panel-secondary-intel hidden" id="seasonalSaleLowerPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Seasonal Sale Radar</h2>
@@ -3644,14 +3653,24 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-analytics" id="analyticsPanel">
+                <section class="panel panel-analytics panel-secondary-intel" id="analyticsPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Analytics</h2>
                             <div class="panel-subtitle">Mini intelligence panel for live activity, momentum shifts, and player leaders.</div>
                         </div>
+                        <button
+                            class="panel-action"
+                            id="analyticsToggleBtn"
+                            type="button"
+                            aria-controls="analyticsPanelBody"
+                            aria-expanded="false"
+                        >
+                            Show Details
+                            <span class="dropdown-arrow">⇊</span>
+                        </button>
                     </div>
-                    <div class="panel-body">
+                    <div class="panel-body hidden-content" id="analyticsPanelBody">
                         <div class="analytics-groups">
                             <section class="analytics-group">
                                 <h3 class="analytics-group-title">Top Played</h3>
@@ -4015,9 +4034,9 @@ input:focus-visible {
                 tabLabel: "Historical Lows",
             },
 
-            { id: "seasonalSaleTopPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 10, column: "main" },
-            { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 10, column: "main" },
-            { id: "upcomingPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 20, column: "main" },
+            { id: "upcomingPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 10, column: "main" },
+            { id: "seasonalSaleTopPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 30, column: "main" },
+            { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 30, column: "main" },
 
             { id: "analyticsPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 10, column: "main" },
         ].map((entry) => Object.freeze(entry)));
@@ -4128,6 +4147,7 @@ input:focus-visible {
                 open: false,
                 previousFocusedElement: null,
             },
+            analyticsPanelExpanded: false,
             discoveryTabs: {
                 activeKey: DISCOVERY_DEFAULT_TAB_KEY,
             },
@@ -4183,6 +4203,8 @@ input:focus-visible {
             dealRadarFeed: document.getElementById("dealRadarFeed"),
             dealRadarMoreBtn: document.getElementById("dealRadarMoreBtn"),
             leaderboardList: document.getElementById("leaderboardList"),
+            analyticsPanelBody: document.getElementById("analyticsPanelBody"),
+            analyticsToggleBtn: document.getElementById("analyticsToggleBtn"),
             wishlistPanel: document.getElementById("wishlistPanel"),
             watchlistPanel: document.getElementById("watchlistPanel"),
             wishlistList: document.getElementById("wishlistList"),
@@ -9461,6 +9483,32 @@ input:focus-visible {
             wireRecentlyUpdatedToggle._wired = true;
         }
 
+        function renderAnalyticsPanelDisclosure() {
+            const panelBody = ui.analyticsPanelBody;
+            const toggleBtn = ui.analyticsToggleBtn;
+            if (!panelBody || !toggleBtn) return;
+
+            const expanded = !!state.analyticsPanelExpanded;
+            panelBody.classList.toggle("hidden-content", !expanded);
+            toggleBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
+            toggleBtn.innerHTML = expanded
+                ? 'Hide Details <span class="dropdown-arrow">&#8675;</span>'
+                : 'Show Details <span class="dropdown-arrow">&#8675;</span>';
+        }
+
+        function wireAnalyticsPanelDisclosure() {
+            if (wireAnalyticsPanelDisclosure._wired) return;
+            if (!ui.analyticsToggleBtn || !ui.analyticsPanelBody) return;
+
+            ui.analyticsToggleBtn.addEventListener("click", () => {
+                state.analyticsPanelExpanded = !state.analyticsPanelExpanded;
+                renderAnalyticsPanelDisclosure();
+            });
+
+            renderAnalyticsPanelDisclosure();
+            wireAnalyticsPanelDisclosure._wired = true;
+        }
+
         function wireDealRadarMore() {
             if (wireDealRadarMore._wired) return;
             if (!ui.dealRadarMoreBtn) return;
@@ -10080,6 +10128,7 @@ input:focus-visible {
                 wireSectionReveal();
                 wireSeasonalToggles();
                 wireRecentlyUpdatedToggle();
+                wireAnalyticsPanelDisclosure();
                 wireDealRadarMore();
                 wireRowNav();
                 wireKeyboardShortcuts();

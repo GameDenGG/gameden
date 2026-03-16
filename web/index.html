@@ -316,6 +316,54 @@ select {
     display: block;
 }
 
+.home-jump-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 14px;
+    padding: 2px 0 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+
+.home-jump-nav::-webkit-scrollbar {
+    height: 8px;
+}
+
+.home-jump-chip {
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    border: 1px solid rgba(121, 168, 255, 0.24);
+    background: rgba(121, 168, 255, 0.08);
+    color: var(--muted-2);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition:
+        border-color 0.18s ease,
+        background 0.18s ease,
+        color 0.18s ease,
+        transform 0.18s ease;
+}
+
+.home-jump-chip:hover {
+    border-color: rgba(121, 168, 255, 0.42);
+    background: rgba(121, 168, 255, 0.16);
+    color: #eef5ff;
+    transform: translateY(-1px);
+}
+
+.home-jump-chip:active {
+    transform: translateY(0);
+}
+
 .search-results-list {
     display: grid;
     gap: 0;
@@ -722,6 +770,7 @@ input:focus-visible {
     background: linear-gradient(180deg, rgba(13, 24, 43, 0.9), rgba(9, 17, 31, 0.95));
     box-shadow: var(--shadow-lg);
     overflow: hidden;
+    scroll-margin-top: 138px;
 }
 
 .panel::before {
@@ -2644,6 +2693,17 @@ input:focus-visible {
     .search-stack {
         margin-bottom: 14px;
     }
+    .home-jump-nav {
+        margin: 2px 0 10px;
+        gap: 6px;
+        padding-bottom: 4px;
+    }
+    .home-jump-chip {
+        min-height: 30px;
+        padding: 5px 10px;
+        font-size: 9px;
+        letter-spacing: 0.06em;
+    }
     .search-bar {
         padding-right: 130px;
     }
@@ -2745,6 +2805,7 @@ input:focus-visible {
     }
     .panel {
         border-radius: 18px;
+        scroll-margin-top: 112px;
     }
     .panel-head {
         gap: 10px;
@@ -2915,6 +2976,14 @@ input:focus-visible {
     }
     .logo-hero-image {
         max-height: none;
+    }
+    .home-jump-nav {
+        margin: 0 0 8px;
+    }
+    .home-jump-chip {
+        min-height: 28px;
+        padding: 4px 9px;
+        font-size: 9px;
     }
     .search-bar {
         padding-right: 116px;
@@ -3133,6 +3202,14 @@ input:focus-visible {
                 </section>
             </div>
         </div>
+
+        <nav class="home-jump-nav" id="homeJumpNav" aria-label="Jump to homepage zones">
+            <button class="home-jump-chip" type="button" data-home-jump-group="Buy Signals">Buy Signals</button>
+            <button class="home-jump-chip" type="button" data-home-jump-group="Your Radar">Your Radar</button>
+            <button class="home-jump-chip" type="button" data-home-jump-group="Discovery">Discovery</button>
+            <button class="home-jump-chip" type="button" data-home-jump-group="Upcoming">Upcoming</button>
+            <button class="home-jump-chip" type="button" data-home-jump-group="Analytics">Analytics</button>
+        </nav>
 
         <main class="dashboard-grid">
             <section class="main-column" aria-label="Main market intelligence">
@@ -4166,6 +4243,7 @@ input:focus-visible {
             filtersPanel: document.getElementById("filtersPanel"),
             searchResultsPop: document.getElementById("searchResultsPop"),
             searchResultsList: document.getElementById("searchResultsList"),
+            homeJumpNav: document.getElementById("homeJumpNav"),
         };
 
         const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
@@ -7918,6 +7996,50 @@ input:focus-visible {
             });
         }
 
+        function getGroupPanels(groupName) {
+            const targetGroup = String(groupName || "").trim();
+            if (!targetGroup) return [];
+            return Array.from(document.querySelectorAll(".panel[data-home-section-group]"))
+                .filter((panel) => panel instanceof HTMLElement)
+                .filter((panel) => panel.dataset.homeSectionGroup === targetGroup);
+        }
+
+        function resolveGroupScrollTarget(groupName) {
+            const candidates = getGroupPanels(groupName);
+            if (!candidates.length) return null;
+
+            const visible = candidates.find((panel) => {
+                if (!(panel instanceof HTMLElement)) return false;
+                if (panel.classList.contains("hidden")) return false;
+                if (panel.hidden) return false;
+                return panel.offsetParent !== null;
+            });
+            return visible || candidates[0];
+        }
+
+        function scrollToHomepageGroup(groupName) {
+            const target = resolveGroupScrollTarget(groupName);
+            if (!(target instanceof HTMLElement)) return;
+            target.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+        }
+
+        function wireHomepageJumpNav() {
+            const nav = ui.homeJumpNav;
+            if (!nav || wireHomepageJumpNav._wired) return;
+
+            nav.addEventListener("click", (event) => {
+                const target = event.target;
+                if (!(target instanceof Element)) return;
+                const chip = target.closest("[data-home-jump-group]");
+                if (!(chip instanceof HTMLButtonElement)) return;
+                const groupName = String(chip.dataset.homeJumpGroup || "").trim();
+                if (!groupName) return;
+                scrollToHomepageGroup(groupName);
+            });
+
+            wireHomepageJumpNav._wired = true;
+        }
+
         function activateDiscoveryTab(tabKey, options = {}) {
             const tabsList = ui.discoveryTabsList;
             const tabsBody = ui.discoveryTabsBody;
@@ -9954,6 +10076,7 @@ input:focus-visible {
 
                 wireFilters();
                 wireScrollBehavior();
+                wireHomepageJumpNav();
                 wireSectionReveal();
                 wireSeasonalToggles();
                 wireRecentlyUpdatedToggle();

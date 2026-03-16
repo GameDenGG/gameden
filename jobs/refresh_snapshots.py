@@ -58,6 +58,7 @@ from database.models import (
     Alert,
     Session as DBSession,
     DashboardCache,
+    GameDiscoveryFeed,
     DealWatchlist,
     DealEvent,
     DirtyGame,
@@ -1982,6 +1983,10 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
         int(row.game_id): row
         for row in session.query(GameSnapshot).filter(GameSnapshot.game_id.in_(game_ids)).all()
     }
+    discovery_rows = {
+        int(row.game_id): row
+        for row in session.query(GameDiscoveryFeed).filter(GameDiscoveryFeed.game_id.in_(game_ids)).all()
+    }
     latest_rows = {
         int(row.game_id): row
         for row in session.query(LatestGamePrice).filter(LatestGamePrice.game_id.in_(game_ids)).all()
@@ -2352,6 +2357,76 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
         snapshot.deal_detected_at = deal_detected_at
 
         snapshot.updated_at = now
+
+        discovery_row = discovery_rows.get(int(game_id))
+        if discovery_row is None:
+            discovery_row = GameDiscoveryFeed(game_id=game_id)
+            session.add(discovery_row)
+            discovery_rows[int(game_id)] = discovery_row
+
+        normalized_recommendation = _normalize_buy_recommendation(buy_recommendation)
+        normalized_discount = int(safe_num(latest_discount_percent, 0.0)) if latest_discount_percent is not None else 0
+        is_strong_buy = normalized_recommendation == "BUY_NOW" and safe_num(worth_buying_score, 0.0) >= 70.0
+        is_wait_pick = normalized_recommendation == "WAIT"
+        is_big_discount = normalized_discount >= 50
+        is_trending_now = (
+            safe_num(trending_score, 0.0) >= 58.0
+            or safe_num(short_term_player_trend, 0.0) >= 0.06
+            or (
+                safe_num(momentum_score, 0.0) >= 58.0
+                and safe_num(current_players, 0.0) >= 250.0
+            )
+        )
+
+        discovery_row.game_name = game.name
+        discovery_row.steam_appid = game.appid
+        discovery_row.store_url = game.store_url
+        discovery_row.banner_url = snapshot.banner_url
+        discovery_row.latest_price = latest_price
+        discovery_row.latest_original_price = latest_original_price
+        discovery_row.latest_discount_percent = latest_discount_percent
+        discovery_row.historical_low = historical_low
+        discovery_row.historical_status = snapshot.historical_status
+        discovery_row.historical_low_hit = is_new_historical_low
+        discovery_row.buy_recommendation = buy_recommendation
+        discovery_row.buy_reason = buy_reason
+        discovery_row.deal_score = deal_score
+        discovery_row.buy_score = worth_buying_score
+        discovery_row.worth_buying_score = worth_buying_score
+        discovery_row.momentum_score = momentum_score
+        discovery_row.trending_score = trending_score
+        discovery_row.deal_opportunity_score = deal_opportunity_score
+        discovery_row.deal_opportunity_reason = deal_opportunity_reason
+        discovery_row.predicted_next_sale_price = next_sale_prediction.get("predicted_next_sale_price")
+        discovery_row.predicted_next_discount_percent = next_sale_prediction.get("predicted_next_discount_percent")
+        discovery_row.predicted_next_sale_window_days_min = next_sale_prediction.get("predicted_next_sale_window_days_min")
+        discovery_row.predicted_next_sale_window_days_max = next_sale_prediction.get("predicted_next_sale_window_days_max")
+        discovery_row.predicted_sale_confidence = next_sale_prediction.get("predicted_sale_confidence")
+        discovery_row.predicted_sale_reason = next_sale_prediction.get("predicted_sale_reason")
+        discovery_row.popularity_score = popularity_score
+        discovery_row.price_vs_low_ratio = price_vs_low_ratio
+        discovery_row.max_discount = max_discount
+        discovery_row.current_players = current_players
+        discovery_row.player_growth_ratio = player_growth_ratio
+        discovery_row.short_term_player_trend = short_term_player_trend
+        discovery_row.review_score = int(review_score) if game.review_score is not None else None
+        discovery_row.review_score_label = game.review_score_label
+        discovery_row.review_count = int(review_count) if game.review_total_count is not None else None
+        discovery_row.genres = game.genres
+        discovery_row.tags = game.tags
+        discovery_row.platforms = game.platforms
+        discovery_row.worth_buying_reason_summary = worth_buying_reason_summary
+        discovery_row.trend_reason_summary = trend_reason_summary
+        discovery_row.deal_heat_reason = deal_heat_reason
+        discovery_row.is_released = game.is_released or 0
+        discovery_row.is_upcoming = is_upcoming
+        discovery_row.release_date = release_date
+        discovery_row.is_strong_buy = is_strong_buy
+        discovery_row.is_wait_pick = is_wait_pick
+        discovery_row.is_new_historical_low = is_new_historical_low
+        discovery_row.is_big_discount = is_big_discount
+        discovery_row.is_trending_now = is_trending_now
+        discovery_row.updated_at = now
 
         if previous_discount == 0 and safe_num(latest_discount_percent, 0.0) > 0:
             insert_deal_event_and_user_alerts(

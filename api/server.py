@@ -58,6 +58,7 @@ from database.models import (
     UserAlert,
     Watchlist,
     WishlistItem,
+    GameDiscoveryFeed,
     GameSnapshot,
     DashboardCache,
     LatestGamePrice,
@@ -1274,7 +1275,66 @@ def _normalize_opportunity_reason(raw_reason: str | None) -> str | None:
     return compact[0].upper() + compact[1:]
 
 
-def _build_deal_opportunity_item(snapshot: GameSnapshot) -> dict | None:
+FeedProjectionRow = GameDiscoveryFeed | GameSnapshot
+
+
+def _query_release_feed_rows(
+    session,
+    *,
+    limit: int,
+    projection_order_by: list,
+    snapshot_order_by: list,
+    projection_filters: list | None = None,
+    snapshot_filters: list | None = None,
+) -> list[FeedProjectionRow]:
+    base_projection_filters = [
+        GameDiscoveryFeed.is_released == 1,
+        or_(GameDiscoveryFeed.is_upcoming.is_(False), GameDiscoveryFeed.is_upcoming.is_(None)),
+        GameDiscoveryFeed.latest_price.isnot(None),
+    ]
+    if projection_filters:
+        base_projection_filters.extend(projection_filters)
+    projection_rows = (
+        session.query(GameDiscoveryFeed)
+        .filter(*base_projection_filters)
+        .order_by(*projection_order_by)
+        .limit(limit)
+        .all()
+    )
+    if len(projection_rows) >= int(limit):
+        return projection_rows
+
+    base_snapshot_filters = [
+        GameSnapshot.is_released == 1,
+        or_(GameSnapshot.is_upcoming.is_(False), GameSnapshot.is_upcoming.is_(None)),
+        GameSnapshot.latest_price.isnot(None),
+    ]
+    if snapshot_filters:
+        base_snapshot_filters.extend(snapshot_filters)
+    snapshot_rows = (
+        session.query(GameSnapshot)
+        .filter(*base_snapshot_filters)
+        .order_by(*snapshot_order_by)
+        .limit(limit)
+        .all()
+    )
+    if not projection_rows:
+        return snapshot_rows
+
+    seen_game_ids = {int(safe_num(row.game_id, 0.0)) for row in projection_rows}
+    merged_rows: list[FeedProjectionRow] = list(projection_rows)
+    for row in snapshot_rows:
+        game_id = int(safe_num(row.game_id, 0.0))
+        if game_id <= 0 or game_id in seen_game_ids:
+            continue
+        merged_rows.append(row)
+        seen_game_ids.add(game_id)
+        if len(merged_rows) >= int(limit):
+            break
+    return merged_rows
+
+
+def _build_deal_opportunity_item(snapshot: FeedProjectionRow) -> dict | None:
     price = snapshot.latest_price
     if price is None:
         return None
@@ -1416,7 +1476,7 @@ def _build_deal_opportunity_item(snapshot: GameSnapshot) -> dict | None:
     }
 
 
-def _build_opportunity_radar_item(snapshot: GameSnapshot) -> dict | None:
+def _build_opportunity_radar_item(snapshot: FeedProjectionRow) -> dict | None:
     if snapshot.latest_price is None:
         return None
 
@@ -1940,7 +2000,7 @@ def _get_seo_page_definition(slug: str) -> dict[str, str] | None:
     return SEO_DISCOVERY_PAGE_DEFINITIONS.get(_normalize_seo_slug(slug))
 
 
-def _is_near_historical_low(snapshot: GameSnapshot) -> bool:
+def _is_near_historical_low(snapshot: FeedProjectionRow) -> bool:
     historical_status = str(snapshot.historical_status or "").strip().lower()
     if historical_status in {"new_historical_low", "matches_historical_low", "near_historical_low"}:
         return True
@@ -1948,7 +2008,7 @@ def _is_near_historical_low(snapshot: GameSnapshot) -> bool:
     return ratio > 0 and ratio <= 1.08
 
 
-def _has_rising_player_signal(snapshot: GameSnapshot) -> bool:
+def _has_rising_player_signal(snapshot: FeedProjectionRow) -> bool:
     return (
         safe_num(snapshot.short_term_player_trend, 0.0) >= 0.06
         or safe_num(snapshot.player_growth_ratio, 0.0) >= 1.08
@@ -1956,7 +2016,7 @@ def _has_rising_player_signal(snapshot: GameSnapshot) -> bool:
     )
 
 
-def _build_seo_reason_lines(snapshot: GameSnapshot, slug: str, *, limit: int = 2) -> list[str]:
+def _build_seo_reason_lines(snapshot: FeedProjectionRow, slug: str, *, limit: int = 2) -> list[str]:
     reasons: list[str] = []
     normalized_slug = _normalize_seo_slug(slug)
     recommendation = _normalize_buy_recommendation(snapshot.buy_recommendation)
@@ -2009,7 +2069,7 @@ def _build_seo_reason_lines(snapshot: GameSnapshot, slug: str, *, limit: int = 2
     return reasons[: max(1, min(3, int(limit)))]
 
 
-def _serialize_seo_landing_item(snapshot: GameSnapshot, slug: str) -> dict:
+def _serialize_seo_landing_item(snapshot: FeedProjectionRow, slug: str) -> dict:
     explanation_lines = _build_seo_reason_lines(snapshot, slug, limit=2)
     updated_at = _coerce_utc_datetime(snapshot.updated_at) or utc_now()
     buy_score = snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score
@@ -2059,34 +2119,34 @@ def _serialize_seo_landing_item(snapshot: GameSnapshot, slug: str) -> dict:
     }
 
 
-def _build_seo_discovery_query(session, slug: str):
+def _build_seo_discovery_query(session, slug: str, model_cls=GameDiscoveryFeed):
     normalized_slug = _normalize_seo_slug(slug)
-    recommendation_expr = func.upper(func.coalesce(GameSnapshot.buy_recommendation, ""))
+    recommendation_expr = func.upper(func.coalesce(model_cls.buy_recommendation, ""))
     historical_priority = case(
-        (GameSnapshot.historical_status == "new_historical_low", 3),
-        (GameSnapshot.historical_status == "matches_historical_low", 2),
-        (GameSnapshot.historical_status == "near_historical_low", 1),
+        (model_cls.historical_status == "new_historical_low", 3),
+        (model_cls.historical_status == "matches_historical_low", 2),
+        (model_cls.historical_status == "near_historical_low", 1),
         else_=0,
     )
     near_low_predicate = or_(
-        GameSnapshot.historical_low_hit.is_(True),
-        GameSnapshot.historical_status.in_(["new_historical_low", "matches_historical_low", "near_historical_low"]),
-        and_(GameSnapshot.price_vs_low_ratio.isnot(None), GameSnapshot.price_vs_low_ratio <= 1.08),
+        model_cls.historical_low_hit.is_(True),
+        model_cls.historical_status.in_(["new_historical_low", "matches_historical_low", "near_historical_low"]),
+        and_(model_cls.price_vs_low_ratio.isnot(None), model_cls.price_vs_low_ratio <= 1.08),
     )
     rising_players_predicate = or_(
-        GameSnapshot.short_term_player_trend >= 0.05,
-        GameSnapshot.player_growth_ratio >= 1.05,
+        model_cls.short_term_player_trend >= 0.05,
+        model_cls.player_growth_ratio >= 1.05,
         and_(
-            GameSnapshot.momentum_score >= 58,
-            GameSnapshot.current_players >= 250,
+            model_cls.momentum_score >= 58,
+            model_cls.current_players >= 250,
         ),
     )
     base_query = (
-        session.query(GameSnapshot)
+        session.query(model_cls)
         .filter(
-            GameSnapshot.is_released == 1,
-            or_(GameSnapshot.is_upcoming.is_(False), GameSnapshot.is_upcoming.is_(None)),
-            GameSnapshot.latest_price.isnot(None),
+            model_cls.is_released == 1,
+            or_(model_cls.is_upcoming.is_(False), model_cls.is_upcoming.is_(None)),
+            model_cls.latest_price.isnot(None),
         )
     )
 
@@ -2095,19 +2155,19 @@ def _build_seo_discovery_query(session, slug: str):
             base_query
             .filter(
                 or_(
-                    GameSnapshot.latest_discount_percent >= 20,
-                    GameSnapshot.deal_score >= 72,
+                    model_cls.latest_discount_percent >= 20,
+                    model_cls.deal_score >= 72,
                     recommendation_expr == "BUY_NOW",
                     near_low_predicate,
                 )
             )
             .order_by(
-                GameSnapshot.deal_score.desc().nullslast(),
-                GameSnapshot.latest_discount_percent.desc().nullslast(),
-                GameSnapshot.buy_score.desc().nullslast(),
-                GameSnapshot.worth_buying_score.desc().nullslast(),
-                GameSnapshot.popularity_score.desc().nullslast(),
-                GameSnapshot.game_id.asc(),
+                model_cls.deal_score.desc().nullslast(),
+                model_cls.latest_discount_percent.desc().nullslast(),
+                model_cls.buy_score.desc().nullslast(),
+                model_cls.worth_buying_score.desc().nullslast(),
+                model_cls.popularity_score.desc().nullslast(),
+                model_cls.game_id.asc(),
             )
         )
     if normalized_slug == "historical-lows":
@@ -2116,10 +2176,10 @@ def _build_seo_discovery_query(session, slug: str):
             .filter(near_low_predicate)
             .order_by(
                 historical_priority.desc(),
-                GameSnapshot.price_vs_low_ratio.asc().nullslast(),
-                GameSnapshot.latest_discount_percent.desc().nullslast(),
-                GameSnapshot.deal_score.desc().nullslast(),
-                GameSnapshot.game_id.asc(),
+                model_cls.price_vs_low_ratio.asc().nullslast(),
+                model_cls.latest_discount_percent.desc().nullslast(),
+                model_cls.deal_score.desc().nullslast(),
+                model_cls.game_id.asc(),
             )
         )
     if normalized_slug == "trending":
@@ -2127,18 +2187,18 @@ def _build_seo_discovery_query(session, slug: str):
             base_query
             .filter(
                 or_(
-                    GameSnapshot.trending_score >= 55,
-                    GameSnapshot.momentum_score >= 58,
+                    model_cls.trending_score >= 55,
+                    model_cls.momentum_score >= 58,
                     rising_players_predicate,
                 )
             )
             .order_by(
-                GameSnapshot.trending_score.desc().nullslast(),
-                GameSnapshot.momentum_score.desc().nullslast(),
-                GameSnapshot.current_players.desc().nullslast(),
-                GameSnapshot.deal_score.desc().nullslast(),
-                GameSnapshot.latest_discount_percent.desc().nullslast(),
-                GameSnapshot.game_id.asc(),
+                model_cls.trending_score.desc().nullslast(),
+                model_cls.momentum_score.desc().nullslast(),
+                model_cls.current_players.desc().nullslast(),
+                model_cls.deal_score.desc().nullslast(),
+                model_cls.latest_discount_percent.desc().nullslast(),
+                model_cls.game_id.asc(),
             )
         )
     if normalized_slug == "buy-now":
@@ -2146,11 +2206,11 @@ def _build_seo_discovery_query(session, slug: str):
             base_query
             .filter(recommendation_expr == "BUY_NOW")
             .order_by(
-                GameSnapshot.buy_score.desc().nullslast(),
-                GameSnapshot.worth_buying_score.desc().nullslast(),
-                GameSnapshot.deal_score.desc().nullslast(),
-                GameSnapshot.latest_discount_percent.desc().nullslast(),
-                GameSnapshot.game_id.asc(),
+                model_cls.buy_score.desc().nullslast(),
+                model_cls.worth_buying_score.desc().nullslast(),
+                model_cls.deal_score.desc().nullslast(),
+                model_cls.latest_discount_percent.desc().nullslast(),
+                model_cls.game_id.asc(),
             )
         )
     if normalized_slug == "wait-for-sale":
@@ -2158,57 +2218,57 @@ def _build_seo_discovery_query(session, slug: str):
             base_query
             .filter(recommendation_expr == "WAIT")
             .order_by(
-                GameSnapshot.predicted_next_discount_percent.desc().nullslast(),
-                GameSnapshot.price_vs_low_ratio.desc().nullslast(),
-                GameSnapshot.popularity_score.desc().nullslast(),
-                GameSnapshot.deal_score.desc().nullslast(),
-                GameSnapshot.game_id.asc(),
+                model_cls.predicted_next_discount_percent.desc().nullslast(),
+                model_cls.price_vs_low_ratio.desc().nullslast(),
+                model_cls.popularity_score.desc().nullslast(),
+                model_cls.deal_score.desc().nullslast(),
+                model_cls.game_id.asc(),
             )
         )
     if normalized_slug == "under-10":
         return (
             base_query
             .filter(
-                GameSnapshot.latest_price > 0,
-                GameSnapshot.latest_price <= 10,
+                model_cls.latest_price > 0,
+                model_cls.latest_price <= 10,
             )
             .order_by(
-                GameSnapshot.deal_score.desc().nullslast(),
-                GameSnapshot.latest_discount_percent.desc().nullslast(),
-                GameSnapshot.popularity_score.desc().nullslast(),
-                GameSnapshot.game_id.asc(),
+                model_cls.deal_score.desc().nullslast(),
+                model_cls.latest_discount_percent.desc().nullslast(),
+                model_cls.popularity_score.desc().nullslast(),
+                model_cls.game_id.asc(),
             )
         )
     if normalized_slug == "under-20":
         return (
             base_query
             .filter(
-                GameSnapshot.latest_price > 10,
-                GameSnapshot.latest_price <= 20,
+                model_cls.latest_price > 10,
+                model_cls.latest_price <= 20,
             )
             .order_by(
-                GameSnapshot.deal_score.desc().nullslast(),
-                GameSnapshot.latest_discount_percent.desc().nullslast(),
-                GameSnapshot.popularity_score.desc().nullslast(),
-                GameSnapshot.game_id.asc(),
+                model_cls.deal_score.desc().nullslast(),
+                model_cls.latest_discount_percent.desc().nullslast(),
+                model_cls.popularity_score.desc().nullslast(),
+                model_cls.game_id.asc(),
             )
         )
     if normalized_slug == "popular-discounts":
         return (
             base_query
             .filter(
-                GameSnapshot.latest_discount_percent >= 20,
+                model_cls.latest_discount_percent >= 20,
                 or_(
-                    GameSnapshot.popularity_score >= 60,
-                    GameSnapshot.current_players >= 500,
+                    model_cls.popularity_score >= 60,
+                    model_cls.current_players >= 500,
                 ),
             )
             .order_by(
-                GameSnapshot.latest_discount_percent.desc().nullslast(),
-                GameSnapshot.popularity_score.desc().nullslast(),
-                GameSnapshot.momentum_score.desc().nullslast(),
-                GameSnapshot.deal_score.desc().nullslast(),
-                GameSnapshot.game_id.asc(),
+                model_cls.latest_discount_percent.desc().nullslast(),
+                model_cls.popularity_score.desc().nullslast(),
+                model_cls.momentum_score.desc().nullslast(),
+                model_cls.deal_score.desc().nullslast(),
+                model_cls.game_id.asc(),
             )
         )
     return None
@@ -5581,14 +5641,20 @@ def list_deal_opportunities(
             min(OPPORTUNITY_MAX_CANDIDATES, normalized_limit * OPPORTUNITY_QUERY_MULTIPLIER),
         )
 
-        rows = (
-            session.query(GameSnapshot)
-            .filter(
-                GameSnapshot.is_released == 1,
-                or_(GameSnapshot.is_upcoming.is_(False), GameSnapshot.is_upcoming.is_(None)),
-                GameSnapshot.latest_price.isnot(None),
-            )
-            .order_by(
+        rows = _query_release_feed_rows(
+            session,
+            limit=candidate_limit,
+            projection_order_by=[
+                GameDiscoveryFeed.buy_score.desc().nullslast(),
+                GameDiscoveryFeed.worth_buying_score.desc().nullslast(),
+                GameDiscoveryFeed.deal_score.desc().nullslast(),
+                GameDiscoveryFeed.momentum_score.desc().nullslast(),
+                GameDiscoveryFeed.popularity_score.desc().nullslast(),
+                GameDiscoveryFeed.latest_discount_percent.desc().nullslast(),
+                GameDiscoveryFeed.updated_at.desc().nullslast(),
+                GameDiscoveryFeed.game_id.asc(),
+            ],
+            snapshot_order_by=[
                 GameSnapshot.buy_score.desc().nullslast(),
                 GameSnapshot.worth_buying_score.desc().nullslast(),
                 GameSnapshot.deal_score.desc().nullslast(),
@@ -5597,9 +5663,7 @@ def list_deal_opportunities(
                 GameSnapshot.latest_discount_percent.desc().nullslast(),
                 GameSnapshot.updated_at.desc().nullslast(),
                 GameSnapshot.game_id.asc(),
-            )
-            .limit(candidate_limit)
-            .all()
+            ],
         )
 
         scored_items: list[tuple[float, datetime.datetime, dict]] = []
@@ -5641,22 +5705,27 @@ def list_opportunity_radar(
             min(OPPORTUNITY_MAX_CANDIDATES, normalized_limit * OPPORTUNITY_QUERY_MULTIPLIER),
         )
 
-        rows = (
-            session.query(GameSnapshot)
-            .filter(
-                GameSnapshot.is_released == 1,
-                or_(GameSnapshot.is_upcoming.is_(False), GameSnapshot.is_upcoming.is_(None)),
-                GameSnapshot.latest_price.isnot(None),
+        rows = _query_release_feed_rows(
+            session,
+            limit=candidate_limit,
+            projection_filters=[
+                GameDiscoveryFeed.deal_opportunity_score.isnot(None),
+                GameDiscoveryFeed.deal_opportunity_score > 0,
+            ],
+            snapshot_filters=[
                 GameSnapshot.deal_opportunity_score.isnot(None),
                 GameSnapshot.deal_opportunity_score > 0,
-            )
-            .order_by(
+            ],
+            projection_order_by=[
+                GameDiscoveryFeed.deal_opportunity_score.desc().nullslast(),
+                GameDiscoveryFeed.updated_at.desc().nullslast(),
+                GameDiscoveryFeed.game_id.asc(),
+            ],
+            snapshot_order_by=[
                 GameSnapshot.deal_opportunity_score.desc().nullslast(),
                 GameSnapshot.updated_at.desc().nullslast(),
                 GameSnapshot.game_id.asc(),
-            )
-            .limit(candidate_limit)
-            .all()
+            ],
         )
 
         items: list[dict] = []
@@ -6183,11 +6252,28 @@ def get_seo_discovery_page(
 
     session = ReadSessionLocal()
     try:
-        query = _build_seo_discovery_query(session, normalized_slug)
+        query = _build_seo_discovery_query(session, normalized_slug, model_cls=GameDiscoveryFeed)
         if query is None:
             raise HTTPException(status_code=404, detail="SEO discovery page not found")
 
-        rows = query.limit(max(1, int(limit))).all()
+        normalized_limit = max(1, int(limit))
+        rows = query.limit(normalized_limit).all()
+        if len(rows) < normalized_limit:
+            fallback_query = _build_seo_discovery_query(session, normalized_slug, model_cls=GameSnapshot)
+            if fallback_query is not None:
+                fallback_rows = fallback_query.limit(normalized_limit).all()
+                if not rows:
+                    rows = fallback_rows
+                else:
+                    seen_game_ids = {int(safe_num(getattr(row, "game_id", 0), 0.0)) for row in rows}
+                    for fallback_row in fallback_rows:
+                        fallback_game_id = int(safe_num(getattr(fallback_row, "game_id", 0), 0.0))
+                        if fallback_game_id <= 0 or fallback_game_id in seen_game_ids:
+                            continue
+                        rows.append(fallback_row)
+                        seen_game_ids.add(fallback_game_id)
+                        if len(rows) >= normalized_limit:
+                            break
         items = [_serialize_seo_landing_item(row, normalized_slug) for row in rows]
         page_payload = dict(page_definition)
         page_payload["canonical_url"] = _build_canonical_url(page_definition["path"])

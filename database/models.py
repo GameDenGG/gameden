@@ -215,6 +215,79 @@ class GameSnapshot(Base):
     review_total_count = synonym("review_count")
 
 
+class GameDiscoveryFeed(Base):
+    __tablename__ = "game_discovery_feed"
+
+    id = Column(Integer, primary_key=True)
+    game_id = Column(BigInteger, unique=True, index=True, nullable=False)
+
+    game_name = Column(String, index=True, nullable=False)
+    steam_appid = Column(String, index=True, nullable=True)
+    store_url = Column(String, nullable=True)
+    banner_url = Column(String, nullable=True)
+
+    latest_price = Column(Float, nullable=True)
+    latest_original_price = Column(Float, nullable=True)
+    latest_discount_percent = Column(Integer, nullable=True)
+    historical_low = Column(Float, nullable=True)
+    historical_status = Column(String, nullable=True)
+    historical_low_hit = Column(Boolean, default=False)
+
+    buy_recommendation = Column(String, nullable=True)
+    buy_reason = Column(String, nullable=True)
+    deal_score = Column(Float, nullable=True)
+    buy_score = Column(Float, default=0.0)
+    worth_buying_score = Column(Float, default=0.0)
+    momentum_score = Column(Float, default=0.0)
+    trending_score = Column(Float, default=0.0)
+    deal_opportunity_score = Column(Float, default=0.0)
+    deal_opportunity_reason = Column(String, nullable=True)
+
+    predicted_next_sale_price = Column(Float, nullable=True)
+    predicted_next_discount_percent = Column(Integer, nullable=True)
+    predicted_next_sale_window_days_min = Column(Integer, nullable=True)
+    predicted_next_sale_window_days_max = Column(Integer, nullable=True)
+    predicted_sale_confidence = Column(String, nullable=True)
+    predicted_sale_reason = Column(String, nullable=True)
+
+    popularity_score = Column(Float, default=0.0)
+    price_vs_low_ratio = Column(Float, nullable=True)
+    max_discount = Column(Integer, nullable=True)
+    current_players = Column(Integer, nullable=True)
+    player_growth_ratio = Column(Float, nullable=True)
+    short_term_player_trend = Column(Float, nullable=True)
+
+    review_score = Column(Integer, nullable=True)
+    review_score_label = Column(String, nullable=True)
+    review_count = Column(Integer, nullable=True)
+
+    genres = Column(String, nullable=True)
+    tags = Column(String, nullable=True)
+    platforms = Column(String, nullable=True)
+
+    worth_buying_reason_summary = Column(String, nullable=True)
+    trend_reason_summary = Column(String, nullable=True)
+    deal_heat_reason = Column(String, nullable=True)
+
+    is_released = Column(Integer, default=1)
+    is_upcoming = Column(Boolean, default=False)
+    release_date = Column(Date, nullable=True)
+
+    is_strong_buy = Column(Boolean, default=False)
+    is_wait_pick = Column(Boolean, default=False)
+    is_new_historical_low = Column(Boolean, default=False)
+    is_big_discount = Column(Boolean, default=False)
+    is_trending_now = Column(Boolean, default=False)
+
+    updated_at = Column(DateTime(timezone=True), default=_utc_now, index=True)
+
+    # Keep field aliases aligned with existing card/render helpers.
+    price = synonym("latest_price")
+    original_price = synonym("latest_original_price")
+    discount_percent = synonym("latest_discount_percent")
+    review_total_count = synonym("review_count")
+
+
 class DashboardCache(Base):
     __tablename__ = "dashboard_cache"
 
@@ -381,6 +454,53 @@ Index("idx_player_history_time", GamePlayerHistory.recorded_at.desc())
 Index("ix_player_history_game_recorded_desc", GamePlayerHistory.game_id, GamePlayerHistory.recorded_at.desc())
 Index("ix_dirty_games_next_attempt_updated", DirtyGame.next_attempt_at, DirtyGame.updated_at)
 Index("ix_game_snapshots_historical_low_hit_ts", GameSnapshot.historical_low_hit, GameSnapshot.historical_low_timestamp.desc())
+Index(
+    "ix_game_discovery_feed_released_deal_score",
+    GameDiscoveryFeed.is_released,
+    GameDiscoveryFeed.is_upcoming,
+    GameDiscoveryFeed.deal_score.desc(),
+    GameDiscoveryFeed.game_id.asc(),
+)
+Index(
+    "ix_game_discovery_feed_released_buy_score",
+    GameDiscoveryFeed.is_released,
+    GameDiscoveryFeed.is_upcoming,
+    GameDiscoveryFeed.buy_score.desc(),
+    GameDiscoveryFeed.game_id.asc(),
+)
+Index(
+    "ix_game_discovery_feed_released_trending_score",
+    GameDiscoveryFeed.is_released,
+    GameDiscoveryFeed.is_upcoming,
+    GameDiscoveryFeed.trending_score.desc(),
+    GameDiscoveryFeed.game_id.asc(),
+)
+Index(
+    "ix_game_discovery_feed_released_opportunity_score",
+    GameDiscoveryFeed.is_released,
+    GameDiscoveryFeed.is_upcoming,
+    GameDiscoveryFeed.deal_opportunity_score.desc(),
+    GameDiscoveryFeed.game_id.asc(),
+)
+Index(
+    "ix_game_discovery_feed_discount_price",
+    GameDiscoveryFeed.latest_discount_percent.desc(),
+    GameDiscoveryFeed.latest_price.asc(),
+    GameDiscoveryFeed.game_id.asc(),
+)
+Index("ix_game_discovery_feed_release_date", GameDiscoveryFeed.release_date)
+Index(
+    "ix_game_discovery_feed_historical_low_hit_updated",
+    GameDiscoveryFeed.historical_low_hit,
+    GameDiscoveryFeed.updated_at.desc(),
+)
+Index(
+    "ix_game_discovery_feed_feed_flags",
+    GameDiscoveryFeed.is_strong_buy,
+    GameDiscoveryFeed.is_wait_pick,
+    GameDiscoveryFeed.is_big_discount,
+    GameDiscoveryFeed.is_trending_now,
+)
 Index("idx_push_user", PushSubscription.user_id)
 Index("idx_deal_watchlists_user", DealWatchlist.user_id)
 Index("idx_deal_watchlists_game", DealWatchlist.game_id)

@@ -632,6 +632,88 @@ input:focus-visible {
     color: #e7dcff;
 }
 
+.discovery-tabs-shell {
+    display: grid;
+    gap: 10px;
+}
+
+.discovery-tabs-head {
+    display: grid;
+    gap: 4px;
+}
+
+.discovery-tabs-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 24px;
+    line-height: 1.04;
+    letter-spacing: -0.03em;
+}
+
+.discovery-tabs-subtitle {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.discovery-tabs-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 0 4px;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+
+.discovery-tabs-list::-webkit-scrollbar {
+    height: 8px;
+}
+
+.discovery-tab-btn {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(121, 168, 255, 0.24);
+    background: rgba(121, 168, 255, 0.08);
+    color: var(--muted-2);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition:
+        border-color 0.18s ease,
+        background 0.18s ease,
+        color 0.18s ease,
+        box-shadow 0.18s ease,
+        transform 0.18s ease;
+}
+
+.discovery-tab-btn:hover {
+    border-color: rgba(121, 168, 255, 0.42);
+    background: rgba(121, 168, 255, 0.16);
+    color: #edf5ff;
+}
+
+.discovery-tab-btn[aria-selected="true"] {
+    border-color: rgba(255, 196, 111, 0.42);
+    background: rgba(255, 196, 111, 0.16);
+    color: #ffe8cc;
+    box-shadow: 0 10px 22px rgba(4, 12, 24, 0.25);
+}
+
+.discovery-tab-pane[hidden] {
+    display: none !important;
+}
+
+.discovery-tab-pane .panel {
+    margin: 0;
+}
+
 .panel {
     --panel-accent: rgba(121, 168, 255, 0.55);
     position: relative;
@@ -2681,6 +2763,32 @@ input:focus-visible {
     .panel-body {
         padding: 11px 13px 13px;
     }
+    .column-zone-label {
+        padding: 5px 10px;
+        font-size: 9px;
+        letter-spacing: 0.1em;
+    }
+    .discovery-tabs-shell {
+        gap: 8px;
+    }
+    .discovery-tabs-title {
+        font-size: 20px;
+        letter-spacing: -0.02em;
+    }
+    .discovery-tabs-subtitle {
+        font-size: 11px;
+        line-height: 1.4;
+    }
+    .discovery-tabs-list {
+        flex-wrap: nowrap;
+        gap: 6px;
+        padding-bottom: 2px;
+    }
+    .discovery-tab-btn {
+        min-height: 32px;
+        padding: 6px 10px;
+        font-size: 10px;
+    }
 
     .panel-head,
     .sale-radar-head {
@@ -2822,6 +2930,14 @@ input:focus-visible {
     }
     .panel-title {
         font-size: 17px;
+    }
+    .discovery-tabs-title {
+        font-size: 18px;
+    }
+    .discovery-tab-btn {
+        min-height: 30px;
+        padding: 5px 9px;
+        font-size: 9px;
     }
     .cards-grid {
         grid-template-columns: 1fr;
@@ -3143,6 +3259,15 @@ input:focus-visible {
                             <div id="personalizedDealsGrid" class="row-scroller"></div>
                         </div>
                     </div>
+                </section>
+
+                <section class="discovery-tabs-shell" id="discoveryTabsShell" aria-label="Discovery browse modes">
+                    <div class="discovery-tabs-head">
+                        <h2 class="discovery-tabs-title">Discovery</h2>
+                        <div class="discovery-tabs-subtitle">Switch browse modes to keep the homepage focused while exploring live market surfaces.</div>
+                    </div>
+                    <div class="discovery-tabs-list" id="discoveryTabsList" role="tablist" aria-label="Discovery views"></div>
+                    <div class="discovery-tabs-body" id="discoveryTabsBody"></div>
                 </section>
 
                 <section class="panel panel-deals" id="worthBuyingPanel">
@@ -3728,6 +3853,7 @@ input:focus-visible {
         const ANALYTICS_WIDGET_LIMIT = 8;
         const DISCOVERY_RAIL_LIMIT = 24;
         const DISCOVERY_DIVERSITY_WINDOW = 10;
+        const DISCOVERY_DEFAULT_TAB_KEY = "worth-buying";
         const EXTENDED_PLATFORM_FILTER_OPTIONS = Object.freeze(["Steam Deck", "VR Compatibility"]);
         const MOBILE_FILTER_BREAKPOINT_PX = 860;
         // Homepage IA scaffold: lightweight section metadata used to drive column composition.
@@ -3753,7 +3879,6 @@ input:focus-visible {
             { id: "bestDealsPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 10, column: "main" },
             { id: "opportunitiesPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 20, column: "main" },
             { id: "opportunityRadarPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 30, column: "main" },
-            { id: "worthBuyingPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 40, column: "main" },
             { id: "buyNowPicksPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 50, column: "main" },
             { id: "waitForSalePanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 60, column: "main" },
             { id: "newHistoricalLowsPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 70, column: "main" },
@@ -3766,10 +3891,52 @@ input:focus-visible {
             { id: "dealRadarPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 60, column: "side" },
             { id: "alertsPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 70, column: "side" },
 
-            { id: "trendingGamesPanel", group: HOMEPAGE_SECTION_GROUPS.DISCOVERY, priority: 10, column: "main" },
-            { id: "allGamesPanel", group: HOMEPAGE_SECTION_GROUPS.DISCOVERY, priority: 20, column: "main" },
-            { id: "topReviewedPanel", group: HOMEPAGE_SECTION_GROUPS.DISCOVERY, priority: 30, column: "main" },
-            { id: "historicalLowsPanel", group: HOMEPAGE_SECTION_GROUPS.DISCOVERY, priority: 40, column: "main" },
+            { id: "discoveryTabsShell", group: HOMEPAGE_SECTION_GROUPS.DISCOVERY, priority: 5, column: "main" },
+            {
+                id: "worthBuyingPanel",
+                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
+                priority: 10,
+                column: "main",
+                discoveryTab: true,
+                tabKey: "worth-buying",
+                tabLabel: "Worth Buying",
+            },
+            {
+                id: "trendingGamesPanel",
+                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
+                priority: 20,
+                column: "main",
+                discoveryTab: true,
+                tabKey: "trending-now",
+                tabLabel: "Trending Now",
+            },
+            {
+                id: "allGamesPanel",
+                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
+                priority: 30,
+                column: "main",
+                discoveryTab: true,
+                tabKey: "all-games",
+                tabLabel: "All Games",
+            },
+            {
+                id: "topReviewedPanel",
+                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
+                priority: 40,
+                column: "main",
+                discoveryTab: true,
+                tabKey: "top-reviewed",
+                tabLabel: "Top Reviewed",
+            },
+            {
+                id: "historicalLowsPanel",
+                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
+                priority: 50,
+                column: "main",
+                discoveryTab: true,
+                tabKey: "historical-lows",
+                tabLabel: "Historical Lows",
+            },
 
             { id: "seasonalSaleTopPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 10, column: "main" },
             { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 10, column: "main" },
@@ -3884,6 +4051,9 @@ input:focus-visible {
                 open: false,
                 previousFocusedElement: null,
             },
+            discoveryTabs: {
+                activeKey: DISCOVERY_DEFAULT_TAB_KEY,
+            },
             seasonalPanelsExpanded: {
                 top: false,
                 lower: false,
@@ -3940,6 +4110,9 @@ input:focus-visible {
             watchlistPanel: document.getElementById("watchlistPanel"),
             wishlistList: document.getElementById("wishlistList"),
             watchlistList: document.getElementById("watchlistList"),
+            discoveryTabsShell: document.getElementById("discoveryTabsShell"),
+            discoveryTabsList: document.getElementById("discoveryTabsList"),
+            discoveryTabsBody: document.getElementById("discoveryTabsBody"),
             opportunitiesPanel: document.getElementById("opportunitiesPanel"),
             opportunitiesGrid: document.getElementById("opportunitiesGrid"),
             opportunityRadarPanel: document.getElementById("opportunityRadarPanel"),
@@ -7722,8 +7895,9 @@ input:focus-visible {
             node.dataset.homeSectionColumn = String(definition.column || "");
         }
 
-        function reorderHomepageColumnSections(columnNode, orderedDefinitions) {
+        function reorderHomepageColumnSections(columnNode, orderedDefinitions, options = {}) {
             if (!columnNode) return;
+            const excludedIds = options.excludeIds instanceof Set ? options.excludeIds : new Set();
 
             const orderedNodes = orderedDefinitions
                 .map((definition) => definition?.node)
@@ -7733,12 +7907,142 @@ input:focus-visible {
                 node instanceof HTMLElement
                 && node.matches("section.panel")
             ));
-            const trailingPanels = existingPanels.filter((node) => !orderedSet.has(node));
+            const trailingPanels = existingPanels.filter((node) => (
+                !orderedSet.has(node)
+                && !excludedIds.has(node.id)
+            ));
 
             [...orderedNodes, ...trailingPanels].forEach((node) => {
                 if (!(node instanceof HTMLElement)) return;
                 columnNode.appendChild(node);
             });
+        }
+
+        function activateDiscoveryTab(tabKey, options = {}) {
+            const tabsList = ui.discoveryTabsList;
+            const tabsBody = ui.discoveryTabsBody;
+            if (!tabsList || !tabsBody) return;
+
+            const key = String(tabKey || "").trim();
+            if (!key) return;
+
+            const tabButtons = Array.from(tabsList.querySelectorAll("[data-discovery-tab]"));
+            const tabPanes = Array.from(tabsBody.querySelectorAll("[data-discovery-tab-pane]"));
+            const hasTab = tabButtons.some((button) => button.dataset.discoveryTab === key);
+            if (!hasTab) return;
+
+            state.discoveryTabs.activeKey = key;
+
+            tabButtons.forEach((button) => {
+                const isActive = button.dataset.discoveryTab === key;
+                button.setAttribute("aria-selected", isActive ? "true" : "false");
+                button.tabIndex = isActive ? 0 : -1;
+                button.classList.toggle("is-active", isActive);
+                if (isActive && options.focus === true) {
+                    button.focus();
+                }
+            });
+
+            tabPanes.forEach((pane) => {
+                const isActive = pane.dataset.discoveryTabPane === key;
+                pane.hidden = !isActive;
+                pane.classList.toggle("is-active", isActive);
+                pane.setAttribute("aria-hidden", isActive ? "false" : "true");
+            });
+        }
+
+        function mountDiscoveryTabs(definitions) {
+            const shell = ui.discoveryTabsShell;
+            const tabsList = ui.discoveryTabsList;
+            const tabsBody = ui.discoveryTabsBody;
+            if (!shell || !tabsList || !tabsBody) return;
+
+            const tabDefinitions = sortHomepageSectionDefinitions(definitions)
+                .filter((definition) => (
+                    definition
+                    && definition.discoveryTab
+                    && definition.node instanceof HTMLElement
+                ));
+            if (!tabDefinitions.length) {
+                shell.classList.add("hidden");
+                return;
+            }
+
+            shell.classList.remove("hidden");
+            tabsList.innerHTML = "";
+            tabsBody.innerHTML = "";
+
+            const availableKeys = [];
+            tabDefinitions.forEach((definition, index) => {
+                const tabKey = String(definition.tabKey || definition.id || `tab-${index}`).trim();
+                if (!tabKey) return;
+                availableKeys.push(tabKey);
+
+                const tabId = `discovery-tab-${tabKey}`;
+                const paneId = `discovery-pane-${tabKey}`;
+
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "discovery-tab-btn";
+                button.id = tabId;
+                button.setAttribute("role", "tab");
+                button.dataset.discoveryTab = tabKey;
+                button.setAttribute("aria-controls", paneId);
+                button.setAttribute("aria-selected", "false");
+                button.tabIndex = -1;
+                button.textContent = String(definition.tabLabel || definition.node.querySelector(".panel-title")?.textContent || definition.id);
+                button.addEventListener("click", () => {
+                    activateDiscoveryTab(tabKey, { focus: false });
+                });
+                tabsList.appendChild(button);
+
+                const pane = document.createElement("div");
+                pane.className = "discovery-tab-pane";
+                pane.id = paneId;
+                pane.dataset.discoveryTabPane = tabKey;
+                pane.setAttribute("role", "tabpanel");
+                pane.setAttribute("aria-labelledby", tabId);
+                pane.setAttribute("aria-hidden", "true");
+                pane.hidden = true;
+                pane.appendChild(definition.node);
+                tabsBody.appendChild(pane);
+            });
+
+            if (!availableKeys.length) {
+                shell.classList.add("hidden");
+                return;
+            }
+
+            const orderedButtons = Array.from(tabsList.querySelectorAll("[data-discovery-tab]"));
+            orderedButtons.forEach((button, index) => {
+                button.addEventListener("keydown", (event) => {
+                    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft" && event.key !== "Home" && event.key !== "End") {
+                        return;
+                    }
+                    event.preventDefault();
+                    let nextIndex = index;
+                    if (event.key === "ArrowRight") {
+                        nextIndex = (index + 1) % orderedButtons.length;
+                    } else if (event.key === "ArrowLeft") {
+                        nextIndex = (index - 1 + orderedButtons.length) % orderedButtons.length;
+                    } else if (event.key === "Home") {
+                        nextIndex = 0;
+                    } else if (event.key === "End") {
+                        nextIndex = orderedButtons.length - 1;
+                    }
+                    const nextButton = orderedButtons[nextIndex];
+                    if (!nextButton) return;
+                    activateDiscoveryTab(nextButton.dataset.discoveryTab, { focus: true });
+                });
+            });
+
+            const preferredDefault = String(state.discoveryTabs.activeKey || DISCOVERY_DEFAULT_TAB_KEY).trim();
+            const activeKey = availableKeys.includes(preferredDefault)
+                ? preferredDefault
+                : availableKeys.includes(DISCOVERY_DEFAULT_TAB_KEY)
+                    ? DISCOVERY_DEFAULT_TAB_KEY
+                    : availableKeys[0];
+            activateDiscoveryTab(activeKey);
         }
 
         function applyDiscoverySectionOrder() {
@@ -7754,8 +8058,13 @@ input:focus-visible {
             mainDefinitions.forEach(applyHomepageSectionMetadata);
             sideDefinitions.forEach(applyHomepageSectionMetadata);
 
-            reorderHomepageColumnSections(mainColumn, mainDefinitions);
+            const discoveryTabDefinitions = mainDefinitions.filter((definition) => definition.discoveryTab === true);
+            const mainColumnDefinitions = mainDefinitions.filter((definition) => definition.discoveryTab !== true);
+            const discoveryManagedIds = new Set(discoveryTabDefinitions.map((definition) => definition.id));
+
+            reorderHomepageColumnSections(mainColumn, mainColumnDefinitions, { excludeIds: discoveryManagedIds });
             reorderHomepageColumnSections(sideColumn, sideDefinitions);
+            mountDiscoveryTabs(discoveryTabDefinitions);
 
             applyDiscoverySectionOrder._applied = true;
         }

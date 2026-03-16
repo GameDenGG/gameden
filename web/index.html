@@ -965,6 +965,7 @@ input:focus-visible {
 
 .panel-body {
     padding: 12px 16px 15px;
+    min-width: 0;
 }
 
 .more-intel-panel > .panel-head {
@@ -1065,6 +1066,9 @@ input:focus-visible {
     grid-auto-flow: column;
     grid-auto-columns: minmax(236px, 284px);
     gap: 10px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;
     padding-bottom: 4px;
@@ -1073,7 +1077,7 @@ input:focus-visible {
     scroll-snap-type: x proximity;
     scrollbar-width: thin;
     cursor: grab;
-    contain: layout paint;
+    contain: paint;
     overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
 }
@@ -1096,13 +1100,24 @@ input:focus-visible {
     border-radius: 999px;
 }
 
+.row-scroller > * {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+}
+
 .row-scroller .game-card {
     scroll-snap-align: start;
     min-width: 0;
+    width: 100%;
+    max-width: 100%;
 }
 
 .row-section {
     position: relative;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
 }
 
 .row-fade-left,
@@ -1201,6 +1216,11 @@ input:focus-visible {
     align-items: flex-start;
     gap: 8px;
     padding: 8px 10px 0;
+    min-width: 0;
+}
+
+.game-card-top > div:first-child {
+    min-width: 0;
 }
 
 .game-name {
@@ -1260,6 +1280,7 @@ input:focus-visible {
     border-radius: 8px;
     padding: 5px 8px;
     min-height: 30px;
+    min-width: 0;
     font-size: 11px;
     flex: 1 1 0;
     white-space: nowrap;

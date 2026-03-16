@@ -13,10 +13,13 @@
 <meta property="og:title" content="GameDen.gg - Game Detail">
 <meta property="og:description" content="Game-level pricing, player movement, and market intelligence on GameDen.gg.">
 <meta property="og:url" content="https://gameden.gg/game.html">
+<meta property="og:image" content="https://gameden.gg/web/favicon.ico">
+<meta property="og:image:alt" content="GameDen.gg deal card preview">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="GameDen.gg - Game Detail">
 <meta name="twitter:description" content="Game-level pricing, player movement, and market intelligence on GameDen.gg.">
 <meta name="twitter:url" content="https://gameden.gg/game.html">
+<meta name="twitter:image" content="https://gameden.gg/web/favicon.ico">
 <title>GameDen.gg - Game Detail</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdn.cloudflare.steamstatic.com" crossorigin>
@@ -267,6 +270,17 @@ a {
     background: rgba(74, 222, 128, 0.16);
     color: #ddffe9;
     box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.22);
+}
+
+.hero-share-btn {
+    border-color: rgba(111, 232, 255, 0.42);
+    background: rgba(111, 232, 255, 0.1);
+    color: #def8ff;
+}
+
+.hero-share-btn:hover {
+    border-color: rgba(111, 232, 255, 0.66);
+    background: rgba(111, 232, 255, 0.18);
 }
 
 .hero-watch-btn.is-pending {
@@ -779,6 +793,7 @@ a {
                 <div class="hero-actions">
                     <div class="hero-badge" id="dealBadge"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40" aria-hidden="true"></span></div>
                     <button class="hero-watch-btn" id="watchButton" type="button" aria-pressed="false">Watch</button>
+                    <button class="hero-watch-btn hero-share-btn" id="shareDealButton" type="button" disabled>Share Deal</button>
                     <section class="target-alert-card" aria-label="Price target alerts">
                         <div class="target-alert-title">Price Target Alert</div>
                         <label class="target-alert-row">
@@ -917,6 +932,7 @@ const DEFAULT_USER_ID = "legacy-user";
 const gameName = getQueryParam("game_name");
 const gameIdParam = getQueryParam("game_id");
 const watchButton = document.getElementById("watchButton");
+const shareDealButton = document.getElementById("shareDealButton");
 const targetPriceInput = document.getElementById("targetPriceInput");
 const targetDiscountInput = document.getElementById("targetDiscountInput");
 const saveTargetAlertButton = document.getElementById("saveTargetAlertButton");
@@ -924,12 +940,14 @@ const clearTargetAlertButton = document.getElementById("clearTargetAlertButton")
 const targetAlertStatus = document.getElementById("targetAlertStatus");
 const relatedGamesEl = document.getElementById("relatedGames");
 const HIGH_VALUE_DISCOUNT_THRESHOLD = 60;
+const SHARE_BUTTON_DEFAULT_LABEL = "Share Deal";
 let priceChart = null;
 let playerChart = null;
 let activeRange = "90d";
 let currentGameId = null;
 let currentGamePayload = null;
 let currentDealTarget = null;
+let shareButtonResetTimer = null;
 const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
 
 if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
@@ -1237,6 +1255,211 @@ function escapeHtml(value) {
         .replaceAll("'", "&#039;");
 }
 
+function buildGameShareUrl(payload = currentGamePayload) {
+    const url = new URL(window.location.href);
+    url.search = "";
+
+    const gameId = Number(payload?.id ?? payload?.game_id ?? currentGameId);
+    if (Number.isFinite(gameId) && gameId > 0) {
+        url.searchParams.set("game_id", String(Math.trunc(gameId)));
+    }
+
+    const name = String(payload?.game_name || payload?.name || gameName || "").trim();
+    if (name) {
+        url.searchParams.set("game_name", name);
+    }
+
+    return url.toString();
+}
+
+function buildShareCardImageUrl(gameId = currentGameId) {
+    const numericGameId = Number(gameId);
+    if (!Number.isFinite(numericGameId) || numericGameId <= 0) return "";
+    const sharePath = `/share/deal/${encodeURIComponent(String(Math.trunc(numericGameId)))}`;
+    if (window.GameDenSite && typeof window.GameDenSite.absoluteUrl === "function") {
+        return window.GameDenSite.absoluteUrl(sharePath);
+    }
+    try {
+        return new URL(sharePath, window.location.origin).toString();
+    } catch {
+        return sharePath;
+    }
+}
+
+function buildShareExplanationLine(payload) {
+    const reasonCandidates = [
+        payload?.buy_reason,
+        payload?.deal_heat_reason ?? payload?.deal_heat?.reason,
+        payload?.predicted_sale_reason ?? payload?.next_sale_prediction?.reason,
+    ];
+    for (const candidate of reasonCandidates) {
+        const line = normalizeReasonSnippet(candidate);
+        if (line) return line;
+    }
+    return "Snapshot-backed deal signal";
+}
+
+function buildShareSummary(payload) {
+    const priceText = fmtPrice(payload?.price ?? payload?.current_price);
+    const discount = Number(payload?.discount_percent ?? payload?.latest_discount_percent);
+    const discountText = Number.isFinite(discount) && discount > 0
+        ? `${Math.round(discount)}% off`
+        : "No active discount";
+    const explanation = buildShareExplanationLine(payload);
+    return `${priceText} • ${discountText} • ${explanation}`;
+}
+
+function applyGamePageMetadata(payload) {
+    if (!window.GameDenSite || typeof window.GameDenSite.applyMetadata !== "function") {
+        return;
+    }
+
+    const pageUrl = buildGameShareUrl(payload);
+    let pathWithQuery = window.location.pathname;
+    try {
+        const parsedUrl = new URL(pageUrl);
+        pathWithQuery = `${parsedUrl.pathname}${parsedUrl.search}`;
+    } catch {
+        // Use current path fallback when URL parsing is unavailable.
+    }
+
+    const gameTitle = String(payload?.game_name || payload?.name || "Game").trim() || "Game";
+    const description = `${gameTitle}: ${buildShareSummary(payload)}`;
+    const ogImage = buildShareCardImageUrl(payload?.id ?? payload?.game_id ?? currentGameId);
+
+    window.GameDenSite.applyMetadata({
+        path: pathWithQuery,
+        title: `${gameTitle} Deal Snapshot | GameDen.gg`,
+        description,
+        ogTitle: `${gameTitle} Deal Snapshot | GameDen.gg`,
+        ogDescription: description,
+        twitterTitle: `${gameTitle} Deal Snapshot | GameDen.gg`,
+        twitterDescription: description,
+        ogImage,
+        twitterImage: ogImage,
+        ogImageAlt: `${gameTitle} deal card with price, discount, and confidence from GameDen.gg`,
+    });
+}
+
+async function copyTextToClipboard(textValue) {
+    const value = String(textValue || "").trim();
+    if (!value) return false;
+
+    try {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function" && window.isSecureContext) {
+            await navigator.clipboard.writeText(value);
+            return true;
+        }
+    } catch {
+        // Fall back to selection-based copy.
+    }
+
+    try {
+        const input = document.createElement("input");
+        input.value = value;
+        input.setAttribute("readonly", "readonly");
+        input.style.position = "absolute";
+        input.style.left = "-9999px";
+        document.body.appendChild(input);
+        input.select();
+        input.setSelectionRange(0, input.value.length);
+        const copied = document.execCommand("copy");
+        document.body.removeChild(input);
+        return !!copied;
+    } catch {
+        return false;
+    }
+}
+
+function setShareButtonPending(isPending) {
+    if (!(shareDealButton instanceof HTMLButtonElement)) return;
+    const pending = !!isPending;
+    const hasGameId = Number.isFinite(currentGameId) && currentGameId > 0;
+    shareDealButton.classList.toggle("is-pending", pending);
+    shareDealButton.disabled = pending || !hasGameId;
+    shareDealButton.textContent = pending ? "Sharing..." : SHARE_BUTTON_DEFAULT_LABEL;
+}
+
+function pulseShareButtonSuccess() {
+    if (!(shareDealButton instanceof HTMLButtonElement)) return;
+    const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return;
+    shareDealButton.classList.remove("is-action-success");
+    void shareDealButton.offsetWidth;
+    shareDealButton.classList.add("is-action-success");
+    window.setTimeout(() => {
+        shareDealButton?.classList.remove("is-action-success");
+    }, 720);
+}
+
+function flashShareButtonLabel(label) {
+    if (!(shareDealButton instanceof HTMLButtonElement)) return;
+    if (shareButtonResetTimer) {
+        window.clearTimeout(shareButtonResetTimer);
+    }
+    shareDealButton.textContent = String(label || SHARE_BUTTON_DEFAULT_LABEL);
+    shareButtonResetTimer = window.setTimeout(() => {
+        if (shareDealButton instanceof HTMLButtonElement && !shareDealButton.classList.contains("is-pending")) {
+            shareDealButton.textContent = SHARE_BUTTON_DEFAULT_LABEL;
+        }
+    }, 1800);
+}
+
+async function handleShareDeal() {
+    if (!(shareDealButton instanceof HTMLButtonElement)) return;
+    if (shareDealButton.disabled || shareDealButton.classList.contains("is-pending")) return;
+
+    const payload = currentGamePayload || {};
+    const gameId = Number(payload?.id ?? payload?.game_id ?? currentGameId);
+    if (!Number.isFinite(gameId) || gameId <= 0) return;
+
+    const shareUrl = buildGameShareUrl(payload);
+    const shareTitle = `${String(payload?.game_name || payload?.name || "Game").trim() || "Game"} deal on GameDen.gg`;
+    const shareText = buildShareSummary(payload);
+
+    setShareButtonPending(true);
+    let copied = false;
+    let nativeShared = false;
+    let feedbackLabel = SHARE_BUTTON_DEFAULT_LABEL;
+    let pulseSuccess = false;
+    try {
+        copied = await copyTextToClipboard(shareUrl);
+
+        if (navigator.share && typeof navigator.share === "function") {
+            try {
+                await navigator.share({
+                    title: shareTitle,
+                    text: shareText,
+                    url: shareUrl,
+                });
+                nativeShared = true;
+            } catch (error) {
+                if (!(error && typeof error === "object" && String(error.name || "") === "AbortError")) {
+                    console.warn("Native share failed", error);
+                }
+            }
+        }
+
+        if (nativeShared) {
+            feedbackLabel = "Shared";
+            pulseSuccess = true;
+        } else if (copied) {
+            feedbackLabel = "Copied";
+            pulseSuccess = true;
+        } else {
+            window.prompt("Copy deal link:", shareUrl);
+            feedbackLabel = "Link ready";
+        }
+    } finally {
+        setShareButtonPending(false);
+    }
+
+    if (pulseSuccess) {
+        pulseShareButtonSuccess();
+    }
+    flashShareButtonLabel(feedbackLabel);
+}
+
 async function fetchJson(url, options = {}) {
     if (!window.GameDenSite || typeof window.GameDenSite.fetchJson !== "function") {
         throw new Error("GameDen runtime is not initialized. Ensure /site-branding.js loads before page scripts.");
@@ -1515,6 +1738,9 @@ async function loadGame() {
     const requestedGameId = Number(gameIdParam);
     const hasValidGameId = Number.isFinite(requestedGameId) && requestedGameId > 0;
     if (!hasValidGameId && !gameName) {
+        if (shareDealButton instanceof HTMLButtonElement) {
+            shareDealButton.disabled = true;
+        }
         clearLoadingChrome();
         document.getElementById("gameTitle").innerText = "Missing game identifier";
         document.querySelector(".content-grid").innerHTML = `<div class="error">game_id or game_name is required in URL query.</div>`;
@@ -1531,6 +1757,9 @@ async function loadGame() {
 
     if (!payload || payload.error) {
         const message = payload?.error || "Game not found";
+        if (shareDealButton instanceof HTMLButtonElement) {
+            shareDealButton.disabled = true;
+        }
         clearLoadingChrome();
         document.getElementById("gameTitle").innerText = message;
         document.querySelector(".content-grid").innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
@@ -1543,6 +1772,11 @@ async function loadGame() {
         game_name: payload.game_name || payload.name || gameName || (Number.isFinite(currentGameId) && currentGameId > 0 ? `Game ${currentGameId}` : "Unknown game"),
     };
     currentGamePayload = payload;
+    if (shareDealButton instanceof HTMLButtonElement) {
+        shareDealButton.disabled = !(Number.isFinite(currentGameId) && currentGameId > 0);
+        shareDealButton.textContent = SHARE_BUTTON_DEFAULT_LABEL;
+    }
+    applyGamePageMetadata(payload);
 
     document.getElementById("gameTitle").innerText = payload.game_name || gameName;
     document.getElementById("gameSub").innerText =
@@ -2055,6 +2289,10 @@ watchButton?.addEventListener("click", () => {
     void toggleWatch().catch((error) => console.error(error));
 });
 
+shareDealButton?.addEventListener("click", () => {
+    void handleShareDeal().catch((error) => console.error(error));
+});
+
 saveTargetAlertButton?.addEventListener("click", () => {
     void saveDealTargetAlert().catch((error) => {
         console.error(error);
@@ -2085,6 +2323,9 @@ renderGameLoadingSkeletons();
 wireRangeButtons();
 void loadGame().catch((error) => {
     console.error(error);
+    if (shareDealButton instanceof HTMLButtonElement) {
+        shareDealButton.disabled = true;
+    }
     clearLoadingChrome();
     document.getElementById("gameTitle").innerText = "Failed to load game";
 });

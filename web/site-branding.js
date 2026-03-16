@@ -231,6 +231,9 @@
     const ogDescription = metadata.ogDescription || pageDescription;
     const twitterTitle = metadata.twitterTitle || ogTitle;
     const twitterDescription = metadata.twitterDescription || ogDescription;
+    const ogImage = String(metadata.ogImage || metadata.image || "").trim();
+    const twitterImage = String(metadata.twitterImage || ogImage || metadata.image || "").trim();
+    const ogImageAlt = String(metadata.ogImageAlt || metadata.imageAlt || "").trim();
 
     if (pageTitle) {
       document.title = pageTitle;
@@ -245,6 +248,15 @@
     updateMetaTag("meta[name='twitter:title']", "content", twitterTitle);
     updateMetaTag("meta[name='twitter:description']", "content", twitterDescription);
     updateMetaTag("meta[name='twitter:url']", "content", canonicalUrl);
+    if (ogImage) {
+      updateMetaTag("meta[property='og:image']", "content", ogImage);
+    }
+    if (ogImageAlt) {
+      updateMetaTag("meta[property='og:image:alt']", "content", ogImageAlt);
+    }
+    if (twitterImage) {
+      updateMetaTag("meta[name='twitter:image']", "content", twitterImage);
+    }
     updateMetaTag("link[rel='canonical']", "href", canonicalUrl);
   }
 

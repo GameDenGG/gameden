@@ -1586,6 +1586,164 @@ def _build_deal_confidence_badge(score_value: float | None) -> dict | None:
     }
 
 
+def _escape_svg_text(value: str | None) -> str:
+    text_value = str(value or "")
+    return (
+        text_value
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&#39;")
+    )
+
+
+def _truncate_share_text(value: str | None, max_chars: int = 96) -> str:
+    cleaned = re.sub(r"\s+", " ", str(value or "").strip())
+    if not cleaned:
+        return ""
+    if len(cleaned) <= max_chars:
+        return cleaned
+    return f"{cleaned[: max(0, max_chars - 3)].rstrip()}..."
+
+
+def _wrap_share_title_lines(value: str | None, max_chars: int = 28, max_lines: int = 2) -> list[str]:
+    cleaned = re.sub(r"\s+", " ", str(value or "").strip())
+    if not cleaned:
+        return ["Unknown game"]
+
+    words = cleaned.split(" ")
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if len(candidate) <= max_chars or not current:
+            current = candidate
+            continue
+
+        lines.append(current)
+        current = word
+        if len(lines) >= max_lines - 1:
+            break
+
+    if len(lines) < max_lines and current:
+        lines.append(current)
+
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+    if len(lines) == max_lines:
+        lines[-1] = _truncate_share_text(lines[-1], max_chars)
+
+    return lines
+
+
+def _format_share_price(value: float | None) -> str:
+    if value is None:
+        return "--"
+    numeric = safe_num(value, 0.0)
+    if numeric <= 0:
+        return "Free"
+    return f"${numeric:,.2f}"
+
+
+def _build_share_explanation(snapshot: GameSnapshot) -> str:
+    for candidate in (
+        snapshot.buy_reason,
+        snapshot.deal_heat_reason,
+        snapshot.predicted_sale_reason,
+    ):
+        normalized = _normalize_opportunity_reason(candidate)
+        if normalized:
+            return _truncate_share_text(normalized, 92)
+
+    discount = max(0, int(round(safe_num(snapshot.latest_discount_percent, 0.0))))
+    recommendation = _normalize_buy_recommendation(snapshot.buy_recommendation)
+    if recommendation == "BUY_NOW":
+        return "Buy-now recommendation"
+    if _is_near_historical_low(snapshot):
+        return "Near historical low"
+    if discount >= 40:
+        return "Strong discount right now"
+    return "Snapshot-backed deal signal"
+
+
+def _build_share_deal_svg(snapshot: GameSnapshot, game_id: int) -> str:
+    title_lines = _wrap_share_title_lines(snapshot.game_name, max_chars=30, max_lines=2)
+    if len(title_lines) == 1:
+        title_lines.append("")
+
+    confidence = _build_deal_confidence_badge(
+        snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score
+        if snapshot.worth_buying_score is not None
+        else snapshot.deal_score
+    ) or _build_deal_confidence_badge(snapshot.deal_score)
+    if confidence is None:
+        confidence = {
+            "confidence_label": "Wait",
+            "confidence_icon": "WT",
+            "confidence_color": "#9eb8e7",
+        }
+
+    confidence_label = str(confidence.get("confidence_label") or "Wait").strip()
+    confidence_icon = str(confidence.get("confidence_icon") or "WT").strip()
+    confidence_color = str(confidence.get("confidence_color") or "#9eb8e7").strip()
+    confidence_chip_width = max(190, min(390, 116 + len(confidence_label) * 12))
+
+    explanation = _build_share_explanation(snapshot)
+    price_text = _format_share_price(snapshot.latest_price)
+    discount_value = max(0, int(round(safe_num(snapshot.latest_discount_percent, 0.0))))
+    discount_text = f"{discount_value}% off" if discount_value > 0 else "No active discount"
+
+    title_line_one = _escape_svg_text(title_lines[0])
+    title_line_two = _escape_svg_text(title_lines[1])
+    escaped_price = _escape_svg_text(price_text)
+    escaped_discount = _escape_svg_text(discount_text)
+    escaped_confidence = _escape_svg_text(f"{confidence_icon} {confidence_label}")
+    escaped_explanation = _escape_svg_text(explanation)
+    escaped_brand = _escape_svg_text("GameDen.gg")
+    escaped_subtitle = _escape_svg_text("The Game Market Radar")
+
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="{_escape_svg_text(snapshot.game_name)} deal card">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#071324"/>
+      <stop offset="100%" stop-color="#0d1f3d"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#132948" stop-opacity="0.94"/>
+      <stop offset="100%" stop-color="#0b1b34" stop-opacity="0.94"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1080" cy="82" r="220" fill="#3b82f6" fill-opacity="0.11"/>
+  <circle cx="80" cy="610" r="240" fill="#60a5fa" fill-opacity="0.08"/>
+  <rect x="44" y="40" width="1112" height="550" rx="28" fill="url(#panel)" stroke="#9ab6ff" stroke-opacity="0.26"/>
+
+  <text x="88" y="118" font-family="Inter,Segoe UI,Roboto,sans-serif" font-size="18" fill="#9ab6ff">{escaped_brand}</text>
+  <text x="88" y="146" font-family="Inter,Segoe UI,Roboto,sans-serif" font-size="14" fill="#b7c8eb" fill-opacity="0.92">{escaped_subtitle}</text>
+
+  <text x="88" y="240" font-family="Inter,Segoe UI,Roboto,sans-serif" font-size="54" font-weight="800" fill="#edf4ff">{title_line_one}</text>
+  <text x="88" y="304" font-family="Inter,Segoe UI,Roboto,sans-serif" font-size="54" font-weight="800" fill="#edf4ff">{title_line_two}</text>
+
+  <rect x="88" y="344" width="286" height="118" rx="18" fill="#102643" stroke="#9ab6ff" stroke-opacity="0.22"/>
+  <text x="114" y="378" font-family="Inter,Segoe UI,Roboto,sans-serif" font-size="16" fill="#9ab6ff">Current price</text>
+  <text x="114" y="432" font-family="Inter,Segoe UI,Roboto,sans-serif" font-size="46" font-weight="800" fill="#edf4ff">{escaped_price}</text>
+
+  <rect x="394" y="344" width="214" height="118" rx="18" fill="#102643" stroke="#9ab6ff" stroke-opacity="0.22"/>
+  <text x="420" y="378" font-family="Inter,Segoe UI,Roboto,sans-serif" font-size="16" fill="#9ab6ff">Discount</text>
+  <text x="420" y="432" font-family="Inter,Segoe UI,Roboto,sans-serif" font-size="34" font-weight="700" fill="#edf4ff">{escaped_discount}</text>
+
+  <rect x="88" y="482" width="{confidence_chip_width}" height="54" rx="27" fill="{confidence_color}" fill-opacity="0.2" stroke="{confidence_color}" stroke-opacity="0.65"/>
+  <text x="114" y="516" font-family="Inter,Segoe UI,Roboto,sans-serif" font-size="23" font-weight="700" fill="#edf4ff">{escaped_confidence}</text>
+
+  <text x="88" y="565" font-family="Inter,Segoe UI,Roboto,sans-serif" font-size="19" fill="#dce8ff">{escaped_explanation}</text>
+
+  <text x="1112" y="564" text-anchor="end" font-family="Inter,Segoe UI,Roboto,sans-serif" font-size="13" fill="#9ab6ff">/share/deal/{int(game_id)}</text>
+</svg>
+"""
+
+
 def _build_personalized_deal_item(
     snapshot: GameSnapshot,
     *,
@@ -2643,6 +2801,36 @@ def home():
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return FileResponse("web/favicon.ico")
+
+
+@app.get("/share/deal/{game_id}", include_in_schema=False)
+def share_deal_card(game_id: int):
+    started = _start_timer()
+    normalized_game_id = int(safe_num(game_id, 0.0))
+    if normalized_game_id <= 0:
+        raise HTTPException(status_code=404, detail="Game snapshot not found")
+
+    session = ReadSessionLocal()
+    try:
+        snapshot = (
+            session.query(GameSnapshot)
+            .filter(GameSnapshot.game_id == normalized_game_id)
+            .first()
+        )
+        if snapshot is None:
+            raise HTTPException(status_code=404, detail="Game snapshot not found")
+
+        svg_payload = _build_share_deal_svg(snapshot, normalized_game_id)
+        return Response(
+            content=svg_payload,
+            media_type="image/svg+xml",
+            headers={
+                "Cache-Control": "public, max-age=300, s-maxage=900",
+            },
+        )
+    finally:
+        session.close()
+        _log_timing("/share/deal", started)
 
 
 def _serve_all_results_page():
@@ -4337,6 +4525,7 @@ def get_game_detail(game_id: int):
         payload["predicted_next_sale_window_days_max"] = None
         payload["predicted_sale_confidence"] = None
         payload["predicted_sale_reason"] = None
+        payload["share_card_url"] = _build_canonical_url(f"/share/deal/{int(game_id)}")
         payload["deal_opportunity_score"] = None
         payload["deal_opportunity_reason"] = None
         payload["deal_opportunity"] = {
@@ -4405,6 +4594,7 @@ def get_game_detail(game_id: int):
             payload["share_card"] = {
                 "title": snapshot.game_name,
                 "cover": snapshot.banner_url,
+                "image_url": payload["share_card_url"],
                 "current_price": snapshot.latest_price,
                 "original_price": snapshot.latest_original_price,
                 "discount_percent": snapshot.latest_discount_percent,
@@ -4455,6 +4645,7 @@ def get_game_by_name(request: Request, game_name: str):
             "steam_appid": (snapshot.steam_appid if snapshot else None) or game.appid,
             "banner_url": banner_url,
             "store_url": game.store_url,
+            "share_card_url": _build_canonical_url(f"/share/deal/{int(game.id)}"),
             "developer": game.developer,
             "publisher": game.publisher,
             "release_date": (

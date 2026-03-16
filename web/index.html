@@ -136,9 +136,9 @@ select {
     display: grid;
     place-items: center;
     overflow: visible;
-    margin-bottom: clamp(18px, 3vw, 30px);
-    padding: clamp(34px, 6vw, 94px) clamp(4px, 2vw, 20px) clamp(26px, 4vw, 56px);
-    min-height: clamp(236px, 33vw, 438px);
+    margin-bottom: clamp(8px, 1.7vw, 16px);
+    padding: clamp(20px, 4.4vw, 62px) clamp(4px, 2vw, 20px) clamp(10px, 2.1vw, 26px);
+    min-height: clamp(212px, 30vw, 392px);
     isolation: isolate;
 }
 
@@ -176,7 +176,7 @@ select {
     display: grid;
     place-items: center;
     width: min(1460px, 100%);
-    min-height: clamp(180px, 31vw, 382px);
+    min-height: clamp(194px, 33vw, 412px);
     isolation: isolate;
 }
 
@@ -194,9 +194,9 @@ select {
 .logo-hero-image {
     grid-area: 1 / 1;
     display: block;
-    width: min(100%, 1340px);
+    width: min(100%, 1380px);
     height: auto;
-    max-height: clamp(180px, 31vw, 382px);
+    max-height: clamp(194px, 33vw, 412px);
     object-fit: contain;
     will-change: opacity;
     transition:
@@ -241,6 +241,7 @@ select {
     position: sticky;
     top: 10px;
     z-index: 15;
+    margin-top: clamp(-18px, -2.2vw, -10px);
     margin-bottom: 24px;
 }
 
@@ -390,12 +391,13 @@ select {
 .mobile-filter-toggle-row {
     display: none;
     position: absolute;
-    top: 10px;
+    top: 50%;
     right: 12px;
     z-index: 56;
     margin: 0;
+    align-items: center;
     justify-content: flex-end;
-    transform: translateY(-38%);
+    transform: translateY(-50%);
 }
 
 .mobile-filters-toggle {
@@ -2482,38 +2484,39 @@ input:focus-visible {
     .sticky-shell {
         top: 8px;
         z-index: 62;
+        margin-top: clamp(-16px, -4.2vw, -10px);
     }
     .logo-hero {
-        margin-bottom: 18px;
-        padding: clamp(26px, 7vw, 44px) 0 clamp(18px, 4vw, 32px);
-        min-height: clamp(188px, 40vw, 292px);
+        margin-bottom: 12px;
+        padding: clamp(14px, 4.4vw, 26px) 0 clamp(6px, 2vw, 14px);
+        min-height: clamp(170px, 35vw, 262px);
     }
     .logo-hero::before {
-        inset: -24px -14% -10px;
+        inset: -18px -12% -8px;
     }
     .logo-hero::after {
-        inset: auto 4% -16px;
-        height: clamp(90px, 22vw, 164px);
+        inset: auto 4% -14px;
+        height: clamp(86px, 20vw, 154px);
     }
     .logo-hero-stage {
         width: min(940px, 100%);
-        min-height: clamp(148px, 35vw, 244px);
+        min-height: clamp(158px, 37vw, 266px);
     }
     .logo-hero-image {
-        max-height: clamp(148px, 35vw, 244px);
+        max-height: clamp(158px, 37vw, 266px);
     }
     .modal-body { grid-template-columns: 1fr; }
     .search-stack {
         margin-bottom: 14px;
     }
     .search-bar {
-        padding-right: 132px;
+        padding-right: 130px;
     }
     .mobile-filter-toggle-row {
         display: flex;
-        top: 9px;
+        top: 50%;
         right: 12px;
-        transform: translateY(-36%);
+        transform: translateY(-50%);
     }
     .mobile-filters-toggle {
         min-height: 38px;
@@ -2752,28 +2755,28 @@ input:focus-visible {
         padding: 14px 12px 20px;
     }
     .logo-hero {
-        margin-bottom: 16px;
-        padding: clamp(18px, 8vw, 30px) 0 clamp(14px, 5vw, 22px);
-        min-height: clamp(152px, 47vw, 232px);
+        margin-bottom: 10px;
+        padding: clamp(10px, 4vw, 18px) 0 clamp(4px, 1.8vw, 10px);
+        min-height: clamp(142px, 41vw, 214px);
     }
     .logo-hero::after {
-        inset: auto 0 -12px;
-        height: clamp(72px, 22vw, 122px);
+        inset: auto 0 -10px;
+        height: clamp(68px, 20vw, 112px);
     }
     .logo-hero-stage {
         width: min(620px, 100%);
-        min-height: clamp(122px, 40vw, 184px);
+        min-height: clamp(132px, 43vw, 198px);
     }
     .logo-hero-image {
-        max-height: clamp(122px, 40vw, 184px);
+        max-height: clamp(132px, 43vw, 198px);
     }
     .search-bar {
-        padding-right: 118px;
+        padding-right: 116px;
     }
     .mobile-filter-toggle-row {
-        top: 9px;
+        top: 50%;
         right: 10px;
-        transform: translateY(-42%);
+        transform: translateY(-50%);
     }
     .mobile-filters-toggle {
         min-height: 36px;

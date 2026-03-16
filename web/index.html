@@ -668,6 +668,7 @@ input:focus-visible {
     gap: 16px;
 }
 
+.homepage-body,
 .homepage-content-grid,
 .dashboard-grid {
     display: grid;
@@ -679,6 +680,8 @@ input:focus-visible {
     min-width: 0;
 }
 
+.homepage-body > .homepage-main,
+.homepage-body > .homepage-rail,
 .homepage-content-grid > .main-column,
 .homepage-content-grid > .side-column,
 .dashboard-grid > .main-column,
@@ -696,6 +699,8 @@ input:focus-visible {
 
 .main-column,
 .side-column,
+.homepage-main,
+.homepage-rail,
 .homepage-main-column,
 .homepage-right-rail {
     display: grid;
@@ -706,11 +711,13 @@ input:focus-visible {
 }
 
 .main-column,
+.homepage-main,
 .homepage-main-column {
     grid-area: main;
 }
 
 .side-column,
+.homepage-rail,
 .homepage-right-rail {
     grid-area: rail;
     grid-auto-rows: min-content;
@@ -723,6 +730,8 @@ input:focus-visible {
 
 .side-column > .panel,
 .side-column > .side-zone-header,
+.homepage-rail > .panel,
+.homepage-rail > .side-zone-header,
 .homepage-right-rail > .panel,
 .homepage-right-rail > .side-zone-header {
     width: 100%;
@@ -2816,6 +2825,7 @@ input:focus-visible {
     .homepage-content-shell {
         gap: 16px;
     }
+    .homepage-body,
     .homepage-content-grid,
     .dashboard-grid {
         grid-template-columns: 1fr;
@@ -2824,6 +2834,7 @@ input:focus-visible {
             "rail";
     }
     .side-column,
+    .homepage-rail,
     .homepage-right-rail {
         width: 100%;
         max-width: none;
@@ -3416,8 +3427,8 @@ input:focus-visible {
             </div>
 
             <div class="homepage-content-shell">
-                <div class="homepage-content-grid dashboard-grid">
-                    <main class="main-column homepage-main-column" aria-label="Main market intelligence">
+                <div class="homepage-body homepage-content-grid dashboard-grid">
+                    <main class="homepage-main main-column homepage-main-column" aria-label="Main market intelligence">
                         <div class="column-zone-label main-zone-label">Main Content</div>
                 <section class="panel panel-seasonal panel-secondary-intel hidden" id="seasonalSaleTopPanel">
                     <div class="panel-head">
@@ -3519,26 +3530,6 @@ input:focus-visible {
                             <div class="row-fade-left"></div>
                             <div class="row-fade-right"></div>
                             <div id="opportunityRadarGrid" class="row-scroller"></div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="panel panel-personalized hidden" id="recommendedForYouPanel" aria-hidden="true">
-                    <div class="panel-head">
-                        <div class="panel-title-wrap">
-                            <h2 class="panel-title" id="yourDealsTodayTitle">Your Deals Today</h2>
-                            <div class="panel-subtitle" id="yourDealsTodaySubtitle">Personalized picks when available, with high-signal fallback deals when you are browsing anonymously.</div>
-                        </div>
-                        <div class="row-nav">
-                            <button class="row-nav-btn" type="button" data-row-left="personalizedDealsGrid">&lt;</button>
-                            <button class="row-nav-btn" type="button" data-row-right="personalizedDealsGrid">&gt;</button>
-                        </div>
-                    </div>
-                    <div class="panel-body">
-                        <div class="row-section">
-                            <div class="row-fade-left"></div>
-                            <div class="row-fade-right"></div>
-                            <div id="personalizedDealsGrid" class="row-scroller"></div>
                         </div>
                     </div>
                 </section>
@@ -3777,7 +3768,7 @@ input:focus-visible {
 
                     </main>
 
-                    <aside class="side-column homepage-right-rail" aria-label="Your radar rail">
+                    <aside class="homepage-rail side-column homepage-right-rail" aria-label="Your radar rail">
                 <div class="side-zone-header">
                     <div class="column-zone-label side-zone-label">Your Radar</div>
                     <button
@@ -3792,6 +3783,25 @@ input:focus-visible {
                         Alerts
                     </button>
                 </div>
+                <section class="panel panel-personalized hidden" id="recommendedForYouPanel" aria-hidden="true">
+                    <div class="panel-head">
+                        <div class="panel-title-wrap">
+                            <h2 class="panel-title" id="yourDealsTodayTitle">Your Deals Today</h2>
+                            <div class="panel-subtitle" id="yourDealsTodaySubtitle">Personalized picks when available, with high-signal fallback deals when you are browsing anonymously.</div>
+                        </div>
+                        <div class="row-nav">
+                            <button class="row-nav-btn" type="button" data-row-left="personalizedDealsGrid">&lt;</button>
+                            <button class="row-nav-btn" type="button" data-row-right="personalizedDealsGrid">&gt;</button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="row-section">
+                            <div class="row-fade-left"></div>
+                            <div class="row-fade-right"></div>
+                            <div id="personalizedDealsGrid" class="row-scroller"></div>
+                        </div>
+                    </div>
+                </section>
                 <section class="panel panel-personal hidden" id="wishlistPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">

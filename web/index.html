@@ -738,15 +738,15 @@ input:focus-visible {
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 10px;
     perspective: 1200px;
 }
 
 .row-scroller {
     display: grid;
     grid-auto-flow: column;
-    grid-auto-columns: minmax(286px, 322px);
-    gap: 12px;
+    grid-auto-columns: minmax(236px, 284px);
+    gap: 10px;
     overflow-x: auto;
     overflow-y: hidden;
     padding-bottom: 4px;
@@ -841,7 +841,7 @@ input:focus-visible {
 
 .card-banner {
     position: relative;
-    height: 126px;
+    height: 108px;
     overflow: hidden;
     background: linear-gradient(180deg, rgba(121, 168, 255, 0.2), rgba(121, 168, 255, 0.06));
     border-bottom: 1px solid rgba(121, 168, 255, 0.14);
@@ -872,16 +872,22 @@ input:focus-visible {
 .game-card-top {
     display: flex;
     justify-content: space-between;
-    gap: 10px;
-    padding: 10px 12px 0;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px 0;
 }
 
 .game-name {
     margin: 0;
     font-family: var(--font-display);
-    font-size: 17px;
-    line-height: 1.12;
+    font-size: 16px;
+    line-height: 1.14;
     letter-spacing: -0.03em;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
 }
 
 .game-name a:hover {
@@ -889,29 +895,30 @@ input:focus-visible {
 }
 
 .price-stack {
-    min-width: 92px;
+    min-width: 82px;
     text-align: right;
 }
 
 .price-current {
     font-family: var(--font-display);
-    font-size: 21px;
+    font-size: 19px;
     font-weight: 900;
     letter-spacing: -0.03em;
     white-space: nowrap;
 }
 
 .price-original {
-    margin-top: 2px;
+    margin-top: 1px;
     color: var(--muted);
     text-decoration: line-through;
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .card-action-row {
     display: flex;
-    gap: 6px;
-    padding: 10px 12px 0;
+    gap: 5px;
+    padding: 8px 10px 0;
+    flex-wrap: nowrap;
     position: relative;
     z-index: 4;
 }
@@ -924,10 +931,14 @@ input:focus-visible {
     border: 1px solid rgba(121, 168, 255, 0.25);
     background: rgba(121, 168, 255, 0.08);
     color: var(--text);
-    border-radius: 9px;
-    padding: 7px 9px;
-    min-height: 34px;
-    font-size: 12px;
+    border-radius: 8px;
+    padding: 5px 8px;
+    min-height: 30px;
+    font-size: 11px;
+    flex: 1 1 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-weight: 800;
     cursor: pointer;
     position: relative;
@@ -975,25 +986,30 @@ input:focus-visible {
 .pill-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    padding: 9px 12px 0;
+    gap: 5px;
+    padding: 7px 10px 0;
 }
 
 .card-meta-stack {
     display: grid;
-    gap: 6px;
-    padding: 9px 12px 0;
+    gap: 4px;
+    padding: 7px 10px 0;
 }
 
 .card-meta-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     min-width: 0;
 }
 
 .card-meta-row.signals {
     flex-wrap: wrap;
+}
+
+.card-meta-row.compact-primary,
+.card-meta-row.compact-secondary {
+    align-items: flex-start;
 }
 
 .card-meta-row.deal-quality {
@@ -1003,7 +1019,7 @@ input:focus-visible {
 .card-meta-cluster {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 5px;
     min-width: 0;
 }
 
@@ -1027,14 +1043,15 @@ input:focus-visible {
 .meta-chip {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 8px;
+    gap: 5px;
+    padding: 3px 7px;
     border-radius: 999px;
     border: 1px solid rgba(121, 168, 255, 0.2);
     background: rgba(121, 168, 255, 0.08);
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 800;
     line-height: 1;
+    white-space: nowrap;
 }
 
 .meta-chip.signal {
@@ -1084,17 +1101,23 @@ input:focus-visible {
 .deal-confidence-badge {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     border-radius: 999px;
     border: 1px solid rgba(154, 182, 255, 0.28);
     background: rgba(255, 255, 255, 0.06);
     color: #dce9ff;
-    padding: 3px 7px;
-    font-size: 10px;
+    padding: 2px 6px;
+    font-size: 9px;
     font-weight: 800;
     line-height: 1;
     letter-spacing: 0.01em;
     white-space: nowrap;
+}
+
+.deal-confidence-badge.compact {
+    max-width: 132px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .deal-confidence-badge.strong-buy {
@@ -1131,25 +1154,47 @@ input:focus-visible {
     font-weight: 800;
 }
 
-.card-subtext {
+.card-reason-line {
     color: var(--muted-2);
-    font-size: 11px;
-    line-height: 1.35;
-    padding: 6px 12px 0;
+    font-size: 10px;
+    line-height: 1.2;
+    padding: 4px 10px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.card-explain-list {
-    margin: 0;
-    padding: 6px 12px 0 24px;
+.card-mini-stats {
     display: grid;
-    gap: 3px;
-    color: var(--muted-2);
-    font-size: 11px;
-    line-height: 1.3;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+    padding: 6px 10px 10px;
 }
 
-.card-explain-list li {
-    margin: 0;
+.mini-stat {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    border: 1px solid rgba(121, 168, 255, 0.16);
+    background: rgba(121, 168, 255, 0.07);
+    border-radius: 8px;
+    padding: 4px 6px;
+    min-width: 0;
+}
+
+.mini-stat-label {
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.mini-stat-value {
+    font-size: 11px;
+    color: #dce8ff;
+    white-space: nowrap;
 }
 
 .pill,
@@ -1215,34 +1260,6 @@ input:focus-visible {
             0 0 0 0 rgba(var(--signal-glow-rgb), 0),
             0 0 0 0 rgba(var(--signal-glow-rgb), 0);
     }
-}
-
-.meta-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    padding: 9px 12px 12px;
-}
-
-.meta-item {
-    padding: 8px;
-    border-radius: 10px;
-    border: 1px solid rgba(121, 168, 255, 0.16);
-    background: rgba(121, 168, 255, 0.06);
-}
-
-.meta-label {
-    color: var(--muted);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    font-weight: 800;
-}
-
-.meta-value {
-    margin-top: 4px;
-    font-size: 13px;
-    font-weight: 900;
 }
 
 .deal-meter {
@@ -2164,8 +2181,7 @@ input:focus-visible {
 .game-name a,
 .card-action-btn,
 .pill,
-.deal-score-badge,
-.meta-item {
+.deal-score-badge {
     transition:
         transform 0.18s ease,
         background 0.18s ease,
@@ -2176,11 +2192,6 @@ input:focus-visible {
 
 .game-card:hover .game-name a {
     color: #ffffff;
-}
-
-.game-card:hover .meta-item {
-    border-color: rgba(121, 168, 255, 0.32);
-    background: rgba(121, 168, 255, 0.14);
 }
 
 .game-card:hover .pill,
@@ -2649,8 +2660,8 @@ input:focus-visible {
     }
 
     .row-scroller {
-        grid-auto-columns: minmax(218px, 72vw);
-        gap: 10px;
+        grid-auto-columns: minmax(204px, 62vw);
+        gap: 8px;
         padding-bottom: 4px;
     }
     .row-fade-left,
@@ -2661,54 +2672,47 @@ input:focus-visible {
         border-radius: 16px;
     }
     .card-banner {
-        height: 108px;
+        height: 92px;
     }
     .game-card-top {
-        flex-direction: column;
-        gap: 8px;
-        padding: 10px 10px 0;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 6px;
+        padding: 7px 9px 0;
     }
     .game-name {
-        font-size: 15px;
-        line-height: 1.16;
+        font-size: 14px;
+        line-height: 1.14;
         letter-spacing: -0.02em;
     }
-    .game-name a {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        overflow-wrap: anywhere;
-    }
-    .price-stack { text-align: left; min-width: 0; }
+    .price-stack { text-align: right; min-width: 76px; }
     .price-current {
-        font-size: 18px;
+        font-size: 16px;
     }
     .price-original {
         margin-top: 1px;
-        font-size: 11px;
+        font-size: 10px;
     }
     .card-action-row {
-        padding: 8px 10px 0;
-        flex-wrap: wrap;
+        padding: 7px 9px 0;
     }
     .card-action-btn {
-        flex: 1 1 calc(50% - 4px);
-        min-height: 34px;
-        padding: 6px 7px;
-        font-size: 11px;
+        min-height: 28px;
+        padding: 4px 7px;
+        font-size: 10px;
     }
     .pill-row {
-        padding: 8px 10px 0;
-        gap: 5px;
+        padding: 6px 9px 0;
+        gap: 4px;
     }
     .card-meta-stack {
-        padding: 8px 10px 0;
-        gap: 5px;
+        padding: 6px 9px 0;
+        gap: 4px;
     }
     .card-meta-row.deal-quality {
-        flex-direction: column;
-        align-items: flex-start;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
     }
     .card-meta-cluster.secondary {
         justify-content: flex-start;
@@ -2716,32 +2720,25 @@ input:focus-visible {
     .pill,
     .deal-score-badge,
     .meta-chip {
-        padding: 4px 7px;
+        padding: 3px 6px;
+        font-size: 9px;
+    }
+    .card-reason-line {
+        display: none;
+    }
+    .card-mini-stats {
+        padding: 5px 9px 9px;
+        gap: 4px;
+    }
+    .mini-stat {
+        padding: 3px 5px;
+        gap: 5px;
+    }
+    .mini-stat-label {
+        font-size: 8px;
+    }
+    .mini-stat-value {
         font-size: 10px;
-    }
-    .card-subtext {
-        padding: 6px 10px 0;
-        font-size: 10px;
-        line-height: 1.3;
-    }
-    .card-explain-list {
-        padding: 6px 10px 0 22px;
-        font-size: 10px;
-        line-height: 1.3;
-    }
-    .meta-grid {
-        padding: 8px 10px 10px;
-        gap: 6px;
-    }
-    .meta-item {
-        padding: 7px;
-    }
-    .meta-label {
-        font-size: 10px;
-    }
-    .meta-value {
-        margin-top: 4px;
-        font-size: 13px;
     }
     .analytics-groups { grid-template-columns: 1fr; }
     .deal-radar-card { grid-template-columns: 72px minmax(0, 1fr); }
@@ -2795,18 +2792,18 @@ input:focus-visible {
     }
     .cards-grid {
         grid-template-columns: 1fr;
-        gap: 8px;
+        gap: 6px;
     }
     .row-scroller {
-        grid-auto-columns: minmax(198px, 78vw);
+        grid-auto-columns: minmax(168px, 68vw);
     }
     .card-banner {
-        height: 96px;
-    }
-    .card-action-btn {
-        flex: 1 1 100%;
+        height: 82px;
     }
     .sale-timeline {
+        display: none;
+    }
+    .card-meta-row.compact-secondary .meta-chip:nth-child(n+2) {
         display: none;
     }
     .deal-radar-card {
@@ -4911,19 +4908,46 @@ input:focus-visible {
                     seen.add(key);
                     return true;
                 })
-                .slice(0, 3);
+                .slice(0, 6);
+        }
+
+        function compactCardSignalLabel(entry) {
+            const key = String(entry?.key || "").trim().toLowerCase();
+            if (key === "new_deal") return "New since visit";
+            if (key === "dropped_today") return "Dropped today";
+            if (key === "dropped_recently") return "Recent drop";
+            if (key === "dropped_this_week") return "Dropped this week";
+            if (key === "players_rising") return "Players up";
+            if (key === "players_falling") return "Players down";
+            if (key === "players_stable") return "Players stable";
+            if (key === "heat_hot") return "Hot now";
+            if (key === "heat_warm") return "Warming up";
+            if (key === "near_historical_low") return "Near low";
+            if (key === "matches_historical_low") return "Matches low";
+            if (key === "new_historical_low") return "New all-time low";
+
+            const fallback = String(entry?.label || "").trim();
+            if (fallback.length <= 22) return fallback;
+            return `${fallback.slice(0, 19).trimEnd()}...`;
         }
 
         function buildCardSignalRow(game) {
-            const signals = buildCardSignalItems(game);
-            if (!signals.length) {
-                return '<div class="card-meta-row signals"><span class="meta-chip signal info">No major movement</span></div>';
-            }
+            const primaryKeys = new Set([
+                "buy_now_pick",
+                "wait_pick",
+                "new_historical_low",
+                "matches_historical_low",
+            ]);
+            const signals = buildCardSignalItems(game)
+                .filter((entry) => !primaryKeys.has(String(entry?.key || "").toLowerCase()))
+                .slice(0, 2);
+            if (!signals.length) return "";
+
             return `
-                <div class="card-meta-row signals">
+                <div class="card-meta-row signals compact-secondary">
                     ${signals.map((entry) => {
                         const glowClass = glowClassForSignalKey(entry.key);
-                        return `<span class="meta-chip signal ${escapeHtml(entry.tone)}${glowClass}">${escapeHtml(entry.label)}</span>`;
+                        return `<span class="meta-chip signal ${escapeHtml(entry.tone)}${glowClass}">${escapeHtml(compactCardSignalLabel(entry))}</span>`;
                     }).join("")}
                 </div>
             `;
@@ -4932,76 +4956,68 @@ input:focus-visible {
         function buildCardDealQualityRow(game) {
             const discount = Math.max(0, Number(game.discount_percent) || 0);
             const dealScore = Number(game.deal_score);
-            const worthScore = Number(game.worth_buying_score ?? game.buy_score);
-            const reviewScore = Number(game.review_score || 0);
             const historicalStatus = String(game.historical_status || "").trim();
             const recommendation = normalizeBuyRecommendation(game.buy_recommendation);
-            const isBuyNowRecommendation = recommendation === "BUY_NOW";
-
-            let qualityFlag = "";
-            if (discount >= 80) qualityFlag = "Huge discount";
-            else if (dealScore >= 92) qualityFlag = "Top-ranked deal";
-            else if (reviewScore >= 90 && discount >= 50) qualityFlag = "Hidden gem value";
-            else if (historicalStatus === "new_historical_low") qualityFlag = "Buy-now signal";
-            else if (historicalStatus === "near_historical_low" && discount < 25) qualityFlag = "Likely better sale ahead";
-
+            const confidenceChip = buildDealConfidenceBadge(game, { className: "deal-confidence-badge compact" });
             const discountGlowClass = isLargeDiscount(discount) ? signalGlowClass("discount") : "";
-            const recommendationGlowClass = isBuyNowRecommendation ? signalGlowClass("buy") : "";
-            const qualityGlowClass = (
-                qualityFlag === "Huge discount"
-                || qualityFlag === "Buy-now signal"
-                || isHighValueHistoricalStatus(historicalStatus)
-            )
-                ? signalGlowClass(qualityFlag === "Huge discount" ? "discount" : "buy")
-                : "";
+
+            let recommendationChip = "";
+            if (recommendation === "BUY_NOW") {
+                recommendationChip = `<span class="meta-chip deal-flag${signalGlowClass("buy")}">Buy now</span>`;
+            } else if (recommendation === "WAIT") {
+                recommendationChip = `<span class="meta-chip deal-neutral">Wait</span>`;
+            } else if (historicalStatus === "new_historical_low") {
+                recommendationChip = `<span class="meta-chip deal-flag${signalGlowClass("low")}">New all-time low</span>`;
+            } else if (historicalStatus === "matches_historical_low") {
+                recommendationChip = `<span class="meta-chip signal info${signalGlowClass("low")}">Matches historical low</span>`;
+            } else if (historicalStatus === "near_historical_low") {
+                recommendationChip = `<span class="meta-chip signal info">Near historical low</span>`;
+            }
 
             const discountChip = discount > 0
                 ? `<span class="meta-chip deal-primary${discountGlowClass}">${Math.round(discount)}% off</span>`
-                : '<span class="meta-chip deal-neutral">No active discount</span>';
-            const recommendationChip = isBuyNowRecommendation
-                ? `<span class="meta-chip deal-flag${recommendationGlowClass}">Buy now</span>`
-                : recommendation === "WAIT"
-                    ? '<span class="meta-chip deal-neutral">Wait</span>'
-                    : "";
-            const qualityChip = qualityFlag ? `<span class="meta-chip deal-flag${qualityGlowClass}">${escapeHtml(qualityFlag)}</span>` : "";
-            const confidenceChip = buildDealConfidenceBadge(game, { className: "deal-confidence-badge" });
-            const dealScoreChip = Number.isFinite(dealScore) ? `<span class="meta-chip metric">Deal ${Math.round(dealScore)}</span>` : "";
-            const worthScoreChip = Number.isFinite(worthScore) ? `<span class="meta-chip metric">Worth ${Math.round(worthScore)}</span>` : "";
+                : `<span class="meta-chip deal-neutral">No active sale</span>`;
+            const metricChip = Number.isFinite(dealScore) ? `<span class="meta-chip metric">Deal ${Math.round(dealScore)}</span>` : "";
 
             return `
-                <div class="card-meta-row deal-quality">
+                <div class="card-meta-row deal-quality compact-primary">
                     <div class="card-meta-cluster primary">
-                        ${discountChip}
                         ${recommendationChip}
-                        ${qualityChip}
+                        ${discountChip}
                         ${confidenceChip}
-                    </div>
-                    <div class="card-meta-cluster secondary">
-                        ${dealScoreChip}
-                        ${worthScoreChip}
+                        ${!confidenceChip ? metricChip : ""}
                     </div>
                 </div>
             `;
         }
 
         function buildCardContextRow(game) {
+            const historicalLow = Number(game.historical_low);
+            const priceVsLowRatio = Number(game.price_vs_low_ratio);
             const players = Number(game.current_players);
-            const reviewLabel = getReviewLabel(game);
-            const platforms = parsePlatformList(game.platforms)
-                .slice(0, 2)
-                .map((platform) => platform.charAt(0).toUpperCase() + platform.slice(1));
+            const reviewScore = Number(game.review_score);
+            const reviewLabel = String(getReviewLabel(game) || "").trim();
 
             const contextItems = [];
-            if (Number.isFinite(players)) {
+            if (Number.isFinite(historicalLow) && historicalLow > 0) {
+                if (Number.isFinite(priceVsLowRatio) && priceVsLowRatio > 0 && priceVsLowRatio <= 1.06) {
+                    contextItems.push('<span class="context-item"><strong>Near low</strong></span>');
+                } else {
+                    contextItems.push(`<span class="context-item">Low <strong>${fmtPrice(historicalLow)}</strong></span>`);
+                }
+            }
+            if (Number.isFinite(players) && players > 0) {
                 contextItems.push(`<span class="context-item"><strong>${fmtInt(players)}</strong> players</span>`);
             }
-            if (platforms.length) {
-                contextItems.push(`<span class="context-item"><strong>${escapeHtml(platforms.join(" • "))}</strong></span>`);
+            if (Number.isFinite(reviewScore) && reviewScore > 0) {
+                contextItems.push(`<span class="context-item"><strong>${Math.round(reviewScore)}%</strong> reviews</span>`);
+            } else if (reviewLabel) {
+                contextItems.push(`<span class="context-item"><strong>${escapeHtml(reviewLabel)}</strong></span>`);
             }
-            contextItems.push(`<span class="context-item"><strong>${escapeHtml(reviewLabel || "Review pending")}</strong></span>`);
+            if (!contextItems.length) return "";
 
             return `
-                <div class="card-meta-row context">
+                <div class="card-meta-row context compact">
                     ${contextItems.join('<span class="context-item">•</span>')}
                 </div>
             `;
@@ -5010,9 +5026,37 @@ input:focus-visible {
         function buildCardMetadataStack(game) {
             return `
                 <div class="card-meta-stack">
-                    ${buildCardSignalRow(game)}
                     ${buildCardDealQualityRow(game)}
+                    ${buildCardSignalRow(game)}
                     ${buildCardContextRow(game)}
+                </div>
+            `;
+        }
+
+        function buildCardMiniStatsRow(game) {
+            const entries = [];
+            const worth = Number(game.worth_buying_score ?? game.buy_score);
+            const deal = Number(game.deal_score);
+            const opportunity = Number(game.deal_opportunity_score);
+
+            if (Number.isFinite(deal)) {
+                entries.push({ label: "Deal", value: Math.round(deal) });
+            }
+            if (Number.isFinite(worth)) {
+                entries.push({ label: "Buy", value: Math.round(worth) });
+            } else if (Number.isFinite(opportunity)) {
+                entries.push({ label: "Radar", value: Math.round(opportunity) });
+            }
+            if (!entries.length) return "";
+
+            return `
+                <div class="card-mini-stats">
+                    ${entries.slice(0, 2).map((entry) => `
+                        <span class="mini-stat">
+                            <span class="mini-stat-label">${escapeHtml(entry.label)}</span>
+                            <strong class="mini-stat-value">${escapeHtml(String(entry.value))}</strong>
+                        </span>
+                    `).join("")}
                 </div>
             `;
         }
@@ -5216,7 +5260,7 @@ input:focus-visible {
 
         function cardActionLabel(action, isActive) {
             if (action === "wishlist") {
-                return isActive ? "💜 Wishlisted" : "💜 Wishlist";
+                return isActive ? "💜 Saved" : "💜 Save";
             }
             if (action === "watchlist") {
                 return isActive ? "👀 Watching" : "👁️ Watch";
@@ -5307,7 +5351,7 @@ input:focus-visible {
             return `
                 <div class="card-action-row">
                     <button class="card-action-btn ${wishlistActive ? "active" : ""}" type="button" aria-pressed="${wishlistActive}" data-action="wishlist" data-game-name="${escapeHtml(game.game_name || "")}"${gameIdAttr}>
-                        ${wishlistActive ? "💜 Wishlisted" : "💜 Wishlist"}
+                        ${wishlistActive ? "💜 Saved" : "💜 Save"}
                     </button>
                     <button class="card-action-btn watch ${watchlistActive ? "active" : ""}" type="button" aria-pressed="${watchlistActive}" data-action="watchlist" data-game-name="${escapeHtml(game.game_name || "")}"${gameIdAttr}>
                         ${watchlistActive ? "👀 Watching" : "👁️ Watch"}
@@ -5803,6 +5847,7 @@ input:focus-visible {
             const detailHref = buildGameDetailHref(game);
             const gameName = escapeHtml(game.game_name || "Unknown game");
             const decisionExplainLines = buildDecisionExplainLines(game);
+            const primaryReason = decisionExplainLines.length ? escapeHtml(decisionExplainLines[0]) : "";
             const newSignalClass = shouldRenderNewSignalCard(game, context) ? " is-new-signal" : "";
             return `
                 <article class="game-card${newSignalClass}">
@@ -5821,23 +5866,8 @@ input:focus-visible {
                     </div>
                     ${buildActionButtons(game)}
                     ${buildCardMetadataStack(game)}
-                    ${decisionExplainLines.length ? `
-                        <ul class="card-explain-list">
-                            ${decisionExplainLines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
-                        </ul>
-                    ` : ""}
-                    <div class="meta-grid">
-                        <div class="meta-item">
-                            <div class="meta-label">Historical low</div>
-                            <div class="meta-value">${fmtPrice(game.historical_low)}</div>
-                        </div>
-                        <div class="meta-item">
-                            <div class="meta-label">30d avg players</div>
-                            <div class="meta-value">${fmtInt(game.avg_30d)}</div>
-                        </div>
-                    </div>
-                    ${buildPriceHistorySparkline(game)}
-                    ${buildSaleTimeline(game)}
+                    ${primaryReason ? `<div class="card-reason-line">${primaryReason}</div>` : ""}
+                    ${buildCardMiniStatsRow(game)}
                 </article>
             `;
         }
@@ -5845,6 +5875,19 @@ input:focus-visible {
         function upcomingCardHtml(game, _context = {}) {
             const detailHref = buildGameDetailHref(game);
             const gameName = escapeHtml(game.game_name || "Unknown game");
+            const releaseText = escapeHtml(game.release_date_text || "TBA");
+            const reviewLabel = String(getReviewLabel(game) || "").trim();
+            const platformText = parsePlatformList(game.platforms)
+                .slice(0, 2)
+                .map((platform) => platform.charAt(0).toUpperCase() + platform.slice(1))
+                .join(" • ");
+            const genreText = safeArray(game.genres).slice(0, 2).join(" • ");
+
+            const contextParts = [];
+            if (platformText) contextParts.push(`<span class="context-item"><strong>${escapeHtml(platformText)}</strong></span>`);
+            if (genreText) contextParts.push(`<span class="context-item">${escapeHtml(genreText)}</span>`);
+            if (reviewLabel) contextParts.push(`<span class="context-item">⭐ ${escapeHtml(reviewLabel)}</span>`);
+
             return `
                 <article class="game-card">
                     <a class="game-card-link-overlay" href="${detailHref}" aria-label="Open ${gameName} details"></a>
@@ -5855,31 +5898,21 @@ input:focus-visible {
                                 ${gameName}
                             </h3>
                         </div>
+                        <div class="price-stack">
+                            <div class="price-current">Upcoming</div>
+                            <div class="price-original">${releaseText}</div>
+                        </div>
                     </div>
                     ${buildActionButtons(game)}
-                    <div class="pill-row">
-                        <span class="pill purple">🗓️ ${escapeHtml(game.release_date_text || "TBA")}</span>
-                        ${buildReviewPill(game)}
-                        ${buildPlatformsPill(game)}
-                        ${buildTagsPreview(game)}
-                    </div>
-                    <div class="meta-grid">
-                        <div class="meta-item">
-                            <div class="meta-label">Genres</div>
-                            <div class="meta-value">${escapeHtml(safeArray(game.genres).slice(0, 2).join(", ") || "—")}</div>
+                    <div class="card-meta-stack">
+                        <div class="card-meta-row deal-quality compact-primary">
+                            <div class="card-meta-cluster primary">
+                                <span class="meta-chip deal-flag">Upcoming release</span>
+                                <span class="meta-chip metric">🗓️ ${releaseText}</span>
+                            </div>
                         </div>
-                        <div class="meta-item">
-                            <div class="meta-label">Platforms</div>
-                            <div class="meta-value">${escapeHtml(
-                                parsePlatformList(game.platforms)
-                                    .slice(0, 2)
-                                    .map((platform) => platform.charAt(0).toUpperCase() + platform.slice(1))
-                                    .join(", ") || "—"
-                            )}</div>
-                        </div>
-                        <div class="meta-item">
-                            <div class="meta-label">Reviews</div>
-                            <div class="meta-value">${escapeHtml(game.review_score_label || "—")}</div>
+                        <div class="card-meta-row context compact">
+                            ${contextParts.length ? contextParts.join('<span class="context-item">•</span>') : '<span class="context-item">Steam listing active</span>'}
                         </div>
                     </div>
                 </article>

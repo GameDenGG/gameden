@@ -864,6 +864,24 @@ input:focus-visible {
     padding: 12px 16px 15px;
 }
 
+.more-intel-panel > .panel-head {
+    align-items: center;
+}
+
+.more-intel-panel > .panel-body {
+    padding-top: 10px;
+}
+
+.secondary-intel-stack {
+    display: grid;
+    gap: 12px;
+}
+
+.secondary-intel-stack > .panel {
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
 .panel-seasonal .panel-title { color: #c9ffd8; }
 .panel-deals .panel-title { color: #ffe0b8; }
 .panel-catalog .panel-title { color: #d4e5ff; }
@@ -2872,6 +2890,12 @@ input:focus-visible {
     .panel-body {
         padding: 10px 12px 12px;
     }
+    .secondary-intel-stack {
+        gap: 10px;
+    }
+    .secondary-intel-stack > .panel {
+        border-radius: 14px;
+    }
     .column-zone-label {
         padding: 5px 10px;
         font-size: 9px;
@@ -3256,7 +3280,7 @@ input:focus-visible {
             <button class="home-jump-chip" type="button" data-home-jump-group="Your Radar" data-home-jump-target="recommendedForYouPanel">Your Radar</button>
             <button class="home-jump-chip" type="button" data-home-jump-group="Discovery" data-home-jump-target="discoveryTabsShell">Discovery</button>
             <button class="home-jump-chip" type="button" data-home-jump-group="Upcoming" data-home-jump-target="upcomingPanel">Upcoming</button>
-            <button class="home-jump-chip" type="button" data-home-jump-group="Analytics" data-home-jump-target="analyticsPanel">Analytics</button>
+            <button class="home-jump-chip" type="button" data-home-jump-group="Analytics" data-home-jump-target="moreIntelSection">Analytics</button>
         </nav>
 
         <main class="dashboard-grid">
@@ -3611,6 +3635,28 @@ input:focus-visible {
                                 <span class="dropdown-arrow">⇊</span>
                             </a>
                         </div>
+                    </div>
+                </section>
+
+                <section class="panel panel-secondary-intel more-intel-panel" id="moreIntelSection">
+                    <div class="panel-head">
+                        <div class="panel-title-wrap">
+                            <h2 class="panel-title">More Market Intelligence</h2>
+                            <div class="panel-subtitle">Secondary signals, diagnostics, and deeper market context grouped below the primary buy and radar flow.</div>
+                        </div>
+                        <button
+                            class="panel-action"
+                            id="moreIntelToggleBtn"
+                            type="button"
+                            aria-controls="moreIntelBody"
+                            aria-expanded="false"
+                        >
+                            Show Section
+                            <span class="dropdown-arrow">⇊</span>
+                        </button>
+                    </div>
+                    <div class="panel-body hidden-content" id="moreIntelBody">
+                        <div class="secondary-intel-stack" id="moreIntelStack"></div>
                     </div>
                 </section>
 
@@ -4011,21 +4057,23 @@ input:focus-visible {
             accumulator[groupName] = index;
             return accumulator;
         }, {}));
+        const MORE_MARKET_INTEL_SECTION_IDS = Object.freeze([
+            "seasonalSaleTopPanel",
+            "seasonalSaleLowerPanel",
+            "recentlyUpdatedPanel",
+            "dealRadarPanel",
+            "analyticsPanel",
+        ]);
         const HOMEPAGE_SECTION_LAYOUT = Object.freeze([
             { id: "bestDealsPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 10, column: "main" },
             { id: "opportunitiesPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 20, column: "main" },
             { id: "opportunityRadarPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 30, column: "main" },
-            { id: "buyNowPicksPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 50, column: "main" },
-            { id: "waitForSalePanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 60, column: "main" },
-            { id: "newHistoricalLowsPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 70, column: "main" },
 
-            { id: "recommendedForYouPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 10, column: "main" },
-            { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 30, column: "side" },
-            { id: "watchlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 40, column: "side" },
-            { id: "dailyDigestPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 50, column: "side" },
-            { id: "recentlyUpdatedPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 55, column: "side" },
-            { id: "dealRadarPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 60, column: "side" },
-            { id: "alertsPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 70, column: "side" },
+            { id: "recommendedForYouPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 10, column: "side" },
+            { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 20, column: "side" },
+            { id: "watchlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 30, column: "side" },
+            { id: "dailyDigestPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 40, column: "side" },
+            { id: "alertsPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 50, column: "side" },
 
             { id: "discoveryTabsShell", group: HOMEPAGE_SECTION_GROUPS.DISCOVERY, priority: 5, column: "main" },
             {
@@ -4045,6 +4093,33 @@ input:focus-visible {
                 discoveryTab: true,
                 tabKey: "trending-now",
                 tabLabel: "Trending Now",
+            },
+            {
+                id: "buyNowPicksPanel",
+                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
+                priority: 25,
+                column: "main",
+                discoveryTab: true,
+                tabKey: "buy-now-picks",
+                tabLabel: "Buy Now Picks",
+            },
+            {
+                id: "waitForSalePanel",
+                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
+                priority: 26,
+                column: "main",
+                discoveryTab: true,
+                tabKey: "wait-for-sale",
+                tabLabel: "Wait Picks",
+            },
+            {
+                id: "newHistoricalLowsPanel",
+                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
+                priority: 27,
+                column: "main",
+                discoveryTab: true,
+                tabKey: "new-historical-lows",
+                tabLabel: "New Lows",
             },
             {
                 id: "allGamesPanel",
@@ -4078,7 +4153,10 @@ input:focus-visible {
             { id: "seasonalSaleTopPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 30, column: "main" },
             { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 30, column: "main" },
 
-            { id: "analyticsPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 10, column: "main" },
+            { id: "moreIntelSection", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 10, column: "main" },
+            { id: "recentlyUpdatedPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 20, column: "main" },
+            { id: "dealRadarPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 30, column: "main" },
+            { id: "analyticsPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 40, column: "main" },
         ].map((entry) => Object.freeze(entry)));
 
         const state = {
@@ -4187,6 +4265,7 @@ input:focus-visible {
                 open: false,
                 previousFocusedElement: null,
             },
+            moreIntelExpanded: false,
             analyticsPanelExpanded: false,
             discoveryTabs: {
                 activeKey: DISCOVERY_DEFAULT_TAB_KEY,
@@ -4246,6 +4325,10 @@ input:focus-visible {
             dealRadarFeed: document.getElementById("dealRadarFeed"),
             dealRadarMoreBtn: document.getElementById("dealRadarMoreBtn"),
             leaderboardList: document.getElementById("leaderboardList"),
+            moreIntelSection: document.getElementById("moreIntelSection"),
+            moreIntelBody: document.getElementById("moreIntelBody"),
+            moreIntelToggleBtn: document.getElementById("moreIntelToggleBtn"),
+            moreIntelStack: document.getElementById("moreIntelStack"),
             analyticsPanelBody: document.getElementById("analyticsPanelBody"),
             analyticsToggleBtn: document.getElementById("analyticsToggleBtn"),
             wishlistPanel: document.getElementById("wishlistPanel"),
@@ -8038,6 +8121,12 @@ input:focus-visible {
             node.dataset.homeSectionColumn = String(definition.column || "");
         }
 
+        function isMoreMarketIntelSectionId(sectionId) {
+            const id = String(sectionId || "").trim();
+            if (!id) return false;
+            return MORE_MARKET_INTEL_SECTION_IDS.includes(id);
+        }
+
         function reorderHomepageColumnSections(columnNode, orderedDefinitions, options = {}) {
             if (!columnNode) return;
             const excludedIds = options.excludeIds instanceof Set ? options.excludeIds : new Set();
@@ -8178,6 +8267,10 @@ input:focus-visible {
                 const groupName = String(chip.dataset.homeJumpGroup || "").trim();
                 if (!groupName) return;
                 const jumpTargetId = String(chip.dataset.homeJumpTarget || "").trim();
+                if (jumpTargetId === "moreIntelSection" && !state.moreIntelExpanded) {
+                    state.moreIntelExpanded = true;
+                    renderMoreIntelDisclosure();
+                }
                 setHomepageJumpNavActiveGroup(groupName);
                 scrollToHomepageGroup(groupName, jumpTargetId);
             });
@@ -8221,6 +8314,15 @@ input:focus-visible {
                     break;
                 case "trending-now":
                     renderTrendingDeals();
+                    break;
+                case "buy-now-picks":
+                    renderNewDeals();
+                    break;
+                case "wait-for-sale":
+                    renderRecommendedDeals();
+                    break;
+                case "new-historical-lows":
+                    renderNewHistoricalLows();
                     break;
                 case "all-games":
                     renderReleasedGames();
@@ -8370,6 +8472,32 @@ input:focus-visible {
             activateDiscoveryTab(activeKey);
         }
 
+        function mountMoreMarketIntelSections(definitions) {
+            const section = ui.moreIntelSection;
+            const stack = ui.moreIntelStack;
+            if (!section || !stack) return;
+
+            const definitionsById = new Map(
+                definitions.map((definition) => [String(definition.id || ""), definition]),
+            );
+            const orderedDefinitions = MORE_MARKET_INTEL_SECTION_IDS
+                .map((sectionId) => definitionsById.get(sectionId))
+                .filter((definition) => definition && definition.node instanceof HTMLElement);
+
+            while (stack.firstChild) {
+                stack.removeChild(stack.firstChild);
+            }
+            orderedDefinitions.forEach((definition) => {
+                stack.appendChild(definition.node);
+            });
+
+            setPanelVisibility(section, orderedDefinitions.length > 0);
+            if (!orderedDefinitions.length) {
+                state.moreIntelExpanded = false;
+            }
+            renderMoreIntelDisclosure();
+        }
+
         function isHomepageMobileLayout() {
             const mediaQuery = `(max-width: ${HOMEPAGE_MOBILE_LAYOUT_BREAKPOINT_PX}px)`;
             return Boolean(window.matchMedia && window.matchMedia(mediaQuery).matches);
@@ -8393,8 +8521,14 @@ input:focus-visible {
             allDefinitions.forEach(applyHomepageSectionMetadata);
 
             const discoveryTabDefinitions = allDefinitions.filter((definition) => definition.discoveryTab === true);
-            const nonDiscoveryDefinitions = allDefinitions.filter((definition) => definition.discoveryTab !== true);
-            const mainColumnDefinitions = mainDefinitions.filter((definition) => definition.discoveryTab !== true);
+            const nonDiscoveryDefinitions = allDefinitions.filter((definition) => (
+                definition.discoveryTab !== true
+                && !isMoreMarketIntelSectionId(definition.id)
+            ));
+            const mainColumnDefinitions = mainDefinitions.filter((definition) => (
+                definition.discoveryTab !== true
+                && !isMoreMarketIntelSectionId(definition.id)
+            ));
             const discoveryManagedIds = new Set(discoveryTabDefinitions.map((definition) => definition.id));
 
             mountDiscoveryTabs(discoveryTabDefinitions);
@@ -8405,6 +8539,7 @@ input:focus-visible {
                 reorderHomepageColumnSections(mainColumn, mainColumnDefinitions, { excludeIds: discoveryManagedIds });
                 reorderHomepageColumnSections(sideColumn, sideDefinitions);
             }
+            mountMoreMarketIntelSections(allDefinitions);
 
             dashboardGrid.classList.toggle("is-mobile-merged", isMobileLayout);
 
@@ -8441,9 +8576,6 @@ input:focus-visible {
             renderDailyDigest();
             renderDealRadar();
             renderAlerts();
-            renderNewHistoricalLows();
-            renderNewDeals();
-            renderRecommendedDeals();
             renderRecentlyUpdated();
             renderUpcoming();
             renderWishlist();
@@ -9696,6 +9828,38 @@ input:focus-visible {
             wireRecentlyUpdatedToggle._wired = true;
         }
 
+        function renderMoreIntelDisclosure() {
+            const panel = ui.moreIntelSection;
+            const panelBody = ui.moreIntelBody;
+            const toggleBtn = ui.moreIntelToggleBtn;
+            const stack = ui.moreIntelStack;
+            if (!panel || !panelBody || !toggleBtn || !stack) return;
+
+            const hasContent = stack.children.length > 0;
+            setPanelVisibility(panel, hasContent);
+            if (!hasContent) return;
+
+            const expanded = !!state.moreIntelExpanded;
+            panelBody.classList.toggle("hidden-content", !expanded);
+            toggleBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
+            toggleBtn.innerHTML = expanded
+                ? 'Hide Section <span class="dropdown-arrow">&#8675;</span>'
+                : 'Show Section <span class="dropdown-arrow">&#8675;</span>';
+        }
+
+        function wireMoreIntelDisclosure() {
+            if (wireMoreIntelDisclosure._wired) return;
+            if (!ui.moreIntelToggleBtn || !ui.moreIntelBody) return;
+
+            ui.moreIntelToggleBtn.addEventListener("click", () => {
+                state.moreIntelExpanded = !state.moreIntelExpanded;
+                renderMoreIntelDisclosure();
+            });
+
+            renderMoreIntelDisclosure();
+            wireMoreIntelDisclosure._wired = true;
+        }
+
         function renderAnalyticsPanelDisclosure() {
             const panelBody = ui.analyticsPanelBody;
             const toggleBtn = ui.analyticsToggleBtn;
@@ -10343,6 +10507,7 @@ input:focus-visible {
                 wireSectionReveal();
                 wireSeasonalToggles();
                 wireRecentlyUpdatedToggle();
+                wireMoreIntelDisclosure();
                 wireAnalyticsPanelDisclosure();
                 wireDealRadarMore();
                 wireRowNav();

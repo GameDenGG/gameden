@@ -670,7 +670,8 @@ input:focus-visible {
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+    grid-template-areas: "main rail";
     gap: 20px;
     align-items: start;
     width: 100%;
@@ -694,13 +695,28 @@ input:focus-visible {
     display: grid;
     gap: 16px;
     align-content: start;
+    width: 100%;
+    min-width: 0;
+}
+
+.main-column {
+    grid-area: main;
 }
 
 .side-column {
+    grid-area: rail;
     grid-auto-rows: min-content;
-    width: 340px;
-    max-width: 340px;
-    position: relative;
+    max-width: none;
+    position: static;
+    margin: 0;
+    transform: none;
+    inset: auto;
+}
+
+.side-column > .panel,
+.side-column > .side-zone-header {
+    width: 100%;
+    min-width: 0;
 }
 
 .side-zone-header {
@@ -2790,10 +2806,18 @@ input:focus-visible {
     .homepage-content-shell {
         gap: 16px;
     }
-    .dashboard-grid { grid-template-columns: 1fr; }
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "main"
+            "rail";
+    }
     .side-column {
         width: 100%;
         max-width: none;
+        position: static;
+        transform: none;
+        margin: 0;
     }
     .lower-sections {
         gap: 14px;
@@ -3371,11 +3395,11 @@ input:focus-visible {
                 </div>
 
                 <nav class="home-jump-nav" id="homeJumpNav" aria-label="Jump to homepage zones">
-                    <button class="home-jump-chip" type="button" data-home-jump-group="Buy Signals" data-home-jump-target="opportunitiesPanel">Buy Signals</button>
+                    <button class="home-jump-chip" type="button" data-home-jump-group="Buy Now" data-home-jump-target="opportunitiesPanel">Buy Now</button>
+                    <button class="home-jump-chip" type="button" data-home-jump-group="Watch Closely" data-home-jump-target="opportunityRadarPanel">Watch Closely</button>
+                    <button class="home-jump-chip" type="button" data-home-jump-group="Discover" data-home-jump-target="discoveryTabsShell">Discover</button>
                     <button class="home-jump-chip" type="button" data-home-jump-group="Your Radar" data-home-jump-target="recommendedForYouPanel">Your Radar</button>
-                    <button class="home-jump-chip" type="button" data-home-jump-group="Discovery" data-home-jump-target="discoveryTabsShell">Discovery</button>
-                    <button class="home-jump-chip" type="button" data-home-jump-group="Upcoming" data-home-jump-target="upcomingPanel">Upcoming</button>
-                    <button class="home-jump-chip" type="button" data-home-jump-group="Analytics" data-home-jump-target="moreIntelSection">Analytics</button>
+                    <button class="home-jump-chip" type="button" data-home-jump-group="Market Intelligence" data-home-jump-target="moreIntelSection">Market Intelligence</button>
                 </nav>
             </div>
 
@@ -3507,9 +3531,9 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="discovery-tabs-shell" id="discoveryTabsShell" aria-label="Discovery browse modes">
+                <section class="discovery-tabs-shell" id="discoveryTabsShell" aria-label="Discover browse modes">
                     <div class="discovery-tabs-head">
-                        <h2 class="discovery-tabs-title">Discovery</h2>
+                        <h2 class="discovery-tabs-title">Discover</h2>
                         <div class="discovery-tabs-subtitle">Switch browse modes to keep the homepage focused while exploring live market surfaces.</div>
                     </div>
                     <div class="discovery-tabs-list" id="discoveryTabsList" role="tablist" aria-label="Discovery views"></div>
@@ -4153,39 +4177,41 @@ input:focus-visible {
         const EXTENDED_PLATFORM_FILTER_OPTIONS = Object.freeze(["Steam Deck", "VR Compatibility"]);
         const MOBILE_FILTER_BREAKPOINT_PX = 860;
         const HOMEPAGE_MOBILE_LAYOUT_BREAKPOINT_PX = 1260;
-        // Homepage IA scaffold: lightweight section metadata used to drive column composition.
+        // Homepage IA scaffold: lightweight section metadata used to drive purpose-based composition.
         const HOMEPAGE_SECTION_GROUPS = Object.freeze({
-            BUY_SIGNALS: "Buy Signals",
+            BUY_NOW: "Buy Now",
+            WATCH_CLOSELY: "Watch Closely",
+            DISCOVER: "Discover",
             YOUR_RADAR: "Your Radar",
-            DISCOVERY: "Discovery",
-            UPCOMING: "Upcoming",
-            ANALYTICS: "Analytics",
+            MARKET_INTELLIGENCE: "Market Intelligence",
         });
         const HOMEPAGE_GROUP_ORDER = Object.freeze([
-            HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS,
+            HOMEPAGE_SECTION_GROUPS.BUY_NOW,
+            HOMEPAGE_SECTION_GROUPS.WATCH_CLOSELY,
+            HOMEPAGE_SECTION_GROUPS.DISCOVER,
             HOMEPAGE_SECTION_GROUPS.YOUR_RADAR,
-            HOMEPAGE_SECTION_GROUPS.DISCOVERY,
-            HOMEPAGE_SECTION_GROUPS.UPCOMING,
-            HOMEPAGE_SECTION_GROUPS.ANALYTICS,
+            HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE,
         ]);
         const HOMEPAGE_GROUP_INDEX = Object.freeze(HOMEPAGE_GROUP_ORDER.reduce((accumulator, groupName, index) => {
             accumulator[groupName] = index;
             return accumulator;
         }, {}));
         const MORE_MARKET_INTEL_SECTION_IDS = Object.freeze([
-            "buyNowPicksPanel",
-            "waitForSalePanel",
-            "historicalLowsPanel",
-            "topReviewedPanel",
-            "seasonalSaleTopPanel",
-            "seasonalSaleLowerPanel",
             "recentlyUpdatedPanel",
             "dealRadarPanel",
             "analyticsPanel",
+            "historicalLowsPanel",
+            "topReviewedPanel",
         ]);
         const HOMEPAGE_SECTION_LAYOUT = Object.freeze([
-            { id: "opportunitiesPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 10, column: "main" },
-            { id: "opportunityRadarPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 20, column: "main" },
+            { id: "opportunitiesPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_NOW, priority: 10, column: "main" },
+            { id: "buyNowPicksPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_NOW, priority: 20, column: "main" },
+
+            { id: "opportunityRadarPanel", group: HOMEPAGE_SECTION_GROUPS.WATCH_CLOSELY, priority: 10, column: "main" },
+            { id: "waitForSalePanel", group: HOMEPAGE_SECTION_GROUPS.WATCH_CLOSELY, priority: 20, column: "main" },
+            { id: "upcomingPanel", group: HOMEPAGE_SECTION_GROUPS.WATCH_CLOSELY, priority: 30, column: "main" },
+            { id: "seasonalSaleTopPanel", group: HOMEPAGE_SECTION_GROUPS.WATCH_CLOSELY, priority: 40, column: "main" },
+            { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.WATCH_CLOSELY, priority: 40, column: "lower" },
 
             { id: "recommendedForYouPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 10, column: "side" },
             { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 20, column: "side" },
@@ -4193,10 +4219,10 @@ input:focus-visible {
             { id: "dailyDigestPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 40, column: "side" },
             { id: "alertsPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 50, column: "side" },
 
-            { id: "discoveryTabsShell", group: HOMEPAGE_SECTION_GROUPS.DISCOVERY, priority: 5, column: "main" },
+            { id: "discoveryTabsShell", group: HOMEPAGE_SECTION_GROUPS.DISCOVER, priority: 5, column: "main" },
             {
                 id: "bestDealsPanel",
-                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
+                group: HOMEPAGE_SECTION_GROUPS.DISCOVER,
                 priority: 10,
                 column: "main",
                 discoveryTab: true,
@@ -4205,7 +4231,7 @@ input:focus-visible {
             },
             {
                 id: "trendingGamesPanel",
-                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
+                group: HOMEPAGE_SECTION_GROUPS.DISCOVER,
                 priority: 20,
                 column: "main",
                 discoveryTab: true,
@@ -4214,7 +4240,7 @@ input:focus-visible {
             },
             {
                 id: "worthBuyingPanel",
-                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
+                group: HOMEPAGE_SECTION_GROUPS.DISCOVER,
                 priority: 30,
                 column: "main",
                 discoveryTab: true,
@@ -4223,7 +4249,7 @@ input:focus-visible {
             },
             {
                 id: "newHistoricalLowsPanel",
-                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
+                group: HOMEPAGE_SECTION_GROUPS.DISCOVER,
                 priority: 40,
                 column: "main",
                 discoveryTab: true,
@@ -4232,7 +4258,7 @@ input:focus-visible {
             },
             {
                 id: "allGamesPanel",
-                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
+                group: HOMEPAGE_SECTION_GROUPS.DISCOVER,
                 priority: 50,
                 column: "main",
                 discoveryTab: true,
@@ -4240,18 +4266,12 @@ input:focus-visible {
                 tabLabel: "All Games",
             },
 
-            { id: "upcomingPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 10, column: "main" },
-            { id: "seasonalSaleTopPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 30, column: "main" },
-            { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 30, column: "lower" },
-
-            { id: "moreIntelSection", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 10, column: "lower" },
-            { id: "recentlyUpdatedPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 20, column: "main" },
-            { id: "dealRadarPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 30, column: "main" },
-            { id: "analyticsPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 40, column: "main" },
-            { id: "buyNowPicksPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 50, column: "main" },
-            { id: "waitForSalePanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 60, column: "main" },
-            { id: "historicalLowsPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 70, column: "main" },
-            { id: "topReviewedPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 80, column: "main" },
+            { id: "moreIntelSection", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 10, column: "lower" },
+            { id: "recentlyUpdatedPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 20, column: "main" },
+            { id: "dealRadarPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 30, column: "main" },
+            { id: "analyticsPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 40, column: "main" },
+            { id: "historicalLowsPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 50, column: "main" },
+            { id: "topReviewedPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 60, column: "main" },
         ].map((entry) => Object.freeze(entry)));
 
         const state = {

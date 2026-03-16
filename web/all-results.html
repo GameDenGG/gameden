@@ -354,10 +354,13 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
   }
   function render(rows, append = false) { const safe = unique(rows); if (!append) ui.grid.innerHTML = ""; if (!append && !safe.length) { ui.grid.innerHTML = `<div class="status">${h(defaultEmptyMessage())}</div>`; return; } const html = safe.map(card).join(""); if (append) ui.grid.insertAdjacentHTML("beforeend", html); else ui.grid.innerHTML = html; }
   async function fetchJson(url, opt = {}) {
-    if (!window.GameDenSite || typeof window.GameDenSite.fetchJson !== "function") {
+    const runtime = typeof window.getGameDenRuntime === "function"
+      ? await window.getGameDenRuntime()
+      : window.GameDenSite;
+    if (!runtime || typeof runtime.fetchJson !== "function") {
       throw new Error("GameDen runtime is not initialized. Ensure /site-branding.js loads before page scripts.");
     }
-    return window.GameDenSite.fetchJson(url, opt);
+    return runtime.fetchJson(url, opt);
   }
   function readQuery() {
     const q = new URLSearchParams(location.search);

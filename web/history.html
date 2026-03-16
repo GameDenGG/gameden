@@ -804,7 +804,10 @@
         }
 
         async function fetchJson(path, options = {}) {
-            if (!window.GameDenSite || typeof window.GameDenSite.fetchJson !== "function") {
+            const runtime = typeof window.getGameDenRuntime === "function"
+                ? await window.getGameDenRuntime()
+                : window.GameDenSite;
+            if (!runtime || typeof runtime.fetchJson !== "function") {
                 throw new Error("GameDen runtime is not initialized. Ensure /site-branding.js loads before page scripts.");
             }
             const headers = {
@@ -812,7 +815,7 @@
                 ...(options.body ? { "Content-Type": "application/json" } : {}),
                 ...(options.headers || {})
             };
-            return window.GameDenSite.fetchJson(path, {
+            return runtime.fetchJson(path, {
                 ...options,
                 headers
             });

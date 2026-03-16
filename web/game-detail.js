@@ -493,10 +493,13 @@ function renderDealHighlights(detail) {
 }
 
 async function fetchJson(url, options = {}) {
-  if (!window.GameDenSite || typeof window.GameDenSite.fetchJson !== "function") {
+  const runtime = typeof window.getGameDenRuntime === "function"
+    ? await window.getGameDenRuntime()
+    : window.GameDenSite;
+  if (!runtime || typeof runtime.fetchJson !== "function") {
     throw new Error("GameDen runtime is not initialized. Ensure /site-branding.js loads before page scripts.");
   }
-  return window.GameDenSite.fetchJson(url, options);
+  return runtime.fetchJson(url, options);
 }
 
 function renderDetail(detail) {

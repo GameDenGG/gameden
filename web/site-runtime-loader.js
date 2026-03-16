@@ -14,7 +14,83 @@
     }
   }
 
+  function isRuntimeReady() {
+    return !!(window.GameDenSite && typeof window.GameDenSite.fetchJson === "function");
+  }
+
+  function loadScriptSequentially(src) {
+    return new Promise((resolve, reject) => {
+      const targetHref = new URL(src, window.location.origin).href;
+      const existingScript = Array.from(document.querySelectorAll("script[src]")).find((node) => {
+        try {
+          return new URL(node.src, window.location.origin).href === targetHref;
+        } catch (_error) {
+          return false;
+        }
+      });
+
+      if (existingScript) {
+        const loadedState = existingScript.getAttribute("data-gameden-loaded");
+        if (loadedState === "true") {
+          resolve();
+          return;
+        }
+        existingScript.addEventListener("load", () => resolve(), { once: true });
+        existingScript.addEventListener("error", () => reject(new Error(`Failed to load ${src}`)), { once: true });
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = src;
+      script.async = false;
+      script.defer = false;
+      script.setAttribute("data-gameden-loaded", "false");
+      script.addEventListener(
+        "load",
+        () => {
+          script.setAttribute("data-gameden-loaded", "true");
+          resolve();
+        },
+        { once: true }
+      );
+      script.addEventListener(
+        "error",
+        () => {
+          script.setAttribute("data-gameden-loaded", "error");
+          reject(new Error(`Failed to load ${src}`));
+        },
+        { once: true }
+      );
+      (document.head || document.documentElement).appendChild(script);
+    });
+  }
+
   const suffix = getAssetQuerySuffix();
-  document.write(`<script src="/site-config.js${suffix}"><\\/script>`);
-  document.write(`<script src="/site-branding.js${suffix}"><\\/script>`);
+  const runtimeReady = (async function initRuntime() {
+    if (isRuntimeReady()) return window.GameDenSite;
+
+    await loadScriptSequentially(`/site-config.js${suffix}`);
+    await loadScriptSequentially(`/site-branding.js${suffix}`);
+
+    if (!isRuntimeReady()) {
+      throw new Error("GameDen runtime failed to initialize. Ensure /site-branding.js is available.");
+    }
+    return window.GameDenSite;
+  })();
+
+  window.__GAMEDEN_RUNTIME_READY__ = runtimeReady;
+  window.getGameDenRuntime = function getGameDenRuntime() {
+    return runtimeReady;
+  };
+
+  runtimeReady
+    .then(() => {
+      document.dispatchEvent(new CustomEvent("gameden:runtime-ready"));
+    })
+    .catch((error) => {
+      document.dispatchEvent(new CustomEvent("gameden:runtime-error", { detail: error }));
+      if (typeof console !== "undefined" && typeof console.error === "function") {
+        console.error("[GameDenSite] runtime initialization failed", error);
+      }
+    });
 })();

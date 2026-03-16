@@ -545,6 +545,63 @@
   border: 1px solid rgba(130, 173, 247, 0.2);
   background: linear-gradient(180deg, rgba(16, 30, 52, 0.72), rgba(11, 21, 38, 0.86));
 }
+@media (max-width: 760px) {
+  .gd-skeleton-card-shell {
+    grid-template-rows: 118px auto;
+    min-height: 272px;
+    border-radius: 14px;
+  }
+  .gd-skeleton-thumb {
+    height: 118px;
+  }
+  .gd-skeleton-body {
+    padding: 10px;
+    gap: 8px;
+  }
+  .gd-skeleton-grid3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .gd-skeleton-radar-item {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 9px;
+    min-height: 66px;
+    padding: 9px 10px;
+  }
+  .gd-skeleton-radar-thumb {
+    width: 72px;
+    height: 40px;
+  }
+  .gd-skeleton-radar-side {
+    grid-column: 2;
+    justify-items: start;
+  }
+  .gd-skeleton-search-item {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 9px;
+    min-height: 66px;
+    padding: 9px 10px;
+  }
+  .gd-skeleton-search-thumb {
+    width: 72px;
+    height: 40px;
+  }
+  .gd-skeleton-search-item > :last-child {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+@media (max-width: 520px) {
+  .gd-skeleton-card-shell {
+    grid-template-rows: 108px auto;
+    min-height: 248px;
+  }
+  .gd-skeleton-thumb {
+    height: 108px;
+  }
+  .gd-skeleton-grid3 {
+    grid-template-columns: 1fr;
+  }
+}
 @keyframes gdSkeletonSweep {
   from { transform: translateX(-110%); }
   to { transform: translateX(110%); }

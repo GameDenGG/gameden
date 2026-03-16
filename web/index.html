@@ -2627,7 +2627,28 @@ input:focus-visible {
     }
     .brand-name { font-size: 16px; }
     .signal-chip { font-size: 10px; padding: 6px 9px; }
-    .hero { padding: 20px; border-radius: 22px; }
+    .hero {
+        padding: 18px;
+        border-radius: 20px;
+        margin-bottom: 18px;
+    }
+    .hero h1 {
+        margin: 8px 0 7px;
+        font-size: clamp(30px, 9.2vw, 40px);
+        line-height: 1;
+    }
+    .hero p {
+        font-size: 14px;
+        line-height: 1.52;
+    }
+    .hero-chip {
+        padding: 7px 10px;
+        font-size: 10px;
+    }
+    .hero-cta {
+        padding: 9px 12px;
+        font-size: 11px;
+    }
     .modal-body { grid-template-columns: 1fr; }
     .mobile-filter-toggle-row {
         display: flex;
@@ -2712,8 +2733,38 @@ input:focus-visible {
     .cards-grid,
     .stats-grid,
     .meta-grid { grid-template-columns: 1fr; }
+    .cards-grid {
+        gap: 10px;
+    }
     .hero-chip-row,
     .hero-cta-row { gap: 8px; }
+    .dashboard-grid {
+        gap: 16px;
+    }
+    .main-column,
+    .side-column {
+        gap: 14px;
+    }
+    .panel {
+        border-radius: 18px;
+    }
+    .panel-head {
+        gap: 10px;
+        padding: 13px 13px 0;
+        padding-bottom: 8px;
+    }
+    .panel-title {
+        font-size: 18px;
+        letter-spacing: -0.02em;
+    }
+    .panel-subtitle {
+        margin-top: 4px;
+        font-size: 11px;
+        line-height: 1.38;
+    }
+    .panel-body {
+        padding: 11px 13px 13px;
+    }
 
     .panel-head,
     .sale-radar-head {
@@ -2725,14 +2776,100 @@ input:focus-visible {
         align-self: flex-start;
     }
 
-    .game-card-top { flex-direction: column; }
+    .row-scroller {
+        grid-auto-columns: minmax(250px, 84vw);
+        gap: 12px;
+        padding-bottom: 4px;
+    }
+    .row-fade-left,
+    .row-fade-right {
+        width: 30px;
+    }
+    .game-card {
+        border-radius: 16px;
+    }
+    .card-banner {
+        height: 132px;
+    }
+    .game-card-top {
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px 12px 0;
+    }
+    .game-name {
+        font-size: 17px;
+        line-height: 1.18;
+        letter-spacing: -0.02em;
+    }
+    .game-name a {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+    }
     .price-stack { text-align: left; min-width: 0; }
+    .price-current {
+        font-size: 22px;
+    }
+    .price-original {
+        margin-top: 2px;
+        font-size: 12px;
+    }
+    .card-action-row {
+        padding: 10px 12px 0;
+        flex-wrap: wrap;
+    }
+    .card-action-btn {
+        flex: 1 1 calc(50% - 4px);
+        min-height: 36px;
+        padding: 7px 8px;
+        font-size: 12px;
+    }
+    .pill-row {
+        padding: 10px 12px 0;
+        gap: 6px;
+    }
+    .card-meta-stack {
+        padding: 10px 12px 0;
+        gap: 7px;
+    }
     .card-meta-row.deal-quality {
         flex-direction: column;
         align-items: flex-start;
     }
     .card-meta-cluster.secondary {
         justify-content: flex-start;
+    }
+    .pill,
+    .deal-score-badge,
+    .meta-chip {
+        padding: 5px 8px;
+        font-size: 10px;
+    }
+    .card-subtext {
+        padding: 7px 12px 0;
+        font-size: 11px;
+        line-height: 1.4;
+    }
+    .card-explain-list {
+        padding: 7px 12px 0 24px;
+        font-size: 11px;
+        line-height: 1.35;
+    }
+    .meta-grid {
+        padding: 10px 12px 12px;
+        gap: 8px;
+    }
+    .meta-item {
+        padding: 9px;
+    }
+    .meta-label {
+        font-size: 10px;
+    }
+    .meta-value {
+        margin-top: 4px;
+        font-size: 14px;
     }
     .analytics-groups { grid-template-columns: 1fr; }
     .deal-radar-card { grid-template-columns: 72px minmax(0, 1fr); }
@@ -2741,6 +2878,59 @@ input:focus-visible {
 
     .search-result-item { grid-template-columns: 72px minmax(0, 1fr); }
     .search-result-price { grid-column: 2; text-align: left; }
+}
+
+@media (max-width: 860px) and (min-width: 641px) {
+    .cards-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .page {
+        padding: 14px 12px 20px;
+    }
+    .hero {
+        padding: 16px;
+        border-radius: 18px;
+    }
+    .hero h1 {
+        font-size: clamp(27px, 9vw, 33px);
+    }
+    .panel-title {
+        font-size: 17px;
+    }
+    .cards-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    .row-scroller {
+        grid-auto-columns: minmax(228px, 86vw);
+    }
+    .card-banner {
+        height: 122px;
+    }
+    .card-action-btn {
+        flex: 1 1 100%;
+    }
+    .deal-radar-card {
+        grid-template-columns: 64px minmax(0, 1fr);
+        gap: 8px;
+    }
+    .deal-radar-thumb {
+        width: 64px;
+        height: 38px;
+    }
+    .search-result-item {
+        padding: 10px;
+        gap: 10px;
+    }
+    .search-result-title {
+        font-size: 14px;
+    }
+    .search-result-sub {
+        font-size: 11px;
+    }
 }
 </style>
 </head>

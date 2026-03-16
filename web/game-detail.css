@@ -24,8 +24,19 @@ body {
 }
 .hero-card { padding: 18px; margin-bottom: 16px; }
 .hero-banner { height: 180px; border-radius: 14px; background-size: cover; background-position: center; background-color: #1a2740; }
-.hero-banner-wrap h1 { margin: 14px 0 8px; }
-.deal-summary { margin: 0 0 14px; color: var(--muted); }
+.hero-banner-wrap h1 {
+  margin: 14px 0 8px;
+  font-size: clamp(30px, 5.6vw, 44px);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+.deal-summary {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
 
 .price-row, .meta-grid, .insights-grid {
   display: grid;
@@ -41,6 +52,7 @@ body {
   border-radius: 14px;
 }
 .meta-item span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+.meta-item strong { font-size: 18px; letter-spacing: -0.02em; }
 
 .tag-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .tag {
@@ -159,6 +171,15 @@ body {
 .panel { padding: 16px; }
 .wide-panel { grid-column: span 2; }
 .panel-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.panel h2 {
+  margin: 0 0 10px;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+.panel-header h2 {
+  margin: 0;
+}
 .range-tabs { display: flex; gap: 6px; }
 .range-btn {
   border: 1px solid var(--border);
@@ -215,17 +236,117 @@ body {
 .confidence-pill.good-deal { border-color: rgba(111, 232, 255, 0.44); background: rgba(111, 232, 255, 0.16); color: #d8fbff; }
 .confidence-pill.fair-price { border-color: rgba(255, 199, 122, 0.44); background: rgba(255, 199, 122, 0.16); color: #ffe5bf; }
 .confidence-pill.wait { border-color: rgba(188, 205, 236, 0.35); background: rgba(188, 205, 236, 0.12); color: #deecff; }
-.reasoning-list { margin: 0; padding-left: 18px; color: var(--muted); }
+.reasoning-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  display: grid;
+  gap: 4px;
+}
 
 @media (max-width: 980px) {
+  .page-shell {
+    padding: 16px;
+  }
+  .hero-card {
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .content-grid {
+    gap: 12px;
+  }
+  .panel {
+    padding: 14px;
+  }
+  .panel h2 {
+    font-size: 20px;
+  }
+  .range-tabs {
+    flex-wrap: wrap;
+  }
+  .target-alert-actions {
+    flex-wrap: wrap;
+  }
   .content-grid { grid-template-columns: 1fr; }
   .wide-panel { grid-column: span 1; }
   .price-row, .meta-grid, .insights-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 640px) {
+  .page-shell {
+    padding: 12px;
+  }
+  .hero-card {
+    padding: 12px;
+    border-radius: 14px;
+  }
+  .hero-banner {
+    height: 150px;
+    border-radius: 10px;
+  }
+  .hero-banner-wrap h1 {
+    font-size: clamp(25px, 8.5vw, 32px);
+  }
+  .deal-summary {
+    margin-bottom: 10px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .reasoning-list {
+    font-size: 12px;
+    line-height: 1.35;
+    gap: 3px;
+  }
   .price-row, .meta-grid, .insights-grid { grid-template-columns: 1fr; }
+  .meta-item {
+    padding: 10px;
+    border-radius: 12px;
+  }
+  .meta-item strong {
+    font-size: 16px;
+  }
   .target-alert-grid { grid-template-columns: 1fr; }
+  .target-alert-field span {
+    font-size: 11px;
+  }
+  .target-alert-actions .range-btn {
+    flex: 1 1 calc(50% - 4px);
+  }
+  .target-alert-status {
+    font-size: 11px;
+  }
+  .content-grid {
+    gap: 10px;
+  }
+  .panel {
+    padding: 12px;
+    border-radius: 14px;
+  }
+  .panel h2 {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .range-tabs {
+    width: 100%;
+    gap: 6px;
+  }
+  .range-tabs .range-btn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}
+
+@media (max-width: 420px) {
+  .target-alert-actions .range-btn {
+    flex: 1 1 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

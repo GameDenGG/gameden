@@ -738,19 +738,19 @@ input:focus-visible {
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
+    gap: 12px;
     perspective: 1200px;
 }
 
 .row-scroller {
     display: grid;
     grid-auto-flow: column;
-    grid-auto-columns: minmax(320px, 360px);
-    gap: 16px;
+    grid-auto-columns: minmax(286px, 322px);
+    gap: 12px;
     overflow-x: auto;
     overflow-y: hidden;
-    padding-bottom: 6px;
-    scroll-padding-left: 16px;
+    padding-bottom: 4px;
+    scroll-padding-left: 12px;
     scroll-behavior: smooth;
     scroll-snap-type: x proximity;
     scrollbar-width: thin;
@@ -841,7 +841,7 @@ input:focus-visible {
 
 .card-banner {
     position: relative;
-    height: 152px;
+    height: 126px;
     overflow: hidden;
     background: linear-gradient(180deg, rgba(121, 168, 255, 0.2), rgba(121, 168, 255, 0.06));
     border-bottom: 1px solid rgba(121, 168, 255, 0.14);
@@ -872,15 +872,15 @@ input:focus-visible {
 .game-card-top {
     display: flex;
     justify-content: space-between;
-    gap: 16px;
-    padding: 14px 14px 0;
+    gap: 10px;
+    padding: 10px 12px 0;
 }
 
 .game-name {
     margin: 0;
     font-family: var(--font-display);
-    font-size: 19px;
-    line-height: 1.1;
+    font-size: 17px;
+    line-height: 1.12;
     letter-spacing: -0.03em;
 }
 
@@ -889,29 +889,29 @@ input:focus-visible {
 }
 
 .price-stack {
-    min-width: 104px;
+    min-width: 92px;
     text-align: right;
 }
 
 .price-current {
     font-family: var(--font-display);
-    font-size: 24px;
+    font-size: 21px;
     font-weight: 900;
     letter-spacing: -0.03em;
     white-space: nowrap;
 }
 
 .price-original {
-    margin-top: 4px;
+    margin-top: 2px;
     color: var(--muted);
     text-decoration: line-through;
-    font-size: 13px;
+    font-size: 12px;
 }
 
 .card-action-row {
     display: flex;
-    gap: 8px;
-    padding: 12px 14px 0;
+    gap: 6px;
+    padding: 10px 12px 0;
     position: relative;
     z-index: 4;
 }
@@ -924,8 +924,10 @@ input:focus-visible {
     border: 1px solid rgba(121, 168, 255, 0.25);
     background: rgba(121, 168, 255, 0.08);
     color: var(--text);
-    border-radius: 10px;
-    padding: 8px 10px;
+    border-radius: 9px;
+    padding: 7px 9px;
+    min-height: 34px;
+    font-size: 12px;
     font-weight: 800;
     cursor: pointer;
     position: relative;
@@ -973,20 +975,20 @@ input:focus-visible {
 .pill-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 7px;
-    padding: 12px 14px 0;
+    gap: 6px;
+    padding: 9px 12px 0;
 }
 
 .card-meta-stack {
     display: grid;
-    gap: 8px;
-    padding: 12px 14px 0;
+    gap: 6px;
+    padding: 9px 12px 0;
 }
 
 .card-meta-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
 }
 
@@ -1017,7 +1019,7 @@ input:focus-visible {
 .card-meta-row.context {
     flex-wrap: wrap;
     color: var(--muted);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.01em;
 }
@@ -1026,11 +1028,11 @@ input:focus-visible {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 9px;
+    padding: 4px 8px;
     border-radius: 999px;
     border: 1px solid rgba(121, 168, 255, 0.2);
     background: rgba(121, 168, 255, 0.08);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
     line-height: 1;
 }
@@ -1087,8 +1089,8 @@ input:focus-visible {
     border: 1px solid rgba(154, 182, 255, 0.28);
     background: rgba(255, 255, 255, 0.06);
     color: #dce9ff;
-    padding: 4px 8px;
-    font-size: 11px;
+    padding: 3px 7px;
+    font-size: 10px;
     font-weight: 800;
     line-height: 1;
     letter-spacing: 0.01em;
@@ -1131,19 +1133,19 @@ input:focus-visible {
 
 .card-subtext {
     color: var(--muted-2);
-    font-size: 12px;
-    line-height: 1.45;
-    padding: 8px 14px 0;
+    font-size: 11px;
+    line-height: 1.35;
+    padding: 6px 12px 0;
 }
 
 .card-explain-list {
     margin: 0;
-    padding: 8px 14px 0 27px;
+    padding: 6px 12px 0 24px;
     display: grid;
-    gap: 4px;
+    gap: 3px;
     color: var(--muted-2);
-    font-size: 12px;
-    line-height: 1.4;
+    font-size: 11px;
+    line-height: 1.3;
 }
 
 .card-explain-list li {
@@ -1155,11 +1157,11 @@ input:focus-visible {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 9px;
+    padding: 5px 8px;
     border-radius: 999px;
     border: 1px solid rgba(121, 168, 255, 0.2);
     background: rgba(121, 168, 255, 0.08);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
 }
 
@@ -1217,29 +1219,29 @@ input:focus-visible {
 
 .meta-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    padding: 12px 14px 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 9px 12px 12px;
 }
 
 .meta-item {
-    padding: 11px;
-    border-radius: 12px;
+    padding: 8px;
+    border-radius: 10px;
     border: 1px solid rgba(121, 168, 255, 0.16);
     background: rgba(121, 168, 255, 0.06);
 }
 
 .meta-label {
     color: var(--muted);
-    font-size: 11px;
+    font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.07em;
     font-weight: 800;
 }
 
 .meta-value {
-    margin-top: 6px;
-    font-size: 15px;
+    margin-top: 4px;
+    font-size: 13px;
     font-weight: 900;
 }
 
@@ -1257,23 +1259,23 @@ input:focus-visible {
 }
 
 .price-history {
-    margin-top: 6px;
+    margin-top: 5px;
     position: relative;
 }
 
 .price-history svg {
     width: 100%;
-    height: 24px;
+    height: 20px;
     stroke: #60a5fa;
     fill: none;
-    stroke-width: 2;
+    stroke-width: 1.8;
 }
 
 .price-meta {
-    margin-top: 4px;
+    margin-top: 3px;
     display: flex;
-    gap: 10px;
-    font-size: 11px;
+    gap: 8px;
+    font-size: 10px;
     color: var(--muted);
 }
 
@@ -1296,13 +1298,13 @@ input:focus-visible {
 .sale-timeline {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 6px;
+    gap: 3px;
+    margin-top: 4px;
 }
 
 .sale-dot {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
     background: rgba(96,165,250,0.4);
 }
@@ -2604,8 +2606,7 @@ input:focus-visible {
         overflow: hidden;
     }
     .cards-grid,
-    .stats-grid,
-    .meta-grid { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: 1fr; }
     .cards-grid {
         gap: 10px;
     }
@@ -2648,8 +2649,8 @@ input:focus-visible {
     }
 
     .row-scroller {
-        grid-auto-columns: minmax(250px, 84vw);
-        gap: 12px;
+        grid-auto-columns: minmax(218px, 72vw);
+        gap: 10px;
         padding-bottom: 4px;
     }
     .row-fade-left,
@@ -2660,16 +2661,16 @@ input:focus-visible {
         border-radius: 16px;
     }
     .card-banner {
-        height: 132px;
+        height: 108px;
     }
     .game-card-top {
         flex-direction: column;
-        gap: 10px;
-        padding: 12px 12px 0;
+        gap: 8px;
+        padding: 10px 10px 0;
     }
     .game-name {
-        font-size: 17px;
-        line-height: 1.18;
+        font-size: 15px;
+        line-height: 1.16;
         letter-spacing: -0.02em;
     }
     .game-name a {
@@ -2681,29 +2682,29 @@ input:focus-visible {
     }
     .price-stack { text-align: left; min-width: 0; }
     .price-current {
-        font-size: 22px;
+        font-size: 18px;
     }
     .price-original {
-        margin-top: 2px;
-        font-size: 12px;
+        margin-top: 1px;
+        font-size: 11px;
     }
     .card-action-row {
-        padding: 10px 12px 0;
+        padding: 8px 10px 0;
         flex-wrap: wrap;
     }
     .card-action-btn {
         flex: 1 1 calc(50% - 4px);
-        min-height: 36px;
-        padding: 7px 8px;
-        font-size: 12px;
+        min-height: 34px;
+        padding: 6px 7px;
+        font-size: 11px;
     }
     .pill-row {
-        padding: 10px 12px 0;
-        gap: 6px;
+        padding: 8px 10px 0;
+        gap: 5px;
     }
     .card-meta-stack {
-        padding: 10px 12px 0;
-        gap: 7px;
+        padding: 8px 10px 0;
+        gap: 5px;
     }
     .card-meta-row.deal-quality {
         flex-direction: column;
@@ -2715,32 +2716,32 @@ input:focus-visible {
     .pill,
     .deal-score-badge,
     .meta-chip {
-        padding: 5px 8px;
+        padding: 4px 7px;
         font-size: 10px;
     }
     .card-subtext {
-        padding: 7px 12px 0;
-        font-size: 11px;
-        line-height: 1.4;
+        padding: 6px 10px 0;
+        font-size: 10px;
+        line-height: 1.3;
     }
     .card-explain-list {
-        padding: 7px 12px 0 24px;
-        font-size: 11px;
-        line-height: 1.35;
+        padding: 6px 10px 0 22px;
+        font-size: 10px;
+        line-height: 1.3;
     }
     .meta-grid {
-        padding: 10px 12px 12px;
-        gap: 8px;
+        padding: 8px 10px 10px;
+        gap: 6px;
     }
     .meta-item {
-        padding: 9px;
+        padding: 7px;
     }
     .meta-label {
         font-size: 10px;
     }
     .meta-value {
         margin-top: 4px;
-        font-size: 14px;
+        font-size: 13px;
     }
     .analytics-groups { grid-template-columns: 1fr; }
     .deal-radar-card { grid-template-columns: 72px minmax(0, 1fr); }
@@ -2794,16 +2795,19 @@ input:focus-visible {
     }
     .cards-grid {
         grid-template-columns: 1fr;
-        gap: 10px;
+        gap: 8px;
     }
     .row-scroller {
-        grid-auto-columns: minmax(228px, 86vw);
+        grid-auto-columns: minmax(198px, 78vw);
     }
     .card-banner {
-        height: 122px;
+        height: 96px;
     }
     .card-action-btn {
         flex: 1 1 100%;
+    }
+    .sale-timeline {
+        display: none;
     }
     .deal-radar-card {
         grid-template-columns: 64px minmax(0, 1fr);
@@ -5212,7 +5216,7 @@ input:focus-visible {
 
         function cardActionLabel(action, isActive) {
             if (action === "wishlist") {
-                return isActive ? "💜 Wishlisted" : "💜 Add to Wishlist";
+                return isActive ? "💜 Wishlisted" : "💜 Wishlist";
             }
             if (action === "watchlist") {
                 return isActive ? "👀 Watching" : "👁️ Watch";
@@ -5303,7 +5307,7 @@ input:focus-visible {
             return `
                 <div class="card-action-row">
                     <button class="card-action-btn ${wishlistActive ? "active" : ""}" type="button" aria-pressed="${wishlistActive}" data-action="wishlist" data-game-name="${escapeHtml(game.game_name || "")}"${gameIdAttr}>
-                        ${wishlistActive ? "💜 Wishlisted" : "💜 Add to Wishlist"}
+                        ${wishlistActive ? "💜 Wishlisted" : "💜 Wishlist"}
                     </button>
                     <button class="card-action-btn watch ${watchlistActive ? "active" : ""}" type="button" aria-pressed="${watchlistActive}" data-action="watchlist" data-game-name="${escapeHtml(game.game_name || "")}"${gameIdAttr}>
                         ${watchlistActive ? "👀 Watching" : "👁️ Watch"}
@@ -5792,7 +5796,7 @@ input:focus-visible {
                 pushDecisionLine(lines, predictedReason);
             }
 
-            return lines.slice(0, 3);
+            return lines.slice(0, 2);
         }
 
         function gameCardHtml(game, context = {}) {
@@ -5826,10 +5830,6 @@ input:focus-visible {
                         <div class="meta-item">
                             <div class="meta-label">Historical low</div>
                             <div class="meta-value">${fmtPrice(game.historical_low)}</div>
-                        </div>
-                        <div class="meta-item">
-                            <div class="meta-label">Daily peak</div>
-                            <div class="meta-value">${fmtInt(game.daily_peak)}</div>
                         </div>
                         <div class="meta-item">
                             <div class="meta-label">30d avg players</div>

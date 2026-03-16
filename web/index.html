@@ -589,8 +589,9 @@ input:focus-visible {
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.82fr) minmax(300px, 0.98fr);
-    gap: 20px;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+    gap: 22px;
+    align-items: start;
 }
 
 .main-column,
@@ -598,6 +599,37 @@ input:focus-visible {
     display: grid;
     gap: 18px;
     align-content: start;
+}
+
+.side-column {
+    grid-auto-rows: min-content;
+}
+
+.column-zone-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: fit-content;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(121, 168, 255, 0.26);
+    background: linear-gradient(180deg, rgba(15, 28, 50, 0.7), rgba(9, 18, 34, 0.78));
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.main-zone-label {
+    border-color: rgba(255, 196, 111, 0.35);
+    color: #ffe1b8;
+}
+
+.side-zone-label {
+    border-color: rgba(188, 168, 255, 0.4);
+    color: #e7dcff;
 }
 
 .panel {
@@ -2987,7 +3019,8 @@ input:focus-visible {
         </div>
 
         <main class="dashboard-grid">
-            <section class="main-column">
+            <section class="main-column" aria-label="Main market intelligence">
+                <div class="column-zone-label main-zone-label">Main Content</div>
                 <section class="panel panel-seasonal hidden" id="seasonalSaleTopPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -3370,7 +3403,8 @@ input:focus-visible {
                 </section>
             </section>
 
-            <aside class="side-column">
+            <aside class="side-column" aria-label="Your radar rail">
+                <div class="column-zone-label side-zone-label">Your Radar</div>
                 <section class="panel panel-personal hidden" id="wishlistPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -3725,10 +3759,10 @@ input:focus-visible {
             { id: "newHistoricalLowsPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 70, column: "main" },
 
             { id: "recommendedForYouPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 10, column: "main" },
-            { id: "recentlyUpdatedPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 20, column: "main" },
             { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 30, column: "side" },
             { id: "watchlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 40, column: "side" },
             { id: "dailyDigestPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 50, column: "side" },
+            { id: "recentlyUpdatedPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 55, column: "side" },
             { id: "dealRadarPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 60, column: "side" },
             { id: "alertsPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 70, column: "side" },
 
@@ -3741,7 +3775,7 @@ input:focus-visible {
             { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 10, column: "main" },
             { id: "upcomingPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 20, column: "main" },
 
-            { id: "analyticsPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 10, column: "side" },
+            { id: "analyticsPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 10, column: "main" },
         ].map((entry) => Object.freeze(entry)));
 
         const state = {

@@ -259,6 +259,7 @@ select {
     place-items: center;
     width: min(760px, 100%);
     min-height: clamp(92px, 19vw, 178px);
+    isolation: isolate;
 }
 
 .logo-hero-image {
@@ -268,13 +269,16 @@ select {
     height: auto;
     max-height: clamp(92px, 19vw, 178px);
     object-fit: contain;
+    will-change: opacity;
+    transition:
+        opacity 0.34s cubic-bezier(0.22, 0.61, 0.36, 1),
+        filter 0.34s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .logo-hero-static {
     position: relative;
     z-index: 1;
     opacity: 1;
-    transition: opacity 0.22s ease;
 }
 
 .logo-hero-animated {
@@ -282,11 +286,16 @@ select {
     z-index: 2;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.28s ease;
+    filter: saturate(1.02);
 }
 
 .logo-hero-stage.is-playing .logo-hero-animated {
     opacity: 1;
+}
+
+.logo-hero-stage.is-playing .logo-hero-static {
+    opacity: 0.2;
+    filter: saturate(0.92);
 }
 
 .eyebrow {
@@ -3030,7 +3039,9 @@ input:focus-visible {
                     aria-hidden="true"
                     muted
                     playsinline
+                    autoplay
                     preload="metadata"
+                    poster="/assets/logo/gameden-logo-static.webp"
                 >
                     <source src="/assets/logo/gameden-logo-animated.webm" type="video/webm" />
                     GameDen logo animation unavailable.
@@ -3673,6 +3684,7 @@ input:focus-visible {
         const DEFAULT_USER_ID = "legacy-user";
         const HERO_LOGO_SESSION_KEY = "gameden.hero_logo_intro_played";
         const HERO_LOGO_FALLBACK_TIMEOUT_MS = 8000;
+        const HERO_LOGO_FADE_DURATION_MS = 340;
 
         function getCurrentUserId() {
             const fallback = DEFAULT_USER_ID;
@@ -3723,6 +3735,19 @@ input:focus-visible {
             const animatedLogo = document.getElementById("heroLogoAnimated");
             if (!logoStage || !animatedLogo) return;
 
+            const resetAnimatedLogo = () => {
+                try {
+                    animatedLogo.pause();
+                    animatedLogo.currentTime = 0;
+                } catch {
+                    try {
+                        animatedLogo.pause();
+                    } catch {
+                        // No-op: fallback for browsers that restrict media state calls.
+                    }
+                }
+            };
+
             const markPlayedInSession = () => {
                 try {
                     sessionStorage.setItem(HERO_LOGO_SESSION_KEY, "1");
@@ -3747,13 +3772,13 @@ input:focus-visible {
 
             if (hasPlayedInSession) {
                 setStaticState(false);
-                animatedLogo.pause();
-                animatedLogo.currentTime = 0;
+                resetAnimatedLogo();
                 return;
             }
 
             let settled = false;
             let fallbackTimer = null;
+            let resetTimer = null;
 
             const completePlayback = () => {
                 if (settled) return;
@@ -3761,9 +3786,13 @@ input:focus-visible {
                 if (fallbackTimer !== null) {
                     clearTimeout(fallbackTimer);
                 }
-                animatedLogo.pause();
-                animatedLogo.currentTime = 0;
                 setStaticState(true);
+                if (resetTimer !== null) {
+                    clearTimeout(resetTimer);
+                }
+                resetTimer = window.setTimeout(() => {
+                    resetAnimatedLogo();
+                }, HERO_LOGO_FADE_DURATION_MS + 40);
             };
 
             const startPlayback = () => {
@@ -3771,6 +3800,15 @@ input:focus-visible {
                 markPlayedInSession();
                 logoStage.classList.add("is-playing");
                 logoStage.classList.remove("is-static");
+                if (resetTimer !== null) {
+                    clearTimeout(resetTimer);
+                    resetTimer = null;
+                }
+                try {
+                    animatedLogo.currentTime = 0;
+                } catch {
+                    // Ignore and attempt playback from current frame if seeking is unavailable.
+                }
                 const playPromise = animatedLogo.play();
                 if (playPromise && typeof playPromise.catch === "function") {
                     playPromise.catch(() => {

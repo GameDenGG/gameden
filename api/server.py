@@ -1541,6 +1541,51 @@ def _compute_personalization_similarity_bonus(
     return round(bonus, 2), overlap_count
 
 
+def _normalize_personalization_score(raw_score: float, *, personalized_context: bool) -> float:
+    denominator = 185.0 if personalized_context else 120.0
+    normalized = (safe_num(raw_score, 0.0) / denominator) * 100.0
+    return round(max(0.0, min(100.0, normalized)), 2)
+
+
+def _build_deal_confidence_badge(score_value: float | None) -> dict | None:
+    parsed_score = safe_num(score_value, -1.0)
+    if parsed_score < 0:
+        return None
+
+    score = round(max(0.0, min(100.0, parsed_score)), 1)
+    if score >= 85:
+        return {
+            "score": score,
+            "confidence_label": "Strong Buy",
+            "confidence_icon": "SB",
+            "confidence_color": "#5ce4a9",
+            "confidence_class": "strong-buy",
+        }
+    if score >= 70:
+        return {
+            "score": score,
+            "confidence_label": "Good Deal",
+            "confidence_icon": "GD",
+            "confidence_color": "#6fe8ff",
+            "confidence_class": "good-deal",
+        }
+    if score >= 50:
+        return {
+            "score": score,
+            "confidence_label": "Fair Price",
+            "confidence_icon": "FP",
+            "confidence_color": "#ffc77a",
+            "confidence_class": "fair-price",
+        }
+    return {
+        "score": score,
+        "confidence_label": "Wait",
+        "confidence_icon": "WT",
+        "confidence_color": "#9eb8e7",
+        "confidence_class": "wait",
+    }
+
+
 def _build_personalized_deal_item(
     snapshot: GameSnapshot,
     *,
@@ -1550,10 +1595,13 @@ def _build_personalized_deal_item(
     recent_game_ids: set[int],
     token_weights: dict[str, float],
     recent_event_counts: dict[int, int],
+    personalization_enabled: bool,
+    has_personal_seed_data: bool,
 ) -> dict | None:
     if snapshot.latest_price is None:
         return None
 
+    use_personal_context = personalization_enabled and has_personal_seed_data
     game_id = int(snapshot.game_id)
     in_wishlist = game_id in wishlist_game_ids
     in_watchlist = game_id in watchlist_game_ids
@@ -1566,6 +1614,8 @@ def _build_personalized_deal_item(
         snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score,
         0.0,
     )
+    deal_opportunity_score = safe_num(snapshot.deal_opportunity_score, 0.0)
+    trending_score = safe_num(snapshot.trending_score, safe_num(snapshot.momentum_score, 0.0))
     popularity_score = safe_num(snapshot.popularity_score, 0.0)
     momentum_score = safe_num(snapshot.momentum_score, 0.0)
     player_growth_ratio = safe_num(snapshot.player_growth_ratio, 0.0)
@@ -1577,57 +1627,61 @@ def _build_personalized_deal_item(
     score = 0.0
     reasons: list[str] = []
 
-    if in_wishlist:
+    if use_personal_context and in_wishlist:
         score += 52.0
         _append_unique_reason(reasons, "In your wishlist")
-    if in_watchlist:
+    if use_personal_context and in_watchlist:
         score += 46.0
         _append_unique_reason(reasons, "In your watchlist")
-    if in_target_watch and not in_wishlist and not in_watchlist:
-        score += 30.0
+    if use_personal_context and in_target_watch and not in_wishlist and not in_watchlist:
+        score += 32.0
         _append_unique_reason(reasons, "In your price alerts")
-    if recently_tracked and not in_wishlist and not in_watchlist:
+    if use_personal_context and recently_tracked and not in_wishlist and not in_watchlist:
         score += 10.0
         _append_unique_reason(reasons, "Recently tracked by you")
 
-    score += min(deal_score, 100.0) * 0.44
-    score += min(buy_score, 100.0) * 0.24
-    score += min(popularity_score, 100.0) * 0.14
-    score += min(momentum_score, 100.0) * 0.18
+    # Core ranking factors for the personalized feed.
+    score += min(deal_score, 100.0) * 0.36
+    score += min(deal_opportunity_score, 100.0) * 0.24
+    score += min(trending_score, 100.0) * 0.17
+    score += min(popularity_score, 100.0) * 0.08
 
     if discount >= 70:
-        score += 16.0
+        score += 12.0
         _append_unique_reason(reasons, "Large discount")
     elif discount >= 50:
-        score += 10.0
+        score += 8.0
         _append_unique_reason(reasons, "Large discount")
     elif discount >= 30:
-        score += 6.0
+        score += 4.0
 
     near_historical_low = (
         historical_status in {"new_historical_low", "matches_historical_low", "near_historical_low"}
         or (price_vs_low_ratio > 0 and price_vs_low_ratio <= 1.08)
     )
     if near_historical_low:
-        score += 14.0
+        score += 10.0
         _append_unique_reason(reasons, "Near historical low")
 
     players_rising = (
         short_term_player_trend >= 0.06
         or player_growth_ratio >= 1.08
-        or (momentum_score >= 58 and current_players >= 300)
+        or (momentum_score >= 58 and current_players >= 250)
     )
     if players_rising:
-        score += 9.0
+        score += 8.0
         _append_unique_reason(reasons, "Players rising")
 
     if discount >= 35 and popularity_score >= 65:
-        score += 8.0
+        score += 6.0
         _append_unique_reason(reasons, "Large discount on a popular game")
 
-    similarity_bonus, overlap_count = _compute_personalization_similarity_bonus(snapshot, token_weights)
-    if similarity_bonus > 0:
-        score += similarity_bonus
+    similarity_bonus = 0.0
+    overlap_count = 0
+    if use_personal_context:
+        similarity_bonus, overlap_count = _compute_personalization_similarity_bonus(snapshot, token_weights)
+    if use_personal_context and similarity_bonus > 0:
+        score += min(14.0, similarity_bonus * 0.7)
         if overlap_count >= 2 and deal_score >= 60:
             _append_unique_reason(reasons, "Similar to games you watch")
         elif overlap_count >= 1:
@@ -1635,32 +1689,49 @@ def _build_personalized_deal_item(
 
     recent_event_count = int(recent_event_counts.get(game_id, 0))
     if recent_event_count > 0:
-        score += min(8.0, recent_event_count * 2.0)
-        if recent_event_count >= 2:
-            _append_unique_reason(reasons, "Fresh deal event")
+        score += min(12.0, recent_event_count * 3.0)
+        _append_unique_reason(reasons, "Fresh deal event")
+
+    if deal_opportunity_score >= 70:
+        _append_unique_reason(reasons, "Likely sale opportunity soon")
+    if trending_score >= 62 and discount >= 20:
+        _append_unique_reason(reasons, "Trending game with strong discount")
+    elif trending_score >= 62:
+        _append_unique_reason(reasons, "Trending game with rising activity")
+    if deal_score >= 78 and not use_personal_context:
+        _append_unique_reason(reasons, "High deal score")
 
     has_strong_signal = (
-        in_wishlist
-        or in_watchlist
-        or in_target_watch
-        or recently_tracked
+        (use_personal_context and (in_wishlist or in_watchlist or in_target_watch or recently_tracked))
+        or recent_event_count > 0
         or discount >= 20
         or near_historical_low
         or players_rising
-        or similarity_bonus >= 4.0
-        or deal_score >= 55
-        or buy_score >= 55
+        or deal_score >= 52
+        or deal_opportunity_score >= 55
+        or trending_score >= 50
+        or popularity_score >= 55
+        or buy_score >= 58
     )
     if not has_strong_signal:
         return None
 
-    minimum_score = 34.0 if (in_wishlist or in_watchlist or in_target_watch) else 48.0
-    if score < minimum_score:
+    normalized_score = _normalize_personalization_score(
+        score,
+        personalized_context=use_personal_context,
+    )
+    minimum_normalized_score = 26.0 if use_personal_context else 38.0
+    if normalized_score < minimum_normalized_score:
         return None
 
     if not reasons:
-        _append_unique_reason(reasons, "Strong deal score")
+        if use_personal_context:
+            _append_unique_reason(reasons, "Relevant to your tracked games")
+        else:
+            _append_unique_reason(reasons, "Trending game with strong deal score")
     reason_lines = reasons[:2]
+    explanation_text = " and ".join(reason_lines)
+    confidence_badge = _build_deal_confidence_badge(buy_score if buy_score > 0 else deal_score)
 
     updated_at = _coerce_utc_datetime(snapshot.updated_at) or utc_now()
     return {
@@ -1672,23 +1743,33 @@ def _build_personalized_deal_item(
         "image_url": snapshot.banner_url,
         "store_url": snapshot.store_url,
         "price": snapshot.latest_price,
+        "current_price": snapshot.latest_price,
         "original_price": snapshot.latest_original_price,
         "discount_percent": snapshot.latest_discount_percent,
         "historical_low": snapshot.historical_low,
         "historical_status": snapshot.historical_status,
         "price_vs_low_ratio": snapshot.price_vs_low_ratio,
         "deal_score": snapshot.deal_score,
+        "deal_opportunity_score": snapshot.deal_opportunity_score,
         "buy_score": snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score,
         "buy_recommendation": snapshot.buy_recommendation,
         "buy_reason": snapshot.buy_reason,
         "popularity_score": snapshot.popularity_score,
         "momentum_score": snapshot.momentum_score,
+        "trending_score": snapshot.trending_score,
         "player_growth_ratio": snapshot.player_growth_ratio,
         "short_term_player_trend": snapshot.short_term_player_trend,
         "current_players": snapshot.current_players,
-        "personalization_score": round(score, 2),
+        "confidence_badge": confidence_badge,
+        "confidence_label": confidence_badge["confidence_label"] if confidence_badge else None,
+        "confidence_icon": confidence_badge["confidence_icon"] if confidence_badge else None,
+        "confidence_color": confidence_badge["confidence_color"] if confidence_badge else None,
+        "confidence_class": confidence_badge["confidence_class"] if confidence_badge else None,
+        "personalization_score": normalized_score,
         "personalization_reasons": reason_lines,
-        "personalization_reason": " and ".join(reason_lines),
+        "personalization_reason": explanation_text,
+        "explanation_lines": reason_lines,
+        "explanation_text": explanation_text,
         "updated_at": updated_at.isoformat(),
     }
 
@@ -5939,18 +6020,11 @@ def get_seo_discovery_page(
 def list_personalized_deals(
     request: Request,
     user_id: str = Query(default=DEFAULT_USER_ID),
-    limit: int = Query(default=24, ge=1, le=120),
+    limit: int = Query(default=20, ge=1, le=120),
 ):
     started = _start_timer()
     normalized_user_id = normalize_user_id(user_id)
-    if _is_anonymous_user_id(normalized_user_id):
-        return {
-            "user_id": normalized_user_id,
-            "personalized": False,
-            "count": 0,
-            "items": [],
-            "generated_at": utc_now().isoformat(),
-        }
+    personalization_enabled = not _is_anonymous_user_id(normalized_user_id)
 
     session = ReadSessionLocal()
     try:
@@ -5959,25 +6033,30 @@ def list_personalized_deals(
         recent_cutoff = now - datetime.timedelta(days=21)
         event_cutoff = now - datetime.timedelta(days=30)
 
-        wishlist_rows = (
-            session.query(WishlistItem.game_id, WishlistItem.created_at)
-            .filter(WishlistItem.user_id == normalized_user_id)
-            .all()
-        )
-        watchlist_rows = (
-            session.query(Watchlist.game_id, Watchlist.created_at)
-            .filter(Watchlist.user_id == normalized_user_id)
-            .all()
-        )
-        target_rows = (
-            session.query(DealWatchlist.game_id, DealWatchlist.updated_at)
-            .filter(DealWatchlist.user_id == normalized_user_id, DealWatchlist.active.is_(True))
-            .all()
-        )
+        wishlist_rows: list[tuple[int | None, datetime.datetime | None]] = []
+        watchlist_rows: list[tuple[int | None, datetime.datetime | None]] = []
+        target_rows: list[tuple[int | None, datetime.datetime | None]] = []
+        if personalization_enabled:
+            wishlist_rows = (
+                session.query(WishlistItem.game_id, WishlistItem.created_at)
+                .filter(WishlistItem.user_id == normalized_user_id)
+                .all()
+            )
+            watchlist_rows = (
+                session.query(Watchlist.game_id, Watchlist.created_at)
+                .filter(Watchlist.user_id == normalized_user_id)
+                .all()
+            )
+            target_rows = (
+                session.query(DealWatchlist.game_id, DealWatchlist.updated_at)
+                .filter(DealWatchlist.user_id == normalized_user_id, DealWatchlist.active.is_(True))
+                .all()
+            )
 
         wishlist_game_ids = {int(game_id) for game_id, _ in wishlist_rows if game_id is not None}
         watchlist_game_ids = {int(game_id) for game_id, _ in watchlist_rows if game_id is not None}
         target_game_ids = {int(game_id) for game_id, _ in target_rows if game_id is not None}
+        has_personal_seed_data = bool(wishlist_game_ids or watchlist_game_ids or target_game_ids)
 
         recent_touch_by_game: dict[int, datetime.datetime] = {}
         for game_id, touched_at in [*wishlist_rows, *watchlist_rows, *target_rows]:
@@ -5998,7 +6077,7 @@ def list_personalized_deals(
 
         seed_game_ids = wishlist_game_ids | watchlist_game_ids | target_game_ids
         seed_rows: list[tuple[int, str | None, str | None]] = []
-        if seed_game_ids:
+        if personalization_enabled and seed_game_ids:
             seed_rows = [
                 (int(game_id), tags, genres)
                 for game_id, tags, genres in (
@@ -6031,6 +6110,8 @@ def list_personalized_deals(
                     GameSnapshot.deal_score >= 45,
                     GameSnapshot.buy_score >= 45,
                     GameSnapshot.worth_buying_score >= 45,
+                    GameSnapshot.deal_opportunity_score >= 45,
+                    GameSnapshot.trending_score >= 45,
                     GameSnapshot.momentum_score >= 45,
                     GameSnapshot.popularity_score >= 50,
                     GameSnapshot.historical_status.in_([
@@ -6044,6 +6125,8 @@ def list_personalized_deals(
                 GameSnapshot.buy_score.desc().nullslast(),
                 GameSnapshot.worth_buying_score.desc().nullslast(),
                 GameSnapshot.deal_score.desc().nullslast(),
+                GameSnapshot.deal_opportunity_score.desc().nullslast(),
+                GameSnapshot.trending_score.desc().nullslast(),
                 GameSnapshot.latest_discount_percent.desc().nullslast(),
                 GameSnapshot.momentum_score.desc().nullslast(),
                 GameSnapshot.popularity_score.desc().nullslast(),
@@ -6085,18 +6168,83 @@ def list_personalized_deals(
                 recent_game_ids=recent_game_ids,
                 token_weights=token_weights,
                 recent_event_counts=recent_event_counts,
+                personalization_enabled=personalization_enabled,
+                has_personal_seed_data=has_personal_seed_data,
             )
             if item is None:
                 continue
             updated_at = _coerce_utc_datetime(snapshot.updated_at) or now
             scored_rows.append((safe_num(item.get("personalization_score"), 0.0), updated_at, item))
+        personalized_scored_count = len(scored_rows)
+
+        if len(scored_rows) < normalized_limit:
+            fallback_rows = (
+                session.query(GameSnapshot)
+                .filter(
+                    GameSnapshot.is_released == 1,
+                    or_(GameSnapshot.is_upcoming.is_(False), GameSnapshot.is_upcoming.is_(None)),
+                    GameSnapshot.latest_price.isnot(None),
+                    or_(
+                        GameSnapshot.trending_score >= 45,
+                        GameSnapshot.deal_score >= 45,
+                        GameSnapshot.deal_opportunity_score >= 45,
+                        GameSnapshot.latest_discount_percent >= 20,
+                        GameSnapshot.historical_status.in_([
+                            "new_historical_low",
+                            "matches_historical_low",
+                            "near_historical_low",
+                        ]),
+                    ),
+                )
+                .order_by(
+                    GameSnapshot.trending_score.desc().nullslast(),
+                    GameSnapshot.deal_score.desc().nullslast(),
+                    GameSnapshot.deal_opportunity_score.desc().nullslast(),
+                    GameSnapshot.latest_discount_percent.desc().nullslast(),
+                    GameSnapshot.popularity_score.desc().nullslast(),
+                    GameSnapshot.updated_at.desc().nullslast(),
+                    GameSnapshot.game_id.asc(),
+                )
+                .limit(candidate_limit)
+                .all()
+            )
+            seen_game_ids = {int(safe_num(item.get("game_id"), 0.0)) for _, _, item in scored_rows}
+            for snapshot in fallback_rows:
+                game_id = int(snapshot.game_id)
+                if game_id in seen_game_ids:
+                    continue
+                item = _build_personalized_deal_item(
+                    snapshot,
+                    wishlist_game_ids=wishlist_game_ids,
+                    watchlist_game_ids=watchlist_game_ids,
+                    target_game_ids=target_game_ids,
+                    recent_game_ids=recent_game_ids,
+                    token_weights={},
+                    recent_event_counts=recent_event_counts,
+                    personalization_enabled=False,
+                    has_personal_seed_data=False,
+                )
+                if item is None:
+                    continue
+                updated_at = _coerce_utc_datetime(snapshot.updated_at) or now
+                scored_rows.append((safe_num(item.get("personalization_score"), 0.0), updated_at, item))
+                seen_game_ids.add(game_id)
+                if len(scored_rows) >= max(normalized_limit * 2, normalized_limit + 16):
+                    break
 
         scored_rows.sort(key=lambda entry: (entry[0], entry[1]), reverse=True)
         items = [item for _, _, item in scored_rows[:normalized_limit]]
+        personalized_feed = personalization_enabled and has_personal_seed_data and personalized_scored_count > 0
 
         return {
             "user_id": normalized_user_id,
-            "personalized": True,
+            "personalized": personalized_feed,
+            "fallback_mode": not personalized_feed,
+            "fallback_reason": (
+                None
+                if personalized_feed
+                else "Using trending and high deal-score ranking until more personal signals are available."
+            ),
             "count": len(items),
             "items": items,
             "generated_at": now.isoformat(),

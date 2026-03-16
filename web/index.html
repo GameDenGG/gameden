@@ -2853,8 +2853,8 @@ input:focus-visible {
                 <section class="panel panel-personalized hidden" id="recommendedForYouPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Recommended For You</h2>
-                            <div class="panel-subtitle">Personalized picks using your wishlist, watchlist, timing signals, and live market movement.</div>
+                            <h2 class="panel-title" id="yourDealsTodayTitle">Your Deals Today</h2>
+                            <div class="panel-subtitle" id="yourDealsTodaySubtitle">Personalized picks when available, with high-signal fallback deals when you are browsing anonymously.</div>
                         </div>
                         <div class="row-nav">
                             <button class="row-nav-btn" type="button" data-row-left="personalizedDealsGrid">&lt;</button>
@@ -3370,6 +3370,8 @@ input:focus-visible {
                 enabled: false,
                 loading: false,
                 error: null,
+                personalized: false,
+                fallbackMode: false,
             },
             dailyDigestStatus: {
                 loading: false,
@@ -3475,6 +3477,8 @@ input:focus-visible {
             opportunityRadarPanel: document.getElementById("opportunityRadarPanel"),
             opportunityRadarGrid: document.getElementById("opportunityRadarGrid"),
             recommendedForYouPanel: document.getElementById("recommendedForYouPanel"),
+            yourDealsTodayTitle: document.getElementById("yourDealsTodayTitle"),
+            yourDealsTodaySubtitle: document.getElementById("yourDealsTodaySubtitle"),
             personalizedDealsGrid: document.getElementById("personalizedDealsGrid"),
             dealRankedGrid: document.getElementById("dealRankedGrid"),
             worthBuyingGrid: document.getElementById("worthBuyingGrid"),
@@ -6908,33 +6912,79 @@ input:focus-visible {
             });
         }
 
+        function buildYourDealsFallbackRows(limit = 48) {
+            const candidatePool = uniqueGamesByName([
+                ...safeArray(state.trendingNow),
+                ...safeArray(state.discoveryTrending),
+                ...safeArray(state.dealRanked),
+                ...safeArray(state.opportunityRadar),
+                ...safeArray(state.worthBuyingNow),
+            ]);
+
+            const ranked = candidatePool
+                .map((row) => {
+                    const game = normalizeGameRow(row);
+                    const dealScore = Math.max(0, Number(game.deal_score || 0));
+                    const trendingScore = Math.max(
+                        0,
+                        Number(game.trending_score || game.momentum_score || game.short_term_player_trend || 0),
+                    );
+                    const opportunityScore = Math.max(0, Number(game.deal_opportunity_score || 0));
+                    const discount = Math.max(0, Number(game.discount_percent || 0));
+                    const rankScore = (
+                        dealScore * 0.56
+                        + trendingScore * 0.34
+                        + opportunityScore * 0.22
+                        + discount * 0.18
+                    );
+                    return { game, rankScore };
+                })
+                .filter((entry) => Number(entry.game?.price ?? entry.game?.latest_price ?? -1) >= 0)
+                .sort((left, right) => right.rankScore - left.rankScore);
+
+            return ranked.slice(0, Math.max(1, Number(limit) || 48)).map((entry) => entry.game);
+        }
+
         function renderPersonalizedDeals() {
             const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
-            if (!knownUser) {
-                setPanelVisibility(ui.recommendedForYouPanel, false);
-                return;
-            }
-
             const loading = !!state.personalizedStatus?.loading;
             const error = state.personalizedStatus?.error;
-            const items = safeArray(state.personalizedDeals);
+            const apiItems = safeArray(state.personalizedDeals);
+            const fallbackRows = buildYourDealsFallbackRows(48);
+            const fallbackMode = !knownUser || !!state.personalizedStatus?.fallbackMode;
+            const useFallbackRows = fallbackMode && !apiItems.length;
+            const displayItems = useFallbackRows ? fallbackRows : apiItems;
+            const personalizedActive = knownUser && !fallbackMode && !!state.personalizedStatus?.personalized;
+
             setPanelVisibility(ui.recommendedForYouPanel, true);
+            if (ui.yourDealsTodayTitle) {
+                ui.yourDealsTodayTitle.textContent = "Your Deals Today";
+            }
+            if (ui.yourDealsTodaySubtitle) {
+                ui.yourDealsTodaySubtitle.textContent = personalizedActive
+                    ? "Personalized picks using your wishlist, watchlist, and high-signal market movement."
+                    : "Trending and high deal-score picks from live snapshot signals.";
+            }
 
             if (loading) {
                 renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
                 return;
             }
-            if (error) {
-                renderError(ui.personalizedDealsGrid, "Failed to load personalized recommendations.");
+            if (error && !displayItems.length) {
+                renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");
                 return;
             }
-            if (!items.length) {
+            if (!displayItems.length) {
                 renderEmpty(
                     ui.personalizedDealsGrid,
-                    "No personalized recommendations yet.",
+                    knownUser
+                        ? "No personalized deals yet."
+                        : "No high-signal deals available right now.",
                     {
                         tone: "neutral",
-                        detail: "Add games to your wishlist or watchlist to improve recommendations.",
+                        detail: knownUser
+                            ? "Add games to your wishlist or watchlist to improve recommendations."
+                            : "Check back as trending and deal-score signals refresh.",
                     },
                 );
                 return;
@@ -6942,13 +6992,13 @@ input:focus-visible {
 
             renderPagedCards({
                 container: ui.personalizedDealsGrid,
-                items,
+                items: displayItems,
                 renderer: gameCardHtml,
                 visibleKey: "personalizedDealsGrid",
                 toggleButton: null,
                 showAllButton: null,
-                view: "recommended-for-you",
-                title: "Recommended For You",
+                view: personalizedActive ? "your-deals-today-personalized" : "your-deals-today",
+                title: "Your Deals Today",
                 initialCount: 12,
             });
         }
@@ -8124,14 +8174,10 @@ input:focus-visible {
 
         async function loadPersonalizedDeals() {
             const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
-            state.personalizedStatus.enabled = knownUser;
+            state.personalizedStatus.enabled = true;
             state.personalizedStatus.error = null;
-
-            if (!knownUser) {
-                state.personalizedDeals = [];
-                state.personalizedStatus.loading = false;
-                return [];
-            }
+            state.personalizedStatus.personalized = false;
+            state.personalizedStatus.fallbackMode = !knownUser;
 
             state.personalizedStatus.loading = true;
             try {
@@ -8139,11 +8185,16 @@ input:focus-visible {
                     `/api/personalized-deals?user_id=${encodeURIComponent(CURRENT_USER_ID)}&limit=48`,
                 );
                 const items = uniqueGamesByName(payload?.items || payload || []);
+                const personalized = !!payload?.personalized && knownUser;
                 state.personalizedDeals = items;
+                state.personalizedStatus.personalized = personalized;
+                state.personalizedStatus.fallbackMode = !personalized;
                 return items;
             } catch (error) {
                 state.personalizedDeals = [];
                 state.personalizedStatus.error = error;
+                state.personalizedStatus.personalized = false;
+                state.personalizedStatus.fallbackMode = true;
                 throw error;
             } finally {
                 state.personalizedStatus.loading = false;
@@ -8864,15 +8915,15 @@ input:focus-visible {
                 renderSkeleton(ui.dealRankedGrid, "deal-cards", 6, { cardClass: "game-card" });
                 renderSkeleton(ui.opportunitiesGrid, "deal-cards", 6, { cardClass: "game-card" });
                 renderSkeleton(ui.opportunityRadarGrid, "deal-cards", 6, { cardClass: "game-card" });
-                state.personalizedStatus.enabled = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
-                state.personalizedStatus.loading = state.personalizedStatus.enabled;
+                state.personalizedStatus.enabled = true;
+                state.personalizedStatus.loading = true;
                 state.personalizedStatus.error = null;
+                state.personalizedStatus.personalized = false;
+                state.personalizedStatus.fallbackMode = isDefaultOrAnonymousUserId(CURRENT_USER_ID);
                 state.dailyDigestStatus.loading = true;
                 state.dailyDigestStatus.error = null;
-                setPanelVisibility(ui.recommendedForYouPanel, state.personalizedStatus.enabled);
-                if (state.personalizedStatus.enabled) {
-                    renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
-                }
+                setPanelVisibility(ui.recommendedForYouPanel, true);
+                renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
                 renderSkeleton(ui.worthBuyingGrid, "deal-cards", 6, { cardClass: "game-card" });
                 renderSkeleton(ui.trendingDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
                 renderSkeleton(ui.newHistoricalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
@@ -8943,12 +8994,8 @@ input:focus-visible {
                 renderError(ui.opportunitiesGrid, "Failed to load opportunities.");
                 renderError(ui.opportunityRadarGrid, "Failed to load opportunity radar.");
                 renderError(ui.dailyDigestList, "Failed to load daily digest.");
-                if (!isDefaultOrAnonymousUserId(CURRENT_USER_ID)) {
-                    setPanelVisibility(ui.recommendedForYouPanel, true);
-                    renderError(ui.personalizedDealsGrid, "Failed to load personalized recommendations.");
-                } else {
-                    setPanelVisibility(ui.recommendedForYouPanel, false);
-                }
+                setPanelVisibility(ui.recommendedForYouPanel, true);
+                renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");
                 renderError(ui.worthBuyingGrid, "Failed to load worth-buying picks.");
                 renderError(ui.trendingDealsGrid, "Failed to load trending now.");
                 renderError(ui.newHistoricalLowsGrid, "Failed to load new historical lows.");

@@ -8630,7 +8630,7 @@ input:focus-visible {
             state.personalListStatus.wishlistError = null;
             try {
                 const payload = await fetchJson(`/wishlist/${encodeURIComponent(CURRENT_USER_ID)}`);
-                const items = safeArray(payload).map(normalizeGameRow);
+                const items = safeArray(payload?.items || payload).map(normalizeGameRow);
                 state.wishlist = items;
                 return items;
             } catch (error) {

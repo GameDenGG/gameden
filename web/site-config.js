@@ -9,7 +9,9 @@
     site_url: "https://gameden.gg",
     site_description:
       "Discover game deals, analytics, player trends, and price history on GameDen.gg.",
-    api_base: "https://gameden.onrender.com",
+    // Same-origin API routing is the default for production.
+    // Override this only when frontend and API are intentionally split across hosts.
+    api_base: "",
   };
 
   const existing =

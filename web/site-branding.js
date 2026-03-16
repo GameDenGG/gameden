@@ -152,10 +152,6 @@
 
     const apiBase = String(siteConfig.api_base || "").trim().replace(/\/+$/, "");
     if (!apiBase) {
-      warnOnce(
-        "missing_api_base",
-        `api_base is not configured. API route "${normalizedPath}" will use page origin.`,
-      );
       return value;
     }
 
@@ -190,8 +186,7 @@
     return fallbackMessage;
   }
 
-  async function fetchJson(url, options = {}) {
-    const requestUrl = resolveApiUrl(url);
+  async function _requestJson(url, requestUrl, options = {}) {
     let response;
     try {
       response = await fetch(requestUrl, options);
@@ -218,6 +213,56 @@
     }
 
     return parsed.hasBody ? parsed.payload : null;
+  }
+
+  function _shouldRetryOnPageOrigin(url, requestUrl, options = {}) {
+    const method = String(options.method || "GET").trim().toUpperCase();
+    if (method !== "GET" && method !== "HEAD") return false;
+
+    const originalUrl = String(url || "").trim();
+    if (!originalUrl || ABSOLUTE_URL_RE.test(originalUrl) || SPECIAL_SCHEME_RE.test(originalUrl)) {
+      return false;
+    }
+
+    const resolvedUrl = String(requestUrl || "").trim();
+    if (!resolvedUrl || resolvedUrl === originalUrl || !ABSOLUTE_URL_RE.test(resolvedUrl)) {
+      return false;
+    }
+
+    try {
+      const targetOrigin = new URL(resolvedUrl, window.location.origin).origin;
+      return targetOrigin !== window.location.origin;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function _isRetryableApiError(error) {
+    const status = Number(error && error.status);
+    if (!Number.isFinite(status)) return true;
+    if (status >= 500) return true;
+    if (status === 401 || status === 403 || status === 404 || status === 405 || status === 429) return true;
+    const message = String(error && error.message ? error.message : "");
+    return message.startsWith("Invalid JSON response for ");
+  }
+
+  async function fetchJson(url, options = {}) {
+    const requestUrl = resolveApiUrl(url);
+    const retryOnPageOrigin = _shouldRetryOnPageOrigin(url, requestUrl, options);
+
+    try {
+      return await _requestJson(url, requestUrl, options);
+    } catch (primaryError) {
+      if (!retryOnPageOrigin || !_isRetryableApiError(primaryError)) {
+        throw primaryError;
+      }
+      try {
+        return await _requestJson(url, String(url || "").trim(), options);
+      } catch (fallbackError) {
+        primaryError.fallbackError = fallbackError;
+        throw primaryError;
+      }
+    }
   }
 
   function applyMetadata(meta) {

@@ -3018,22 +3018,23 @@ input:focus-visible {
                 <img
                     class="logo-hero-image logo-hero-static"
                     id="heroLogoStatic"
-                    src="/assets/logo/gameden-logo-static.png"
+                    src="/assets/logo/gameden-logo-static.webp"
                     alt="GameDen.gg logo"
                     loading="eager"
                     decoding="async"
                     fetchpriority="high"
                 />
-                <img
+                <video
                     class="logo-hero-image logo-hero-animated"
                     id="heroLogoAnimated"
-                    src="/assets/logo/gameden-logo-animated.gif"
-                    alt=""
                     aria-hidden="true"
-                    loading="eager"
-                    decoding="async"
-                    fetchpriority="high"
-                />
+                    muted
+                    playsinline
+                    preload="metadata"
+                >
+                    <source src="/assets/logo/gameden-logo-animated.webm" type="video/webm" />
+                    GameDen logo animation unavailable.
+                </video>
             </div>
         </section>
 
@@ -3670,8 +3671,8 @@ input:focus-visible {
 
         const WATCHLIST_STORAGE_KEY = "gameden.user_id";
         const DEFAULT_USER_ID = "legacy-user";
-        const HERO_LOGO_ANIMATION_DURATION_MS = 4200;
         const HERO_LOGO_SESSION_KEY = "gameden.hero_logo_intro_played";
+        const HERO_LOGO_FALLBACK_TIMEOUT_MS = 8000;
 
         function getCurrentUserId() {
             const fallback = DEFAULT_USER_ID;
@@ -3746,18 +3747,22 @@ input:focus-visible {
 
             if (hasPlayedInSession) {
                 setStaticState(false);
+                animatedLogo.pause();
+                animatedLogo.currentTime = 0;
                 return;
             }
 
             let settled = false;
-            let playbackTimer = null;
+            let fallbackTimer = null;
 
             const completePlayback = () => {
                 if (settled) return;
                 settled = true;
-                if (playbackTimer !== null) {
-                    clearTimeout(playbackTimer);
+                if (fallbackTimer !== null) {
+                    clearTimeout(fallbackTimer);
                 }
+                animatedLogo.pause();
+                animatedLogo.currentTime = 0;
                 setStaticState(true);
             };
 
@@ -3765,34 +3770,47 @@ input:focus-visible {
                 if (settled) return;
                 markPlayedInSession();
                 logoStage.classList.add("is-playing");
-                playbackTimer = window.setTimeout(completePlayback, HERO_LOGO_ANIMATION_DURATION_MS);
+                logoStage.classList.remove("is-static");
+                const playPromise = animatedLogo.play();
+                if (playPromise && typeof playPromise.catch === "function") {
+                    playPromise.catch(() => {
+                        completePlayback();
+                    });
+                }
+                fallbackTimer = window.setTimeout(completePlayback, HERO_LOGO_FALLBACK_TIMEOUT_MS);
             };
 
             const handleAnimatedError = () => {
                 completePlayback();
             };
 
-            if (animatedLogo.complete) {
-                if (animatedLogo.naturalWidth > 0) {
-                    startPlayback();
-                } else {
-                    handleAnimatedError();
-                }
-                return;
-            }
-
-            const onLoad = () => {
+            const onEnded = () => {
+                completePlayback();
+            };
+            const onError = () => {
+                animatedLogo.removeEventListener("loadeddata", onLoadedData);
+                handleAnimatedError();
+            };
+            const onLoadedData = () => {
                 animatedLogo.removeEventListener("error", onError);
                 startPlayback();
             };
 
-            const onError = () => {
-                animatedLogo.removeEventListener("load", onLoad);
-                handleAnimatedError();
-            };
+            animatedLogo.addEventListener("ended", onEnded, { once: true });
 
-            animatedLogo.addEventListener("load", onLoad, { once: true });
+            const sourceNode = animatedLogo.querySelector("source");
+            if (sourceNode) {
+                sourceNode.addEventListener("error", onError, { once: true });
+            }
             animatedLogo.addEventListener("error", onError, { once: true });
+
+            if (animatedLogo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                startPlayback();
+                return;
+            }
+
+            animatedLogo.addEventListener("loadeddata", onLoadedData, { once: true });
+            animatedLogo.load();
         }
 
         const CATALOG_PAGE_SIZE = 100;

@@ -85,10 +85,12 @@ if (window.GameDenSite && window.GameDenSite.skeleton && typeof window.GameDenSi
 
 html {
     scroll-behavior: smooth;
+    overflow-x: hidden;
 }
 
 body {
     margin: 0;
+    overflow-x: hidden;
     font-family: var(--font-body);
     background:
         radial-gradient(1200px 650px at 4% -10%, rgba(103, 234, 255, 0.17), transparent 60%),
@@ -674,6 +676,38 @@ input:focus-visible {
     position: relative;
 }
 
+.side-zone-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.side-zone-header .column-zone-label {
+    margin-bottom: 0;
+}
+
+.alerts-toggle-btn {
+    min-height: 34px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.alerts-toggle-icon {
+    font-size: 13px;
+    line-height: 1;
+}
+
+.alert-panel {
+    display: none;
+}
+
+.alert-panel.active {
+    display: block;
+}
+
 .column-zone-label {
     display: inline-flex;
     align-items: center;
@@ -1064,17 +1098,25 @@ input:focus-visible {
 
 .card-banner {
     position: relative;
-    height: 108px;
     overflow: hidden;
     background: linear-gradient(180deg, rgba(121, 168, 255, 0.2), rgba(121, 168, 255, 0.06));
     border-bottom: 1px solid rgba(121, 168, 255, 0.14);
 }
 
+.game-card-image {
+    display: block;
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    object-position: center;
+}
+
 .card-banner-img {
-    position: absolute;
-    inset: 0;
-    background-size: cover;
-    background-position: center;
+    display: block;
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    object-position: center;
     filter: saturate(1.02);
 }
 
@@ -1087,7 +1129,7 @@ input:focus-visible {
 .card-banner-fallback {
     display: grid;
     place-items: center;
-    height: 100%;
+    min-height: 140px;
     color: var(--muted);
     font-weight: 800;
 }
@@ -2948,8 +2990,11 @@ input:focus-visible {
     .game-card {
         border-radius: 16px;
     }
-    .card-banner {
-        height: 92px;
+    .game-card-image {
+        height: 120px;
+    }
+    .card-banner-fallback {
+        min-height: 120px;
     }
     .game-card-top {
         flex-direction: row;
@@ -3090,8 +3135,11 @@ input:focus-visible {
     .row-scroller {
         grid-auto-columns: minmax(168px, 68vw);
     }
-    .card-banner {
-        height: 82px;
+    .game-card-image {
+        height: 108px;
+    }
+    .card-banner-fallback {
+        min-height: 108px;
     }
     .sale-timeline {
         display: none;
@@ -3279,7 +3327,7 @@ input:focus-visible {
         </div>
 
         <nav class="home-jump-nav" id="homeJumpNav" aria-label="Jump to homepage zones">
-            <button class="home-jump-chip" type="button" data-home-jump-group="Buy Signals" data-home-jump-target="bestDealsPanel">Buy Signals</button>
+            <button class="home-jump-chip" type="button" data-home-jump-group="Buy Signals" data-home-jump-target="opportunitiesPanel">Buy Signals</button>
             <button class="home-jump-chip" type="button" data-home-jump-group="Your Radar" data-home-jump-target="recommendedForYouPanel">Your Radar</button>
             <button class="home-jump-chip" type="button" data-home-jump-group="Discovery" data-home-jump-target="discoveryTabsShell">Discovery</button>
             <button class="home-jump-chip" type="button" data-home-jump-group="Upcoming" data-home-jump-target="upcomingPanel">Upcoming</button>
@@ -3631,7 +3679,7 @@ input:focus-visible {
                         </button>
                     </div>
                     <div class="panel-body">
-                        <div id="upcomingGrid" class="single-column-list"></div>
+                        <div id="upcomingGrid" class="cards-grid"></div>
                         <div class="show-all-wrap">
                             <a class="show-all-btn hidden" id="upcomingShowAllBtn" href="#">
                                 Show All
@@ -3703,7 +3751,20 @@ input:focus-visible {
             </section>
 
             <aside class="side-column" aria-label="Your radar rail">
-                <div class="column-zone-label side-zone-label">Your Radar</div>
+                <div class="side-zone-header">
+                    <div class="column-zone-label side-zone-label">Your Radar</div>
+                    <button
+                        class="secondary-btn alerts-toggle-btn"
+                        id="alertsToggleBtn"
+                        type="button"
+                        aria-controls="alertsPanel"
+                        aria-expanded="false"
+                        title="Toggle alerts and deal signals"
+                    >
+                        <span class="alerts-toggle-icon" aria-hidden="true">🔔</span>
+                        Alerts
+                    </button>
+                </div>
                 <section class="panel panel-personal hidden" id="wishlistPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -3779,7 +3840,7 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-alerts" id="alertsPanel">
+                <section class="panel panel-alerts alert-panel" id="alertsPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Alerts & Deal Signals</h2>
@@ -4037,7 +4098,7 @@ input:focus-visible {
         const ANALYTICS_WIDGET_LIMIT = 8;
         const DISCOVERY_RAIL_LIMIT = 24;
         const DISCOVERY_DIVERSITY_WINDOW = 10;
-        const DISCOVERY_DEFAULT_TAB_KEY = "worth-buying";
+        const DISCOVERY_DEFAULT_TAB_KEY = "best-deals";
         const EXTENDED_PLATFORM_FILTER_OPTIONS = Object.freeze(["Steam Deck", "VR Compatibility"]);
         const MOBILE_FILTER_BREAKPOINT_PX = 860;
         const HOMEPAGE_MOBILE_LAYOUT_BREAKPOINT_PX = 1260;
@@ -4061,6 +4122,10 @@ input:focus-visible {
             return accumulator;
         }, {}));
         const MORE_MARKET_INTEL_SECTION_IDS = Object.freeze([
+            "buyNowPicksPanel",
+            "waitForSalePanel",
+            "historicalLowsPanel",
+            "topReviewedPanel",
             "seasonalSaleTopPanel",
             "seasonalSaleLowerPanel",
             "recentlyUpdatedPanel",
@@ -4068,9 +4133,8 @@ input:focus-visible {
             "analyticsPanel",
         ]);
         const HOMEPAGE_SECTION_LAYOUT = Object.freeze([
-            { id: "bestDealsPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 10, column: "main" },
-            { id: "opportunitiesPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 20, column: "main" },
-            { id: "opportunityRadarPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 30, column: "main" },
+            { id: "opportunitiesPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 10, column: "main" },
+            { id: "opportunityRadarPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 20, column: "main" },
 
             { id: "recommendedForYouPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 10, column: "side" },
             { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 20, column: "side" },
@@ -4080,13 +4144,13 @@ input:focus-visible {
 
             { id: "discoveryTabsShell", group: HOMEPAGE_SECTION_GROUPS.DISCOVERY, priority: 5, column: "main" },
             {
-                id: "worthBuyingPanel",
+                id: "bestDealsPanel",
                 group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
                 priority: 10,
                 column: "main",
                 discoveryTab: true,
-                tabKey: "worth-buying",
-                tabLabel: "Worth Buying",
+                tabKey: "best-deals",
+                tabLabel: "Best Deals",
             },
             {
                 id: "trendingGamesPanel",
@@ -4094,62 +4158,35 @@ input:focus-visible {
                 priority: 20,
                 column: "main",
                 discoveryTab: true,
-                tabKey: "trending-now",
-                tabLabel: "Trending Now",
+                tabKey: "trending",
+                tabLabel: "Trending",
             },
             {
-                id: "buyNowPicksPanel",
-                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
-                priority: 25,
-                column: "main",
-                discoveryTab: true,
-                tabKey: "buy-now-picks",
-                tabLabel: "Buy Now Picks",
-            },
-            {
-                id: "waitForSalePanel",
-                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
-                priority: 26,
-                column: "main",
-                discoveryTab: true,
-                tabKey: "wait-for-sale",
-                tabLabel: "Wait Picks",
-            },
-            {
-                id: "newHistoricalLowsPanel",
-                group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
-                priority: 27,
-                column: "main",
-                discoveryTab: true,
-                tabKey: "new-historical-lows",
-                tabLabel: "New Lows",
-            },
-            {
-                id: "allGamesPanel",
+                id: "worthBuyingPanel",
                 group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
                 priority: 30,
                 column: "main",
                 discoveryTab: true,
-                tabKey: "all-games",
-                tabLabel: "All Games",
+                tabKey: "worth-buying",
+                tabLabel: "Worth Buying",
             },
             {
-                id: "topReviewedPanel",
+                id: "newHistoricalLowsPanel",
                 group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
                 priority: 40,
                 column: "main",
                 discoveryTab: true,
-                tabKey: "top-reviewed",
-                tabLabel: "Top Reviewed",
+                tabKey: "historical-lows",
+                tabLabel: "Historical Lows",
             },
             {
-                id: "historicalLowsPanel",
+                id: "allGamesPanel",
                 group: HOMEPAGE_SECTION_GROUPS.DISCOVERY,
                 priority: 50,
                 column: "main",
                 discoveryTab: true,
-                tabKey: "historical-lows",
-                tabLabel: "Historical Lows",
+                tabKey: "all-games",
+                tabLabel: "All Games",
             },
 
             { id: "upcomingPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 10, column: "main" },
@@ -4160,6 +4197,10 @@ input:focus-visible {
             { id: "recentlyUpdatedPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 20, column: "main" },
             { id: "dealRadarPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 30, column: "main" },
             { id: "analyticsPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 40, column: "main" },
+            { id: "buyNowPicksPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 50, column: "main" },
+            { id: "waitForSalePanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 60, column: "main" },
+            { id: "historicalLowsPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 70, column: "main" },
+            { id: "topReviewedPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 80, column: "main" },
         ].map((entry) => Object.freeze(entry)));
 
         const state = {
@@ -4324,6 +4365,8 @@ input:focus-visible {
             trendingList: document.getElementById("trendingList"),
             dailyDigestPanel: document.getElementById("dailyDigestPanel"),
             dailyDigestList: document.getElementById("dailyDigestList"),
+            alertsPanel: document.getElementById("alertsPanel"),
+            alertsToggleBtn: document.getElementById("alertsToggleBtn"),
             alertsList: document.getElementById("alertsList"),
             dealRadarFeed: document.getElementById("dealRadarFeed"),
             dealRadarMoreBtn: document.getElementById("dealRadarMoreBtn"),
@@ -5815,12 +5858,12 @@ input:focus-visible {
             }
 
             if (!banner) {
-            return `<div class="card-banner"><div class="card-banner-fallback">No artwork available</div></div>`;
+            return `<div class="card-banner"><div class="card-banner-fallback game-card-image">No artwork available</div></div>`;
             }
 
             return `
             <div class="card-banner">
-                <div class="card-banner-img" style='background-image:url("${escapeCssUrl(banner)}")'></div>
+                <img class="card-banner-img game-card-image" src="${escapeHtml(banner)}" alt="" loading="lazy" decoding="async" />
                 <div class="card-banner-overlay"></div>
             </div>
             `;
@@ -6352,53 +6395,6 @@ input:focus-visible {
                     ${buildCardMetadataStack(game)}
                     ${primaryReason ? `<div class="card-reason-line">${primaryReason}</div>` : ""}
                     ${buildCardMiniStatsRow(game)}
-                </article>
-            `;
-        }
-
-        function upcomingCardHtml(game, _context = {}) {
-            const detailHref = buildGameDetailHref(game);
-            const gameName = escapeHtml(game.game_name || "Unknown game");
-            const releaseText = escapeHtml(game.release_date_text || "TBA");
-            const reviewLabel = String(getReviewLabel(game) || "").trim();
-            const platformText = parsePlatformList(game.platforms)
-                .slice(0, 2)
-                .map((platform) => platform.charAt(0).toUpperCase() + platform.slice(1))
-                .join(" • ");
-            const genreText = safeArray(game.genres).slice(0, 2).join(" • ");
-
-            const contextParts = [];
-            if (platformText) contextParts.push(`<span class="context-item"><strong>${escapeHtml(platformText)}</strong></span>`);
-            if (genreText) contextParts.push(`<span class="context-item">${escapeHtml(genreText)}</span>`);
-            if (reviewLabel) contextParts.push(`<span class="context-item">⭐ ${escapeHtml(reviewLabel)}</span>`);
-
-            return `
-                <article class="game-card">
-                    <a class="game-card-link-overlay" href="${detailHref}" aria-label="Open ${gameName} details"></a>
-                    ${buildBannerHtml(game)}
-                    <div class="game-card-top">
-                        <div>
-                            <h3 class="game-name">
-                                ${gameName}
-                            </h3>
-                        </div>
-                        <div class="price-stack">
-                            <div class="price-current">Upcoming</div>
-                            <div class="price-original">${releaseText}</div>
-                        </div>
-                    </div>
-                    ${buildActionButtons(game)}
-                    <div class="card-meta-stack">
-                        <div class="card-meta-row deal-quality compact-primary">
-                            <div class="card-meta-cluster primary">
-                                <span class="meta-chip deal-flag">Upcoming release</span>
-                                <span class="meta-chip metric">🗓️ ${releaseText}</span>
-                            </div>
-                        </div>
-                        <div class="card-meta-row context compact">
-                            ${contextParts.length ? contextParts.join('<span class="context-item">•</span>') : '<span class="context-item">Steam listing active</span>'}
-                        </div>
-                    </div>
                 </article>
             `;
         }
@@ -7100,7 +7096,7 @@ input:focus-visible {
             renderPagedCards({
                 container: ui.upcomingGrid,
                 items: state.upcoming,
-                renderer: upcomingCardHtml,
+                renderer: gameCardHtml,
                 visibleKey: "upcomingGrid",
                 toggleButton: ui.upcomingToggleBtn,
                 showAllButton: ui.upcomingShowAllBtn,
@@ -8312,32 +8308,23 @@ input:focus-visible {
             const key = String(tabKey || "").trim();
             if (!key) return;
             switch (key) {
+                case "best-deals":
+                    renderDealRanked();
+                    break;
                 case "worth-buying":
                     renderWorthBuyingNow();
                     break;
-                case "trending-now":
+                case "trending":
                     renderTrendingDeals();
                     break;
-                case "buy-now-picks":
-                    renderNewDeals();
-                    break;
-                case "wait-for-sale":
-                    renderRecommendedDeals();
-                    break;
-                case "new-historical-lows":
+                case "historical-lows":
                     renderNewHistoricalLows();
                     break;
                 case "all-games":
                     renderReleasedGames();
                     break;
-                case "top-reviewed":
-                    renderTopReviewed();
-                    break;
-                case "historical-lows":
-                    renderHistoricalLows();
-                    break;
                 default:
-                    renderWorthBuyingNow();
+                    renderDealRanked();
                     break;
             }
         }
@@ -8559,11 +8546,14 @@ input:focus-visible {
         }
 
         function applyAllRenders() {
-            renderDealRanked();
             renderOpportunities();
             renderOpportunityRadar();
             renderPersonalizedDeals();
             renderActiveDiscoveryTabPane();
+            renderNewDeals();
+            renderRecommendedDeals();
+            renderHistoricalLows();
+            renderTopReviewed();
             renderSeasonalSale();
             renderTopPlayed();
             renderTrending();
@@ -9894,6 +9884,50 @@ input:focus-visible {
             wireDealRadarMore._wired = true;
         }
 
+        function setAlertsPanelActive(isActive) {
+            if (!ui.alertsPanel || !ui.alertsToggleBtn) return;
+            const active = Boolean(isActive);
+            ui.alertsPanel.classList.toggle("active", active);
+            ui.alertsPanel.setAttribute("aria-hidden", active ? "false" : "true");
+            ui.alertsToggleBtn.setAttribute("aria-expanded", active ? "true" : "false");
+        }
+
+        function wireAlertsPanelToggle() {
+            if (wireAlertsPanelToggle._wired) return;
+            if (!ui.alertsPanel || !ui.alertsToggleBtn) return;
+
+            setAlertsPanelActive(false);
+
+            ui.alertsToggleBtn.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const nextIsActive = !ui.alertsPanel.classList.contains("active");
+                setAlertsPanelActive(nextIsActive);
+            });
+
+            ui.alertsPanel.addEventListener("click", (event) => {
+                event.stopPropagation();
+            });
+
+            document.addEventListener("click", (event) => {
+                if (!ui.alertsPanel.classList.contains("active")) return;
+                const target = event.target;
+                if (!(target instanceof Node)) {
+                    setAlertsPanelActive(false);
+                    return;
+                }
+                if (ui.alertsPanel.contains(target) || ui.alertsToggleBtn.contains(target)) return;
+                setAlertsPanelActive(false);
+            });
+
+            document.addEventListener("keydown", (event) => {
+                if (event.key !== "Escape") return;
+                setAlertsPanelActive(false);
+            });
+
+            wireAlertsPanelToggle._wired = true;
+        }
+
         function setAdvancedFiltersExpanded(isOpen) {
             const shouldOpen = Boolean(isOpen);
             ui.advancedFilters.classList.toggle("open", shouldOpen);
@@ -10505,6 +10539,7 @@ input:focus-visible {
                 wireMoreIntelDisclosure();
                 wireAnalyticsPanelDisclosure();
                 wireDealRadarMore();
+                wireAlertsPanelToggle();
                 wireRowNav();
                 wireKeyboardShortcuts();
                 wireDragScroll();

@@ -216,7 +216,7 @@ select {
     z-index: 2;
     opacity: 0;
     pointer-events: none;
-    filter: none;
+    filter: saturate(1.04) drop-shadow(0 26px 44px rgba(7, 15, 30, 0.5));
     background: transparent;
     background-color: transparent;
     border: 0;
@@ -3540,6 +3540,24 @@ input:focus-visible {
             }
         }
 
+        function isIncompatibleIosSafariWebmAlphaCase() {
+            const nav = window.navigator;
+            if (!nav) return false;
+
+            const ua = String(nav.userAgent || "");
+            const platform = String(nav.platform || "");
+
+            const isIosDevice = /iPhone|iPad|iPod/i.test(ua)
+                || (platform === "MacIntel" && Number(nav.maxTouchPoints || 0) > 1);
+            if (!isIosDevice) return false;
+
+            const isWebKitEngine = /AppleWebKit/i.test(ua);
+            const isOtherIosBrowser = /CriOS|FxiOS|EdgiOS|OPiOS|YaBrowser|DuckDuckGo|Brave/i.test(ua);
+            const isSafariBrowser = /Safari/i.test(ua) && !isOtherIosBrowser;
+
+            return isWebKitEngine && isSafariBrowser;
+        }
+
         function initializeHeroLogoPlayback() {
             const logoStage = document.getElementById("logoHeroStage");
             const animatedLogo = document.getElementById("heroLogoAnimated");
@@ -3579,6 +3597,12 @@ input:focus-visible {
                     return false;
                 }
             })();
+
+            if (isIncompatibleIosSafariWebmAlphaCase()) {
+                setStaticState(false);
+                resetAnimatedLogo();
+                return;
+            }
 
             if (hasPlayedInSession) {
                 setStaticState(false);

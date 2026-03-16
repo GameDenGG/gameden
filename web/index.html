@@ -216,7 +216,14 @@ select {
     z-index: 2;
     opacity: 0;
     pointer-events: none;
-    filter: saturate(1.04) drop-shadow(0 26px 44px rgba(7, 15, 30, 0.5));
+    filter: none;
+    background: transparent;
+    background-color: transparent;
+    border: 0;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
 }
 
 .logo-hero-stage.is-playing .logo-hero-animated {
@@ -2841,7 +2848,6 @@ input:focus-visible {
                     playsinline
                     autoplay
                     preload="metadata"
-                    poster="/assets/logo/gameden-logo-static.webp"
                 >
                     <source src="/assets/logo/gameden-logo-animated.webm" type="video/webm" />
                     GameDen logo animation unavailable.

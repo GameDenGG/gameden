@@ -74,6 +74,8 @@ if (window.GameDenSite && window.GameDenSite.skeleton && typeof window.GameDenSi
     --font-display: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
     --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
     --font-mono: "JetBrains Mono", Consolas, monospace;
+    --row-card-min: 208px;
+    --row-card-max: 244px;
 }
 
 *,
@@ -884,6 +886,9 @@ input:focus-visible {
 .panel {
     --panel-accent: rgba(121, 168, 255, 0.55);
     position: relative;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     border-radius: 24px;
     border: 1px solid rgba(121, 168, 255, 0.22);
     background: linear-gradient(180deg, rgba(13, 24, 43, 0.9), rgba(9, 17, 31, 0.95));
@@ -931,6 +936,8 @@ input:focus-visible {
     justify-content: space-between;
     align-items: flex-start;
     gap: 14px;
+    min-width: 0;
+    max-width: 100%;
     padding: 16px 16px 0;
     border-bottom: 1px solid rgba(121, 168, 255, 0.12);
     padding-bottom: 9px;
@@ -965,6 +972,8 @@ input:focus-visible {
 
 .panel-body {
     padding: 12px 16px 15px;
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
 }
 
@@ -1064,7 +1073,7 @@ input:focus-visible {
 .row-scroller {
     display: grid;
     grid-auto-flow: column;
-    grid-auto-columns: minmax(236px, 284px);
+    grid-auto-columns: minmax(var(--row-card-min), var(--row-card-max));
     gap: 10px;
     width: 100%;
     max-width: 100%;
@@ -1118,6 +1127,7 @@ input:focus-visible {
     min-width: 0;
     width: 100%;
     max-width: 100%;
+    overflow: hidden;
 }
 
 .row-fade-left,
@@ -3079,7 +3089,7 @@ input:focus-visible {
     }
 
     .row-scroller {
-        grid-auto-columns: minmax(204px, 62vw);
+        grid-auto-columns: minmax(188px, 56vw);
         gap: 8px;
         padding-bottom: 4px;
     }
@@ -3242,7 +3252,7 @@ input:focus-visible {
         gap: 6px;
     }
     .row-scroller {
-        grid-auto-columns: minmax(168px, 68vw);
+        grid-auto-columns: minmax(160px, 66vw);
     }
     .game-card-image {
         height: 108px;

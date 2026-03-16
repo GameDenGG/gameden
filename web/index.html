@@ -133,6 +133,24 @@ select {
     padding: 22px 24px 32px;
 }
 
+.homepage-shell {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+}
+
+.homepage-top-shell {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+}
+
+.homepage-content-shell {
+    display: grid;
+    gap: 20px;
+    min-width: 0;
+}
+
 .logo-hero {
     position: relative;
     display: block;
@@ -655,11 +673,20 @@ input:focus-visible {
     grid-template-columns: minmax(0, 1fr) 340px;
     gap: 20px;
     align-items: start;
+    width: 100%;
 }
 
 .dashboard-grid > .main-column,
 .dashboard-grid > .side-column {
     min-width: 0;
+}
+
+.lower-sections {
+    display: grid;
+    gap: 16px;
+    align-content: start;
+    min-width: 0;
+    width: 100%;
 }
 
 .main-column,
@@ -2760,10 +2787,16 @@ input:focus-visible {
 }
 
 @media (max-width: 1260px) {
+    .homepage-content-shell {
+        gap: 16px;
+    }
     .dashboard-grid { grid-template-columns: 1fr; }
     .side-column {
         width: 100%;
         max-width: none;
+    }
+    .lower-sections {
+        gap: 14px;
     }
     .stats-grid, .advanced-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -3081,6 +3114,15 @@ input:focus-visible {
     .page {
         padding: 14px 12px 20px;
     }
+    .homepage-shell {
+        gap: 10px;
+    }
+    .homepage-top-shell {
+        gap: 8px;
+    }
+    .homepage-content-shell {
+        gap: 14px;
+    }
     .logo-hero {
         margin-bottom: 10px;
         padding: 0;
@@ -3170,171 +3212,175 @@ input:focus-visible {
 </head>
 <body class="theme-dark">
     <div class="page">
-        <section class="logo-hero" aria-label="GameDen branded hero">
-            <h1 class="sr-only">GameDen.gg</h1>
-            <div class="logo-hero-stage is-static" id="logoHeroStage">
-                <img
-                    class="logo-hero-image logo-hero-static"
-                    id="heroLogoStatic"
-                    src="/assets/logo/gameden-logo-static.webp"
-                    alt="GameDen.gg logo"
-                    loading="eager"
-                    decoding="async"
-                    fetchpriority="high"
-                />
-                <video
-                    class="logo-hero-image logo-hero-animated"
-                    id="heroLogoAnimated"
-                    aria-hidden="true"
-                    muted
-                    playsinline
-                    autoplay
-                    preload="metadata"
-                >
-                    <source src="/assets/logo/gameden-logo-animated.webm" type="video/webm" />
-                    GameDen logo animation unavailable.
-                </video>
-            </div>
-        </section>
-
-        <div class="sticky-shell">
-            <div class="search-stack" id="searchStack">
-                <div class="mobile-filter-toggle-row" id="mobileFilterToggleRow">
-                    <button
-                        class="secondary-btn mobile-filters-toggle"
-                        id="mobileFiltersToggleBtn"
-                        type="button"
-                        aria-controls="filtersPanel"
-                        aria-expanded="false"
-                    >
-                        Filters
-                        <span class="mobile-filter-count" id="mobileFilterCount" hidden>0</span>
-                    </button>
-                </div>
-                <div class="search-bar-wrap" id="searchBarWrap">
-                    <div class="search-bar">
-                        <span aria-hidden="true">🔎</span>
-                        <label class="sr-only" for="searchInput">Search games</label>
-                        <input id="searchInput" type="text" placeholder="Search games, genres, or tags..." autocomplete="off" />
-                    </div>
-                </div>
-
-                <div class="search-results-pop" id="searchResultsPop">
-                    <div class="search-results-list" id="searchResultsList"></div>
-                </div>
-            </div>
-            <button
-                class="mobile-filters-backdrop"
-                id="mobileFiltersBackdrop"
-                type="button"
-                aria-label="Close filters panel"
-            ></button>
-
-            <div class="global-filters-shell" id="filtersShell">
-                <section class="global-filters show-fade" id="filtersPanel">
-                    <div class="mobile-filters-head">
-                        <div class="mobile-filters-title">Filters</div>
-                        <button
-                            class="secondary-btn mobile-filters-close"
-                            id="mobileFiltersCloseBtn"
-                            type="button"
-                            aria-label="Close filters panel"
-                            title="Close filters"
+        <div class="homepage-shell">
+            <div class="homepage-top-shell">
+                <section class="logo-hero" aria-label="GameDen branded hero">
+                    <h1 class="sr-only">GameDen.gg</h1>
+                    <div class="logo-hero-stage is-static" id="logoHeroStage">
+                        <img
+                            class="logo-hero-image logo-hero-static"
+                            id="heroLogoStatic"
+                            src="/assets/logo/gameden-logo-static.webp"
+                            alt="GameDen.gg logo"
+                            loading="eager"
+                            decoding="async"
+                            fetchpriority="high"
+                        />
+                        <video
+                            class="logo-hero-image logo-hero-animated"
+                            id="heroLogoAnimated"
+                            aria-hidden="true"
+                            muted
+                            playsinline
+                            autoplay
+                            preload="metadata"
                         >
-                            &#10005;
-                        </button>
-                    </div>
-                    <div class="filters-top-row">
-                        <div class="field">
-                            <label for="minDealInput">Min Deal %</label>
-                            <input id="minDealInput" type="number" min="0" max="100" placeholder="0" />
-                        </div>
-
-                        <div class="field">
-                            <label for="genreSelect">Genre</label>
-                            <select id="genreSelect">
-                                <option value="">All genres</option>
-                            </select>
-                        </div>
-
-                        <div class="field">
-                            <label for="platformSelect">Platform</label>
-                            <select id="platformSelect">
-                                <option value="">All platforms</option>
-                            </select>
-                        </div>
-
-                        <div class="filter-chip-row">
-                            <label class="pill-toggle">
-                                <input id="dealsOnlyCheckbox" type="checkbox" />
-                                Deals only
-                            </label>
-                            <label class="pill-toggle">
-                                <input id="includeFreeCheckbox" type="checkbox" />
-                                Include free
-                            </label>
-                        </div>
-
-                        <button class="secondary-btn" id="toggleAdvancedFiltersBtn" type="button">
-                            Show More Filters
-                            <span class="dropdown-arrow">⇊</span>
-                        </button>
-                    </div>
-
-                    <div class="advanced-filters" id="advancedFilters">
-                        <div class="advanced-grid">
-                            <div class="field">
-                                <label for="tagSelect">Tag</label>
-                                <select id="tagSelect">
-                                    <option value="">All tags</option>
-                                </select>
-                            </div>
-
-                            <div class="field">
-                                <label for="reviewLabelSelect">Review Label</label>
-                                <select id="reviewLabelSelect">
-                                    <option value="">All review labels</option>
-                                </select>
-                            </div>
-
-                            <div class="field">
-                                <label for="maxPriceInput">Max Price</label>
-                                <input id="maxPriceInput" type="number" min="0" step="0.01" placeholder="Any" />
-                            </div>
-
-                            <div class="field">
-                                <label for="minPlayersInput">Min Players</label>
-                                <input id="minPlayersInput" type="number" min="0" step="1" placeholder="Any" />
-                            </div>
-
-                            <div class="field">
-                                <label for="releasedSortSelect">Sort Released</label>
-                                <select id="releasedSortSelect">
-                                    <option value="best-deals">Best deals</option>
-                                    <option value="best-reviews">Best reviews</option>
-                                    <option value="player-count">Player count</option>
-                                    <option value="price-asc">Price asc</option>
-                                    <option value="price-desc">Price desc</option>
-                                    <option value="alpha-asc">A–Z</option>
-                                    <option value="alpha-desc">Z–A</option>
-                                    <option value="deal-score">Deal score</option>
-                                </select>
-                            </div>
-                        </div>
+                            <source src="/assets/logo/gameden-logo-animated.webm" type="video/webm" />
+                            GameDen logo animation unavailable.
+                        </video>
                     </div>
                 </section>
+
+                <div class="sticky-shell">
+                    <div class="search-stack" id="searchStack">
+                        <div class="mobile-filter-toggle-row" id="mobileFilterToggleRow">
+                            <button
+                                class="secondary-btn mobile-filters-toggle"
+                                id="mobileFiltersToggleBtn"
+                                type="button"
+                                aria-controls="filtersPanel"
+                                aria-expanded="false"
+                            >
+                                Filters
+                                <span class="mobile-filter-count" id="mobileFilterCount" hidden>0</span>
+                            </button>
+                        </div>
+                        <div class="search-bar-wrap" id="searchBarWrap">
+                            <div class="search-bar">
+                                <span aria-hidden="true">🔎</span>
+                                <label class="sr-only" for="searchInput">Search games</label>
+                                <input id="searchInput" type="text" placeholder="Search games, genres, or tags..." autocomplete="off" />
+                            </div>
+                        </div>
+
+                        <div class="search-results-pop" id="searchResultsPop">
+                            <div class="search-results-list" id="searchResultsList"></div>
+                        </div>
+                    </div>
+                    <button
+                        class="mobile-filters-backdrop"
+                        id="mobileFiltersBackdrop"
+                        type="button"
+                        aria-label="Close filters panel"
+                    ></button>
+
+                    <div class="global-filters-shell" id="filtersShell">
+                        <section class="global-filters show-fade" id="filtersPanel">
+                            <div class="mobile-filters-head">
+                                <div class="mobile-filters-title">Filters</div>
+                                <button
+                                    class="secondary-btn mobile-filters-close"
+                                    id="mobileFiltersCloseBtn"
+                                    type="button"
+                                    aria-label="Close filters panel"
+                                    title="Close filters"
+                                >
+                                    &#10005;
+                                </button>
+                            </div>
+                            <div class="filters-top-row">
+                                <div class="field">
+                                    <label for="minDealInput">Min Deal %</label>
+                                    <input id="minDealInput" type="number" min="0" max="100" placeholder="0" />
+                                </div>
+
+                                <div class="field">
+                                    <label for="genreSelect">Genre</label>
+                                    <select id="genreSelect">
+                                        <option value="">All genres</option>
+                                    </select>
+                                </div>
+
+                                <div class="field">
+                                    <label for="platformSelect">Platform</label>
+                                    <select id="platformSelect">
+                                        <option value="">All platforms</option>
+                                    </select>
+                                </div>
+
+                                <div class="filter-chip-row">
+                                    <label class="pill-toggle">
+                                        <input id="dealsOnlyCheckbox" type="checkbox" />
+                                        Deals only
+                                    </label>
+                                    <label class="pill-toggle">
+                                        <input id="includeFreeCheckbox" type="checkbox" />
+                                        Include free
+                                    </label>
+                                </div>
+
+                                <button class="secondary-btn" id="toggleAdvancedFiltersBtn" type="button">
+                                    Show More Filters
+                                    <span class="dropdown-arrow">⇊</span>
+                                </button>
+                            </div>
+
+                            <div class="advanced-filters" id="advancedFilters">
+                                <div class="advanced-grid">
+                                    <div class="field">
+                                        <label for="tagSelect">Tag</label>
+                                        <select id="tagSelect">
+                                            <option value="">All tags</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="field">
+                                        <label for="reviewLabelSelect">Review Label</label>
+                                        <select id="reviewLabelSelect">
+                                            <option value="">All review labels</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="field">
+                                        <label for="maxPriceInput">Max Price</label>
+                                        <input id="maxPriceInput" type="number" min="0" step="0.01" placeholder="Any" />
+                                    </div>
+
+                                    <div class="field">
+                                        <label for="minPlayersInput">Min Players</label>
+                                        <input id="minPlayersInput" type="number" min="0" step="1" placeholder="Any" />
+                                    </div>
+
+                                    <div class="field">
+                                        <label for="releasedSortSelect">Sort Released</label>
+                                        <select id="releasedSortSelect">
+                                            <option value="best-deals">Best deals</option>
+                                            <option value="best-reviews">Best reviews</option>
+                                            <option value="player-count">Player count</option>
+                                            <option value="price-asc">Price asc</option>
+                                            <option value="price-desc">Price desc</option>
+                                            <option value="alpha-asc">A–Z</option>
+                                            <option value="alpha-desc">Z–A</option>
+                                            <option value="deal-score">Deal score</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <nav class="home-jump-nav" id="homeJumpNav" aria-label="Jump to homepage zones">
+                    <button class="home-jump-chip" type="button" data-home-jump-group="Buy Signals" data-home-jump-target="opportunitiesPanel">Buy Signals</button>
+                    <button class="home-jump-chip" type="button" data-home-jump-group="Your Radar" data-home-jump-target="recommendedForYouPanel">Your Radar</button>
+                    <button class="home-jump-chip" type="button" data-home-jump-group="Discovery" data-home-jump-target="discoveryTabsShell">Discovery</button>
+                    <button class="home-jump-chip" type="button" data-home-jump-group="Upcoming" data-home-jump-target="upcomingPanel">Upcoming</button>
+                    <button class="home-jump-chip" type="button" data-home-jump-group="Analytics" data-home-jump-target="moreIntelSection">Analytics</button>
+                </nav>
             </div>
-        </div>
 
-        <nav class="home-jump-nav" id="homeJumpNav" aria-label="Jump to homepage zones">
-            <button class="home-jump-chip" type="button" data-home-jump-group="Buy Signals" data-home-jump-target="opportunitiesPanel">Buy Signals</button>
-            <button class="home-jump-chip" type="button" data-home-jump-group="Your Radar" data-home-jump-target="recommendedForYouPanel">Your Radar</button>
-            <button class="home-jump-chip" type="button" data-home-jump-group="Discovery" data-home-jump-target="discoveryTabsShell">Discovery</button>
-            <button class="home-jump-chip" type="button" data-home-jump-group="Upcoming" data-home-jump-target="upcomingPanel">Upcoming</button>
-            <button class="home-jump-chip" type="button" data-home-jump-group="Analytics" data-home-jump-target="moreIntelSection">Analytics</button>
-        </nav>
-
-        <main class="dashboard-grid">
+            <div class="homepage-content-shell">
+                <main class="dashboard-grid">
             <section class="main-column" aria-label="Main market intelligence">
                 <div class="column-zone-label main-zone-label">Main Content</div>
                 <section class="panel panel-seasonal panel-secondary-intel hidden" id="seasonalSaleTopPanel">
@@ -3689,65 +3735,6 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-secondary-intel more-intel-panel" id="moreIntelSection">
-                    <div class="panel-head">
-                        <div class="panel-title-wrap">
-                            <h2 class="panel-title">More Market Intelligence</h2>
-                            <div class="panel-subtitle">Secondary signals, diagnostics, and deeper market context grouped below the primary buy and radar flow.</div>
-                        </div>
-                        <button
-                            class="panel-action"
-                            id="moreIntelToggleBtn"
-                            type="button"
-                            aria-controls="moreIntelBody"
-                            aria-expanded="false"
-                        >
-                            Show Section
-                            <span class="dropdown-arrow">⇊</span>
-                        </button>
-                    </div>
-                    <div class="panel-body hidden-content" id="moreIntelBody">
-                        <div class="secondary-intel-stack" id="moreIntelStack"></div>
-                    </div>
-                </section>
-
-                <section class="panel panel-seasonal panel-secondary-intel hidden" id="seasonalSaleLowerPanel">
-                    <div class="panel-head">
-                        <div class="panel-title-wrap">
-                            <h2 class="panel-title">Seasonal Sale Radar</h2>
-                            <div class="panel-subtitle">Moves here when the next seasonal sale is more than 7 days away.</div>
-                        </div>
-                        <div class="sale-radar-controls">
-                            <button class="inline-toggle-btn" id="seasonalLowerToggleBtn" type="button">
-                                Potential Sales
-                                <span class="dropdown-arrow">⇊</span>
-                            </button>
-                            <div class="row-nav hidden" id="seasonalLowerRowNav" aria-hidden="true">
-                                <button class="row-nav-btn" type="button" data-row-left="seasonalSaleLowerGrid">&lt;</button>
-                                <button class="row-nav-btn" type="button" data-row-right="seasonalSaleLowerGrid">&gt;</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="panel-body" id="seasonalRadarLowerBody">
-                        <div class="sale-radar-head">
-                            <div class="sale-badge" id="saleEventBadgeLower"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></div>
-                        </div>
-                        <div class="sale-radar-content hidden-content" id="seasonalLowerContent">
-                            <div class="sale-radar-text" id="saleRadarTextLower"></div>
-                            <div class="row-section">
-                                <div class="row-fade-left"></div>
-                                <div class="row-fade-right"></div>
-                                <div id="seasonalSaleLowerGrid" class="row-scroller"></div>
-                            </div>
-                            <div class="show-all-wrap">
-                                <a class="show-all-btn hidden" id="seasonalLowerShowAllBtn" href="#">
-                                    Show All
-                                    <span class="dropdown-arrow">⇊</span>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </section>
             </section>
 
             <aside class="side-column" aria-label="Your radar rail">
@@ -3867,7 +3854,71 @@ input:focus-visible {
                     </div>
                 </section>
             </aside>
-        </main>
+                </main>
+
+                <section class="lower-sections" id="lowerSections" aria-label="More market intelligence">
+                    <section class="panel panel-secondary-intel more-intel-panel" id="moreIntelSection">
+                        <div class="panel-head">
+                            <div class="panel-title-wrap">
+                                <h2 class="panel-title">More Market Intelligence</h2>
+                                <div class="panel-subtitle">Secondary signals, diagnostics, and deeper market context grouped below the primary buy and radar flow.</div>
+                            </div>
+                            <button
+                                class="panel-action"
+                                id="moreIntelToggleBtn"
+                                type="button"
+                                aria-controls="moreIntelBody"
+                                aria-expanded="false"
+                            >
+                                Show Section
+                                <span class="dropdown-arrow">⇊</span>
+                            </button>
+                        </div>
+                        <div class="panel-body hidden-content" id="moreIntelBody">
+                            <div class="secondary-intel-stack" id="moreIntelStack"></div>
+                        </div>
+                    </section>
+
+                    <section class="panel panel-seasonal panel-secondary-intel hidden" id="seasonalSaleLowerPanel">
+                        <div class="panel-head">
+                            <div class="panel-title-wrap">
+                                <h2 class="panel-title">Seasonal Sale Radar</h2>
+                                <div class="panel-subtitle">Moves here when the next seasonal sale is more than 7 days away.</div>
+                            </div>
+                            <div class="sale-radar-controls">
+                                <button class="inline-toggle-btn" id="seasonalLowerToggleBtn" type="button">
+                                    Potential Sales
+                                    <span class="dropdown-arrow">⇊</span>
+                                </button>
+                                <div class="row-nav hidden" id="seasonalLowerRowNav" aria-hidden="true">
+                                    <button class="row-nav-btn" type="button" data-row-left="seasonalSaleLowerGrid">&lt;</button>
+                                    <button class="row-nav-btn" type="button" data-row-right="seasonalSaleLowerGrid">&gt;</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="panel-body" id="seasonalRadarLowerBody">
+                            <div class="sale-radar-head">
+                                <div class="sale-badge" id="saleEventBadgeLower"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></div>
+                            </div>
+                            <div class="sale-radar-content hidden-content" id="seasonalLowerContent">
+                                <div class="sale-radar-text" id="saleRadarTextLower"></div>
+                                <div class="row-section">
+                                    <div class="row-fade-left"></div>
+                                    <div class="row-fade-right"></div>
+                                    <div id="seasonalSaleLowerGrid" class="row-scroller"></div>
+                                </div>
+                                <div class="show-all-wrap">
+                                    <a class="show-all-btn hidden" id="seasonalLowerShowAllBtn" href="#">
+                                        Show All
+                                        <span class="dropdown-arrow">⇊</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </section>
+            </div>
+        </div>
 
         <footer class="site-footer">
             <strong id="footerBrand">GameDen.gg</strong>
@@ -4191,9 +4242,9 @@ input:focus-visible {
 
             { id: "upcomingPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 10, column: "main" },
             { id: "seasonalSaleTopPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 30, column: "main" },
-            { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 30, column: "main" },
+            { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 30, column: "lower" },
 
-            { id: "moreIntelSection", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 10, column: "main" },
+            { id: "moreIntelSection", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 10, column: "lower" },
             { id: "recentlyUpdatedPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 20, column: "main" },
             { id: "dealRadarPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 30, column: "main" },
             { id: "analyticsPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 40, column: "main" },
@@ -4342,6 +4393,7 @@ input:focus-visible {
             dashboardGrid: document.querySelector(".dashboard-grid"),
             mainColumn: document.querySelector(".main-column"),
             sideColumn: document.querySelector(".side-column"),
+            lowerSections: document.getElementById("lowerSections"),
             searchInput: document.getElementById("searchInput"),
             minDealInput: document.getElementById("minDealInput"),
             genreSelect: document.getElementById("genreSelect"),
@@ -8498,7 +8550,8 @@ input:focus-visible {
             const mainColumn = ui.mainColumn;
             const sideColumn = ui.sideColumn;
             const dashboardGrid = ui.dashboardGrid;
-            if (!mainColumn || !sideColumn || !dashboardGrid) return;
+            const lowerSections = ui.lowerSections;
+            if (!mainColumn || !sideColumn || !dashboardGrid || !lowerSections) return;
 
             const isMobileLayout = isHomepageMobileLayout();
             const layoutMode = isMobileLayout ? "mobile" : "desktop";
@@ -8506,7 +8559,8 @@ input:focus-visible {
 
             const mainDefinitions = sortHomepageSectionDefinitions(getHomepageSectionDefinitions("main"));
             const sideDefinitions = sortHomepageSectionDefinitions(getHomepageSectionDefinitions("side"));
-            const allDefinitions = sortHomepageSectionDefinitions([...mainDefinitions, ...sideDefinitions]);
+            const lowerDefinitions = sortHomepageSectionDefinitions(getHomepageSectionDefinitions("lower"));
+            const allDefinitions = sortHomepageSectionDefinitions([...mainDefinitions, ...sideDefinitions, ...lowerDefinitions]);
 
             allDefinitions.forEach(applyHomepageSectionMetadata);
 
@@ -8521,6 +8575,7 @@ input:focus-visible {
 
             reorderHomepageColumnSections(mainColumn, mainColumnDefinitions, { excludeIds: discoveryManagedIds });
             reorderHomepageColumnSections(sideColumn, sideDefinitions);
+            reorderHomepageColumnSections(lowerSections, lowerDefinitions);
             mountMoreMarketIntelSections(allDefinitions);
 
             dashboardGrid.classList.remove("is-mobile-merged");
@@ -10203,7 +10258,7 @@ input:focus-visible {
         function wireSectionReveal() {
             if (wireSectionReveal._wired) return;
 
-            const sectionPanels = Array.from(document.querySelectorAll(".dashboard-grid .panel"));
+            const sectionPanels = Array.from(document.querySelectorAll(".dashboard-grid .panel, .lower-sections .panel"));
             if (!sectionPanels.length) return;
 
             document.documentElement.classList.add("reveal-enabled");

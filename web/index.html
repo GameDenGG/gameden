@@ -3152,7 +3152,7 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-intel">
+                <section class="panel panel-intel" id="newHistoricalLowsPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">New Historical Lows</h2>
@@ -3172,7 +3172,7 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-activity">
+                <section class="panel panel-activity" id="buyNowPicksPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Buy Now Picks</h2>
@@ -3198,7 +3198,7 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-deals">
+                <section class="panel panel-deals" id="waitForSalePanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Wait for Next Sale</h2>
@@ -3224,7 +3224,7 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-activity">
+                <section class="panel panel-activity" id="recentlyUpdatedPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Recently Updated</h2>
@@ -3242,7 +3242,7 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-intel">
+                <section class="panel panel-intel" id="historicalLowsPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Historical Lows</h2>
@@ -3268,7 +3268,7 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-catalog">
+                <section class="panel panel-catalog" id="allGamesPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">All Games</h2>
@@ -3283,7 +3283,7 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-intel">
+                <section class="panel panel-intel" id="topReviewedPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Top Reviewed Games</h2>
@@ -3309,7 +3309,7 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-catalog">
+                <section class="panel panel-catalog" id="upcomingPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Upcoming Releases</h2>
@@ -3696,6 +3696,53 @@ input:focus-visible {
         const DISCOVERY_DIVERSITY_WINDOW = 10;
         const EXTENDED_PLATFORM_FILTER_OPTIONS = Object.freeze(["Steam Deck", "VR Compatibility"]);
         const MOBILE_FILTER_BREAKPOINT_PX = 860;
+        // Homepage IA scaffold: lightweight section metadata used to drive column composition.
+        const HOMEPAGE_SECTION_GROUPS = Object.freeze({
+            BUY_SIGNALS: "Buy Signals",
+            YOUR_RADAR: "Your Radar",
+            DISCOVERY: "Discovery",
+            UPCOMING: "Upcoming",
+            ANALYTICS: "Analytics",
+        });
+        const HOMEPAGE_GROUP_ORDER = Object.freeze([
+            HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS,
+            HOMEPAGE_SECTION_GROUPS.YOUR_RADAR,
+            HOMEPAGE_SECTION_GROUPS.DISCOVERY,
+            HOMEPAGE_SECTION_GROUPS.UPCOMING,
+            HOMEPAGE_SECTION_GROUPS.ANALYTICS,
+        ]);
+        const HOMEPAGE_GROUP_INDEX = Object.freeze(HOMEPAGE_GROUP_ORDER.reduce((accumulator, groupName, index) => {
+            accumulator[groupName] = index;
+            return accumulator;
+        }, {}));
+        const HOMEPAGE_SECTION_LAYOUT = Object.freeze([
+            { id: "bestDealsPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 10, column: "main" },
+            { id: "opportunitiesPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 20, column: "main" },
+            { id: "opportunityRadarPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 30, column: "main" },
+            { id: "worthBuyingPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 40, column: "main" },
+            { id: "buyNowPicksPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 50, column: "main" },
+            { id: "waitForSalePanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 60, column: "main" },
+            { id: "newHistoricalLowsPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_SIGNALS, priority: 70, column: "main" },
+
+            { id: "recommendedForYouPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 10, column: "main" },
+            { id: "recentlyUpdatedPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 20, column: "main" },
+            { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 30, column: "side" },
+            { id: "watchlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 40, column: "side" },
+            { id: "dailyDigestPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 50, column: "side" },
+            { id: "dealRadarPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 60, column: "side" },
+            { id: "alertsPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 70, column: "side" },
+
+            { id: "trendingGamesPanel", group: HOMEPAGE_SECTION_GROUPS.DISCOVERY, priority: 10, column: "main" },
+            { id: "allGamesPanel", group: HOMEPAGE_SECTION_GROUPS.DISCOVERY, priority: 20, column: "main" },
+            { id: "topReviewedPanel", group: HOMEPAGE_SECTION_GROUPS.DISCOVERY, priority: 30, column: "main" },
+            { id: "historicalLowsPanel", group: HOMEPAGE_SECTION_GROUPS.DISCOVERY, priority: 40, column: "main" },
+
+            { id: "seasonalSaleTopPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 10, column: "main" },
+            { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 10, column: "main" },
+            { id: "upcomingPanel", group: HOMEPAGE_SECTION_GROUPS.UPCOMING, priority: 20, column: "main" },
+
+            { id: "analyticsPanel", group: HOMEPAGE_SECTION_GROUPS.ANALYTICS, priority: 10, column: "side" },
+        ].map((entry) => Object.freeze(entry)));
 
         const state = {
             latestPrices: [],
@@ -7591,6 +7638,75 @@ input:focus-visible {
             updateSeasonalRowNavVisibility("lower");
         }
 
+        function homeSectionGroupToken(groupName) {
+            return String(groupName || "")
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-+|-+$/g, "");
+        }
+
+        function getHomepageSectionDefinitions(column) {
+            return HOMEPAGE_SECTION_LAYOUT
+                .filter((entry) => entry.column === column)
+                .map((entry) => {
+                    const node = document.getElementById(entry.id);
+                    if (!node) return null;
+                    return {
+                        ...entry,
+                        node,
+                    };
+                })
+                .filter(Boolean);
+        }
+
+        function sortHomepageSectionDefinitions(definitions) {
+            const sorted = [...definitions];
+            sorted.sort((left, right) => {
+                const leftGroupRank = HOMEPAGE_GROUP_INDEX[left.group] ?? Number.MAX_SAFE_INTEGER;
+                const rightGroupRank = HOMEPAGE_GROUP_INDEX[right.group] ?? Number.MAX_SAFE_INTEGER;
+                if (leftGroupRank !== rightGroupRank) {
+                    return leftGroupRank - rightGroupRank;
+                }
+                const leftPriority = Number(left.priority ?? 0);
+                const rightPriority = Number(right.priority ?? 0);
+                if (leftPriority !== rightPriority) {
+                    return leftPriority - rightPriority;
+                }
+                return String(left.id || "").localeCompare(String(right.id || ""));
+            });
+            return sorted;
+        }
+
+        function applyHomepageSectionMetadata(definition) {
+            const node = definition?.node;
+            if (!(node instanceof HTMLElement)) return;
+            node.dataset.homeSectionId = String(definition.id || "");
+            node.dataset.homeSectionGroup = String(definition.group || "");
+            node.dataset.homeSectionGroupToken = homeSectionGroupToken(definition.group);
+            node.dataset.homeSectionPriority = String(definition.priority ?? "");
+            node.dataset.homeSectionColumn = String(definition.column || "");
+        }
+
+        function reorderHomepageColumnSections(columnNode, orderedDefinitions) {
+            if (!columnNode) return;
+
+            const orderedNodes = orderedDefinitions
+                .map((definition) => definition?.node)
+                .filter((node) => node instanceof HTMLElement);
+            const orderedSet = new Set(orderedNodes);
+            const existingPanels = Array.from(columnNode.children).filter((node) => (
+                node instanceof HTMLElement
+                && node.matches("section.panel")
+            ));
+            const trailingPanels = existingPanels.filter((node) => !orderedSet.has(node));
+
+            [...orderedNodes, ...trailingPanels].forEach((node) => {
+                if (!(node instanceof HTMLElement)) return;
+                columnNode.appendChild(node);
+            });
+        }
+
         function applyDiscoverySectionOrder() {
             if (applyDiscoverySectionOrder._applied) return;
 
@@ -7598,34 +7714,14 @@ input:focus-visible {
             const sideColumn = document.querySelector(".side-column");
             if (!mainColumn || !sideColumn) return;
 
-            const discoveryOrder = [
-                "bestDealsPanel",
-                "opportunitiesPanel",
-                "opportunityRadarPanel",
-                "recommendedForYouPanel",
-                "worthBuyingPanel",
-                "trendingGamesPanel",
-                "seasonalSaleTopPanel",
-                "analyticsPanel",
-            ];
+            const mainDefinitions = sortHomepageSectionDefinitions(getHomepageSectionDefinitions("main"));
+            const sideDefinitions = sortHomepageSectionDefinitions(getHomepageSectionDefinitions("side"));
 
-            let insertBeforeNode = mainColumn.firstElementChild;
-            discoveryOrder.forEach((sectionId) => {
-                const node = document.getElementById(sectionId);
-                if (!node) return;
-                if (insertBeforeNode) {
-                    mainColumn.insertBefore(node, insertBeforeNode);
-                } else {
-                    mainColumn.appendChild(node);
-                }
-                insertBeforeNode = node.nextSibling;
-            });
+            mainDefinitions.forEach(applyHomepageSectionMetadata);
+            sideDefinitions.forEach(applyHomepageSectionMetadata);
 
-            const sideOrder = ["wishlistPanel", "watchlistPanel", "dailyDigestPanel", "dealRadarPanel", "alertsPanel"];
-            sideOrder.forEach((sectionId) => {
-                const node = document.getElementById(sectionId);
-                if (node) sideColumn.appendChild(node);
-            });
+            reorderHomepageColumnSections(mainColumn, mainDefinitions);
+            reorderHomepageColumnSections(sideColumn, sideDefinitions);
 
             applyDiscoverySectionOrder._applied = true;
         }

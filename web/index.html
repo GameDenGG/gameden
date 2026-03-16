@@ -525,6 +525,59 @@ select {
     padding: 14px;
 }
 
+.mobile-filter-toggle-row {
+    display: none;
+    margin-top: 10px;
+    justify-content: flex-end;
+}
+
+.mobile-filters-toggle {
+    min-height: 42px;
+    border-radius: 12px;
+}
+
+.mobile-filters-toggle[aria-expanded="true"] {
+    border-color: rgba(121, 168, 255, 0.5);
+    background: rgba(121, 168, 255, 0.16);
+}
+
+.mobile-filter-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(103, 234, 255, 0.56);
+    background: rgba(103, 234, 255, 0.16);
+    color: #defbff;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.mobile-filters-head {
+    display: none;
+}
+
+.mobile-filters-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+
+.mobile-filters-close {
+    min-height: 40px;
+    border-radius: 10px;
+    padding-inline: 14px;
+}
+
+.mobile-filters-backdrop {
+    display: none;
+}
+
 .show-fade {
     position: relative;
 }
@@ -2557,6 +2610,10 @@ input:focus-visible {
 
 @media (max-width: 860px) {
     .page { padding: 16px 14px 24px; }
+    .sticky-shell {
+        top: 8px;
+        z-index: 62;
+    }
     .masthead {
         padding: 12px;
         border-radius: 14px;
@@ -2572,11 +2629,88 @@ input:focus-visible {
     .signal-chip { font-size: 10px; padding: 6px 9px; }
     .hero { padding: 20px; border-radius: 22px; }
     .modal-body { grid-template-columns: 1fr; }
-    .filters-top-row { grid-template-columns: 1fr; }
-    .global-filters { padding: 12px; border-radius: 14px; }
+    .mobile-filter-toggle-row {
+        display: flex;
+    }
+    .mobile-filters-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 62;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        opacity: 0;
+        pointer-events: none;
+        background: rgba(2, 8, 18, 0.56);
+        transition: opacity 0.2s ease;
+    }
+    body.mobile-filters-open .mobile-filters-backdrop {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .global-filters-shell {
+        position: fixed;
+        inset: auto 0 0 0;
+        z-index: 63;
+        margin: 0;
+        pointer-events: none;
+        transform: translateY(102%);
+        transition: transform 0.24s ease;
+    }
+    .global-filters-shell.scrolled {
+        opacity: 1;
+        filter: none;
+    }
+    body.mobile-filters-open .global-filters-shell {
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+    .global-filters {
+        padding: 14px 12px 18px;
+        border-radius: 18px 18px 0 0;
+        border-left: 0;
+        border-right: 0;
+        border-bottom: 0;
+        max-height: min(82vh, 640px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        box-shadow: 0 -20px 48px rgba(2, 8, 22, 0.42);
+    }
+    .mobile-filters-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        background: linear-gradient(180deg, rgba(9, 17, 31, 0.98), rgba(9, 17, 31, 0.92));
+    }
+    .filters-top-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        align-items: stretch;
+    }
+    .filter-chip-row {
+        flex-direction: column;
+    }
+    .filter-chip-row .pill-toggle,
+    #toggleAdvancedFiltersBtn {
+        width: 100%;
+        justify-content: center;
+    }
+    .advanced-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    body.mobile-filters-open {
+        overflow: hidden;
+    }
     .cards-grid,
     .stats-grid,
-    .advanced-grid,
     .meta-grid { grid-template-columns: 1fr; }
     .hero-chip-row,
     .hero-cta-row { gap: 8px; }
@@ -2660,8 +2794,31 @@ input:focus-visible {
                 </div>
             </div>
 
+            <div class="mobile-filter-toggle-row" id="mobileFilterToggleRow">
+                <button
+                    class="secondary-btn mobile-filters-toggle"
+                    id="mobileFiltersToggleBtn"
+                    type="button"
+                    aria-controls="filtersPanel"
+                    aria-expanded="false"
+                >
+                    Filters
+                    <span class="mobile-filter-count" id="mobileFilterCount" hidden>0</span>
+                </button>
+            </div>
+            <button
+                class="mobile-filters-backdrop"
+                id="mobileFiltersBackdrop"
+                type="button"
+                aria-label="Close filters panel"
+            ></button>
+
             <div class="global-filters-shell" id="filtersShell">
                 <section class="global-filters show-fade" id="filtersPanel">
+                    <div class="mobile-filters-head">
+                        <div class="mobile-filters-title">Filters</div>
+                        <button class="secondary-btn mobile-filters-close" id="mobileFiltersCloseBtn" type="button">Close</button>
+                    </div>
                     <div class="filters-top-row">
                         <div class="field">
                             <label for="minDealInput">Min Deal %</label>
@@ -3314,6 +3471,7 @@ input:focus-visible {
         const DISCOVERY_RAIL_LIMIT = 24;
         const DISCOVERY_DIVERSITY_WINDOW = 10;
         const EXTENDED_PLATFORM_FILTER_OPTIONS = Object.freeze(["Steam Deck", "VR Compatibility"]);
+        const MOBILE_FILTER_BREAKPOINT_PX = 860;
 
         const state = {
             latestPrices: [],
@@ -3416,6 +3574,11 @@ input:focus-visible {
                 includeFree: true,
                 releasedSort: "best-deals",
             },
+            mobileFilters: {
+                isMobile: false,
+                open: false,
+                previousFocusedElement: null,
+            },
             seasonalPanelsExpanded: {
                 top: false,
                 lower: false,
@@ -3515,6 +3678,11 @@ input:focus-visible {
 
             toggleAdvancedFiltersBtn: document.getElementById("toggleAdvancedFiltersBtn"),
             advancedFilters: document.getElementById("advancedFilters"),
+            mobileFilterToggleRow: document.getElementById("mobileFilterToggleRow"),
+            mobileFiltersToggleBtn: document.getElementById("mobileFiltersToggleBtn"),
+            mobileFiltersCloseBtn: document.getElementById("mobileFiltersCloseBtn"),
+            mobileFiltersBackdrop: document.getElementById("mobileFiltersBackdrop"),
+            mobileFilterCount: document.getElementById("mobileFilterCount"),
             filtersShell: document.getElementById("filtersShell"),
             searchBarWrap: document.getElementById("searchBarWrap"),
             filtersPanel: document.getElementById("filtersPanel"),
@@ -8505,11 +8673,140 @@ input:focus-visible {
             wireDealRadarMore._wired = true;
         }
 
+        function setAdvancedFiltersExpanded(isOpen) {
+            const shouldOpen = Boolean(isOpen);
+            ui.advancedFilters.classList.toggle("open", shouldOpen);
+            ui.toggleAdvancedFiltersBtn.innerHTML = shouldOpen
+                ? 'Hide More Filters <span class="dropdown-arrow">&#8675;</span>'
+                : 'Show More Filters <span class="dropdown-arrow">&#8675;</span>';
+            ui.toggleAdvancedFiltersBtn.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+            ui.filtersPanel.classList.toggle("show-fade", !shouldOpen);
+        }
+
+        function countActiveFilters() {
+            let count = 0;
+            const hasNumber = (value) => value !== null && value !== "" && Number.isFinite(Number(value));
+            if (hasNumber(state.filters.minDeal) && Number(state.filters.minDeal) > 0) count += 1;
+            if (state.filters.genre) count += 1;
+            if (state.filters.tag) count += 1;
+            if (state.filters.platform) count += 1;
+            if (state.filters.reviewLabel) count += 1;
+            if (hasNumber(state.filters.maxPrice)) count += 1;
+            if (hasNumber(state.filters.minPlayers) && Number(state.filters.minPlayers) > 0) count += 1;
+            if (state.filters.dealsOnly) count += 1;
+            if (!state.filters.includeFree) count += 1;
+            if ((state.filters.releasedSort || "best-deals") !== "best-deals") count += 1;
+            return count;
+        }
+
+        function updateMobileFilterTrigger() {
+            if (!ui.mobileFiltersToggleBtn || !ui.mobileFilterCount) return;
+            const activeCount = countActiveFilters();
+            ui.mobileFilterCount.textContent = String(activeCount);
+            ui.mobileFilterCount.hidden = activeCount <= 0;
+            ui.mobileFiltersToggleBtn.setAttribute(
+                "aria-label",
+                activeCount > 0 ? `Filters, ${activeCount} active` : "Filters",
+            );
+        }
+
+        function applyFiltersPanelInteractivity() {
+            const shouldDisablePanel = state.mobileFilters.isMobile && !state.mobileFilters.open;
+            ui.filtersPanel.setAttribute("aria-hidden", shouldDisablePanel ? "true" : "false");
+            if (shouldDisablePanel) {
+                ui.filtersPanel.setAttribute("inert", "");
+            } else {
+                ui.filtersPanel.removeAttribute("inert");
+            }
+        }
+
+        function setMobileFiltersOpen(shouldOpen, options = {}) {
+            const restoreFocus = options.restoreFocus !== false;
+            if (!state.mobileFilters.isMobile) {
+                state.mobileFilters.open = false;
+                document.body.classList.remove("mobile-filters-open");
+                if (ui.mobileFiltersToggleBtn) {
+                    ui.mobileFiltersToggleBtn.setAttribute("aria-expanded", "false");
+                }
+                applyFiltersPanelInteractivity();
+                return;
+            }
+
+            const nextOpen = Boolean(shouldOpen);
+            if (state.mobileFilters.open === nextOpen) return;
+
+            if (nextOpen) {
+                const activeElement = document.activeElement;
+                state.mobileFilters.previousFocusedElement = activeElement instanceof HTMLElement
+                    ? activeElement
+                    : null;
+            }
+
+            state.mobileFilters.open = nextOpen;
+            document.body.classList.toggle("mobile-filters-open", nextOpen);
+            if (ui.mobileFiltersToggleBtn) {
+                ui.mobileFiltersToggleBtn.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+            }
+            applyFiltersPanelInteractivity();
+
+            if (nextOpen) {
+                window.requestAnimationFrame(() => {
+                    if (ui.minDealInput && typeof ui.minDealInput.focus === "function") {
+                        ui.minDealInput.focus({ preventScroll: true });
+                    }
+                });
+                return;
+            }
+
+            if (restoreFocus) {
+                const fallbackTarget = ui.mobileFiltersToggleBtn;
+                const previousTarget = state.mobileFilters.previousFocusedElement;
+                state.mobileFilters.previousFocusedElement = null;
+                const focusTarget = previousTarget && previousTarget.isConnected
+                    ? previousTarget
+                    : fallbackTarget;
+                if (focusTarget && typeof focusTarget.focus === "function") {
+                    window.requestAnimationFrame(() => {
+                        focusTarget.focus({ preventScroll: true });
+                    });
+                }
+            }
+        }
+
+        function syncMobileFilterMode() {
+            const mediaQuery = `(max-width: ${MOBILE_FILTER_BREAKPOINT_PX}px)`;
+            const isMobileViewport = Boolean(window.matchMedia && window.matchMedia(mediaQuery).matches);
+            const wasMobileViewport = state.mobileFilters.isMobile;
+            state.mobileFilters.isMobile = isMobileViewport;
+
+            if (!isMobileViewport) {
+                state.mobileFilters.open = false;
+                document.body.classList.remove("mobile-filters-open");
+            } else if (!wasMobileViewport) {
+                state.mobileFilters.open = false;
+            }
+
+            if (ui.mobileFiltersToggleBtn) {
+                ui.mobileFiltersToggleBtn.setAttribute(
+                    "aria-expanded",
+                    state.mobileFilters.isMobile && state.mobileFilters.open ? "true" : "false",
+                );
+            }
+
+            document.body.classList.toggle(
+                "mobile-filters-open",
+                state.mobileFilters.isMobile && state.mobileFilters.open,
+            );
+            applyFiltersPanelInteractivity();
+            updateMobileFilterTrigger();
+        }
+
         function wireFilters() {
             let searchInputTimer = null;
             const onFilterMutation = () => {
                 scheduleCatalogReloadFromInteraction();
                 void refreshSearchResults();
+                updateMobileFilterTrigger();
             };
 
             ui.searchInput.addEventListener("input", (event) => {
@@ -8586,12 +8883,24 @@ input:focus-visible {
             });
 
             ui.toggleAdvancedFiltersBtn.addEventListener("click", () => {
-                ui.advancedFilters.classList.toggle("open");
-                ui.toggleAdvancedFiltersBtn.innerHTML = ui.advancedFilters.classList.contains("open")
-                    ? 'Hide More Filters <span class="dropdown-arrow">&#8675;</span>'
-                    : 'Show More Filters <span class="dropdown-arrow">&#8675;</span>';
-                ui.filtersPanel.classList.toggle("show-fade", !ui.advancedFilters.classList.contains("open"));
+                setAdvancedFiltersExpanded(!ui.advancedFilters.classList.contains("open"));
             });
+
+            if (ui.mobileFiltersToggleBtn) {
+                ui.mobileFiltersToggleBtn.addEventListener("click", () => {
+                    setMobileFiltersOpen(!state.mobileFilters.open, { restoreFocus: false });
+                });
+            }
+            if (ui.mobileFiltersCloseBtn) {
+                ui.mobileFiltersCloseBtn.addEventListener("click", () => {
+                    setMobileFiltersOpen(false);
+                });
+            }
+            if (ui.mobileFiltersBackdrop) {
+                ui.mobileFiltersBackdrop.addEventListener("click", () => {
+                    setMobileFiltersOpen(false);
+                });
+            }
 
             document.addEventListener("click", (event) => {
                 const target = event.target;
@@ -8601,6 +8910,22 @@ input:focus-visible {
                     closeSearchResults();
                 }
             });
+
+            document.addEventListener("keydown", (event) => {
+                if (event.key === "Escape" && state.mobileFilters.isMobile && state.mobileFilters.open) {
+                    event.preventDefault();
+                    setMobileFiltersOpen(false);
+                }
+            });
+
+            if (!wireFilters._resizeWired) {
+                window.addEventListener("resize", syncMobileFilterMode, { passive: true });
+                wireFilters._resizeWired = true;
+            }
+
+            setAdvancedFiltersExpanded(ui.advancedFilters.classList.contains("open"));
+            syncMobileFilterMode();
+            updateMobileFilterTrigger();
         }
 
         function wireScrollBehavior() {

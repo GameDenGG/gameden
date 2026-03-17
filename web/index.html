@@ -579,10 +579,25 @@ select {
 }
 
 .filters-top-row {
-    display: grid;
-    grid-template-columns: minmax(120px, 170px) minmax(150px, 1fr) minmax(170px, 1fr) minmax(220px, 1.2fr) auto;
+    display: flex;
+    flex-wrap: wrap;
     gap: 14px;
-    align-items: end;
+    align-items: flex-end;
+}
+
+.filters-top-row > .field {
+    flex: 1 1 180px;
+    min-width: 150px;
+}
+
+.filters-top-row > .field:first-child {
+    flex: 0 1 150px;
+    min-width: 120px;
+}
+
+.filters-top-row > .filter-chip-row {
+    flex: 1 1 280px;
+    min-width: 220px;
 }
 
 .field label {
@@ -620,6 +635,14 @@ select {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+}
+
+#toggleAdvancedFiltersBtn {
+    flex: 0 0 auto;
+    align-self: flex-end;
+    min-width: 170px;
+    white-space: nowrap;
+    justify-content: center;
 }
 
 .pill-toggle {
@@ -2987,6 +3010,13 @@ input:focus-visible {
     }
 }
 
+@media (max-width: 1180px) and (min-width: 861px) {
+    .filters-top-row > #toggleAdvancedFiltersBtn {
+        flex-basis: 100%;
+        align-self: stretch;
+    }
+}
+
 @media (max-width: 860px) {
     .page {
         width: min(100% - 28px, 1480px);
@@ -3105,9 +3135,15 @@ input:focus-visible {
         background: linear-gradient(180deg, rgba(9, 17, 31, 0.98), rgba(9, 17, 31, 0.92));
     }
     .filters-top-row {
-        grid-template-columns: 1fr;
+        flex-direction: column;
         gap: 12px;
         align-items: stretch;
+    }
+    .filters-top-row > .field,
+    .filters-top-row > .filter-chip-row,
+    #toggleAdvancedFiltersBtn {
+        width: 100%;
+        min-width: 0;
     }
     .filter-chip-row {
         flex-direction: column;

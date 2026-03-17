@@ -4158,6 +4158,7 @@ input:focus-visible {
             alertSignals: 40,
             dailyDigestSection: 6,
         });
+        const HOMEPAGE_CRITICAL_SECTION_LIMIT = 12;
 
         function getCurrentUserId() {
             const fallback = DEFAULT_USER_ID;
@@ -4567,6 +4568,11 @@ input:focus-visible {
             seasonalPanelsExpanded: {
                 top: false,
                 lower: false,
+            },
+            homepageLoad: {
+                criticalLoaded: false,
+                deferredStarted: false,
+                deferredCompleted: false,
             },
             visibleCounts: {
                 dealRankedGrid: 8,
@@ -9918,6 +9924,105 @@ input:focus-visible {
             syncCardActionButtonsFromState();
         }
 
+        function renderCriticalHomepageSkeletons() {
+            renderSkeleton(ui.opportunitiesGrid, "deal-cards", 6, { cardClass: "game-card" });
+        }
+
+        function renderDeferredHomepageSkeletons() {
+            renderSkeleton(ui.seasonalSaleTopGrid, "deal-cards", 4, { cardClass: "game-card" });
+            renderSkeleton(ui.seasonalSaleLowerGrid, "deal-cards", 4, { cardClass: "game-card" });
+            renderSkeleton(ui.dealRankedGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.opportunityRadarGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.worthBuyingGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.trendingDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.newHistoricalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.newDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.recommendedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.historicalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.releasedGamesGrid, "deal-cards", 2, { cardClass: "game-card", compact: true });
+            renderSkeleton(ui.topReviewedGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.upcomingGrid, "deal-cards", 2, { cardClass: "game-card", compact: true });
+            renderSkeleton(ui.recentlyUpdatedList, "mini-list", 3, { itemClass: "mini-item" });
+            renderSkeleton(ui.topPlayedList, "mini-list", 4, { itemClass: "mini-item" });
+            renderSkeleton(ui.trendingList, "mini-list", 4, { itemClass: "mini-item" });
+            renderSkeleton(ui.dailyDigestList, "panel-list", 4, { itemClass: "digest-item" });
+            renderSkeleton(ui.alertsList, "mini-list", 4, { itemClass: "mini-item" });
+            renderSkeleton(ui.dealRadarFeed, "radar-list", 4, { itemClass: "deal-radar-card", thumbClass: "deal-radar-thumb" });
+            renderSkeleton(ui.leaderboardList, "mini-list", 4, { itemClass: "mini-item" });
+            renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.wishlistList, "mini-list", 3, { itemClass: "mini-item" });
+            renderSkeleton(ui.watchlistList, "mini-list", 3, { itemClass: "mini-item" });
+        }
+
+        async function loadCriticalHomepageData() {
+            const opportunitiesPayload = await fetchJson(
+                `/api/deal-opportunities?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`,
+            );
+            const opportunities = uniqueGamesByName(opportunitiesPayload?.items || opportunitiesPayload || []);
+            state.opportunitiesNow = opportunities;
+            state.homepageLoad.criticalLoaded = true;
+            renderOpportunities();
+        }
+
+        async function runDeferredHomepageStage() {
+            if (state.homepageLoad.deferredStarted) return;
+            state.homepageLoad.deferredStarted = true;
+
+            state.personalizedStatus.enabled = true;
+            state.personalizedStatus.loading = true;
+            state.personalizedStatus.error = null;
+            state.personalizedStatus.personalized = false;
+            state.personalizedStatus.fallbackMode = isDefaultOrAnonymousUserId(CURRENT_USER_ID);
+            state.personalListStatus.wishlistLoading = true;
+            state.personalListStatus.watchlistLoading = true;
+            state.personalListStatus.wishlistError = null;
+            state.personalListStatus.watchlistError = null;
+            state.dailyDigestStatus.loading = true;
+            state.dailyDigestStatus.error = null;
+            setPanelVisibility(ui.recommendedForYouPanel, true);
+            setPanelVisibility(ui.wishlistPanel, true);
+            setPanelVisibility(ui.watchlistPanel, true);
+            renderDeferredHomepageSkeletons();
+
+            try {
+                const data = await loadDashboardData();
+                applyFilterOptionsToControls(data.filters || {});
+                applyAllRenders();
+                syncCardActionButtonsFromState();
+                await loadDeferredHomepageData(data);
+                state.homepageLoad.deferredCompleted = true;
+            } catch (error) {
+                console.error("Deferred homepage stage failed", error);
+                state.personalizedStatus.loading = false;
+                state.personalListStatus.wishlistLoading = false;
+                state.personalListStatus.watchlistLoading = false;
+                state.dailyDigestStatus.loading = false;
+                state.personalizedStatus.error = error;
+                state.personalListStatus.wishlistError = error;
+                state.personalListStatus.watchlistError = error;
+                state.dailyDigestStatus.error = error;
+                renderError(ui.dailyDigestList, "Failed to load daily digest.");
+                renderError(ui.opportunityRadarGrid, "Failed to load opportunity radar.");
+                renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");
+                renderError(ui.wishlistList, "Failed to load wishlist.");
+                renderError(ui.watchlistList, "Failed to load watchlist.");
+            }
+        }
+
+        function scheduleDeferredHomepageStage() {
+            const run = () => {
+                void runDeferredHomepageStage();
+            };
+            const hasIdleCallback = typeof window.requestIdleCallback === "function";
+            if (hasIdleCallback) {
+                window.requestIdleCallback(() => run(), { timeout: 1500 });
+                return;
+            }
+            requestAnimationFrame(() => {
+                setTimeout(run, 180);
+            });
+        }
+
         async function toggleWishlist(gameOrName, gameId = null) {
             const target = normalizeWishlistTarget(gameOrName, gameId);
             if (target.game_id === null && target.game_name) {
@@ -10822,44 +10927,7 @@ input:focus-visible {
                 applyDiscoverySectionOrder();
                 wireResponsiveHomepageLayout();
                 state.lastVisitTs = getStoredLastVisitTs();
-                renderSkeleton(ui.seasonalSaleTopGrid, "deal-cards", 4, { cardClass: "game-card" });
-                renderSkeleton(ui.seasonalSaleLowerGrid, "deal-cards", 4, { cardClass: "game-card" });
-                renderSkeleton(ui.dealRankedGrid, "deal-cards", 6, { cardClass: "game-card" });
-                renderSkeleton(ui.opportunitiesGrid, "deal-cards", 6, { cardClass: "game-card" });
-                renderSkeleton(ui.opportunityRadarGrid, "deal-cards", 6, { cardClass: "game-card" });
-                state.personalizedStatus.enabled = true;
-                state.personalizedStatus.loading = true;
-                state.personalizedStatus.error = null;
-                state.personalizedStatus.personalized = false;
-                state.personalizedStatus.fallbackMode = isDefaultOrAnonymousUserId(CURRENT_USER_ID);
-                state.dailyDigestStatus.loading = true;
-                state.dailyDigestStatus.error = null;
-                setPanelVisibility(ui.recommendedForYouPanel, true);
-                renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
-                renderSkeleton(ui.worthBuyingGrid, "deal-cards", 6, { cardClass: "game-card" });
-                renderSkeleton(ui.trendingDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
-                renderSkeleton(ui.newHistoricalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
-                renderSkeleton(ui.newDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
-                renderSkeleton(ui.recommendedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
-                renderSkeleton(ui.historicalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
-                renderSkeleton(ui.releasedGamesGrid, "deal-cards", 2, { cardClass: "game-card", compact: true });
-                renderSkeleton(ui.topReviewedGrid, "deal-cards", 6, { cardClass: "game-card" });
-                renderSkeleton(ui.upcomingGrid, "deal-cards", 2, { cardClass: "game-card", compact: true });
-                renderSkeleton(ui.recentlyUpdatedList, "mini-list", 3, { itemClass: "mini-item" });
-                renderSkeleton(ui.topPlayedList, "mini-list", 4, { itemClass: "mini-item" });
-                renderSkeleton(ui.trendingList, "mini-list", 4, { itemClass: "mini-item" });
-                renderSkeleton(ui.dailyDigestList, "panel-list", 4, { itemClass: "digest-item" });
-                renderSkeleton(ui.alertsList, "mini-list", 4, { itemClass: "mini-item" });
-                renderSkeleton(ui.dealRadarFeed, "radar-list", 4, { itemClass: "deal-radar-card", thumbClass: "deal-radar-thumb" });
-                renderSkeleton(ui.leaderboardList, "mini-list", 4, { itemClass: "mini-item" });
-                renderSkeleton(ui.wishlistList, "mini-list", 3, { itemClass: "mini-item" });
-                renderSkeleton(ui.watchlistList, "mini-list", 3, { itemClass: "mini-item" });
-                state.personalListStatus.wishlistLoading = true;
-                state.personalListStatus.watchlistLoading = true;
-                state.personalListStatus.wishlistError = null;
-                state.personalListStatus.watchlistError = null;
-                setPanelVisibility(ui.wishlistPanel, true);
-                setPanelVisibility(ui.watchlistPanel, true);
+                renderCriticalHomepageSkeletons();
 
                 wireFilters();
                 wireScrollBehavior();
@@ -10882,16 +10950,9 @@ input:focus-visible {
                 ui.includeFreeCheckbox.checked = state.filters.includeFree;
                 ui.dealsOnlyCheckbox.checked = state.filters.dealsOnly;
 
-                const data = await loadDashboardData();
-                applyFilterOptionsToControls(data.filters || {});
-                applyAllRenders();
-                syncCardActionButtonsFromState();
-                requestAnimationFrame(() => {
-                    setTimeout(() => {
-                        void loadDeferredHomepageData(data);
-                    }, 0);
-                });
+                await loadCriticalHomepageData();
                 setStoredLastVisitTs(Date.now());
+                scheduleDeferredHomepageStage();
 
                 enableInfiniteScroll(
                     "upcomingGrid",
@@ -10900,38 +10961,8 @@ input:focus-visible {
                 );
             } catch (error) {
                 console.error(error);
-                state.personalListStatus.wishlistLoading = false;
-                state.personalListStatus.watchlistLoading = false;
-                state.personalListStatus.wishlistError = error;
-                state.personalListStatus.watchlistError = error;
-                state.dailyDigestStatus.loading = false;
-                state.dailyDigestStatus.error = error;
-                setPanelVisibility(ui.wishlistPanel, true);
-                setPanelVisibility(ui.watchlistPanel, true);
-                renderError(ui.seasonalSaleTopGrid, "Failed to load seasonal radar.");
-                renderError(ui.seasonalSaleLowerGrid, "Failed to load seasonal radar.");
-                renderError(ui.dealRankedGrid, "Failed to load biggest discounts.");
                 renderError(ui.opportunitiesGrid, "Failed to load opportunities.");
-                renderError(ui.opportunityRadarGrid, "Failed to load opportunity radar.");
-                renderError(ui.dailyDigestList, "Failed to load daily digest.");
-                setPanelVisibility(ui.recommendedForYouPanel, true);
-                renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");
-                renderError(ui.worthBuyingGrid, "Failed to load worth-buying picks.");
-                renderError(ui.trendingDealsGrid, "Failed to load trending now.");
-                renderError(ui.newHistoricalLowsGrid, "Failed to load new historical lows.");
-                renderError(ui.newDealsGrid, "Failed to load buy-now picks.");
-                renderError(ui.recommendedDealsGrid, "Failed to load wait picks.");
-                renderError(ui.historicalLowsGrid, "Failed to load historical lows.");
-                renderError(ui.releasedGamesGrid, "Failed to load featured games.");
-                renderError(ui.topReviewedGrid, "Failed to load top reviewed games.");
-                renderError(ui.upcomingGrid, "Failed to load upcoming releases.");
-                renderError(ui.topPlayedList, "Failed to load top played.");
-                renderError(ui.trendingList, "Failed to load trending.");
-                renderError(ui.alertsList, "Failed to load alerts.");
-                renderError(ui.dealRadarFeed, "Failed to load market radar.");
-                renderError(ui.leaderboardList, "Failed to load leaderboard.");
-                renderError(ui.wishlistList, "Failed to load wishlist.");
-                renderError(ui.watchlistList, "Failed to load watchlist.");
+                scheduleDeferredHomepageStage();
             }
         }
 

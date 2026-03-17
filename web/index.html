@@ -4150,6 +4150,14 @@ input:focus-visible {
         const HERO_LOGO_SESSION_KEY = "gameden.hero_logo_intro_played";
         const HERO_LOGO_FALLBACK_TIMEOUT_MS = 8000;
         const HERO_LOGO_FADE_DURATION_MS = 340;
+        const HOMEPAGE_SECTION_LIMITS = Object.freeze({
+            marketRadar: 24,
+            dealOpportunities: 24,
+            opportunityRadar: 24,
+            personalizedDeals: 24,
+            alertSignals: 40,
+            dailyDigestSection: 6,
+        });
 
         function getCurrentUserId() {
             const fallback = DEFAULT_USER_ID;
@@ -6063,6 +6071,23 @@ input:focus-visible {
 
                     return String(candidate.dataset.gameName || "").trim().toLowerCase() === normalizedName;
                 });
+        }
+
+        function syncCardActionButtonsFromState() {
+            const buttons = document.querySelectorAll("button[data-action][data-game-name]");
+            buttons.forEach((button) => {
+                if (!(button instanceof HTMLButtonElement)) return;
+                const action = String(button.dataset.action || "").trim().toLowerCase();
+                const gameName = String(button.dataset.gameName || "").trim();
+                if (!gameName) return;
+                const gameIdValue = Number(button.dataset.gameId || 0);
+                const resolvedGameId = Number.isFinite(gameIdValue) && gameIdValue > 0 ? gameIdValue : null;
+                if (action === "wishlist") {
+                    setCardActionButtonState(button, isInWishlist(gameName, resolvedGameId));
+                } else if (action === "watchlist") {
+                    setCardActionButtonState(button, isInWatchlist(gameName, resolvedGameId));
+                }
+            });
         }
 
         function setCardActionButtonsPending(buttons, isPending) {
@@ -8045,7 +8070,7 @@ input:focus-visible {
             });
         }
 
-        function buildYourDealsFallbackRows(limit = 48) {
+        function buildYourDealsFallbackRows(limit = 24) {
             const candidatePool = uniqueGamesByName([
                 ...safeArray(state.trendingNow),
                 ...safeArray(state.discoveryTrending),
@@ -8083,7 +8108,7 @@ input:focus-visible {
             const loading = !!state.personalizedStatus?.loading;
             const error = state.personalizedStatus?.error;
             const apiItems = safeArray(state.personalizedDeals);
-            const fallbackRows = buildYourDealsFallbackRows(48);
+            const fallbackRows = buildYourDealsFallbackRows(HOMEPAGE_SECTION_LIMITS.personalizedDeals);
             const fallbackMode = !knownUser || !!state.personalizedStatus?.fallbackMode;
             const useFallbackRows = fallbackMode && !apiItems.length;
             const displayItems = useFallbackRows ? fallbackRows : apiItems;
@@ -9321,6 +9346,56 @@ input:focus-visible {
             select.innerHTML = options.join("");
         }
 
+        function hasFilterOptions(filters) {
+            return !!(
+                filters
+                && (
+                    safeArray(filters.genres).length
+                    || safeArray(filters.tags).length
+                    || safeArray(filters.platforms).length
+                    || safeArray(filters.review_labels).length
+                )
+            );
+        }
+
+        function restoreSelectValue(select, value) {
+            if (!select) return;
+            const normalizedValue = String(value || "");
+            const hasMatchingOption = Array.from(select.options).some((option) => option.value === normalizedValue);
+            select.value = hasMatchingOption ? normalizedValue : "";
+        }
+
+        function applyFilterOptionsToControls(filters) {
+            populateSelect(ui.genreSelect, safeArray(filters?.genres), "All genres");
+            populateSelect(ui.tagSelect, safeArray(filters?.tags), "All tags");
+            populateSelect(ui.platformSelect, safeArray(filters?.platforms), "All platforms");
+            populateSelect(ui.reviewLabelSelect, safeArray(filters?.review_labels), "All review labels");
+            restoreSelectValue(ui.genreSelect, state.filters.genre);
+            restoreSelectValue(ui.tagSelect, state.filters.tag);
+            restoreSelectValue(ui.platformSelect, state.filters.platform);
+            restoreSelectValue(ui.reviewLabelSelect, state.filters.reviewLabel);
+        }
+
+        function buildMergedDashboardFilters(dashboardFilters = {}, fallbackFilters = {}, releasedPayload = null) {
+            const derivedFilters = collectFilterOptionsFromGames([
+                ...safeArray(releasedPayload?.items || releasedPayload || []),
+                ...state.latestPrices,
+                ...state.topReviewed,
+                ...state.trendingDeals,
+            ]);
+            return buildFilterOptions(
+                dashboardFilters || {},
+                {
+                    ...fallbackFilters,
+                    ...derivedFilters,
+                    genres: [...safeArray(fallbackFilters?.genres), ...safeArray(derivedFilters?.genres)],
+                    tags: [...safeArray(fallbackFilters?.tags), ...safeArray(derivedFilters?.tags)],
+                    platforms: [...safeArray(fallbackFilters?.platforms), ...safeArray(derivedFilters?.platforms)],
+                    review_labels: [...safeArray(fallbackFilters?.review_labels), ...safeArray(derivedFilters?.review_labels)],
+                },
+            );
+        }
+
         function hydrateDashboardState(
             dashboardPayload,
             seasonalPayload,
@@ -9547,6 +9622,11 @@ input:focus-visible {
             const emptyOpportunities = { items: [] };
             const emptyOpportunityRadar = { items: [] };
             const emptyDailyDigest = { sections: {}, highlights: [], counts: {} };
+            const marketRadarEndpointUrl = `/api/market-radar?limit=${HOMEPAGE_SECTION_LIMITS.marketRadar}`;
+            const dealRadarEndpointUrl = `/api/deal-radar?limit=${HOMEPAGE_SECTION_LIMITS.marketRadar}`;
+            const opportunitiesEndpointUrl = `/api/deal-opportunities?limit=${HOMEPAGE_SECTION_LIMITS.dealOpportunities}`;
+            const opportunityRadarEndpointUrl = `/api/opportunity-radar?limit=${HOMEPAGE_SECTION_LIMITS.opportunityRadar}`;
+            const dailyDigestEndpointUrl = `/api/daily-digest?user_id=${encodeURIComponent(CURRENT_USER_ID)}&section_limit=${HOMEPAGE_SECTION_LIMITS.dailyDigestSection}`;
 
             let dashboardData = null;
             let seasonalData = emptySeasonal;
@@ -9562,9 +9642,6 @@ input:focus-visible {
                 const dashboardSeasonal = normalizeSeasonalPayload(
                     dashboardData?.seasonalSale || dashboardData?.seasonal_summary || null
                 );
-                seasonalData = (dashboardSeasonal.sale_event || safeArray(dashboardSeasonal.expected_games).length)
-                    ? dashboardSeasonal
-                    : await fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal);
 
                 const dashboardReleasedSeed = uniqueGamesByName([
                     ...safeArray(dashboardData?.releasedGames),
@@ -9584,49 +9661,51 @@ input:focus-visible {
                     ...safeArray(dashboardData?.new_historical_lows),
                     ...safeArray(dashboardData?.upcoming),
                 ]);
-                releasedData = dashboardReleasedSeed.length
-                    ? { items: dashboardReleasedSeed }
-                    : await fetchJson(`/games/released?${releasedParams.toString()}`).catch(() => emptyReleased);
 
                 const dashboardDealRadarSeed = safeArray(dashboardData?.deal_radar).length
                     ? safeArray(dashboardData?.deal_radar)
                     : safeArray(dashboardData?.marketRadar).length
                     ? safeArray(dashboardData?.marketRadar)
                     : safeArray(dashboardData?.dealRadar);
-                dealRadarData = dashboardDealRadarSeed.length
-                    ? { items: dashboardDealRadarSeed }
-                    : await fetchJson("/api/market-radar?limit=50")
-                        .catch(() => fetchJson("/api/deal-radar?limit=50"))
-                        .catch(() => emptyDealRadar);
 
                 const dashboardOpportunitySeed = safeArray(dashboardData?.deal_opportunities).length
                     ? safeArray(dashboardData?.deal_opportunities)
                     : safeArray(dashboardData?.dealOpportunities);
-                opportunitiesData = dashboardOpportunitySeed.length
-                    ? { items: dashboardOpportunitySeed }
-                    : await fetchJson("/api/deal-opportunities?limit=48")
-                        .catch(() => emptyOpportunities);
 
                 const dashboardOpportunityRadarSeed = safeArray(dashboardData?.opportunity_radar).length
                     ? safeArray(dashboardData?.opportunity_radar)
                     : safeArray(dashboardData?.opportunityRadar);
-                opportunityRadarData = dashboardOpportunityRadarSeed.length
-                    ? { items: dashboardOpportunityRadarSeed }
-                    : await fetchJson("/api/opportunity-radar?limit=48")
-                        .catch(() => emptyOpportunityRadar);
 
                 const dashboardDigestSeed = dashboardData?.daily_digest || dashboardData?.dailyDigest;
-                const digestEndpointUrl = `/api/daily-digest?user_id=${encodeURIComponent(CURRENT_USER_ID)}&section_limit=8`;
-                dailyDigestData = (
-                    dashboardDigestSeed
-                    && typeof dashboardDigestSeed === "object"
-                    && (
-                        (dashboardDigestSeed.sections && typeof dashboardDigestSeed.sections === "object")
-                        || safeArray(dashboardDigestSeed.highlights).length
+                [seasonalData, releasedData, dealRadarData, opportunitiesData, opportunityRadarData, dailyDigestData] = await Promise.all([
+                    (dashboardSeasonal.sale_event || safeArray(dashboardSeasonal.expected_games).length)
+                        ? Promise.resolve(dashboardSeasonal)
+                        : fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal),
+                    dashboardReleasedSeed.length
+                        ? Promise.resolve({ items: dashboardReleasedSeed })
+                        : fetchJson(`/games/released?${releasedParams.toString()}`).catch(() => emptyReleased),
+                    dashboardDealRadarSeed.length
+                        ? Promise.resolve({ items: dashboardDealRadarSeed })
+                        : fetchJson(marketRadarEndpointUrl)
+                            .catch(() => fetchJson(dealRadarEndpointUrl))
+                            .catch(() => emptyDealRadar),
+                    dashboardOpportunitySeed.length
+                        ? Promise.resolve({ items: dashboardOpportunitySeed })
+                        : fetchJson(opportunitiesEndpointUrl).catch(() => emptyOpportunities),
+                    dashboardOpportunityRadarSeed.length
+                        ? Promise.resolve({ items: dashboardOpportunityRadarSeed })
+                        : fetchJson(opportunityRadarEndpointUrl).catch(() => emptyOpportunityRadar),
+                    (
+                        dashboardDigestSeed
+                        && typeof dashboardDigestSeed === "object"
+                        && (
+                            (dashboardDigestSeed.sections && typeof dashboardDigestSeed.sections === "object")
+                            || safeArray(dashboardDigestSeed.highlights).length
+                        )
                     )
-                )
-                    ? dashboardDigestSeed
-                    : await fetchJson(digestEndpointUrl).catch(() => emptyDailyDigest);
+                        ? Promise.resolve(dashboardDigestSeed)
+                        : fetchJson(dailyDigestEndpointUrl).catch(() => emptyDailyDigest),
+                ]);
             } catch (dashboardError) {
                 console.warn("Failed to load /dashboard/home, using endpoint fallbacks", dashboardError);
                 dashboardData = {
@@ -9665,12 +9744,12 @@ input:focus-visible {
                 [seasonalData, releasedData, dealRadarData, opportunitiesData, opportunityRadarData, dailyDigestData] = await Promise.all([
                     fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal),
                     fetchJson(`/games/released?${releasedParams.toString()}`).catch(() => emptyReleased),
-                    fetchJson("/api/market-radar?limit=50")
-                        .catch(() => fetchJson("/api/deal-radar?limit=50"))
+                    fetchJson(marketRadarEndpointUrl)
+                        .catch(() => fetchJson(dealRadarEndpointUrl))
                         .catch(() => emptyDealRadar),
-                    fetchJson("/api/deal-opportunities?limit=48").catch(() => emptyOpportunities),
-                    fetchJson("/api/opportunity-radar?limit=48").catch(() => emptyOpportunityRadar),
-                    fetchJson(`/api/daily-digest?user_id=${encodeURIComponent(CURRENT_USER_ID)}&section_limit=8`).catch(() => emptyDailyDigest),
+                    fetchJson(opportunitiesEndpointUrl).catch(() => emptyOpportunities),
+                    fetchJson(opportunityRadarEndpointUrl).catch(() => emptyOpportunityRadar),
+                    fetchJson(dailyDigestEndpointUrl).catch(() => emptyDailyDigest),
                 ]);
             }
             hydrateDashboardState(
@@ -9683,62 +9762,7 @@ input:focus-visible {
                 dailyDigestData,
             );
             seedCatalogFromPayload(releasedData);
-            const [, , userAlertSignals, personalizedDeals] = await Promise.all([
-                loadUserWatchlist().catch((error) => {
-                    console.warn("Failed to load user watchlist", error);
-                    return [];
-                }),
-                loadUserWishlist().catch((error) => {
-                    console.warn("Failed to load user wishlist", error);
-                    return [];
-                }),
-                loadUserAlertSignals().catch((error) => {
-                    console.warn("Failed to load user alerts", error);
-                    return [];
-                }),
-                loadPersonalizedDeals().catch((error) => {
-                    console.warn("Failed to load personalized deals", error);
-                    return [];
-                }),
-            ]);
-            if (safeArray(userAlertSignals).length) {
-                state.alertSignals = uniqueAlertSignals([
-                    ...safeArray(state.alertSignals),
-                    ...safeArray(userAlertSignals),
-                ]);
-            }
-            if (!state.personalizedStatus.error) {
-                state.personalizedDeals = uniqueGamesByName(personalizedDeals || []);
-            }
-            const hasDashboardFilters = !!(
-                dashboardData?.filters
-                && (
-                    safeArray(dashboardData.filters.genres).length
-                    || safeArray(dashboardData.filters.tags).length
-                    || safeArray(dashboardData.filters.platforms).length
-                    || safeArray(dashboardData.filters.review_labels).length
-                )
-            );
-            const filtersFallback = hasDashboardFilters
-                ? {}
-                : await fetchJson("/games/filters").catch(() => ({}));
-            const derivedFilters = collectFilterOptionsFromGames([
-                ...safeArray(releasedData?.items),
-                ...state.latestPrices,
-                ...state.topReviewed,
-                ...state.trendingDeals,
-            ]);
-            dashboardData.filters = buildFilterOptions(
-                dashboardData?.filters || {},
-                {
-                    ...filtersFallback,
-                    ...derivedFilters,
-                    genres: [...safeArray(filtersFallback?.genres), ...safeArray(derivedFilters?.genres)],
-                    tags: [...safeArray(filtersFallback?.tags), ...safeArray(derivedFilters?.tags)],
-                    platforms: [...safeArray(filtersFallback?.platforms), ...safeArray(derivedFilters?.platforms)],
-                    review_labels: [...safeArray(filtersFallback?.review_labels), ...safeArray(derivedFilters?.review_labels)],
-                },
-            );
+            dashboardData.filters = buildMergedDashboardFilters(dashboardData?.filters || {}, {}, releasedData);
             return dashboardData;
         }
 
@@ -9752,7 +9776,7 @@ input:focus-visible {
             state.personalizedStatus.loading = true;
             try {
                 const payload = await fetchJson(
-                    `/api/personalized-deals?user_id=${encodeURIComponent(CURRENT_USER_ID)}&limit=48`,
+                    `/api/personalized-deals?user_id=${encodeURIComponent(CURRENT_USER_ID)}&limit=${HOMEPAGE_SECTION_LIMITS.personalizedDeals}`,
                 );
                 const items = uniqueGamesByName(payload?.items || payload || []);
                 const personalized = !!payload?.personalized && knownUser;
@@ -9811,7 +9835,7 @@ input:focus-visible {
         }
 
         async function loadUserAlertSignals() {
-            const payload = await fetchJson(`/api/alerts?user_id=${encodeURIComponent(CURRENT_USER_ID)}&limit=120`);
+            const payload = await fetchJson(`/api/alerts?user_id=${encodeURIComponent(CURRENT_USER_ID)}&limit=${HOMEPAGE_SECTION_LIMITS.alertSignals}`);
             const items = safeArray(payload?.items || payload)
                 .map((row) => {
                     const normalized = normalizeGameRow(row);
@@ -9833,6 +9857,65 @@ input:focus-visible {
                 })
                 .filter((row) => row && row.game_name && row.alert_type);
             return uniqueAlertSignals(items);
+        }
+
+        async function loadDeferredHomepageData(dashboardData) {
+            const deferredUserDataPromise = Promise.all([
+                loadUserWatchlist().catch((error) => {
+                    console.warn("Failed to load user watchlist", error);
+                    return [];
+                }),
+                loadUserWishlist().catch((error) => {
+                    console.warn("Failed to load user wishlist", error);
+                    return [];
+                }),
+                loadUserAlertSignals().catch((error) => {
+                    console.warn("Failed to load user alerts", error);
+                    return [];
+                }),
+                loadPersonalizedDeals().catch((error) => {
+                    console.warn("Failed to load personalized deals", error);
+                    return [];
+                }),
+            ]);
+
+            const needsFiltersFallback = !hasFilterOptions(dashboardData?.filters);
+            const filtersFallbackPromise = needsFiltersFallback
+                ? fetchJson("/games/filters").catch((error) => {
+                    console.warn("Failed to load filter options fallback", error);
+                    return null;
+                })
+                : Promise.resolve(null);
+
+            const [[, , userAlertSignals, personalizedDeals], filtersFallback] = await Promise.all([
+                deferredUserDataPromise,
+                filtersFallbackPromise,
+            ]);
+
+            if (safeArray(userAlertSignals).length) {
+                state.alertSignals = uniqueAlertSignals([
+                    ...safeArray(state.alertSignals),
+                    ...safeArray(userAlertSignals),
+                ]);
+            }
+            if (!state.personalizedStatus.error) {
+                state.personalizedDeals = uniqueGamesByName(personalizedDeals || []);
+            }
+
+            if (filtersFallback && typeof filtersFallback === "object") {
+                dashboardData.filters = buildMergedDashboardFilters(
+                    dashboardData?.filters || {},
+                    filtersFallback,
+                    { items: state.latestPrices },
+                );
+                applyFilterOptionsToControls(dashboardData.filters);
+            }
+
+            renderPersonalizedDeals();
+            renderWishlist();
+            renderWatchlist();
+            renderAlerts();
+            syncCardActionButtonsFromState();
         }
 
         async function toggleWishlist(gameOrName, gameId = null) {
@@ -10800,11 +10883,14 @@ input:focus-visible {
                 ui.dealsOnlyCheckbox.checked = state.filters.dealsOnly;
 
                 const data = await loadDashboardData();
-                populateSelect(ui.genreSelect, data.filters?.genres || [], "All genres");
-                populateSelect(ui.tagSelect, data.filters?.tags || [], "All tags");
-                populateSelect(ui.platformSelect, data.filters?.platforms || [], "All platforms");
-                populateSelect(ui.reviewLabelSelect, data.filters?.review_labels || [], "All review labels");
+                applyFilterOptionsToControls(data.filters || {});
                 applyAllRenders();
+                syncCardActionButtonsFromState();
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        void loadDeferredHomepageData(data);
+                    }, 0);
+                });
                 setStoredLastVisitTs(Date.now());
 
                 enableInfiniteScroll(

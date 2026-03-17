@@ -1810,7 +1810,7 @@ def _build_share_deal_svg(snapshot: GameSnapshot, game_id: int) -> str:
 
 
 def _build_personalized_deal_item(
-    snapshot: GameSnapshot,
+    snapshot: FeedProjectionRow,
     *,
     wishlist_game_ids: set[int],
     watchlist_game_ids: set[int],
@@ -6377,16 +6377,41 @@ def list_personalized_deals(
             recent_game_ids=recent_game_ids,
         )
 
-        candidate_limit = max(
-            PERSONALIZED_MIN_CANDIDATES,
-            min(PERSONALIZED_MAX_CANDIDATES, normalized_limit * PERSONALIZED_QUERY_MULTIPLIER),
+        query_multiplier = (
+            PERSONALIZED_QUERY_MULTIPLIER
+            if personalization_enabled
+            else max(4, PERSONALIZED_QUERY_MULTIPLIER // 2)
         )
-        candidate_rows = (
-            session.query(GameSnapshot)
-            .filter(
-                GameSnapshot.is_released == 1,
-                or_(GameSnapshot.is_upcoming.is_(False), GameSnapshot.is_upcoming.is_(None)),
-                GameSnapshot.latest_price.isnot(None),
+        minimum_candidate_pool = (
+            PERSONALIZED_MIN_CANDIDATES
+            if personalization_enabled
+            else max(60, PERSONALIZED_MIN_CANDIDATES // 2)
+        )
+        candidate_limit = max(
+            minimum_candidate_pool,
+            min(PERSONALIZED_MAX_CANDIDATES, normalized_limit * query_multiplier),
+        )
+        candidate_rows = _query_release_feed_rows(
+            session,
+            limit=candidate_limit,
+            projection_filters=[
+                or_(
+                    GameDiscoveryFeed.latest_discount_percent > 0,
+                    GameDiscoveryFeed.deal_score >= 45,
+                    GameDiscoveryFeed.buy_score >= 45,
+                    GameDiscoveryFeed.worth_buying_score >= 45,
+                    GameDiscoveryFeed.deal_opportunity_score >= 45,
+                    GameDiscoveryFeed.trending_score >= 45,
+                    GameDiscoveryFeed.momentum_score >= 45,
+                    GameDiscoveryFeed.popularity_score >= 50,
+                    GameDiscoveryFeed.historical_status.in_([
+                        "new_historical_low",
+                        "matches_historical_low",
+                        "near_historical_low",
+                    ]),
+                ),
+            ],
+            snapshot_filters=[
                 or_(
                     GameSnapshot.latest_discount_percent > 0,
                     GameSnapshot.deal_score >= 45,
@@ -6402,8 +6427,20 @@ def list_personalized_deals(
                         "near_historical_low",
                     ]),
                 ),
-            )
-            .order_by(
+            ],
+            projection_order_by=[
+                GameDiscoveryFeed.buy_score.desc().nullslast(),
+                GameDiscoveryFeed.worth_buying_score.desc().nullslast(),
+                GameDiscoveryFeed.deal_score.desc().nullslast(),
+                GameDiscoveryFeed.deal_opportunity_score.desc().nullslast(),
+                GameDiscoveryFeed.trending_score.desc().nullslast(),
+                GameDiscoveryFeed.latest_discount_percent.desc().nullslast(),
+                GameDiscoveryFeed.momentum_score.desc().nullslast(),
+                GameDiscoveryFeed.popularity_score.desc().nullslast(),
+                GameDiscoveryFeed.updated_at.desc().nullslast(),
+                GameDiscoveryFeed.game_id.asc(),
+            ],
+            snapshot_order_by=[
                 GameSnapshot.buy_score.desc().nullslast(),
                 GameSnapshot.worth_buying_score.desc().nullslast(),
                 GameSnapshot.deal_score.desc().nullslast(),
@@ -6414,14 +6451,12 @@ def list_personalized_deals(
                 GameSnapshot.popularity_score.desc().nullslast(),
                 GameSnapshot.updated_at.desc().nullslast(),
                 GameSnapshot.game_id.asc(),
-            )
-            .limit(candidate_limit)
-            .all()
+            ],
         )
 
         candidate_game_ids = [int(snapshot.game_id) for snapshot in candidate_rows]
         recent_event_counts: dict[int, int] = {}
-        if candidate_game_ids:
+        if personalization_enabled and candidate_game_ids:
             event_rows = (
                 session.query(
                     DealEvent.game_id,
@@ -6460,12 +6495,23 @@ def list_personalized_deals(
         personalized_scored_count = len(scored_rows)
 
         if len(scored_rows) < normalized_limit:
-            fallback_rows = (
-                session.query(GameSnapshot)
-                .filter(
-                    GameSnapshot.is_released == 1,
-                    or_(GameSnapshot.is_upcoming.is_(False), GameSnapshot.is_upcoming.is_(None)),
-                    GameSnapshot.latest_price.isnot(None),
+            fallback_rows = _query_release_feed_rows(
+                session,
+                limit=candidate_limit,
+                projection_filters=[
+                    or_(
+                        GameDiscoveryFeed.trending_score >= 45,
+                        GameDiscoveryFeed.deal_score >= 45,
+                        GameDiscoveryFeed.deal_opportunity_score >= 45,
+                        GameDiscoveryFeed.latest_discount_percent >= 20,
+                        GameDiscoveryFeed.historical_status.in_([
+                            "new_historical_low",
+                            "matches_historical_low",
+                            "near_historical_low",
+                        ]),
+                    ),
+                ],
+                snapshot_filters=[
                     or_(
                         GameSnapshot.trending_score >= 45,
                         GameSnapshot.deal_score >= 45,
@@ -6477,8 +6523,17 @@ def list_personalized_deals(
                             "near_historical_low",
                         ]),
                     ),
-                )
-                .order_by(
+                ],
+                projection_order_by=[
+                    GameDiscoveryFeed.trending_score.desc().nullslast(),
+                    GameDiscoveryFeed.deal_score.desc().nullslast(),
+                    GameDiscoveryFeed.deal_opportunity_score.desc().nullslast(),
+                    GameDiscoveryFeed.latest_discount_percent.desc().nullslast(),
+                    GameDiscoveryFeed.popularity_score.desc().nullslast(),
+                    GameDiscoveryFeed.updated_at.desc().nullslast(),
+                    GameDiscoveryFeed.game_id.asc(),
+                ],
+                snapshot_order_by=[
                     GameSnapshot.trending_score.desc().nullslast(),
                     GameSnapshot.deal_score.desc().nullslast(),
                     GameSnapshot.deal_opportunity_score.desc().nullslast(),
@@ -6486,9 +6541,7 @@ def list_personalized_deals(
                     GameSnapshot.popularity_score.desc().nullslast(),
                     GameSnapshot.updated_at.desc().nullslast(),
                     GameSnapshot.game_id.asc(),
-                )
-                .limit(candidate_limit)
-                .all()
+                ],
             )
             seen_game_ids = {int(safe_num(item.get("game_id"), 0.0)) for _, _, item in scored_rows}
             for snapshot in fallback_rows:

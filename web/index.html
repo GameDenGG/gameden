@@ -8917,6 +8917,89 @@ input:focus-visible {
             ui.searchResultsPop.classList.remove("open");
         }
 
+        function collectSearchFallbackPool() {
+            return uniqueGamesByName([
+                ...safeArray(state.allGames),
+                ...safeArray(state.latestPrices),
+                ...safeArray(state.dealRanked),
+                ...safeArray(state.recommendedDeals),
+                ...safeArray(state.worthBuyingNow),
+                ...safeArray(state.trendingDeals),
+                ...safeArray(state.newHistoricalLows),
+                ...safeArray(state.topReviewed),
+                ...safeArray(state.topPlayed),
+                ...safeArray(state.trending),
+                ...safeArray(state.leaderboard),
+            ].map(normalizeGameRow));
+        }
+
+        function searchFallbackPool(query, limit = 20) {
+            const normalizedQuery = String(query || "").trim().toLowerCase();
+            if (!normalizedQuery) return [];
+
+            const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean);
+            if (!queryTokens.length) return [];
+
+            const scored = [];
+            const pool = collectSearchFallbackPool();
+            for (const row of pool) {
+                const game = normalizeGameRow(row);
+                const gameName = String(game.game_name || "").trim();
+                if (!gameName) continue;
+
+                const name = gameName.toLowerCase();
+                const developer = String(game.developer || "").trim().toLowerCase();
+                const publisher = String(game.publisher || "").trim().toLowerCase();
+                const genres = safeArray(game.genres).map((value) => String(value || "").toLowerCase()).join(" ");
+                const tags = safeArray(game.tags).map((value) => String(value || "").toLowerCase()).join(" ");
+                const searchable = `${name} ${developer} ${publisher} ${genres} ${tags}`.trim();
+                if (!searchable || !queryTokens.every((token) => searchable.includes(token))) continue;
+
+                let score = 0;
+                if (name === normalizedQuery) score += 300;
+                else if (name.startsWith(normalizedQuery)) score += 240;
+                else if (name.includes(normalizedQuery)) score += 180;
+
+                if (genres.includes(normalizedQuery)) score += 150;
+                if (tags.includes(normalizedQuery)) score += 150;
+                if (developer.includes(normalizedQuery) || publisher.includes(normalizedQuery)) score += 120;
+
+                const dealScore = Number(game.deal_score);
+                if (Number.isFinite(dealScore)) score += Math.max(0, Math.min(100, dealScore));
+
+                const discount = Number(game.discount_percent);
+                if (Number.isFinite(discount)) score += Math.max(0, Math.min(65, discount));
+
+                const players = Number(game.current_players);
+                if (Number.isFinite(players) && players > 0) {
+                    score += Math.min(26, Math.log10(players + 1) * 8);
+                }
+
+                scored.push({ score, game });
+            }
+
+            scored.sort((a, b) => (
+                (b.score - a.score)
+                || String(a.game.game_name || "").localeCompare(String(b.game.game_name || ""))
+            ));
+
+            return scored.slice(0, Math.max(1, Number(limit) || 20)).map((entry) => entry.game);
+        }
+
+        function resolveSearchErrorMessage(error) {
+            const status = Number(error && error.status);
+            if (status === 429) {
+                return "Search is busy right now. Please try again in a moment.";
+            }
+            if (status >= 500 || status === 0) {
+                return "Search is temporarily unavailable.";
+            }
+            if (String(error?.message || "").toLowerCase().includes("network")) {
+                return "Search is temporarily unavailable.";
+            }
+            return "Search failed. Please try again.";
+        }
+
         async function refreshSearchResults() {
             const trimmed = String(state.filters.search || "").trim();
             if (!trimmed) {
@@ -8942,12 +9025,10 @@ input:focus-visible {
             renderSearchResults();
 
             try {
-                const params = buildReleasedCatalogParams({
-                    page: 1,
-                    pageSize: 20,
-                    searchTerm: trimmed,
-                });
-                const payload = await fetchJson(`/games/released?${params.toString()}`, { signal: controller.signal });
+                const params = new URLSearchParams();
+                params.set("q", trimmed);
+                params.set("limit", "20");
+                const payload = await fetchJson(`/search?${params.toString()}`, { signal: controller.signal });
                 const isCurrent = (
                     state.search.requestId === requestId
                     && state.search.controller === controller
@@ -8955,7 +9036,8 @@ input:focus-visible {
                 );
                 if (!isCurrent) return;
 
-                state.search.results = uniqueGamesByName(safeArray(payload?.items).map(normalizeGameRow));
+                const remoteRows = uniqueGamesByName(safeArray(payload?.items ?? payload).map(normalizeGameRow));
+                state.search.results = remoteRows;
                 state.search.loading = false;
                 state.search.error = null;
                 state.search.controller = null;
@@ -8967,8 +9049,12 @@ input:focus-visible {
                     && state.search.controller === controller
                 );
                 if (!isCurrent) return;
+
+                const fallbackRows = searchFallbackPool(trimmed, 20);
+                const hasFallback = fallbackRows.length > 0;
                 state.search.loading = false;
-                state.search.error = "Search is temporarily unavailable.";
+                state.search.results = fallbackRows;
+                state.search.error = hasFallback ? null : resolveSearchErrorMessage(error);
                 state.search.controller = null;
                 renderSearchResults();
             }

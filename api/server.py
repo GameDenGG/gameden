@@ -378,8 +378,12 @@ def _build_catalog_search_predicate(search_text: str, include_similarity: bool):
     pattern = f"%{trimmed}%"
     filters = [
         Game.name.ilike(pattern),
-        Game.developer.ilike(pattern),
-        Game.publisher.ilike(pattern),
+        func.coalesce(Game.developer, "").ilike(pattern),
+        func.coalesce(Game.publisher, "").ilike(pattern),
+        func.coalesce(Game.genres, "").ilike(pattern),
+        func.coalesce(Game.tags, "").ilike(pattern),
+        func.coalesce(GameSnapshot.genres, "").ilike(pattern),
+        func.coalesce(GameSnapshot.tags, "").ilike(pattern),
     ]
 
     normalized_search = _normalize_search_text(trimmed)
@@ -3792,8 +3796,8 @@ def search_games_fast(
         if not query_text:
             return []
 
+        normalized_query = _normalize_search_text(query_text)
         try:
-            normalized_query = _normalize_search_text(query_text)
             rows = session.execute(
                 text(
                     """
@@ -3802,6 +3806,8 @@ def search_games_fast(
                         g.name AS game_name,
                         g.developer,
                         g.publisher,
+                        COALESCE(s.genres, g.genres, '') AS genres_csv,
+                        COALESCE(s.tags, g.tags, '') AS tags_csv,
                         s.steam_appid,
                         COALESCE(s.banner_url, 'https://cdn.cloudflare.steamstatic.com/steam/apps/' || g.appid || '/header.jpg') AS image_url,
                         s.latest_price,
@@ -3822,11 +3828,15 @@ def search_games_fast(
                         g.name ILIKE ('%' || :q || '%')
                         OR COALESCE(g.developer, '') ILIKE ('%' || :q || '%')
                         OR COALESCE(g.publisher, '') ILIKE ('%' || :q || '%')
+                        OR COALESCE(s.genres, COALESCE(g.genres, '')) ILIKE ('%' || :q || '%')
+                        OR COALESCE(s.tags, COALESCE(g.tags, '')) ILIKE ('%' || :q || '%')
                         OR similarity(lower(g.name), :normalized_q) > :sim_threshold
                     ORDER BY
                         CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
                         CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
                         sim DESC,
+                        CASE WHEN lower(COALESCE(s.genres, COALESCE(g.genres, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
+                        CASE WHEN lower(COALESCE(s.tags, COALESCE(g.tags, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
                         CASE WHEN lower(g.name) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
                         COALESCE(s.deal_score, 0) DESC,
                         g.name ASC
@@ -3849,6 +3859,8 @@ def search_games_fast(
                         g.name AS game_name,
                         g.developer,
                         g.publisher,
+                        COALESCE(s.genres, g.genres, '') AS genres_csv,
+                        COALESCE(s.tags, g.tags, '') AS tags_csv,
                         s.steam_appid,
                         COALESCE(s.banner_url, 'https://cdn.cloudflare.steamstatic.com/steam/apps/' || g.appid || '/header.jpg') AS image_url,
                         s.latest_price,
@@ -3868,16 +3880,20 @@ def search_games_fast(
                         g.name ILIKE ('%' || :q || '%')
                         OR COALESCE(g.developer, '') ILIKE ('%' || :q || '%')
                         OR COALESCE(g.publisher, '') ILIKE ('%' || :q || '%')
+                        OR COALESCE(s.genres, COALESCE(g.genres, '')) ILIKE ('%' || :q || '%')
+                        OR COALESCE(s.tags, COALESCE(g.tags, '')) ILIKE ('%' || :q || '%')
                     ORDER BY
-                        CASE WHEN lower(g.name) = lower(:q) THEN 0 ELSE 1 END,
-                        CASE WHEN lower(g.name) LIKE (lower(:q) || '%') THEN 0 ELSE 1 END,
-                        CASE WHEN lower(g.name) LIKE ('%' || lower(:q) || '%') THEN 0 ELSE 1 END,
+                        CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
+                        CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+                        CASE WHEN lower(COALESCE(s.genres, COALESCE(g.genres, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
+                        CASE WHEN lower(COALESCE(s.tags, COALESCE(g.tags, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
+                        CASE WHEN lower(g.name) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
                         COALESCE(s.deal_score, 0) DESC,
                         g.name ASC
                     LIMIT :limit
                     """
                 ),
-                {"q": query_text, "limit": int(limit)},
+                {"q": query_text, "normalized_q": normalized_query, "limit": int(limit)},
             ).mappings().all()
 
         return [
@@ -3886,6 +3902,8 @@ def search_games_fast(
                 "game_name": row["game_name"],
                 "developer": row.get("developer"),
                 "publisher": row.get("publisher"),
+                "genres": parse_csv_field(row.get("genres_csv")),
+                "tags": parse_csv_field(row.get("tags_csv")),
                 "steam_appid": row["steam_appid"],
                 "banner_url": row["image_url"],
                 "image_url": row["image_url"],

@@ -549,6 +549,13 @@ a {
     border: 1px solid rgba(154,182,255,0.12);
 }
 
+.chart-empty-state {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
 .info-list,
 .prediction-list {
     display: grid;
@@ -1038,6 +1045,7 @@ a {
                     </div>
                     <div class="chart-wrap">
                         <canvas id="priceChart" height="120"></canvas>
+                        <div class="chart-empty-state" id="priceChartEmpty" hidden>Price history is not available yet for this game.</div>
                     </div>
                 </div>
             </section>
@@ -1050,6 +1058,7 @@ a {
                 <div class="panel-body">
                     <div class="chart-wrap">
                         <canvas id="playerChart" height="120"></canvas>
+                        <div class="chart-empty-state" id="playerChartEmpty" hidden>Player history is not available yet for this game.</div>
                     </div>
                 </div>
             </section>
@@ -1434,6 +1443,14 @@ function fmtDate(value) {
     return new Date(value).toLocaleDateString();
 }
 
+function setChartEmptyState(id, message = "") {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const text = String(message || "").trim();
+    el.hidden = !text;
+    el.textContent = text;
+}
+
 function escapeHtml(value) {
     return String(value ?? "")
         .replaceAll("&", "&amp;")
@@ -1777,8 +1794,17 @@ function renderDealConfidence(payload) {
 
     const confidence = resolveDealConfidence(payload);
     if (!confidence) {
-        panel.hidden = true;
-        container.innerHTML = "";
+        panel.hidden = false;
+        container.innerHTML = `
+            <div class="prediction-item">
+                <div class="prediction-title">Tier</div>
+                <div class="prediction-value">Unavailable</div>
+            </div>
+            <div class="prediction-item">
+                <div class="prediction-title">Explanation</div>
+                <div class="prediction-value info-value-compact">Confidence will appear once more snapshot signals are available.</div>
+            </div>
+        `;
         return;
     }
 
@@ -1997,15 +2023,30 @@ async function loadGame() {
     renderDealExplanation(payload.deal_explanation || {});
     renderDealConfidence(payload);
     renderPrediction(payload);
-    await loadPriceHistory(activeRange);
+    await loadPriceHistory(activeRange).catch((error) => {
+        console.warn("Price history unavailable for game detail", error);
+        renderPriceChart({ points: [], history: [] });
+    });
 
     if (Number.isFinite(currentGameId) && currentGameId > 0) {
-        await Promise.all([
+        const moduleResults = await Promise.allSettled([
             loadPlayerHistory(currentGameId),
             loadRelatedGames(currentGameId),
             syncWatchButton(),
             syncDealTargetAlert(),
         ]);
+        if (moduleResults[0].status === "rejected") {
+            console.warn("Player history unavailable for game detail", moduleResults[0].reason);
+            renderPlayerChart({ players: [] });
+        }
+        if (moduleResults[1].status === "rejected") {
+            console.warn("Related games unavailable for game detail", moduleResults[1].reason);
+            renderRelatedFallback("Related games are temporarily unavailable.");
+        }
+        if (moduleResults[3].status === "rejected") {
+            console.warn("Deal target sync unavailable for game detail", moduleResults[3].reason);
+            setTargetAlertStatus("Could not load target alert settings.", "error");
+        }
     } else {
         applyDealTargetState(null);
         setTargetAlertStatus("Target alerts require a valid game.", "error");
@@ -2018,9 +2059,17 @@ async function loadPriceHistory(range) {
     document.querySelectorAll(".range-btn").forEach((btn) => {
         btn.classList.toggle("active", btn.dataset.range === range);
     });
-    if (!Number.isFinite(currentGameId) || currentGameId <= 0) return;
-    const data = await fetchJson(`/games/${currentGameId}/price-history`);
-    renderPriceChart(data);
+    if (!Number.isFinite(currentGameId) || currentGameId <= 0) {
+        renderPriceChart({ points: [], history: [] });
+        return;
+    }
+    try {
+        const data = await fetchJson(`/games/${currentGameId}/price-history`);
+        renderPriceChart(data);
+    } catch (error) {
+        console.warn("Failed to load price history", error);
+        renderPriceChart({ points: [], history: [] });
+    }
 }
 
 async function loadPlayerHistory(gameId) {
@@ -2029,6 +2078,7 @@ async function loadPlayerHistory(gameId) {
 }
 
 async function loadRelatedGames(gameId) {
+    if (!relatedGamesEl) return;
     const payload = await fetchJson(`/games/${gameId}/related?limit=8`).catch(() => null);
     if (!payload) {
         renderRelatedFallback("No related games available right now.");
@@ -2066,6 +2116,7 @@ async function loadRelatedGames(gameId) {
 }
 
 function renderRelatedFallback(message) {
+    if (!relatedGamesEl) return;
     relatedGamesEl.innerHTML = `
         <section class="related-block">
             <h3 class="related-title">Discovery Loops</h3>
@@ -2144,6 +2195,7 @@ function renderDealExplanation(explain) {
 
 function renderPrediction(payload) {
     const el = document.getElementById("prediction");
+    if (!el) return;
     const nextPrediction = payload?.next_sale_prediction || {};
     const legacyPrediction = payload?.prediction || {};
     const expectedNextPrice = nextPrediction.expected_next_price ?? payload?.predicted_next_sale_price ?? null;
@@ -2194,11 +2246,15 @@ function renderPrediction(payload) {
 }
 
 function renderPriceChart(historyPayload) {
-    const ctx = document.getElementById("priceChart").getContext("2d");
-    const priceWrap = document.getElementById("priceChart")?.closest(".chart-wrap");
+    const canvas = document.getElementById("priceChart");
+    if (!(canvas instanceof HTMLCanvasElement)) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const priceWrap = canvas.closest(".chart-wrap");
     if (priceWrap) {
         priceWrap.classList.remove("gd-skeleton-surface");
     }
+    setChartEmptyState("priceChartEmpty", "");
     const legacyPoints = Array.isArray(historyPayload?.points) ? historyPayload.points : [];
     const sampledHistory = Array.isArray(historyPayload?.history)
         ? historyPayload.history.map((entry) => ({
@@ -2210,16 +2266,30 @@ function renderPriceChart(historyPayload) {
         }))
         : [];
     const points = legacyPoints.length ? legacyPoints : sampledHistory;
-    if (!points.length) {
-        if (priceChart) priceChart.destroy();
+    const normalizedPoints = points
+        .map((entry) => ({
+            timestamp: entry?.timestamp,
+            price: Number(entry?.price),
+            original_price: entry?.original_price,
+            discount_percent: entry?.discount_percent,
+            current_players: entry?.current_players,
+        }))
+        .filter((entry) => entry.timestamp && Number.isFinite(Date.parse(entry.timestamp)) && Number.isFinite(entry.price));
+
+    if (!normalizedPoints.length) {
+        if (priceChart) {
+            priceChart.destroy();
+            priceChart = null;
+        }
+        setChartEmptyState("priceChartEmpty", "Price history is not available yet for this game.");
         return;
     }
 
-    const labels = points.map((p) => new Date(p.timestamp).toLocaleDateString());
-    const prices = points.map((p) => p.price);
-    const originalPrices = points.map((p) => p.original_price);
-    const discounts = points.map((p) => p.discount_percent ?? 0);
-    const players = points.map((p) => p.current_players ?? null);
+    const labels = normalizedPoints.map((p) => new Date(p.timestamp).toLocaleDateString());
+    const prices = normalizedPoints.map((p) => p.price);
+    const originalPrices = normalizedPoints.map((p) => p.original_price);
+    const discounts = normalizedPoints.map((p) => p.discount_percent ?? 0);
+    const players = normalizedPoints.map((p) => p.current_players ?? null);
     const historicalLowPrice = historyPayload.historical_low?.price ?? historyPayload?.stats?.historical_low ?? null;
 
     if (priceChart) priceChart.destroy();
@@ -2232,8 +2302,8 @@ function renderPriceChart(historyPayload) {
             const markers = Array.isArray(historyPayload?.sale_markers) ? historyPayload.sale_markers : [];
             ctx.save();
             markers.forEach((marker) => {
-                const startIndex = points.findIndex((p) => p.timestamp === marker.start);
-                const endIndex = points.findIndex((p) => p.timestamp === marker.end);
+                const startIndex = normalizedPoints.findIndex((p) => p.timestamp === marker.start);
+                const endIndex = normalizedPoints.findIndex((p) => p.timestamp === marker.end);
                 if (startIndex === -1 || endIndex === -1) return;
                 const x1 = scales.x.getPixelForValue(startIndex);
                 const x2 = scales.x.getPixelForValue(endIndex);
@@ -2296,7 +2366,7 @@ function renderPriceChart(historyPayload) {
                     callbacks: {
                         title(items) {
                             const idx = items[0].dataIndex;
-                            return fmtDate(points[idx].timestamp);
+                            return fmtDate(normalizedPoints[idx].timestamp);
                         },
                         afterBody(items) {
                             const idx = items[0].dataIndex;
@@ -2324,21 +2394,32 @@ function renderPriceChart(historyPayload) {
 }
 
 function renderPlayerChart(historyPayload) {
-    const ctx = document.getElementById("playerChart").getContext("2d");
-    const playerWrap = document.getElementById("playerChart")?.closest(".chart-wrap");
+    const canvas = document.getElementById("playerChart");
+    if (!(canvas instanceof HTMLCanvasElement)) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const playerWrap = canvas.closest(".chart-wrap");
     if (playerWrap) {
         playerWrap.classList.remove("gd-skeleton-surface");
     }
+    setChartEmptyState("playerChartEmpty", "");
     const points = Array.isArray(historyPayload?.players) ? historyPayload.players : [];
-    if (!points.length) {
-        if (playerChart) playerChart.destroy();
+    const normalizedPoints = points
+        .map((entry) => ({
+            timestamp: entry?.timestamp,
+            players: Number(entry?.players),
+        }))
+        .filter((entry) => entry.timestamp && Number.isFinite(Date.parse(entry.timestamp)) && Number.isFinite(entry.players));
+    if (!normalizedPoints.length) {
+        if (playerChart) {
+            playerChart.destroy();
+            playerChart = null;
+        }
+        setChartEmptyState("playerChartEmpty", "Player history is not available yet for this game.");
         return;
     }
-    const labels = points.map((entry) => new Date(entry.timestamp).toLocaleDateString());
-    const playerValues = points.map((entry) => {
-        const value = Number(entry.players);
-        return Number.isFinite(value) ? value : null;
-    });
+    const labels = normalizedPoints.map((entry) => new Date(entry.timestamp).toLocaleDateString());
+    const playerValues = normalizedPoints.map((entry) => entry.players);
 
     if (playerChart) playerChart.destroy();
 

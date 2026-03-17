@@ -2704,6 +2704,300 @@ def calculate_prediction_v1(game: Game, latest_price, sale_rows):
     }
 
 
+def _first_non_null(*values):
+    for value in values:
+        if value is not None:
+            return value
+    return None
+
+
+def _build_snapshot_game_detail_payload(
+    game: Game,
+    snapshot: Optional[GameSnapshot],
+    latest: Optional[LatestGamePrice],
+) -> dict:
+    current_price = _first_non_null(
+        snapshot.latest_price if snapshot else None,
+        latest.latest_price if latest else None,
+    )
+    original_price = _first_non_null(
+        snapshot.latest_original_price if snapshot else None,
+        latest.original_price if latest else None,
+    )
+    discount_percent = _first_non_null(
+        snapshot.latest_discount_percent if snapshot else None,
+        latest.latest_discount_percent if latest else None,
+    )
+    current_players = _first_non_null(
+        snapshot.current_players if snapshot else None,
+        latest.current_players if latest else None,
+    )
+    historical_low_price = _first_non_null(
+        snapshot.historical_low if snapshot else None,
+        snapshot.historical_low_price if snapshot else None,
+    )
+    banner_url = (
+        (snapshot.banner_url if snapshot else None)
+        or build_steam_banner_url(game.store_url, game.appid)
+    )
+    steam_appid = (snapshot.steam_appid if snapshot else None) or game.appid
+    steam_app_id = 0
+    try:
+        steam_app_id = int(steam_appid) if steam_appid is not None else 0
+    except (TypeError, ValueError):
+        steam_app_id = 0
+
+    buy_score = (
+        snapshot.buy_score
+        if snapshot and snapshot.buy_score is not None
+        else snapshot.worth_buying_score
+        if snapshot
+        else None
+    )
+    deal_score = _first_non_null(snapshot.deal_score if snapshot else None, buy_score)
+    deal_label = f"Deal score {int(round(deal_score))}" if deal_score is not None else None
+
+    deal_summary = (
+        snapshot.worth_buying_reason_summary
+        if snapshot and snapshot.worth_buying_reason_summary
+        else snapshot.deal_heat_reason
+        if snapshot and snapshot.deal_heat_reason
+        else "Snapshot-derived market context."
+    )
+
+    worth_components = snapshot.worth_buying_components if snapshot and isinstance(snapshot.worth_buying_components, dict) else {}
+    discount_strength = None
+    historical_value = None
+    review_quality = None
+    player_interest = None
+    sale_rarity = None
+    if worth_components:
+        discount_strength = round(min(30.0, (safe_num(worth_components.get("discount_component"), 0.0) / 42.0) * 30.0), 2)
+        historical_value = round(min(25.0, (safe_num(worth_components.get("historical_low_component"), 0.0) / 16.0) * 25.0), 2)
+        review_quality = round(min(20.0, (safe_num(worth_components.get("review_component"), 0.0) / 24.0) * 20.0), 2)
+        player_blend = safe_num(worth_components.get("player_activity_component"), 0.0) + safe_num(
+            worth_components.get("player_growth_component"), 0.0
+        )
+        player_interest = round(min(15.0, (player_blend / 30.0) * 15.0), 2)
+        sale_rarity = round(min(10.0, max(0.0, safe_num(snapshot.max_discount if snapshot else 0, 0.0)) / 100.0 * 10.0), 2)
+
+    payload = {
+        "id": int(game.id),
+        "game_id": int(game.id),
+        "name": snapshot.game_name if snapshot and snapshot.game_name else game.name,
+        "game_name": snapshot.game_name if snapshot and snapshot.game_name else game.name,
+        "steam_appid": steam_appid,
+        "steam_app_id": steam_app_id,
+        "slug": None,
+        "store_url": game.store_url,
+        "share_card_url": _build_canonical_url(f"/share/deal/{int(game.id)}"),
+        "header_image": banner_url,
+        "banner_image": banner_url,
+        "banner_url": banner_url,
+        "short_description": None,
+        "developer": game.developer,
+        "publisher": game.publisher,
+        "release_date": (
+            snapshot.release_date.isoformat()
+            if snapshot and snapshot.release_date
+            else game.release_date.isoformat()
+            if game.release_date
+            else None
+        ),
+        "release_date_text": (
+            snapshot.release_date_text if snapshot and snapshot.release_date_text else game.release_date_text
+        ),
+        "review_score": (
+            snapshot.review_score
+            if snapshot and snapshot.review_score is not None
+            else game.review_score
+        ),
+        "review_score_label": (
+            snapshot.review_score_label if snapshot and snapshot.review_score_label else game.review_score_label
+        ),
+        "review_count": (
+            snapshot.review_count
+            if snapshot and snapshot.review_count is not None
+            else game.review_total_count
+        ),
+        "review_total_count": (
+            snapshot.review_count
+            if snapshot and snapshot.review_count is not None
+            else game.review_total_count
+        ),
+        "tags": parse_csv_field(_first_non_null(snapshot.tags if snapshot else None, game.tags)),
+        "genres": parse_csv_field(_first_non_null(snapshot.genres if snapshot else None, game.genres)),
+        "platforms": parse_csv_field(_first_non_null(snapshot.platforms if snapshot else None, game.platforms)),
+        "price": current_price,
+        "current_price": current_price,
+        "original_price": original_price,
+        "discount_percent": discount_percent,
+        "current_players": current_players,
+        "historical_low": historical_low_price,
+        "historical_low_price": historical_low_price,
+        "historical_low_date": (
+            snapshot.historical_low_timestamp.isoformat()
+            if snapshot and snapshot.historical_low_timestamp
+            else None
+        ),
+        "historical_status": snapshot.historical_status if snapshot else None,
+        "deal_score": deal_score,
+        "deal_label": deal_label,
+        "deal_summary": deal_summary,
+        "wishlist_count": None,
+        "watchlisted": False,
+        "market_insights": {
+            "historical_low_price": historical_low_price,
+            "historical_low_date": (
+                snapshot.historical_low_timestamp.isoformat()
+                if snapshot and snapshot.historical_low_timestamp
+                else None
+            ),
+            "avg_discount_percent": None,
+            "max_discount_percent": snapshot.max_discount if snapshot else None,
+            "sale_event_count": None,
+            "days_since_last_sale": None,
+            "latest_player_count": current_players,
+        },
+        "prediction": {},
+        "deal_explanation": {
+            "discount_strength": discount_strength,
+            "historical_value": historical_value,
+            "review_quality": review_quality,
+            "player_interest": player_interest,
+            "sale_rarity": sale_rarity,
+            "summary": deal_summary,
+        },
+        "buy_score": buy_score,
+        "buy_recommendation": snapshot.buy_recommendation if snapshot else None,
+        "buy_reason": snapshot.buy_reason if snapshot else None,
+        "price_vs_low_ratio": snapshot.price_vs_low_ratio if snapshot else None,
+        "predicted_next_sale_price": snapshot.predicted_next_sale_price if snapshot else None,
+        "predicted_next_discount_percent": snapshot.predicted_next_discount_percent if snapshot else None,
+        "predicted_next_sale_window_days_min": snapshot.predicted_next_sale_window_days_min if snapshot else None,
+        "predicted_next_sale_window_days_max": snapshot.predicted_next_sale_window_days_max if snapshot else None,
+        "predicted_sale_confidence": snapshot.predicted_sale_confidence if snapshot else None,
+        "predicted_sale_reason": snapshot.predicted_sale_reason if snapshot else None,
+        "deal_opportunity_score": snapshot.deal_opportunity_score if snapshot else None,
+        "deal_opportunity_reason": snapshot.deal_opportunity_reason if snapshot else None,
+        "deal_opportunity": {
+            "score": snapshot.deal_opportunity_score if snapshot else None,
+            "reason": snapshot.deal_opportunity_reason if snapshot else None,
+        },
+        "next_sale_prediction": {
+            "expected_next_price": snapshot.predicted_next_sale_price if snapshot else None,
+            "expected_next_discount_percent": snapshot.predicted_next_discount_percent if snapshot else None,
+            "estimated_window_days_min": snapshot.predicted_next_sale_window_days_min if snapshot else None,
+            "estimated_window_days_max": snapshot.predicted_next_sale_window_days_max if snapshot else None,
+            "confidence": snapshot.predicted_sale_confidence if snapshot else None,
+            "reason": snapshot.predicted_sale_reason if snapshot else None,
+        },
+        "worth_buying_reason_summary": snapshot.worth_buying_reason_summary if snapshot else None,
+        "worth_buying": {
+            "score": buy_score,
+            "version": snapshot.worth_buying_score_version if snapshot else None,
+            "reason": snapshot.worth_buying_reason_summary if snapshot else None,
+            "components": snapshot.worth_buying_components if snapshot and snapshot.worth_buying_components else {},
+        },
+        "momentum": {
+            "score": snapshot.momentum_score if snapshot else None,
+            "version": snapshot.momentum_score_version if snapshot else None,
+            "player_growth_ratio": snapshot.player_growth_ratio if snapshot else None,
+            "short_term_player_trend": snapshot.short_term_player_trend if snapshot else None,
+            "reason": snapshot.trend_reason_summary if snapshot else None,
+        },
+        "historical_low_radar": {
+            "hit": bool(snapshot.historical_low_hit) if snapshot else False,
+            "historical_low_price": snapshot.historical_low_price if snapshot else None,
+            "previous_historical_low_price": snapshot.previous_historical_low_price if snapshot else None,
+            "historical_low_timestamp": (
+                snapshot.historical_low_timestamp.isoformat()
+                if snapshot and snapshot.historical_low_timestamp
+                else None
+            ),
+            "reason": snapshot.historical_low_reason_summary if snapshot else None,
+        },
+        "deal_heat": {
+            "level": snapshot.deal_heat_level if snapshot else None,
+            "reason": snapshot.deal_heat_reason if snapshot else None,
+            "tags": snapshot.deal_heat_tags if snapshot and snapshot.deal_heat_tags else [],
+        },
+        "deal_heat_reason": snapshot.deal_heat_reason if snapshot else None,
+        "deal_heat_level": snapshot.deal_heat_level if snapshot else None,
+        "momentum_score": snapshot.momentum_score if snapshot else None,
+        "trend_reason_summary": snapshot.trend_reason_summary if snapshot else None,
+        "ranking_explanations": snapshot.ranking_explanations if snapshot and snapshot.ranking_explanations else {},
+        "share_card": {
+            "title": snapshot.game_name if snapshot and snapshot.game_name else game.name,
+            "cover": banner_url,
+            "image_url": _build_canonical_url(f"/share/deal/{int(game.id)}"),
+            "current_price": current_price,
+            "original_price": original_price,
+            "discount_percent": discount_percent,
+            "heat_reason": snapshot.deal_heat_reason if snapshot else None,
+            "heat_level": snapshot.deal_heat_level if snapshot else None,
+            "historical_low_hit": bool(snapshot.historical_low_hit) if snapshot else False,
+            "momentum_score": snapshot.momentum_score if snapshot else None,
+        },
+    }
+    return payload
+
+
+def _ensure_game_detail_contract(payload: dict) -> dict:
+    normalized = dict(payload or {})
+    normalized["id"] = int(normalized.get("id") or normalized.get("game_id") or 0)
+    normalized["game_id"] = int(normalized.get("game_id") or normalized.get("id") or 0)
+    fallback_name = f"Game {normalized['game_id']}" if normalized["game_id"] > 0 else "Unknown game"
+    normalized["game_name"] = normalized.get("game_name") or normalized.get("name") or fallback_name
+    normalized["name"] = normalized.get("name") or normalized["game_name"]
+    normalized["price"] = _first_non_null(normalized.get("price"), normalized.get("current_price"))
+    normalized["current_price"] = _first_non_null(normalized.get("current_price"), normalized.get("price"))
+    normalized["historical_low"] = _first_non_null(normalized.get("historical_low"), normalized.get("historical_low_price"))
+    normalized["historical_low_price"] = _first_non_null(
+        normalized.get("historical_low_price"),
+        normalized.get("historical_low"),
+    )
+    normalized.setdefault("prediction", {})
+    if not isinstance(normalized.get("prediction"), dict):
+        normalized["prediction"] = {}
+    normalized.setdefault("deal_explanation", {})
+    if not isinstance(normalized.get("deal_explanation"), dict):
+        normalized["deal_explanation"] = {}
+    normalized.setdefault("deal_opportunity", {"score": None, "reason": None})
+    if not isinstance(normalized.get("deal_opportunity"), dict):
+        normalized["deal_opportunity"] = {"score": None, "reason": None}
+    normalized.setdefault(
+        "next_sale_prediction",
+        {
+            "expected_next_price": None,
+            "expected_next_discount_percent": None,
+            "estimated_window_days_min": None,
+            "estimated_window_days_max": None,
+            "confidence": None,
+            "reason": None,
+        },
+    )
+    if not isinstance(normalized.get("next_sale_prediction"), dict):
+        normalized["next_sale_prediction"] = {
+            "expected_next_price": None,
+            "expected_next_discount_percent": None,
+            "estimated_window_days_min": None,
+            "estimated_window_days_max": None,
+            "confidence": None,
+            "reason": None,
+        }
+    normalized.setdefault("market_insights", {})
+    if not isinstance(normalized.get("market_insights"), dict):
+        normalized["market_insights"] = {}
+    if normalized["game_id"] > 0:
+        normalized["share_card_url"] = normalized.get("share_card_url") or _build_canonical_url(
+            f"/share/deal/{normalized['game_id']}"
+        )
+    else:
+        normalized["share_card_url"] = normalized.get("share_card_url")
+    return normalized
+
+
 def build_game_detail_payload(session, game: Game):
     rows = (
         session.query(GamePrice)
@@ -4575,101 +4869,19 @@ def get_game_price_history_windowed(
 
 @app.get("/games/{game_id}")
 def get_game_detail(game_id: int):
-    session = Session()
+    session = ReadSessionLocal()
     try:
         game = session.query(Game).filter(Game.id == game_id).first()
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
-        payload = build_game_detail_payload(session, game)
-        payload["buy_recommendation"] = None
-        payload["buy_reason"] = None
-        payload["price_vs_low_ratio"] = None
-        payload["predicted_next_sale_price"] = None
-        payload["predicted_next_discount_percent"] = None
-        payload["predicted_next_sale_window_days_min"] = None
-        payload["predicted_next_sale_window_days_max"] = None
-        payload["predicted_sale_confidence"] = None
-        payload["predicted_sale_reason"] = None
-        payload["share_card_url"] = _build_canonical_url(f"/share/deal/{int(game_id)}")
-        payload["deal_opportunity_score"] = None
-        payload["deal_opportunity_reason"] = None
-        payload["deal_opportunity"] = {
-            "score": None,
-            "reason": None,
-        }
-        payload["next_sale_prediction"] = {
-            "expected_next_price": None,
-            "expected_next_discount_percent": None,
-            "estimated_window_days_min": None,
-            "estimated_window_days_max": None,
-            "confidence": None,
-            "reason": None,
-        }
         snapshot = session.query(GameSnapshot).filter(GameSnapshot.game_id == game_id).first()
-        if snapshot:
-            payload["buy_recommendation"] = snapshot.buy_recommendation
-            payload["buy_reason"] = snapshot.buy_reason
-            payload["price_vs_low_ratio"] = snapshot.price_vs_low_ratio
-            payload["predicted_next_sale_price"] = snapshot.predicted_next_sale_price
-            payload["predicted_next_discount_percent"] = snapshot.predicted_next_discount_percent
-            payload["predicted_next_sale_window_days_min"] = snapshot.predicted_next_sale_window_days_min
-            payload["predicted_next_sale_window_days_max"] = snapshot.predicted_next_sale_window_days_max
-            payload["predicted_sale_confidence"] = snapshot.predicted_sale_confidence
-            payload["predicted_sale_reason"] = snapshot.predicted_sale_reason
-            payload["deal_opportunity_score"] = snapshot.deal_opportunity_score
-            payload["deal_opportunity_reason"] = snapshot.deal_opportunity_reason
-            payload["deal_opportunity"] = {
-                "score": snapshot.deal_opportunity_score,
-                "reason": snapshot.deal_opportunity_reason,
-            }
-            payload["next_sale_prediction"] = {
-                "expected_next_price": snapshot.predicted_next_sale_price,
-                "expected_next_discount_percent": snapshot.predicted_next_discount_percent,
-                "estimated_window_days_min": snapshot.predicted_next_sale_window_days_min,
-                "estimated_window_days_max": snapshot.predicted_next_sale_window_days_max,
-                "confidence": snapshot.predicted_sale_confidence,
-                "reason": snapshot.predicted_sale_reason,
-            }
-            payload["worth_buying"] = {
-                "score": snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score,
-                "version": snapshot.worth_buying_score_version,
-                "reason": snapshot.worth_buying_reason_summary,
-                "components": snapshot.worth_buying_components or {},
-            }
-            payload["buy_score"] = snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score
-            payload["momentum"] = {
-                "score": snapshot.momentum_score,
-                "version": snapshot.momentum_score_version,
-                "player_growth_ratio": snapshot.player_growth_ratio,
-                "short_term_player_trend": snapshot.short_term_player_trend,
-                "reason": snapshot.trend_reason_summary,
-            }
-            payload["historical_low_radar"] = {
-                "hit": bool(snapshot.historical_low_hit),
-                "historical_low_price": snapshot.historical_low_price,
-                "previous_historical_low_price": snapshot.previous_historical_low_price,
-                "historical_low_timestamp": snapshot.historical_low_timestamp.isoformat() if snapshot.historical_low_timestamp else None,
-                "reason": snapshot.historical_low_reason_summary,
-            }
-            payload["deal_heat"] = {
-                "level": snapshot.deal_heat_level,
-                "reason": snapshot.deal_heat_reason,
-                "tags": snapshot.deal_heat_tags or [],
-            }
-            payload["share_card"] = {
-                "title": snapshot.game_name,
-                "cover": snapshot.banner_url,
-                "image_url": payload["share_card_url"],
-                "current_price": snapshot.latest_price,
-                "original_price": snapshot.latest_original_price,
-                "discount_percent": snapshot.latest_discount_percent,
-                "heat_reason": snapshot.deal_heat_reason,
-                "heat_level": snapshot.deal_heat_level,
-                "historical_low_hit": bool(snapshot.historical_low_hit),
-                "momentum_score": snapshot.momentum_score,
-            }
-            payload["ranking_explanations"] = snapshot.ranking_explanations or {}
-        return payload
+        latest = session.query(LatestGamePrice).filter(LatestGamePrice.game_id == game_id).first()
+        if snapshot is not None or latest is not None:
+            payload = _build_snapshot_game_detail_payload(game, snapshot, latest)
+        else:
+            payload = build_game_detail_payload(session, game)
+            payload["share_card_url"] = _build_canonical_url(f"/share/deal/{int(game_id)}")
+        return _ensure_game_detail_contract(payload)
     finally:
         session.close()
 
@@ -4691,119 +4903,12 @@ def get_game_by_name(request: Request, game_name: str):
 
         snapshot = session.query(GameSnapshot).filter(GameSnapshot.game_id == game.id).first()
         latest = session.query(LatestGamePrice).filter(LatestGamePrice.game_id == game.id).first()
-
-        banner_url = (
-            (snapshot.banner_url if snapshot else None)
-            or build_steam_banner_url(game.store_url, game.appid)
-        )
-        buy_score = (
-            snapshot.buy_score
-            if snapshot and snapshot.buy_score is not None
-            else snapshot.worth_buying_score
-            if snapshot
-            else None
-        )
-        return {
-            "id": int(game.id),
-            "game_id": int(game.id),
-            "game_name": game.name,
-            "steam_appid": (snapshot.steam_appid if snapshot else None) or game.appid,
-            "banner_url": banner_url,
-            "store_url": game.store_url,
-            "share_card_url": _build_canonical_url(f"/share/deal/{int(game.id)}"),
-            "developer": game.developer,
-            "publisher": game.publisher,
-            "release_date": (
-                snapshot.release_date.isoformat()
-                if snapshot and snapshot.release_date
-                else game.release_date.isoformat()
-                if game.release_date
-                else None
-            ),
-            "release_date_text": (
-                snapshot.release_date_text if snapshot and snapshot.release_date_text else game.release_date_text
-            ),
-            "price": (
-                snapshot.latest_price
-                if snapshot and snapshot.latest_price is not None
-                else latest.latest_price if latest else None
-            ),
-            "original_price": (
-                snapshot.latest_original_price
-                if snapshot and snapshot.latest_original_price is not None
-                else latest.original_price if latest else None
-            ),
-            "discount_percent": (
-                snapshot.latest_discount_percent
-                if snapshot and snapshot.latest_discount_percent is not None
-                else latest.latest_discount_percent if latest else None
-            ),
-            "current_players": (
-                snapshot.current_players
-                if snapshot and snapshot.current_players is not None
-                else latest.current_players if latest else None
-            ),
-            "historical_low": (
-                snapshot.historical_low
-                if snapshot and snapshot.historical_low is not None
-                else snapshot.historical_low_price if snapshot else None
-            ),
-            "historical_status": snapshot.historical_status if snapshot else None,
-            "deal_score": snapshot.deal_score if snapshot else None,
-            "buy_score": buy_score,
-            "buy_recommendation": snapshot.buy_recommendation if snapshot else None,
-            "buy_reason": snapshot.buy_reason if snapshot else None,
-            "price_vs_low_ratio": snapshot.price_vs_low_ratio if snapshot else None,
-            "predicted_next_sale_price": snapshot.predicted_next_sale_price if snapshot else None,
-            "predicted_next_discount_percent": snapshot.predicted_next_discount_percent if snapshot else None,
-            "predicted_next_sale_window_days_min": snapshot.predicted_next_sale_window_days_min if snapshot else None,
-            "predicted_next_sale_window_days_max": snapshot.predicted_next_sale_window_days_max if snapshot else None,
-            "predicted_sale_confidence": snapshot.predicted_sale_confidence if snapshot else None,
-            "predicted_sale_reason": snapshot.predicted_sale_reason if snapshot else None,
-            "deal_opportunity_score": snapshot.deal_opportunity_score if snapshot else None,
-            "deal_opportunity_reason": snapshot.deal_opportunity_reason if snapshot else None,
-            "deal_opportunity": {
-                "score": snapshot.deal_opportunity_score if snapshot else None,
-                "reason": snapshot.deal_opportunity_reason if snapshot else None,
-            },
-            "next_sale_prediction": {
-                "expected_next_price": snapshot.predicted_next_sale_price if snapshot else None,
-                "expected_next_discount_percent": snapshot.predicted_next_discount_percent if snapshot else None,
-                "estimated_window_days_min": snapshot.predicted_next_sale_window_days_min if snapshot else None,
-                "estimated_window_days_max": snapshot.predicted_next_sale_window_days_max if snapshot else None,
-                "confidence": snapshot.predicted_sale_confidence if snapshot else None,
-                "reason": snapshot.predicted_sale_reason if snapshot else None,
-            },
-            "worth_buying_reason_summary": snapshot.worth_buying_reason_summary if snapshot else None,
-            "review_score": (
-                snapshot.review_score
-                if snapshot and snapshot.review_score is not None
-                else game.review_score
-            ),
-            "review_score_label": (
-                snapshot.review_score_label if snapshot and snapshot.review_score_label else game.review_score_label
-            ),
-            "review_total_count": (
-                snapshot.review_count
-                if snapshot and snapshot.review_count is not None
-                else game.review_total_count
-            ),
-            "genres": parse_csv_field(snapshot.genres) if snapshot else parse_csv_field(game.genres),
-            "tags": parse_csv_field(snapshot.tags) if snapshot else parse_csv_field(game.tags),
-            "platforms": parse_csv_field(snapshot.platforms) if snapshot else parse_csv_field(game.platforms),
-            "momentum_score": snapshot.momentum_score if snapshot else None,
-            "trend_reason_summary": snapshot.trend_reason_summary if snapshot else None,
-            "deal_heat_reason": snapshot.deal_heat_reason if snapshot else None,
-            "deal_label": f"Deal score {int(round(snapshot.deal_score))}" if snapshot and snapshot.deal_score is not None else None,
-            "prediction": {},
-            "deal_explanation": {
-                "summary": (
-                    snapshot.worth_buying_reason_summary
-                    if snapshot and snapshot.worth_buying_reason_summary
-                    else snapshot.deal_heat_reason if snapshot and snapshot.deal_heat_reason else "Snapshot-derived market context."
-                )
-            },
-        }
+        if snapshot is not None or latest is not None:
+            payload = _build_snapshot_game_detail_payload(game, snapshot, latest)
+        else:
+            payload = build_game_detail_payload(session, game)
+            payload["share_card_url"] = _build_canonical_url(f"/share/deal/{int(game.id)}")
+        return _ensure_game_detail_contract(payload)
     finally:
         session.close()
         _log_timing("/games/by-name", started)

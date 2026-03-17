@@ -1855,7 +1855,7 @@ function buildHeroExplanationLines(payload) {
     const playerChange = Number(payload?.player_change);
     const playerTrend = Number(payload?.short_term_player_trend ?? payload?.momentum?.short_term_player_trend);
     const popularityScore = Number(payload?.popularity_score);
-    const heatLevel = String(payload?.deal_heat_level ?? payload?.deal_heat?.level || "").trim().toUpperCase();
+    const heatLevel = String((payload?.deal_heat_level ?? payload?.deal_heat?.level) || "").trim().toUpperCase();
 
     if (recommendation === "BUY_NOW") {
         pushUniqueExplanationLine(lines, buyReason || "Buy-now timing signal");
@@ -2134,7 +2134,7 @@ function renderMarketInfo(data) {
     const genres = Array.isArray(data.genres) ? data.genres : parseCsv(data.genres);
     const platforms = Array.isArray(data.platforms) ? data.platforms : parseCsv(data.platforms);
     const opportunityScore = Number(data.deal_opportunity_score ?? data?.deal_opportunity?.score);
-    const opportunityReasonRaw = String(data.deal_opportunity_reason ?? data?.deal_opportunity?.reason || "").trim();
+    const opportunityReasonRaw = String((data.deal_opportunity_reason ?? data?.deal_opportunity?.reason) || "").trim();
     const opportunityReason = normalizeReasonSnippet(opportunityReasonRaw);
     const hasOpportunityScore = Number.isFinite(opportunityScore) && opportunityScore > 0;
     const opportunityValue = opportunityReason

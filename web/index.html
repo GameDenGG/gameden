@@ -129,9 +129,40 @@ select {
 }
 
 .page {
+    position: relative;
+    z-index: 1;
     max-width: 1480px;
     margin: 0 auto;
     padding: 22px 24px 32px;
+}
+
+.homepage-viewport-shell {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    isolation: isolate;
+}
+
+.homepage-viewport-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background:
+        radial-gradient(1600px 820px at 6% -12%, rgba(103, 234, 255, 0.14), transparent 66%),
+        radial-gradient(1500px 760px at 104% -6%, rgba(188, 168, 255, 0.13), transparent 64%),
+        radial-gradient(1300px 900px at 50% 108%, rgba(255, 186, 114, 0.09), transparent 72%);
+}
+
+.homepage-viewport-shell::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, rgba(7, 14, 27, 0) 0%, rgba(7, 14, 27, 0.26) 70%, rgba(7, 14, 27, 0.36) 100%);
 }
 
 .homepage-shell {
@@ -3310,7 +3341,8 @@ input:focus-visible {
 </style>
 </head>
 <body class="theme-dark">
-    <div class="page">
+    <div class="homepage-viewport-shell">
+        <div class="page">
         <div class="homepage-shell">
             <div class="homepage-top-shell">
                 <section class="logo-hero" aria-label="GameDen branded hero">
@@ -4028,6 +4060,7 @@ input:focus-visible {
                 Snapshot-backed Steam intelligence for pricing, momentum, and timing decisions across the full catalog.
             </div>
         </footer>
+        </div>
     </div>
 
     <div class="modal-backdrop" id="quickViewBackdrop" aria-hidden="true">

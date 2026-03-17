@@ -56,6 +56,11 @@ if (window.GameDenSite && window.GameDenSite.skeleton && typeof window.GameDenSi
     --pink: #f472b6;
     --shadow-lg: 0 20px 45px rgba(0,0,0,0.35);
     --shadow-sm: 0 8px 20px rgba(0,0,0,0.22);
+    --space-1: 8px;
+    --space-2: 12px;
+    --space-3: 16px;
+    --space-4: 20px;
+    --space-5: 24px;
 }
 
 *,
@@ -82,16 +87,19 @@ a {
 .page {
     max-width: 1320px;
     margin: 0 auto;
-    padding: 28px;
+    padding: 24px;
 }
 
 .back-link {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 18px;
+    margin-bottom: var(--space-3);
     color: var(--muted);
-    font-weight: 800;
+    font-weight: 750;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
 }
 
 .back-link:hover {
@@ -101,12 +109,20 @@ a {
 .hero {
     overflow: hidden;
     border-radius: 30px;
-    border: 1px solid var(--line);
+    border: 1px solid rgba(154, 182, 255, 0.22);
     background:
         radial-gradient(circle at right top, rgba(96,165,250,0.18), transparent 38%),
         linear-gradient(180deg, rgba(16,30,54,0.98), rgba(8,16,32,0.98));
     box-shadow: var(--shadow-lg);
-    margin-bottom: 20px;
+    margin-bottom: var(--space-4);
+}
+
+.hero[data-decision="BUY_NOW"] {
+    border-color: rgba(92, 228, 169, 0.42);
+}
+
+.hero[data-decision="WAIT"] {
+    border-color: rgba(255, 199, 122, 0.4);
 }
 
 .hero-shell {
@@ -130,14 +146,14 @@ a {
 }
 
 .hero-body {
-    padding: 22px;
+    padding: var(--space-4);
     display: grid;
-    gap: 15px;
+    gap: var(--space-3);
 }
 
 .hero-top {
     display: grid;
-    gap: 11px;
+    gap: 10px;
 }
 
 .hero-meta-row {
@@ -150,27 +166,29 @@ a {
 
 .hero-title h1 {
     margin: 0;
-    font-size: clamp(32px, 4.6vw, 50px);
+    font-size: clamp(34px, 4.9vw, 54px);
     line-height: 0.99;
-    letter-spacing: -0.045em;
+    letter-spacing: -0.048em;
+    text-wrap: balance;
 }
 
 .hero-sub {
-    margin-top: 6px;
+    margin-top: 5px;
     color: var(--muted-2);
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.45;
+    max-width: 720px;
 }
 
 .hero-explain-list {
-    margin: 9px 0 0;
+    margin: 8px 0 0;
     padding-left: 18px;
-    max-width: 680px;
+    max-width: 700px;
     display: grid;
     gap: 3px;
-    color: var(--muted-2);
-    font-size: 12px;
-    line-height: 1.4;
+    color: #c5d5f3;
+    font-size: 11px;
+    line-height: 1.35;
 }
 
 .hero-explain-list.hidden {
@@ -194,6 +212,8 @@ a {
     font-weight: 900;
     white-space: nowrap;
     min-height: 40px;
+    font-size: 12px;
+    letter-spacing: 0.01em;
 }
 
 .hero-badge.signal-glow {
@@ -245,7 +265,7 @@ a {
 
 .hero-watch-btn {
     border: 1px solid rgba(154,182,255,0.32);
-    background: rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.03);
     color: var(--text);
     border-radius: 12px;
     padding: 10px 14px;
@@ -265,7 +285,7 @@ a {
 
 .hero-watch-btn:hover {
     border-color: rgba(154, 182, 255, 0.56);
-    background: rgba(121, 168, 255, 0.12);
+    background: rgba(121, 168, 255, 0.09);
     box-shadow: 0 10px 20px rgba(2, 8, 20, 0.24);
     transform: translateY(-1px);
 }
@@ -299,7 +319,7 @@ a {
 
 .hero-cta-row {
     display: flex;
-    gap: 10px;
+    gap: var(--space-2);
     flex-wrap: wrap;
     align-items: center;
 }
@@ -308,15 +328,16 @@ a {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 168px;
+    min-width: 188px;
     border-radius: 12px;
     border: 1px solid rgba(92, 228, 169, 0.58);
     background: linear-gradient(180deg, rgba(92, 228, 169, 0.24), rgba(44, 165, 115, 0.24));
     color: #e8fff3;
     padding: 10px 16px;
     font-weight: 900;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.015em;
     white-space: nowrap;
+    box-shadow: 0 10px 24px rgba(19, 117, 78, 0.22);
     transition:
         transform 0.15s ease,
         border-color 0.18s ease,
@@ -329,8 +350,15 @@ a {
 .hero-store-cta:hover {
     border-color: rgba(129, 255, 198, 0.72);
     background: linear-gradient(180deg, rgba(92, 228, 169, 0.32), rgba(44, 165, 115, 0.32));
-    box-shadow: 0 12px 22px rgba(2, 8, 20, 0.25);
+    box-shadow: 0 12px 28px rgba(19, 117, 78, 0.3);
     transform: translateY(-1px);
+}
+
+.hero-store-cta::after {
+    content: "↗";
+    margin-left: 8px;
+    font-size: 12px;
+    opacity: 0.9;
 }
 
 .hero-store-cta:focus-visible {
@@ -346,6 +374,10 @@ a {
     color: var(--muted-2);
     box-shadow: none;
     transform: none;
+}
+
+.hero-store-cta.is-disabled::after {
+    opacity: 0.4;
 }
 
 .hero-watch-btn.is-pending {
@@ -377,12 +409,12 @@ a {
 
 .target-alert-card {
     width: 100%;
-    padding: 12px;
+    padding: var(--space-2);
     border-radius: 14px;
-    border: 1px solid rgba(154, 182, 255, 0.2);
+    border: 1px solid rgba(154, 182, 255, 0.18);
     background: linear-gradient(180deg, rgba(20, 36, 62, 0.88), rgba(11, 22, 39, 0.92));
     display: grid;
-    gap: 9px;
+    gap: 8px;
 }
 
 .target-alert-title {
@@ -494,15 +526,24 @@ a {
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--space-2);
 }
 
 .stat-card {
-    padding: 12px 13px;
+    padding: 12px;
     border-radius: 14px;
     border: 1px solid rgba(154, 182, 255, 0.16);
-    background: linear-gradient(180deg, rgba(27, 43, 73, 0.76), rgba(13, 24, 41, 0.9));
+    background: linear-gradient(180deg, rgba(27, 43, 73, 0.72), rgba(13, 24, 41, 0.88));
+    min-height: 94px;
+    display: grid;
+    align-content: start;
+    gap: 6px;
+}
+
+.stat-card-primary {
+    border-color: rgba(111, 232, 255, 0.44);
+    background: linear-gradient(180deg, rgba(31, 55, 88, 0.82), rgba(13, 26, 47, 0.92));
 }
 
 .stat-label {
@@ -514,36 +555,55 @@ a {
 }
 
 .stat-value {
-    margin-top: 7px;
+    margin-top: 0;
     font-size: clamp(22px, 2.2vw, 28px);
     font-weight: 900;
     letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
 }
 
 .content-grid {
     display: grid;
     grid-template-columns: minmax(0, 1.5fr) minmax(312px, 0.92fr);
-    gap: 18px;
-    margin-bottom: 18px;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
 }
 
 .left-column,
 .right-column {
     display: grid;
-    gap: 16px;
+    gap: var(--space-4);
     align-content: start;
 }
 
 .panel {
     border-radius: 20px;
-    border: 1px solid var(--line);
+    border: 1px solid rgba(154, 182, 255, 0.18);
     background: var(--panel);
     box-shadow: var(--shadow-lg);
     overflow: hidden;
+    position: relative;
+}
+
+.panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-top: 1px solid rgba(193, 214, 255, 0.12);
+    opacity: 0.85;
 }
 
 .panel-head {
     padding: 16px 16px 0;
+}
+
+.panel-head::after {
+    content: "";
+    display: block;
+    margin-top: 11px;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(154, 182, 255, 0.18), rgba(154, 182, 255, 0.05) 70%, transparent);
 }
 
 .panel-title {
@@ -560,7 +620,7 @@ a {
 }
 
 .panel-body {
-    padding: 14px 16px 16px;
+    padding: 13px 16px 16px;
 }
 
 .decision-stack {
@@ -568,10 +628,15 @@ a {
     gap: 12px;
 }
 
+.decision-panel {
+    border-color: rgba(111, 232, 255, 0.24);
+    background: linear-gradient(180deg, rgba(16, 33, 60, 0.96), rgba(9, 19, 35, 0.96));
+}
+
 .decision-group {
     padding: 12px;
     border-radius: 14px;
-    border: 1px solid rgba(154, 182, 255, 0.14);
+    border: 1px solid rgba(154, 182, 255, 0.16);
     background: linear-gradient(180deg, rgba(28, 45, 73, 0.64), rgba(13, 24, 40, 0.84));
 }
 
@@ -594,6 +659,13 @@ a {
 
 .discovery-panel .panel-body {
     padding-top: 12px;
+}
+
+.discovery-panel {
+    border-color: rgba(154, 182, 255, 0.14);
+    background: linear-gradient(180deg, rgba(12, 24, 43, 0.95), rgba(9, 18, 34, 0.95));
+    content-visibility: auto;
+    contain-intrinsic-size: 420px;
 }
 
 .range-row {
@@ -647,6 +719,13 @@ a {
     border-radius: 18px;
     background: rgba(255,255,255,0.02);
     border: 1px solid rgba(154,182,255,0.12);
+    min-height: 248px;
+}
+
+.chart-wrap canvas {
+    display: block;
+    width: 100% !important;
+    height: 208px !important;
 }
 
 .chart-empty-state {
@@ -664,10 +743,14 @@ a {
 
 .info-item,
 .prediction-item {
-    padding: 15px;
+    padding: 13px;
     border-radius: 18px;
     border: 1px solid rgba(154,182,255,0.12);
     background: linear-gradient(180deg, rgba(22,35,58,0.84), rgba(13,23,40,0.92));
+    min-height: 84px;
+    display: grid;
+    align-content: start;
+    gap: 6px;
 }
 
 .info-title,
@@ -681,15 +764,24 @@ a {
 
 .info-value,
 .prediction-value {
-    margin-top: 8px;
-    font-size: 20px;
+    margin-top: 0;
+    font-size: 18px;
     font-weight: 900;
+    font-variant-numeric: tabular-nums;
 }
 
 .info-value-compact {
     font-size: 14px;
     line-height: 1.45;
     font-weight: 700;
+}
+
+.prediction-item.key-metric .prediction-value {
+    font-size: 22px;
+}
+
+.info-item.key-metric .info-value {
+    font-size: 20px;
 }
 
 .deal-confidence-badge {
@@ -741,6 +833,7 @@ a {
     border: 1px solid rgba(154,182,255,0.12);
     border-radius: 16px;
     background: rgba(255,255,255,0.02);
+    min-height: 74px;
 }
 
 .break-top {
@@ -797,6 +890,18 @@ a {
     background: rgba(255,255,255,0.02);
 }
 
+#dealExplanation,
+#marketInfo,
+#dealConfidence,
+#prediction,
+#relatedGames {
+    min-height: 120px;
+}
+
+#dealExplanation {
+    min-height: 310px;
+}
+
 .related-title {
     margin: 0 0 8px;
     font-size: 14px;
@@ -823,7 +928,7 @@ a {
 
 @media (max-width: 980px) {
     .page {
-        padding: 22px 20px 26px;
+        padding: 20px 18px 24px;
     }
 
     .hero-shell {
@@ -846,6 +951,10 @@ a {
 
     .hero-cta-row {
         gap: 9px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .content-grid {
@@ -872,6 +981,10 @@ a {
 
     .panel-body {
         padding: 14px 16px 16px;
+    }
+
+    #dealExplanation {
+        min-height: 260px;
     }
 }
 
@@ -1010,6 +1123,11 @@ a {
 
     .chart-wrap {
         padding: 10px;
+        min-height: 206px;
+    }
+
+    .chart-wrap canvas {
+        height: 170px !important;
     }
 
     .info-item,
@@ -1058,6 +1176,14 @@ a {
 
     .panel-title {
         font-size: 18px;
+    }
+
+    .chart-wrap {
+        min-height: 188px;
+    }
+
+    .chart-wrap canvas {
+        height: 154px !important;
     }
 }
 
@@ -1115,7 +1241,7 @@ a {
                 </div>
 
                 <div class="stats-grid hero-stats-grid">
-                    <div class="stat-card">
+                    <div class="stat-card stat-card-primary">
                         <div class="stat-label">Current Price</div>
                         <div class="stat-value" id="currentPrice">--</div>
                     </div>
@@ -1295,15 +1421,20 @@ function setStoreCta(url) {
     if (!(storeCtaLink instanceof HTMLAnchorElement)) return;
     const normalizedUrl = String(url || "").trim();
     if (normalizedUrl) {
+        const isSteamStore = /store\.steampowered\.com/i.test(normalizedUrl);
         storeCtaLink.href = normalizedUrl;
         storeCtaLink.classList.remove("is-disabled");
         storeCtaLink.removeAttribute("aria-disabled");
+        storeCtaLink.textContent = isSteamStore ? "View on Steam" : "View on Store";
+        storeCtaLink.setAttribute("aria-label", `${isSteamStore ? "View on Steam" : "View on Store"} (opens in new tab)`);
         return;
     }
 
     storeCtaLink.href = "#";
     storeCtaLink.classList.add("is-disabled");
     storeCtaLink.setAttribute("aria-disabled", "true");
+    storeCtaLink.textContent = "View on Store";
+    storeCtaLink.removeAttribute("aria-label");
 }
 
 function resolveStoreUrl(payload) {
@@ -1328,6 +1459,7 @@ function clearLoadingChrome() {
 }
 
 function renderGameLoadingSkeletons() {
+    setStoreCta("");
     setInlineSkeleton("gameTitle", "gd-skeleton-w-64");
     setInlineSkeleton("gameSub", "gd-skeleton-w-80");
     setInlineSkeleton("dealBadge", "gd-skeleton-w-40");
@@ -1957,7 +2089,7 @@ function renderDealConfidence(payload) {
     if (!confidence) {
         panel.hidden = false;
         container.innerHTML = `
-            <div class="prediction-item">
+            <div class="prediction-item key-metric">
                 <div class="prediction-title">Tier</div>
                 <div class="prediction-value">Unavailable</div>
             </div>
@@ -1979,7 +2111,7 @@ function renderDealConfidence(payload) {
         : "—";
 
     container.innerHTML = `
-        <div class="prediction-item">
+        <div class="prediction-item key-metric">
             <div class="prediction-title">Tier</div>
             <div class="prediction-value">${buildDealConfidenceBadgeHtml(payload)}</div>
         </div>
@@ -1987,7 +2119,7 @@ function renderDealConfidence(payload) {
             <div class="prediction-title">Explanation</div>
             <div class="prediction-value info-value-compact">${escapeHtml(reasonText)}</div>
         </div>
-        <div class="prediction-item">
+        <div class="prediction-item key-metric">
             <div class="prediction-title">Score</div>
             <div class="prediction-value">${escapeHtml(scoreText)}</div>
         </div>
@@ -2112,6 +2244,17 @@ function applyDealBadgeGlow(payload) {
     }
 }
 
+function applyHeroDecisionState(payload) {
+    const hero = document.querySelector(".hero");
+    if (!(hero instanceof HTMLElement)) return;
+    const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
+    if (recommendation === "BUY_NOW" || recommendation === "WAIT") {
+        hero.setAttribute("data-decision", recommendation);
+        return;
+    }
+    hero.removeAttribute("data-decision");
+}
+
 async function loadGame() {
     setStoreCta("");
     const discoveryPanel = document.querySelector(".discovery-panel");
@@ -2186,6 +2329,7 @@ async function loadGame() {
         ? `${confidenceForBadge.confidence_icon} ${confidenceForBadge.confidence_label}`
         : (payload.deal_label || `Deal score ${payload.deal_score ?? "—"}`);
     applyDealBadgeGlow(payload);
+    applyHeroDecisionState(payload);
     document.getElementById("heroBanner").classList.remove("gd-skeleton-surface");
 
     if (payload.banner_url || payload.header_image || payload.banner_image) {
@@ -2323,13 +2467,14 @@ function renderMarketInfo(data) {
         ? `${current >= historicalLow ? "+" : ""}${(current - historicalLow).toFixed(2)} vs low`
         : "—";
     const items = [
-        { label: "Original Price", value: fmtPrice(data.original_price), compact: false },
+        { label: "Original Price", value: fmtPrice(data.original_price), compact: false, keyMetric: true },
         {
             label: "Current Discount",
             value: data.discount_percent !== null && data.discount_percent !== undefined ? `${data.discount_percent}%` : "—",
             compact: false,
+            keyMetric: true,
         },
-        { label: "Historical Low Comparison", value: lowDelta, compact: false },
+        { label: "Historical Low Comparison", value: lowDelta, compact: false, keyMetric: true },
         { label: "Deal Opportunity", value: opportunityValue, compact: true },
         { label: "Review Score", value: data.review_score ?? "—", compact: false },
         { label: "Review Count", value: fmtInt(data.review_total_count ?? data.review_count), compact: false },
@@ -2338,8 +2483,8 @@ function renderMarketInfo(data) {
         { label: "Platforms", value: platforms.slice(0, 3).join(", ") || "—", compact: true },
     ];
 
-    el.innerHTML = items.map(({ label, value, compact }) => `
-        <div class="info-item">
+    el.innerHTML = items.map(({ label, value, compact, keyMetric }) => `
+        <div class="info-item${keyMetric ? " key-metric" : ""}">
             <div class="info-title">${escapeHtml(label)}</div>
             <div class="info-value${compact ? " info-value-compact" : ""}">${escapeHtml(value)}</div>
         </div>
@@ -2399,11 +2544,11 @@ function renderPrediction(payload) {
     }
 
     el.innerHTML = `
-        <div class="prediction-item">
+        <div class="prediction-item key-metric">
             <div class="prediction-title">Expected next price</div>
             <div class="prediction-value">${escapeHtml(fmtPrice(expectedNextPrice))}</div>
         </div>
-        <div class="prediction-item">
+        <div class="prediction-item key-metric">
             <div class="prediction-title">Expected discount</div>
             <div class="prediction-value">${expectedNextDiscount !== null && expectedNextDiscount !== undefined ? escapeHtml(`${expectedNextDiscount}%`) : "—"}</div>
         </div>
@@ -2535,7 +2680,7 @@ function renderPriceChart(historyPayload) {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             interaction: { mode: "index", intersect: false },
             plugins: {
                 legend: { labels: { color: "#e5e7eb" } },
@@ -2618,7 +2763,7 @@ function renderPlayerChart(historyPayload) {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: { labels: { color: "#e5e7eb" } },
                 tooltip: {

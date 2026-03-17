@@ -93,11 +93,7 @@ body {
     margin: 0;
     overflow-x: hidden;
     font-family: var(--font-body);
-    background:
-        radial-gradient(1200px 650px at 4% -10%, rgba(103, 234, 255, 0.17), transparent 60%),
-        radial-gradient(980px 720px at 102% 2%, rgba(188, 168, 255, 0.2), transparent 56%),
-        radial-gradient(1100px 860px at 48% 106%, rgba(255, 186, 114, 0.13), transparent 70%),
-        linear-gradient(180deg, #030810 0%, #050d19 42%, #040814 100%);
+    background: linear-gradient(180deg, #030810 0%, #050d19 42%, #040814 100%);
     color: var(--text);
     line-height: 1.4;
     word-break: break-word;
@@ -114,7 +110,7 @@ body::after {
         linear-gradient(to right, rgba(121, 168, 255, 0.08) 1px, transparent 1px),
         linear-gradient(to bottom, rgba(121, 168, 255, 0.06) 1px, transparent 1px);
     background-size: 66px 66px;
-    mask-image: radial-gradient(circle at 50% 20%, black, transparent 82%);
+    mask-image: radial-gradient(circle at 50% 18%, rgba(0, 0, 0, 0.94) 0%, rgba(0, 0, 0, 0.84) 56%, rgba(0, 0, 0, 0.68) 82%, rgba(0, 0, 0, 0.55) 100%);
 }
 
 a {
@@ -141,6 +137,11 @@ select {
     width: 100%;
     min-height: 100vh;
     isolation: isolate;
+    background:
+        radial-gradient(140vw 88vh at 4% -10%, rgba(103, 234, 255, 0.17), transparent 66%),
+        radial-gradient(130vw 86vh at 102% 2%, rgba(188, 168, 255, 0.18), transparent 64%),
+        radial-gradient(150vw 110vh at 50% 108%, rgba(255, 186, 114, 0.12), transparent 74%),
+        linear-gradient(180deg, #030810 0%, #050d19 42%, #040814 100%);
 }
 
 .homepage-viewport-shell::before {

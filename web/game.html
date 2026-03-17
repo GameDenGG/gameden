@@ -100,65 +100,77 @@ a {
 
 .hero {
     overflow: hidden;
-    border-radius: 28px;
+    border-radius: 30px;
     border: 1px solid var(--line);
     background:
-        radial-gradient(circle at right top, rgba(96,165,250,0.18), transparent 30%),
-        linear-gradient(180deg, rgba(15,28,52,0.98), rgba(9,18,35,0.98));
+        radial-gradient(circle at right top, rgba(96,165,250,0.18), transparent 38%),
+        linear-gradient(180deg, rgba(16,30,54,0.98), rgba(8,16,32,0.98));
     box-shadow: var(--shadow-lg);
-    margin-bottom: 24px;
+    margin-bottom: 20px;
+}
+
+.hero-shell {
+    display: grid;
+    grid-template-columns: minmax(320px, 1fr) minmax(420px, 1.08fr);
+    align-items: stretch;
+}
+
+.hero-media {
+    min-height: 100%;
 }
 
 .hero-banner {
-    height: 260px;
+    height: 100%;
+    min-height: 350px;
     background:
         linear-gradient(180deg, rgba(96,165,250,0.16), rgba(96,165,250,0.05));
     background-size: cover;
     background-position: center;
-    border-bottom: 1px solid rgba(154,182,255,0.12);
+    border-right: 1px solid rgba(154,182,255,0.12);
 }
 
 .hero-body {
-    padding: 24px;
+    padding: 22px;
+    display: grid;
+    gap: 15px;
 }
 
 .hero-top {
-    display: flex;
-    justify-content: space-between;
-    gap: 18px;
-    align-items: flex-start;
-    margin-bottom: 22px;
+    display: grid;
+    gap: 11px;
 }
 
-.hero-actions {
-    display: grid;
+.hero-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 10px;
-    justify-items: end;
+    flex-wrap: wrap;
 }
 
 .hero-title h1 {
     margin: 0;
-    font-size: clamp(34px, 6vw, 52px);
-    line-height: 0.98;
-    letter-spacing: -0.05em;
+    font-size: clamp(32px, 4.6vw, 50px);
+    line-height: 0.99;
+    letter-spacing: -0.045em;
 }
 
 .hero-sub {
-    margin-top: 8px;
+    margin-top: 6px;
     color: var(--muted-2);
-    font-size: 15px;
-    line-height: 1.6;
+    font-size: 14px;
+    line-height: 1.45;
 }
 
 .hero-explain-list {
-    margin: 10px 0 0;
+    margin: 9px 0 0;
     padding-left: 18px;
-    max-width: 780px;
+    max-width: 680px;
     display: grid;
-    gap: 4px;
+    gap: 3px;
     color: var(--muted-2);
     font-size: 12px;
-    line-height: 1.45;
+    line-height: 1.4;
 }
 
 .hero-explain-list.hidden {
@@ -181,6 +193,7 @@ a {
     background: rgba(255,255,255,0.04);
     font-weight: 900;
     white-space: nowrap;
+    min-height: 40px;
 }
 
 .hero-badge.signal-glow {
@@ -237,6 +250,8 @@ a {
     border-radius: 12px;
     padding: 10px 14px;
     font-weight: 800;
+    white-space: nowrap;
+    min-width: 108px;
     cursor: pointer;
     transition:
         transform 0.15s ease,
@@ -282,6 +297,57 @@ a {
     background: rgba(111, 232, 255, 0.18);
 }
 
+.hero-cta-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.hero-store-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 168px;
+    border-radius: 12px;
+    border: 1px solid rgba(92, 228, 169, 0.58);
+    background: linear-gradient(180deg, rgba(92, 228, 169, 0.24), rgba(44, 165, 115, 0.24));
+    color: #e8fff3;
+    padding: 10px 16px;
+    font-weight: 900;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    transition:
+        transform 0.15s ease,
+        border-color 0.18s ease,
+        background 0.18s ease,
+        box-shadow 0.18s ease,
+        color 0.18s ease,
+        opacity 0.18s ease;
+}
+
+.hero-store-cta:hover {
+    border-color: rgba(129, 255, 198, 0.72);
+    background: linear-gradient(180deg, rgba(92, 228, 169, 0.32), rgba(44, 165, 115, 0.32));
+    box-shadow: 0 12px 22px rgba(2, 8, 20, 0.25);
+    transform: translateY(-1px);
+}
+
+.hero-store-cta:focus-visible {
+    outline: 2px solid rgba(121, 222, 255, 0.88);
+    outline-offset: 2px;
+}
+
+.hero-store-cta.is-disabled {
+    opacity: 0.56;
+    pointer-events: none;
+    border-color: rgba(154, 182, 255, 0.22);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--muted-2);
+    box-shadow: none;
+    transform: none;
+}
+
 .hero-watch-btn.is-pending {
     opacity: 0.7;
     cursor: progress;
@@ -310,7 +376,7 @@ a {
 }
 
 .target-alert-card {
-    width: min(320px, 100%);
+    width: 100%;
     padding: 12px;
     border-radius: 14px;
     border: 1px solid rgba(154, 182, 255, 0.2);
@@ -428,47 +494,48 @@ a {
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
 }
 
 .stat-card {
-    padding: 18px;
-    border-radius: 20px;
-    border: 1px solid var(--line);
-    background: rgba(255,255,255,0.03);
+    padding: 12px 13px;
+    border-radius: 14px;
+    border: 1px solid rgba(154, 182, 255, 0.16);
+    background: linear-gradient(180deg, rgba(27, 43, 73, 0.76), rgba(13, 24, 41, 0.9));
 }
 
 .stat-label {
     color: var(--muted);
-    font-size: 11px;
+    font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.085em;
     font-weight: 800;
 }
 
 .stat-value {
-    margin-top: 10px;
-    font-size: 30px;
+    margin-top: 7px;
+    font-size: clamp(22px, 2.2vw, 28px);
     font-weight: 900;
     letter-spacing: -0.04em;
 }
 
 .content-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.95fr);
-    gap: 24px;
+    grid-template-columns: minmax(0, 1.5fr) minmax(312px, 0.92fr);
+    gap: 18px;
+    margin-bottom: 18px;
 }
 
 .left-column,
 .right-column {
     display: grid;
-    gap: 24px;
+    gap: 16px;
     align-content: start;
 }
 
 .panel {
-    border-radius: 24px;
+    border-radius: 20px;
     border: 1px solid var(--line);
     background: var(--panel);
     box-shadow: var(--shadow-lg);
@@ -476,24 +543,57 @@ a {
 }
 
 .panel-head {
-    padding: 20px 20px 0;
+    padding: 16px 16px 0;
 }
 
 .panel-title {
     margin: 0;
-    font-size: 24px;
-    letter-spacing: -0.04em;
+    font-size: 22px;
+    letter-spacing: -0.03em;
 }
 
 .panel-subtitle {
-    margin-top: 6px;
+    margin-top: 5px;
     color: var(--muted);
     font-size: 13px;
-    line-height: 1.5;
+    line-height: 1.4;
 }
 
 .panel-body {
-    padding: 18px 20px 20px;
+    padding: 14px 16px 16px;
+}
+
+.decision-stack {
+    display: grid;
+    gap: 12px;
+}
+
+.decision-group {
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(154, 182, 255, 0.14);
+    background: linear-gradient(180deg, rgba(28, 45, 73, 0.64), rgba(13, 24, 40, 0.84));
+}
+
+.decision-group-title {
+    margin: 0;
+    font-size: 14px;
+    letter-spacing: 0.01em;
+}
+
+.decision-group-subtitle {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.decision-group .prediction-list {
+    margin-top: 10px;
+}
+
+.discovery-panel .panel-body {
+    padding-top: 12px;
 }
 
 .range-row {
@@ -726,18 +826,31 @@ a {
         padding: 22px 20px 26px;
     }
 
+    .hero-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-banner {
+        min-height: 240px;
+        border-right: 0;
+        border-bottom: 1px solid rgba(154, 182, 255, 0.12);
+    }
+
     .hero-body {
-        padding: 20px;
+        padding: 18px;
+    }
+
+    .hero-title h1 {
+        font-size: clamp(30px, 6vw, 44px);
+    }
+
+    .hero-cta-row {
+        gap: 9px;
     }
 
     .content-grid {
         grid-template-columns: 1fr;
         gap: 18px;
-    }
-
-    .stats-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
     }
 
     .left-column,
@@ -781,16 +894,8 @@ a {
         padding: 16px;
     }
 
-    .hero-top {
-        flex-direction: column;
-        gap: 12px;
-        margin-bottom: 16px;
-    }
-
-    .hero-actions {
-        width: 100%;
-        justify-items: stretch;
-        gap: 8px;
+    .hero-banner {
+        min-height: 180px;
     }
 
     .hero-title h1 {
@@ -816,10 +921,21 @@ a {
         font-size: 12px;
     }
 
+    .hero-cta-row {
+        gap: 8px;
+    }
+
+    .hero-store-cta,
     .hero-watch-btn {
         border-radius: 10px;
-        padding: 9px 11px;
+        padding: 9px 12px;
         font-size: 13px;
+        flex: 1 1 calc(50% - 4px);
+        min-width: 0;
+    }
+
+    .hero-store-cta {
+        min-width: 0;
     }
 
     .target-alert-card {
@@ -920,18 +1036,20 @@ a {
         font-size: 12px;
     }
 
-    .hero-banner {
-        height: 180px;
-    }
 }
 
 @media (max-width: 520px) {
     .hero-banner {
-        height: 160px;
+        min-height: 160px;
     }
 
     .stats-grid {
         grid-template-columns: 1fr;
+    }
+
+    .hero-store-cta,
+    .hero-watch-btn {
+        flex: 1 1 100%;
     }
 
     .target-alert-btn {
@@ -952,12 +1070,15 @@ a {
         animation: none;
     }
 
+    .hero-store-cta,
     .hero-watch-btn,
     .target-alert-btn,
     .range-btn {
         transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease, opacity 0.18s ease;
     }
 
+    .hero-store-cta:hover,
+    .hero-store-cta:active,
     .hero-watch-btn:hover,
     .hero-watch-btn:active,
     .target-alert-btn:hover,
@@ -974,62 +1095,75 @@ a {
     <a class="back-link" href="index.html">&larr; Back to dashboard</a>
 
     <section class="hero">
-        <div class="hero-banner" id="heroBanner"></div>
-        <div class="hero-body">
-            <div class="hero-top">
-                <div class="hero-title">
-                    <h1 id="gameTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></h1>
-                    <div class="hero-sub" id="gameSub"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></div>
-                    <ul class="hero-explain-list is-skeleton" id="heroExplainList" aria-live="polite">
-                        <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></li>
-                        <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></li>
-                    </ul>
+        <div class="hero-shell">
+            <div class="hero-media">
+                <div class="hero-banner" id="heroBanner"></div>
+            </div>
+            <div class="hero-body">
+                <div class="hero-top">
+                    <div class="hero-title">
+                        <h1 id="gameTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></h1>
+                        <div class="hero-sub" id="gameSub"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></div>
+                        <ul class="hero-explain-list is-skeleton" id="heroExplainList" aria-live="polite">
+                            <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></li>
+                            <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></li>
+                        </ul>
+                    </div>
+                    <div class="hero-meta-row">
+                        <div class="hero-badge" id="dealBadge"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40" aria-hidden="true"></span></div>
+                    </div>
                 </div>
-                <div class="hero-actions">
-                    <div class="hero-badge" id="dealBadge"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40" aria-hidden="true"></span></div>
+
+                <div class="stats-grid hero-stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Current Price</div>
+                        <div class="stat-value" id="currentPrice">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Historical Low</div>
+                        <div class="stat-value" id="historicalLow">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Discount</div>
+                        <div class="stat-value" id="currentDiscount">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Deal Score</div>
+                        <div class="stat-value" id="dealScore">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Live Players</div>
+                        <div class="stat-value" id="playerCount">--</div>
+                    </div>
+                </div>
+
+                <div class="hero-cta-row">
+                    <a class="hero-store-cta is-disabled" id="storeCtaLink" href="#" aria-disabled="true" rel="noopener noreferrer" target="_blank">View on Store</a>
                     <button class="hero-watch-btn" id="watchButton" type="button" aria-pressed="false">Watch</button>
                     <button class="hero-watch-btn hero-share-btn" id="shareDealButton" type="button" disabled>Share Deal</button>
-                    <section class="target-alert-card" aria-label="Price target alerts">
-                        <div class="target-alert-title">Price Target Alert</div>
-                        <label class="target-alert-row">
-                            <span class="target-alert-label">Below $</span>
-                            <input class="target-alert-input" id="targetPriceInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="19.99">
-                        </label>
-                        <label class="target-alert-row">
-                            <span class="target-alert-label">Discount %</span>
-                            <input class="target-alert-input" id="targetDiscountInput" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="60">
-                        </label>
-                        <div class="target-alert-actions">
-                            <button class="target-alert-btn" id="saveTargetAlertButton" type="button">Save alert</button>
-                            <button class="target-alert-btn ghost" id="clearTargetAlertButton" type="button" hidden>Clear</button>
-                        </div>
-                        <div class="target-alert-status" id="targetAlertStatus" aria-live="polite"></div>
-                    </section>
                 </div>
-            </div>
 
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Current Price</div>
-                    <div class="stat-value" id="currentPrice">--</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Historical Low</div>
-                    <div class="stat-value" id="historicalLow">--</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Deal Score</div>
-                    <div class="stat-value" id="dealScore">--</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Players</div>
-                    <div class="stat-value" id="playerCount">--</div>
-                </div>
+                <section class="target-alert-card" aria-label="Price target alerts">
+                    <div class="target-alert-title">Price Target Alert</div>
+                    <label class="target-alert-row">
+                        <span class="target-alert-label">Below $</span>
+                        <input class="target-alert-input" id="targetPriceInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="19.99">
+                    </label>
+                    <label class="target-alert-row">
+                        <span class="target-alert-label">Discount %</span>
+                        <input class="target-alert-input" id="targetDiscountInput" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="60">
+                    </label>
+                    <div class="target-alert-actions">
+                        <button class="target-alert-btn" id="saveTargetAlertButton" type="button">Save alert</button>
+                        <button class="target-alert-btn ghost" id="clearTargetAlertButton" type="button" hidden>Clear</button>
+                    </div>
+                    <div class="target-alert-status" id="targetAlertStatus" aria-live="polite"></div>
+                </section>
             </div>
         </div>
     </section>
 
-    <div class="content-grid">
+    <section class="content-grid">
         <div class="left-column">
             <section class="panel">
                 <div class="panel-head">
@@ -1075,6 +1209,25 @@ a {
         </div>
 
         <div class="right-column">
+            <section class="panel decision-panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Buy Recommendation + Next Sale</h2>
+                    <div class="panel-subtitle">Decision signal first: should you buy now or wait for better timing?</div>
+                </div>
+                <div class="panel-body decision-stack">
+                    <section class="decision-group" id="dealConfidencePanel" hidden>
+                        <h3 class="decision-group-title">Deal Confidence</h3>
+                        <div class="decision-group-subtitle">Snapshot confidence tier and score for this buy recommendation.</div>
+                        <div class="prediction-list" id="dealConfidence"></div>
+                    </section>
+                    <section class="decision-group">
+                        <h3 class="decision-group-title">Next Sale Prediction</h3>
+                        <div class="decision-group-subtitle">Expected next sale price, timing range, and model reasoning.</div>
+                        <div class="prediction-list" id="prediction"></div>
+                    </section>
+                </div>
+            </section>
+
             <section class="panel">
                 <div class="panel-head">
                     <h2 class="panel-title">Market Snapshot</h2>
@@ -1084,38 +1237,18 @@ a {
                     <div class="info-list" id="marketInfo"></div>
                 </div>
             </section>
-
-            <section class="panel" id="dealConfidencePanel" hidden>
-                <div class="panel-head">
-                    <h2 class="panel-title">Deal Confidence</h2>
-                    <div class="panel-subtitle">Snapshot guidance for buy strength and likely timing.</div>
-                </div>
-                <div class="panel-body">
-                    <div class="prediction-list" id="dealConfidence"></div>
-                </div>
-            </section>
-
-            <section class="panel">
-                <div class="panel-head">
-                    <h2 class="panel-title">Next Sale Prediction</h2>
-                    <div class="panel-subtitle">Snapshot-based estimate for next sale timing and likely price.</div>
-                </div>
-                <div class="panel-body">
-                    <div class="prediction-list" id="prediction"></div>
-                </div>
-            </section>
-
-            <section class="panel">
-                <div class="panel-head">
-                    <h2 class="panel-title">Discovery Loops</h2>
-                    <div class="panel-subtitle">Related games based on discounts, tags, and similar player movement.</div>
-                </div>
-                <div class="panel-body">
-                    <div class="related-grid" id="relatedGames"></div>
-                </div>
-            </section>
         </div>
-    </div>
+    </section>
+
+    <section class="panel discovery-panel">
+        <div class="panel-head">
+            <h2 class="panel-title">Discovery Loops</h2>
+            <div class="panel-subtitle">Related games based on discounts, tags, and similar player movement.</div>
+        </div>
+        <div class="panel-body">
+            <div class="related-grid" id="relatedGames"></div>
+        </div>
+    </section>
 </div>
 
 <script>
@@ -1130,6 +1263,7 @@ const gameName = getQueryParam("game_name");
 const gameIdParam = getQueryParam("game_id");
 const watchButton = document.getElementById("watchButton");
 const shareDealButton = document.getElementById("shareDealButton");
+const storeCtaLink = document.getElementById("storeCtaLink");
 const targetPriceInput = document.getElementById("targetPriceInput");
 const targetDiscountInput = document.getElementById("targetDiscountInput");
 const saveTargetAlertButton = document.getElementById("saveTargetAlertButton");
@@ -1157,6 +1291,32 @@ function setInlineSkeleton(id, widthClass = "gd-skeleton-w-56") {
     node.innerHTML = `<span class="gd-skeleton-block gd-skeleton-line ${widthClass}" aria-hidden="true"></span>`;
 }
 
+function setStoreCta(url) {
+    if (!(storeCtaLink instanceof HTMLAnchorElement)) return;
+    const normalizedUrl = String(url || "").trim();
+    if (normalizedUrl) {
+        storeCtaLink.href = normalizedUrl;
+        storeCtaLink.classList.remove("is-disabled");
+        storeCtaLink.removeAttribute("aria-disabled");
+        return;
+    }
+
+    storeCtaLink.href = "#";
+    storeCtaLink.classList.add("is-disabled");
+    storeCtaLink.setAttribute("aria-disabled", "true");
+}
+
+function resolveStoreUrl(payload) {
+    const explicitUrl = String(payload?.store_url || "").trim();
+    if (explicitUrl) return explicitUrl;
+
+    const steamAppId = String(payload?.steam_appid || payload?.appid || "").trim();
+    if (/^\d+$/.test(steamAppId)) {
+        return `https://store.steampowered.com/app/${steamAppId}/`;
+    }
+    return "";
+}
+
 function clearLoadingChrome() {
     const heroBanner = document.getElementById("heroBanner");
     if (heroBanner) {
@@ -1173,6 +1333,7 @@ function renderGameLoadingSkeletons() {
     setInlineSkeleton("dealBadge", "gd-skeleton-w-40");
     setInlineSkeleton("currentPrice", "gd-skeleton-w-48");
     setInlineSkeleton("historicalLow", "gd-skeleton-w-48");
+    setInlineSkeleton("currentDiscount", "gd-skeleton-w-40");
     setInlineSkeleton("dealScore", "gd-skeleton-w-40");
     setInlineSkeleton("playerCount", "gd-skeleton-w-40");
 
@@ -1952,11 +2113,19 @@ function applyDealBadgeGlow(payload) {
 }
 
 async function loadGame() {
+    setStoreCta("");
+    const discoveryPanel = document.querySelector(".discovery-panel");
+    if (discoveryPanel instanceof HTMLElement) {
+        discoveryPanel.hidden = false;
+    }
     const requestedGameId = Number(gameIdParam);
     const hasValidGameId = Number.isFinite(requestedGameId) && requestedGameId > 0;
     if (!hasValidGameId && !gameName) {
         if (shareDealButton instanceof HTMLButtonElement) {
             shareDealButton.disabled = true;
+        }
+        if (discoveryPanel instanceof HTMLElement) {
+            discoveryPanel.hidden = true;
         }
         clearLoadingChrome();
         document.getElementById("gameTitle").innerText = "Missing game identifier";
@@ -1977,6 +2146,9 @@ async function loadGame() {
         if (shareDealButton instanceof HTMLButtonElement) {
             shareDealButton.disabled = true;
         }
+        if (discoveryPanel instanceof HTMLElement) {
+            discoveryPanel.hidden = true;
+        }
         clearLoadingChrome();
         document.getElementById("gameTitle").innerText = message;
         document.querySelector(".content-grid").innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
@@ -1993,6 +2165,7 @@ async function loadGame() {
         shareDealButton.disabled = !(Number.isFinite(currentGameId) && currentGameId > 0);
         shareDealButton.textContent = SHARE_BUTTON_DEFAULT_LABEL;
     }
+    setStoreCta(resolveStoreUrl(payload));
     applyGamePageMetadata(payload);
 
     document.getElementById("gameTitle").innerText = payload.game_name || gameName;
@@ -2002,6 +2175,10 @@ async function loadGame() {
 
     document.getElementById("currentPrice").innerText = fmtPrice(payload.price ?? payload.current_price);
     document.getElementById("historicalLow").innerText = fmtPrice(payload.historical_low ?? payload.historical_low_price);
+    const discountValue = payload.discount_percent ?? payload.latest_discount_percent;
+    document.getElementById("currentDiscount").innerText = Number.isFinite(Number(discountValue))
+        ? `${Math.round(Number(discountValue))}%`
+        : "—";
     document.getElementById("dealScore").innerText = payload.deal_score ?? "—";
     document.getElementById("playerCount").innerText = fmtInt(payload.current_players);
     const confidenceForBadge = resolveDealConfidence(payload);

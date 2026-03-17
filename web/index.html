@@ -678,6 +678,7 @@ input:focus-visible {
     gap: 20px;
     align-items: start;
     width: 100%;
+    max-width: 100%;
     min-width: 0;
 }
 
@@ -715,6 +716,9 @@ input:focus-visible {
 .homepage-main,
 .homepage-main-column {
     grid-area: main;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-x: clip;
 }
 
 .side-column,
@@ -727,6 +731,14 @@ input:focus-visible {
     margin: 0;
     transform: none;
     inset: auto;
+}
+
+.main-column > *,
+.homepage-main > *,
+.homepage-main-column > * {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .side-column > .panel,
@@ -1071,9 +1083,10 @@ input:focus-visible {
 }
 
 .row-scroller {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(var(--row-card-min), var(--row-card-max));
+    --row-card-size: clamp(var(--row-card-min), 22vw, var(--row-card-max));
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
     gap: 10px;
     width: 100%;
     max-width: 100%;
@@ -1111,6 +1124,15 @@ input:focus-visible {
 
 .row-scroller > * {
     min-width: 0;
+    flex: 0 0 var(--row-card-size);
+    width: var(--row-card-size);
+    max-width: none;
+}
+
+.row-scroller > .section-empty,
+.row-scroller > .error,
+.row-scroller > .analytics-empty {
+    flex: 0 0 100%;
     width: 100%;
     max-width: 100%;
 }
@@ -3089,7 +3111,7 @@ input:focus-visible {
     }
 
     .row-scroller {
-        grid-auto-columns: minmax(188px, 56vw);
+        --row-card-size: clamp(188px, 56vw, 216px);
         gap: 8px;
         padding-bottom: 4px;
     }
@@ -3252,7 +3274,7 @@ input:focus-visible {
         gap: 6px;
     }
     .row-scroller {
-        grid-auto-columns: minmax(160px, 66vw);
+        --row-card-size: clamp(160px, 66vw, 196px);
     }
     .game-card-image {
         height: 108px;

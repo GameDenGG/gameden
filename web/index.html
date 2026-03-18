@@ -9032,7 +9032,7 @@ input:focus-visible {
             try {
                 const params = new URLSearchParams();
                 params.set("q", trimmed);
-                params.set("limit", "20");
+                params.set("limit", "10");
                 const payload = await fetchJson(`/search?${params.toString()}`, { signal: controller.signal });
                 const isCurrent = (
                     state.search.requestId === requestId

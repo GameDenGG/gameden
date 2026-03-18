@@ -9772,7 +9772,7 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
             const opportunityRadarEndpointUrl = `/api/opportunity-radar?limit=${HOMEPAGE_SECTION_LIMITS.opportunityRadar}`;
             const dailyDigestEndpointUrl = `/api/daily-digest?user_id=${encodeURIComponent(CURRENT_USER_ID)}&section_limit=${HOMEPAGE_SECTION_LIMITS.dailyDigestSection}`;
 
-       let dashboardData = null;
+let dashboardData = null;
 let seasonalData = emptySeasonal;
 let releasedData = emptyReleased;
 let dealRadarData = emptyDealRadar;
@@ -9822,7 +9822,7 @@ try {
 
     const dashboardDigestSeed = dashboardData?.daily_digest || dashboardData?.dailyDigest;
 
-    // Priority batch: load the most important homepage sections first.
+    // Only block on priority content.
     [seasonalData, releasedData] = await Promise.all([
         (dashboardSeasonal.sale_event || safeArray(dashboardSeasonal.expected_games).length)
             ? Promise.resolve(dashboardSeasonal)
@@ -9833,33 +9833,47 @@ try {
             : fetchJson(`/games/released?${releasedParams.toString()}`).catch(() => emptyReleased),
     ]);
 
-    // Secondary batch: load the rest after the priority data is ready.
-    [dealRadarData, opportunitiesData, opportunityRadarData, dailyDigestData] = await Promise.all([
-        dashboardDealRadarSeed.length
-            ? Promise.resolve({ items: dashboardDealRadarSeed })
-            : fetchJson(marketRadarEndpointUrl)
-                .catch(() => fetchJson(dealRadarEndpointUrl))
-                .catch(() => emptyDealRadar),
+    // Start lower-priority content in background. Do not await here.
+    setTimeout(async () => {
+        try {
+            [dealRadarData, opportunitiesData, opportunityRadarData, dailyDigestData] = await Promise.all([
+                dashboardDealRadarSeed.length
+                    ? Promise.resolve({ items: dashboardDealRadarSeed })
+                    : fetchJson(marketRadarEndpointUrl)
+                        .catch(() => fetchJson(dealRadarEndpointUrl))
+                        .catch(() => emptyDealRadar),
 
-        dashboardOpportunitySeed.length
-            ? Promise.resolve({ items: dashboardOpportunitySeed })
-            : fetchJson(opportunitiesEndpointUrl).catch(() => emptyOpportunities),
+                dashboardOpportunitySeed.length
+                    ? Promise.resolve({ items: dashboardOpportunitySeed })
+                    : fetchJson(opportunitiesEndpointUrl).catch(() => emptyOpportunities),
 
-        dashboardOpportunityRadarSeed.length
-            ? Promise.resolve({ items: dashboardOpportunityRadarSeed })
-            : fetchJson(opportunityRadarEndpointUrl).catch(() => emptyOpportunityRadar),
+                dashboardOpportunityRadarSeed.length
+                    ? Promise.resolve({ items: dashboardOpportunityRadarSeed })
+                    : fetchJson(opportunityRadarEndpointUrl).catch(() => emptyOpportunityRadar),
 
-        (
-            dashboardDigestSeed
-            && typeof dashboardDigestSeed === "object"
-            && (
-                (dashboardDigestSeed.sections && typeof dashboardDigestSeed.sections === "object")
-                || safeArray(dashboardDigestSeed.highlights).length
-            )
-        )
-            ? Promise.resolve(dashboardDigestSeed)
-            : fetchJson(dailyDigestEndpointUrl).catch(() => emptyDailyDigest),
-    ]);
+                (
+                    dashboardDigestSeed
+                    && typeof dashboardDigestSeed === "object"
+                    && (
+                        (dashboardDigestSeed.sections && typeof dashboardDigestSeed.sections === "object")
+                        || safeArray(dashboardDigestSeed.highlights).length
+                    )
+                )
+                    ? Promise.resolve(dashboardDigestSeed)
+                    : fetchJson(dailyDigestEndpointUrl).catch(() => emptyDailyDigest),
+            ]);
+
+            // Re-render or hydrate the lower-priority homepage sections here.
+            // Put your existing render calls for:
+            // - dealRadarData
+            // - opportunitiesData
+            // - opportunityRadarData
+            // - dailyDigestData
+            // in this block.
+        } catch (secondaryError) {
+            console.warn("Secondary homepage sections failed to load", secondaryError);
+        }
+    }, 150);
 } catch (dashboardError) {
     console.warn("Failed to load /dashboard/home, using endpoint fallbacks", dashboardError);
     dashboardData = {
@@ -9896,25 +9910,32 @@ try {
         daily_digest: emptyDailyDigest,
     };
 
-    // Priority batch first.
     [seasonalData, releasedData] = await Promise.all([
         fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal),
         fetchJson(`/games/released?${releasedParams.toString()}`).catch(() => emptyReleased),
     ]);
 
-    // Secondary batch second.
-    [dealRadarData, opportunitiesData, opportunityRadarData, dailyDigestData] = await Promise.all([
-        fetchJson(marketRadarEndpointUrl)
-            .catch(() => fetchJson(dealRadarEndpointUrl))
-            .catch(() => emptyDealRadar),
+    setTimeout(async () => {
+        try {
+            [dealRadarData, opportunitiesData, opportunityRadarData, dailyDigestData] = await Promise.all([
+                fetchJson(marketRadarEndpointUrl)
+                    .catch(() => fetchJson(dealRadarEndpointUrl))
+                    .catch(() => emptyDealRadar),
 
-        fetchJson(opportunitiesEndpointUrl).catch(() => emptyOpportunities),
+                fetchJson(opportunitiesEndpointUrl).catch(() => emptyOpportunities),
 
-        fetchJson(opportunityRadarEndpointUrl).catch(() => emptyOpportunityRadar),
+                fetchJson(opportunityRadarEndpointUrl).catch(() => emptyOpportunityRadar),
 
-        fetchJson(dailyDigestEndpointUrl).catch(() => emptyDailyDigest),
-    ]);
+                fetchJson(dailyDigestEndpointUrl).catch(() => emptyDailyDigest),
+            ]);
+
+            // Put the lower-priority section render calls here too.
+        } catch (secondaryError) {
+            console.warn("Secondary homepage fallbacks failed to load", secondaryError);
+        }
+    }, 150);
 }
+
             hydrateDashboardState(
                 dashboardData,
                 seasonalData,

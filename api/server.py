@@ -1,6 +1,7 @@
 import datetime
 import json
 import math
+import mimetypes
 import re
 import time
 from pathlib import Path
@@ -71,6 +72,37 @@ logger = setup_logger("api")
 
 validate_settings()
 
+mimetypes.add_type("application/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
+mimetypes.add_type("image/webp", ".webp")
+mimetypes.add_type("image/avif", ".avif")
+
+
+class CacheControlStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+
+        if response.status_code >= 400:
+            return response
+
+        normalized_path = (path or "").lower()
+        is_html = normalized_path.endswith(".html") or normalized_path == ""
+
+        if is_html:
+            response.headers["Cache-Control"] = "public, max-age=300"
+        else:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+
+        vary_value = response.headers.get("Vary")
+        if vary_value:
+            if "Accept-Encoding" not in vary_value:
+                response.headers["Vary"] = f"{vary_value}, Accept-Encoding"
+        else:
+            response.headers["Vary"] = "Accept-Encoding"
+
+        return response
+
+
 app = FastAPI(title=f"{SITE_NAME} API", description=SITE_DESCRIPTION)
 
 ALLOW_ALL_CORS = CORS_ALLOW_ALL_ORIGINS or "*" in CORS_ALLOW_ORIGINS
@@ -78,14 +110,76 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if ALLOW_ALL_CORS else CORS_ALLOW_ORIGINS,
     allow_credentials=not ALLOW_ALL_CORS,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
-app.add_middleware(GZipMiddleware, minimum_size=500)
 
-app.mount("/web", StaticFiles(directory="web"), name="web")
+app.add_middleware(
+    GZipMiddleware,
+    minimum_size=1024,
+    compresslevel=5,
+)
+
+
+@app.middleware("http")
+async def security_and_cache_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+
+    vary_value = response.headers.get("Vary")
+    if vary_value:
+        if "Accept-Encoding" not in vary_value:
+            response.headers["Vary"] = f"{vary_value}, Accept-Encoding"
+    else:
+        response.headers["Vary"] = "Accept-Encoding"
+
+    if request.url.path.startswith("/api/"):
+        response.headers.setdefault("Cache-Control", "no-store")
+
+    return response
+
+
+def _normalize_host(value: str | None) -> str:
+    if not value:
+        return ""
+    return value.strip().split(",")[0].split(":")[0].lower()
+
+
+def _request_host(request: Request) -> str:
+    forwarded_host = _normalize_host(request.headers.get("x-forwarded-host"))
+    if forwarded_host:
+        return forwarded_host
+    host_header = _normalize_host(request.headers.get("host"))
+    if host_header:
+        return host_header
+    return _normalize_host(request.url.hostname)
+
+
+def _build_canonical_url(path: str, query: str = "") -> str:
+    base = SITE_URL.rstrip("/")
+    final_path = path if path.startswith("/") else f"/{path}"
+    suffix = f"?{query}" if query else ""
+    return f"{base}{final_path}{suffix}"
+
+
+@app.middleware("http")
+async def canonical_host_redirect_middleware(request: Request, call_next):
+    if not CANONICAL_HOST_REDIRECT:
+        return await call_next(request)
+
+    request_host = _request_host(request)
+    if request_host and request_host != SITE_HOST and request_host in CANONICAL_REDIRECT_HOSTS:
+        target = _build_canonical_url(request.url.path, request.url.query)
+        return RedirectResponse(url=target, status_code=308)
+
+    return await call_next(request)
+
+
+app.mount("/web", CacheControlStaticFiles(directory="web"), name="web")
 if Path("public").exists():
-    app.mount("/public", StaticFiles(directory="public"), name="public")
+    app.mount("/public", CacheControlStaticFiles(directory="public"), name="public")
 
 
 @app.on_event("startup")
@@ -7164,4 +7258,9 @@ def delete_watchlist_item(game_name: str):
     finally:
         session.close()
     response = delete_watchlist_api(int(game.id), DEFAULT_USER_ID)
-    return {"deleted": bool(response.get("deleted")), "game_name": game_name, "game_id": int(game.id)}
+    return {
+        "ok": bool(response.get("ok")),
+        "deleted": bool(response.get("deleted")),
+        "game_name": game_name,
+        "game_id": int(game.id),
+    }

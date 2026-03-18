@@ -464,7 +464,12 @@ select {
     background-position: center;
     border: 1px solid var(--line);
 }
-
+.search-result-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
 .search-result-title {
     font-family: var(--font-display);
     font-size: 15px;
@@ -9088,7 +9093,9 @@ input:focus-visible {
                 return;
             }
 
-            ui.searchResultsList.innerHTML = results.map((game) => {
+            const visibleResults = results.slice(0, 10);
+
+ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                 const bannerUrl = game.header_image || game.banner_url || (game.steam_appid
                     ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`
                     : null);
@@ -9104,7 +9111,16 @@ input:focus-visible {
 
                 return `
                     <a class="search-result-item" href="${buildGameDetailHref(game)}" data-track-game="${encodeURIComponent(game.game_name || "")}">
-                        <div class="search-result-thumb" ${bannerUrl ? `style='background-image:url("${escapeCssUrl(bannerUrl)}");'` : ""}></div>
+                        <div class="search-result-thumb">
+  ${bannerUrl ? `
+    <img
+      src="${escapeHtml(bannerUrl)}"
+      alt="${escapeHtml(game.game_name || "Game cover")}"
+      loading="lazy"
+      decoding="async"
+    />
+  ` : ""}
+</div>
                         <div>
                             <div class="search-result-title-row">
                                 <div class="search-result-title">${escapeHtml(game.game_name)}</div>
@@ -10629,7 +10645,7 @@ input:focus-visible {
                 searchInputTimer = setTimeout(() => {
                     state.filters.search = value.trim().toLowerCase();
                     onFilterMutation();
-                }, 120);
+                }, 250);
             });
 
             ui.searchInput.addEventListener("focus", () => {

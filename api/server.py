@@ -4911,27 +4911,7 @@ def _trim_dashboard_home_payload(payload: dict, mode: str) -> dict:
         allowed_keys = {
             "catalogSummary",
             "filters",
-            "recommendedDeals",
-            "dealRanked",
-            "biggest_discounts",
-            "worth_buying_now",
-            "trending_now",
-            "new_historical_lows",
-            "buy_now_picks",
-            "wait_picks",
-            "historicalLows",
-            "topReviewed",
-            "topPlayed",
-            "trending",
-            "leaderboard",
-            "upcoming",
-            "alertSignals",
-            "deal_radar",
-            "deal_opportunities",
-            "opportunity_radar",
-            "player_surges",
             "seasonal_summary",
-            "daily_digest",
             "generated_at",
             "_meta",
         }
@@ -5135,6 +5115,14 @@ def get_dashboard_home(request: Request, mode: str | None = None):
             }
             trimmed = _trim_dashboard_home_payload(payload, normalized_mode)
             return JSONResponse(content=trimmed)
+
+        if normalized_mode == "deferred":
+            payload = dict(cached_payload)
+            payload["_meta"] = {
+                "cache_key": cache_row.cache_key,
+                "generated_at": cache_row.updated_at.isoformat() if cache_row.updated_at else None,
+            }
+            return JSONResponse(content=_trim_dashboard_home_payload(payload, normalized_mode))
 
         payload = _augment_dashboard_home_payload(cached_payload)
         payload["_meta"] = {

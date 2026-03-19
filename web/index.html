@@ -4208,6 +4208,7 @@ input:focus-visible {
         ]);
         const DASHBOARD_SNAPSHOT_STORAGE_KEY = "gameden.dashboard.snapshot.v1";
         const DASHBOARD_SNAPSHOT_MAX_AGE_MS = 5 * 60 * 1000;
+        const DASHBOARD_RESTORE_DEFERRED_REFRESH_GRACE_MS = 90 * 1000;
 
         function getCurrentUserId() {
             const fallback = DEFAULT_USER_ID;
@@ -4627,6 +4628,7 @@ input:focus-visible {
             dashboardRestore: {
                 restored: false,
                 restoredAt: 0,
+                sourceSavedAt: 0,
             },
             visibleCounts: {
                 dealRankedGrid: 6,
@@ -4881,6 +4883,7 @@ input:focus-visible {
                 state.analyticsPanelExpanded = !!parsed.analyticsPanelExpanded;
                 state.dashboardRestore.restored = true;
                 state.dashboardRestore.restoredAt = Date.now();
+                state.dashboardRestore.sourceSavedAt = savedAt;
 
                 const scrollY = Number(parsed.scroll_y || 0);
                 const rowScroll = parsed.row_scroll && typeof parsed.row_scroll === "object" ? parsed.row_scroll : {};
@@ -9730,37 +9733,43 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
         ) {
             const deferAnalytics = options?.deferAnalytics === true;
             const preservePersonalState = options?.preservePersonalState === true;
-            const biggestDiscounts = uniqueGamesByName(
-                dashboardPayload?.biggest_discounts
-                || dashboardPayload?.biggestDeals
-                || []
+            const preserveExistingSections = options?.preserveExistingSections === true;
+            const hasDashboardObject = !!(dashboardPayload && typeof dashboardPayload === "object");
+            const hasDashboardKey = (...keys) => (
+                hasDashboardObject
+                && keys.some((key) => Object.prototype.hasOwnProperty.call(dashboardPayload, key))
             );
-            const dealRanked = uniqueGamesByName(dashboardPayload?.dealRanked || dashboardPayload?.topDealsToday || []);
-            const recommendedDeals = uniqueGamesByName(dashboardPayload?.recommendedDeals || []);
-            const topReviewed = uniqueGamesByName(dashboardPayload?.topReviewed || []);
-            const topPlayed = uniqueGamesByName(dashboardPayload?.topPlayed || dashboardPayload?.mostPlayedDeals || []);
-            const trendingDeals = uniqueGamesByName(dashboardPayload?.trendingDeals || []);
-            const trending = uniqueGamesByName(dashboardPayload?.trending || dashboardPayload?.trending_now || []);
-            const leaderboard = uniqueGamesByName(dashboardPayload?.leaderboard || []);
-            const historicalLows = uniqueGamesByName(dashboardPayload?.historicalLows || []);
-            const upcoming = uniqueGamesByName(dashboardPayload?.upcoming || []);
-            const worthBuyingNow = uniqueGamesByName(
-                dashboardPayload?.worth_buying_now
-                || dashboardPayload?.worthBuyingNow
-                || []
+            const hydrateRowsFromPayload = (keys, fallbackRows = []) => {
+                const hasPayloadKey = hasDashboardKey(...keys);
+                if (!hasPayloadKey && preserveExistingSections) {
+                    return uniqueGamesByName(fallbackRows);
+                }
+                const rows = uniqueGamesByName(
+                    keys.flatMap((key) => safeArray(dashboardPayload?.[key]))
+                );
+                return rows;
+            };
+            const biggestDiscounts = hydrateRowsFromPayload(
+                ["biggest_discounts", "biggestDeals"],
+                safeArray(state.biggestDiscounts).length ? state.biggestDiscounts : state.biggestDeals,
             );
-            const trendingNow = uniqueGamesByName(
-                dashboardPayload?.trending_now
-                || dashboardPayload?.trending
-                || dashboardPayload?.trendingDeals
-                || []
-            );
-            const newHistoricalLows = uniqueGamesByName(
-                dashboardPayload?.new_historical_lows
-                || dashboardPayload?.newHistoricalLows
-                || []
-            );
-            const alertSignals = uniqueAlertSignals(dashboardPayload?.alertSignals || []);
+            const dealRanked = hydrateRowsFromPayload(["dealRanked", "topDealsToday"], state.dealRanked);
+            const recommendedDeals = hydrateRowsFromPayload(["recommendedDeals"], state.recommendedDeals);
+            const topReviewed = hydrateRowsFromPayload(["topReviewed"], state.topReviewed);
+            const topPlayed = hydrateRowsFromPayload(["topPlayed", "mostPlayedDeals"], state.topPlayed);
+            const trendingDeals = hydrateRowsFromPayload(["trendingDeals"], state.trendingDeals);
+            const trending = hydrateRowsFromPayload(["trending", "trending_now"], state.trending);
+            const leaderboard = hydrateRowsFromPayload(["leaderboard"], state.leaderboard);
+            const historicalLows = hydrateRowsFromPayload(["historicalLows"], state.historicalLows);
+            const upcoming = hydrateRowsFromPayload(["upcoming"], state.upcoming);
+            const worthBuyingNow = hydrateRowsFromPayload(["worth_buying_now", "worthBuyingNow"], state.worthBuyingNow);
+            const trendingNow = hydrateRowsFromPayload(["trending_now", "trending", "trendingDeals"], state.trendingNow);
+            const newHistoricalLows = hydrateRowsFromPayload(["new_historical_lows", "newHistoricalLows"], state.newHistoricalLows);
+            const alertSignals = (
+                !hasDashboardKey("alertSignals") && preserveExistingSections
+            )
+                ? uniqueAlertSignals(safeArray(state.alertSignals))
+                : uniqueAlertSignals(dashboardPayload?.alertSignals || []);
             const hasDealRadarPayload = dealRadarPayload !== null && dealRadarPayload !== undefined;
             const hasOpportunitiesPayload = opportunitiesPayload !== null && opportunitiesPayload !== undefined;
             const hasOpportunityRadarPayload = opportunityRadarPayload !== null && opportunityRadarPayload !== undefined;
@@ -9865,14 +9874,31 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                             )
                             .slice(0, 24)
                 );
-            const releasedItems = uniqueGamesByName(releasedPayload?.items || []);
+            const releasedItemsFromPayload = uniqueGamesByName(releasedPayload?.items || []);
+            const releasedItems = releasedItemsFromPayload.length
+                ? releasedItemsFromPayload
+                : (
+                    preserveExistingSections
+                        ? uniqueGamesByName(state.allGames)
+                        : []
+                );
             const seasonalFromEndpoint = normalizeSeasonalPayload(seasonalPayload);
             const seasonalFromDashboard = normalizeSeasonalPayload(
                 dashboardPayload?.seasonal_summary || dashboardPayload?.seasonalSale
             );
-            const seasonalStateSource = (seasonalFromEndpoint.sale_event || seasonalFromEndpoint.expected_games.length)
+            const hasSeasonalDashboardPayload = hasDashboardKey("seasonal_summary", "seasonalSale");
+            let seasonalStateSource = (seasonalFromEndpoint.sale_event || seasonalFromEndpoint.expected_games.length)
                 ? seasonalFromEndpoint
                 : seasonalFromDashboard;
+            if (
+                preserveExistingSections
+                && !seasonalFromEndpoint.sale_event
+                && !seasonalFromEndpoint.expected_games.length
+                && !hasSeasonalDashboardPayload
+                && state.seasonalSale
+            ) {
+                seasonalStateSource = normalizeSeasonalPayload(state.seasonalSale);
+            }
             const discoveryTrendingPool = uniqueGamesByName([
                 ...releasedItems,
                 ...trending,
@@ -9900,17 +9926,24 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                 expected_games: diversifiedDiscoveryRails.seasonalRadar || [],
             };
 
-            state.allGames = releasedItems;
+            if (releasedItems.length) {
+                state.allGames = releasedItems;
+            }
+            const fallbackLatestPrices = uniqueGamesByName([
+                ...dealRanked,
+                ...biggestDiscounts,
+                ...topReviewed,
+                ...trendingDeals,
+                ...topPlayed,
+                ...historicalLows,
+            ]);
             state.latestPrices = releasedItems.length
                 ? releasedItems
-                : uniqueGamesByName([
-                    ...dealRanked,
-                    ...biggestDiscounts,
-                    ...topReviewed,
-                    ...trendingDeals,
-                    ...topPlayed,
-                    ...historicalLows,
-                ]);
+                : (
+                    preserveExistingSections && safeArray(state.latestPrices).length
+                        ? safeArray(state.latestPrices)
+                        : fallbackLatestPrices
+                );
             state.biggestDeals = biggestDiscounts;
             state.biggestDiscounts = biggestDiscounts;
             state.historicalLows = historicalLows;
@@ -9930,7 +9963,15 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
             state.buyNowPicks = buyNowPicks;
             state.waitPicks = waitPicks;
             state.seasonalSale = seasonalState;
-            state.catalogSummary = normalizeCatalogSummary(dashboardPayload?.catalogSummary);
+            const nextCatalogSummary = normalizeCatalogSummary(dashboardPayload?.catalogSummary);
+            state.catalogSummary = (
+                preserveExistingSections
+                && !hasDashboardKey("catalogSummary")
+                && state.catalogSummary
+                && Object.keys(state.catalogSummary).length
+            )
+                ? state.catalogSummary
+                : nextCatalogSummary;
             // Personal lists are user-scoped and should not be hydrated from shared dashboard cache.
             if (!preservePersonalState) {
                 state.wishlist = [];
@@ -10157,6 +10198,17 @@ try {
         : safeArray(dashboardData?.opportunityRadar);
 
     const dashboardDigestSeed = dashboardData?.daily_digest || dashboardData?.dailyDigest;
+    const needsDealRadarRefresh = !safeArray(state.dealRadar).length;
+    const needsOpportunitiesRefresh = !safeArray(state.opportunitiesNow).length;
+    const needsOpportunityRadarRefresh = !safeArray(state.opportunityRadar).length;
+    const needsDailyDigestRefresh = !(
+        state.dailyDigest
+        && typeof state.dailyDigest === "object"
+        && (
+            Object.keys(state.dailyDigest.sections || {}).length
+            || safeArray(state.dailyDigest.highlights).length
+        )
+    );
 
     // Only block on priority content.
     seasonalData = await (
@@ -10179,17 +10231,23 @@ try {
             [dealRadarData, opportunitiesData, opportunityRadarData, dailyDigestData] = await Promise.all([
                 dashboardDealRadarSeed.length
                     ? Promise.resolve({ items: dashboardDealRadarSeed })
-                    : fetchJson(marketRadarEndpointUrl)
-                        .catch(() => fetchJson(dealRadarEndpointUrl))
-                        .catch(() => null),
+                    : needsDealRadarRefresh
+                        ? fetchJson(marketRadarEndpointUrl)
+                            .catch(() => fetchJson(dealRadarEndpointUrl))
+                            .catch(() => null)
+                        : Promise.resolve(null),
 
                 dashboardOpportunitySeed.length
                     ? Promise.resolve({ items: dashboardOpportunitySeed })
-                    : fetchJson(opportunitiesEndpointUrl).catch(() => null),
+                    : needsOpportunitiesRefresh
+                        ? fetchJson(opportunitiesEndpointUrl).catch(() => null)
+                        : Promise.resolve(null),
 
                 dashboardOpportunityRadarSeed.length
                     ? Promise.resolve({ items: dashboardOpportunityRadarSeed })
-                    : fetchJson(opportunityRadarEndpointUrl).catch(() => null),
+                    : needsOpportunityRadarRefresh
+                        ? fetchJson(opportunityRadarEndpointUrl).catch(() => null)
+                        : Promise.resolve(null),
 
                 (
                     dashboardDigestSeed
@@ -10200,7 +10258,9 @@ try {
                     )
                 )
                     ? Promise.resolve(dashboardDigestSeed)
-                    : fetchJson(dailyDigestEndpointUrl).catch(() => null),
+                    : needsDailyDigestRefresh
+                        ? fetchJson(dailyDigestEndpointUrl).catch(() => null)
+                        : Promise.resolve(null),
             ]);
 
             applyDeferredHomepageSections({
@@ -10257,18 +10317,38 @@ try {
             scheduleCatalogSeed(releasedData);
         });
 
+    const needsDealRadarRefresh = !safeArray(state.dealRadar).length;
+    const needsOpportunitiesRefresh = !safeArray(state.opportunitiesNow).length;
+    const needsOpportunityRadarRefresh = !safeArray(state.opportunityRadar).length;
+    const needsDailyDigestRefresh = !(
+        state.dailyDigest
+        && typeof state.dailyDigest === "object"
+        && (
+            Object.keys(state.dailyDigest.sections || {}).length
+            || safeArray(state.dailyDigest.highlights).length
+        )
+    );
+
     setTimeout(async () => {
         try {
             [dealRadarData, opportunitiesData, opportunityRadarData, dailyDigestData] = await Promise.all([
-                fetchJson(marketRadarEndpointUrl)
-                    .catch(() => fetchJson(dealRadarEndpointUrl))
-                    .catch(() => null),
+                needsDealRadarRefresh
+                    ? fetchJson(marketRadarEndpointUrl)
+                        .catch(() => fetchJson(dealRadarEndpointUrl))
+                        .catch(() => null)
+                    : Promise.resolve(null),
 
-                fetchJson(opportunitiesEndpointUrl).catch(() => null),
+                needsOpportunitiesRefresh
+                    ? fetchJson(opportunitiesEndpointUrl).catch(() => null)
+                    : Promise.resolve(null),
 
-                fetchJson(opportunityRadarEndpointUrl).catch(() => null),
+                needsOpportunityRadarRefresh
+                    ? fetchJson(opportunityRadarEndpointUrl).catch(() => null)
+                    : Promise.resolve(null),
 
-                fetchJson(dailyDigestEndpointUrl).catch(() => null),
+                needsDailyDigestRefresh
+                    ? fetchJson(dailyDigestEndpointUrl).catch(() => null)
+                    : Promise.resolve(null),
             ]);
 
             applyDeferredHomepageSections({
@@ -10291,7 +10371,7 @@ try {
                 opportunitiesData,
                 opportunityRadarData,
                 dailyDigestData,
-                { preservePersonalState: true },
+                { preservePersonalState: true, preserveExistingSections: true },
             );
             dashboardData.filters = dashboardData?.filters || {};
             scheduleCatalogSeed(releasedData);
@@ -10450,14 +10530,16 @@ try {
             return uniqueAlertSignals(items);
         }
 
-        async function loadDeferredHomepageData(dashboardDataPromise) {
+        async function loadDeferredHomepageData(dashboardDataPromise, options = {}) {
             const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
+            const eagerPersonalLists = options?.eagerPersonalLists === true;
+            const eagerPersonalizedDeals = options?.eagerPersonalizedDeals === true;
             const hasWatchlistSeed = safeArray(state.watchlist).length > 0;
             const hasWishlistSeed = safeArray(state.wishlist).length > 0;
             const hasAlertSeed = !!state.personalSummaryLoaded && safeArray(state.alertSignals).length > 0;
             const hasPersonalizedSeed = safeArray(state.personalizedDeals).length > 0;
 
-            const watchlistPromise = knownUser && !hasWatchlistSeed
+            const watchlistPromise = knownUser && eagerPersonalLists && !hasWatchlistSeed
                 ? loadUserWatchlist().catch((error) => {
                     console.warn("Failed to load user watchlist", error);
                     return [];
@@ -10468,7 +10550,7 @@ try {
                 syncCardActionButtonsFromState();
             });
 
-            const wishlistPromise = knownUser && !hasWishlistSeed
+            const wishlistPromise = knownUser && eagerPersonalLists && !hasWishlistSeed
                 ? loadUserWishlist().catch((error) => {
                     console.warn("Failed to load user wishlist", error);
                     return [];
@@ -10479,7 +10561,7 @@ try {
                 syncCardActionButtonsFromState();
             });
 
-            const alertsPromise = knownUser && !hasAlertSeed
+            const alertsPromise = knownUser && eagerPersonalLists && !hasAlertSeed
                 ? loadUserAlertSignals().catch((error) => {
                     console.warn("Failed to load user alerts", error);
                     return [];
@@ -10495,7 +10577,7 @@ try {
                 renderAlerts();
             });
 
-            const personalizedPromise = knownUser && !hasPersonalizedSeed
+            const personalizedPromise = knownUser && eagerPersonalizedDeals && !hasPersonalizedSeed
                 ? loadPersonalizedDeals().catch((error) => {
                     console.warn("Failed to load personalized deals", error);
                     return [];
@@ -10545,6 +10627,202 @@ try {
             void deferredUserDataPromise.then(() => {
                 scheduleDashboardSnapshotPersist();
             });
+        }
+
+        function scheduleDeferredIdleTask(task, timeoutMs = 1200) {
+            if (typeof window.requestIdleCallback === "function") {
+                return new Promise((resolve) => {
+                    window.requestIdleCallback(async () => {
+                        try {
+                            await task();
+                        } finally {
+                            resolve();
+                        }
+                    }, { timeout: timeoutMs });
+                });
+            }
+            return Promise.resolve()
+                .then(() => task());
+        }
+
+        function runHomepageDeferredPanelLoader(key, loader) {
+            if (!key || typeof loader !== "function") return Promise.resolve();
+            const loaded = runHomepageDeferredPanelLoader._loaded || (runHomepageDeferredPanelLoader._loaded = new Set());
+            const inflight = runHomepageDeferredPanelLoader._inflight || (runHomepageDeferredPanelLoader._inflight = new Map());
+            if (loaded.has(key)) return Promise.resolve();
+            if (inflight.has(key)) return inflight.get(key);
+            const task = Promise.resolve()
+                .then(() => loader())
+                .then(() => {
+                    loaded.add(key);
+                })
+                .catch((error) => {
+                    console.warn(`Deferred panel loader failed (${key})`, error);
+                })
+                .finally(() => {
+                    inflight.delete(key);
+                });
+            inflight.set(key, task);
+            return task;
+        }
+
+        function wireHomepageDeferredPanelLoaders() {
+            if (wireHomepageDeferredPanelLoaders._wired) return;
+            const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
+            const panelTasks = [
+                {
+                    key: "panel:historical-lows",
+                    node: document.getElementById("historicalLowsPanel"),
+                    shouldLoad: () => !safeArray(state.historicalLows).length,
+                    load: () => fetchJson(`/games/historical-lows?limit=${HOMEPAGE_SECTION_LIMITS.dealOpportunities}`)
+                        .then((payload) => {
+                            const items = uniqueGamesByName(payload?.items || payload || []);
+                            if (items.length || !safeArray(state.historicalLows).length) {
+                                state.historicalLows = items;
+                            }
+                            renderHistoricalLows();
+                        }),
+                },
+                {
+                    key: "panel:top-reviewed",
+                    node: document.getElementById("topReviewedPanel"),
+                    shouldLoad: () => !safeArray(state.topReviewed).length,
+                    load: () => fetchJson(`/games/top-reviewed?limit=${HOMEPAGE_SECTION_LIMITS.dealOpportunities}`)
+                        .then((payload) => {
+                            const items = uniqueGamesByName(payload?.items || payload || []);
+                            if (items.length || !safeArray(state.topReviewed).length) {
+                                state.topReviewed = items;
+                            }
+                            renderTopReviewed();
+                        }),
+                },
+                {
+                    key: "panel:upcoming",
+                    node: document.getElementById("upcomingPanel"),
+                    shouldLoad: () => !safeArray(state.upcoming).length,
+                    load: () => fetchJson("/games/upcoming")
+                        .then((payload) => {
+                            const items = uniqueGamesByName(payload?.items || payload || []);
+                            if (items.length || !safeArray(state.upcoming).length) {
+                                state.upcoming = items;
+                            }
+                            renderUpcoming();
+                        }),
+                },
+                {
+                    key: "panel:analytics",
+                    node: document.getElementById("analyticsPanel"),
+                    shouldLoad: () => (
+                        !safeArray(state.topPlayed).length
+                        || !safeArray(state.trending).length
+                        || !safeArray(state.leaderboard).length
+                    ),
+                    load: () => Promise.all([
+                        fetchJson(`/games/top-played?limit=${HOMEPAGE_SECTION_LIMITS.dealOpportunities}`).catch(() => []),
+                        fetchJson(`/games/trending?limit=${HOMEPAGE_SECTION_LIMITS.dealOpportunities}`).catch(() => []),
+                        fetchJson(`/games/player-leaderboard?limit=${HOMEPAGE_SECTION_LIMITS.dealOpportunities}`).catch(() => []),
+                    ]).then(([topPlayedPayload, trendingPayload, leaderboardPayload]) => {
+                        const nextTopPlayed = uniqueGamesByName(topPlayedPayload?.items || topPlayedPayload || []);
+                        const nextTrending = uniqueGamesByName(trendingPayload?.items || trendingPayload || []);
+                        const nextLeaderboard = uniqueGamesByName(leaderboardPayload?.items || leaderboardPayload || []);
+                        if (nextTopPlayed.length || !safeArray(state.topPlayed).length) {
+                            state.topPlayed = nextTopPlayed;
+                        }
+                        if (nextTrending.length || !safeArray(state.trending).length) {
+                            state.trending = nextTrending;
+                        }
+                        if (nextLeaderboard.length || !safeArray(state.leaderboard).length) {
+                            state.leaderboard = nextLeaderboard;
+                        }
+                        renderTopPlayed();
+                        renderTrending();
+                        renderLeaderboard();
+                    }),
+                },
+                {
+                    key: "panel:seasonal",
+                    node: ui.seasonalSaleTopPanel || document.getElementById("seasonalSaleTopPanel"),
+                    shouldLoad: () => {
+                        const seasonal = state.seasonalSale && typeof state.seasonalSale === "object"
+                            ? state.seasonalSale
+                            : { sale_event: null, expected_games: [] };
+                        return !seasonal.sale_event && !safeArray(seasonal.expected_games).length;
+                    },
+                    load: () => fetchJson("/sales/seasonal-summary?limit=24")
+                        .then((payload) => {
+                            const normalized = normalizeSeasonalPayload(payload);
+                            if (normalized.sale_event || safeArray(normalized.expected_games).length) {
+                                state.seasonalSale = normalized;
+                                renderSeasonalSale();
+                            }
+                        }),
+                },
+                {
+                    key: "panel:personalized-deals",
+                    node: ui.recommendedForYouPanel || document.getElementById("recommendedForYouPanel"),
+                    shouldLoad: () => (
+                        knownUser
+                        && !safeArray(state.personalizedDeals).length
+                        && !state.personalizedStatus?.loading
+                        && !state.personalizedStatus?.error
+                    ),
+                    load: () => scheduleDeferredIdleTask(
+                        () => loadPersonalizedDeals()
+                            .then((items) => {
+                                if (!state.personalizedStatus.error) {
+                                    state.personalizedDeals = uniqueGamesByName(items || []);
+                                }
+                                renderPersonalizedDeals();
+                                syncCardActionButtonsFromState();
+                            })
+                            .catch((error) => {
+                                console.warn("Failed to load personalized deals", error);
+                                renderPersonalizedDeals();
+                            }),
+                        1500,
+                    ),
+                },
+            ];
+            const activeTasks = panelTasks.filter((task) => task.node && typeof task.shouldLoad === "function");
+            if (!activeTasks.length) {
+                wireHomepageDeferredPanelLoaders._wired = true;
+                return;
+            }
+            const runTask = (task) => {
+                if (!task.shouldLoad()) return false;
+                void runHomepageDeferredPanelLoader(task.key, task.load);
+                return true;
+            };
+            if (typeof IntersectionObserver !== "function") {
+                activeTasks.forEach((task, index) => {
+                    setTimeout(() => runTask(task), 250 + (index * 90));
+                });
+                wireHomepageDeferredPanelLoaders._wired = true;
+                return;
+            }
+            const taskByNode = new Map();
+            activeTasks.forEach((task) => {
+                taskByNode.set(task.node, task);
+            });
+            const observer = new IntersectionObserver((entries) => {
+                for (const entry of entries) {
+                    if (!entry.isIntersecting) continue;
+                    const task = taskByNode.get(entry.target);
+                    if (!task) continue;
+                    if (runTask(task)) {
+                        observer.unobserve(entry.target);
+                    }
+                }
+            }, {
+                root: null,
+                rootMargin: "0px 0px 420px 0px",
+                threshold: 0.01,
+            });
+            activeTasks.forEach((task) => {
+                observer.observe(task.node);
+            });
+            wireHomepageDeferredPanelLoaders._observer = observer;
+            wireHomepageDeferredPanelLoaders._wired = true;
         }
 
         function renderCriticalHomepageSkeletons() {
@@ -10633,6 +10911,14 @@ try {
             }
         }
 
+        function shouldFetchDeferredDashboardBundle() {
+            if (!state.dashboardRestore.restored) return true;
+            const snapshotSavedAt = Number(state.dashboardRestore.sourceSavedAt || 0);
+            if (!Number.isFinite(snapshotSavedAt) || snapshotSavedAt <= 0) return true;
+            const snapshotAgeMs = Math.max(0, Date.now() - snapshotSavedAt);
+            return snapshotAgeMs >= DASHBOARD_RESTORE_DEFERRED_REFRESH_GRACE_MS;
+        }
+
         async function runDeferredHomepageStage() {
             if (state.homepageLoad.deferredStarted) return;
             state.homepageLoad.deferredStarted = true;
@@ -10647,14 +10933,12 @@ try {
             );
             const allowFallback = !knownUser || hasFallbackSeed || state.personalizedStatus.fallbackMode;
             state.personalizedStatus.enabled = true;
-            state.personalizedStatus.loading = !allowFallback;
+            state.personalizedStatus.loading = false;
             state.personalizedStatus.error = null;
             state.personalizedStatus.personalized = false;
             state.personalizedStatus.fallbackMode = allowFallback;
-            const hasWishlistSeed = safeArray(state.wishlist).length > 0;
-            const hasWatchlistSeed = safeArray(state.watchlist).length > 0;
-            state.personalListStatus.wishlistLoading = !hasWishlistSeed && knownUser;
-            state.personalListStatus.watchlistLoading = !hasWatchlistSeed && knownUser;
+            state.personalListStatus.wishlistLoading = false;
+            state.personalListStatus.watchlistLoading = false;
             state.personalListStatus.wishlistError = null;
             state.personalListStatus.watchlistError = null;
             const hasCriticalDigest = !!(
@@ -10668,19 +10952,31 @@ try {
             setPanelVisibility(ui.wishlistPanel, true);
             setPanelVisibility(ui.watchlistPanel, true);
             renderDeferredHomepageSkeletons();
+            wireHomepageDeferredPanelLoaders();
 
             try {
-                const dashboardDataPromise = loadDashboardData();
-                const deferredUserDataPromise = loadDeferredHomepageData(dashboardDataPromise);
-                const data = await dashboardDataPromise;
-                const preservedScrollY = Math.max(0, Math.round(window.scrollY || 0));
-                const preservedRowScroll = captureDashboardRowScrollPositions();
-                applyFilterOptionsToControls(data.filters || {});
-                applyAllRenders();
-                if (preservedScrollY > 0) {
-                    window.scrollTo({ top: preservedScrollY, behavior: "auto" });
+                const shouldFetchDeferredBundle = shouldFetchDeferredDashboardBundle();
+                const dashboardDataPromise = shouldFetchDeferredBundle
+                    ? loadDashboardData()
+                    : Promise.resolve(null);
+                const deferredUserDataPromise = loadDeferredHomepageData(
+                    dashboardDataPromise,
+                    {
+                        eagerPersonalLists: false,
+                        eagerPersonalizedDeals: false,
+                    },
+                );
+                if (shouldFetchDeferredBundle) {
+                    const data = await dashboardDataPromise;
+                    const preservedScrollY = Math.max(0, Math.round(window.scrollY || 0));
+                    const preservedRowScroll = captureDashboardRowScrollPositions();
+                    applyFilterOptionsToControls(data?.filters || {});
+                    applyAllRenders();
+                    if (preservedScrollY > 0) {
+                        window.scrollTo({ top: preservedScrollY, behavior: "auto" });
+                    }
+                    restoreDashboardRowScrollPositions(preservedRowScroll);
                 }
-                restoreDashboardRowScrollPositions(preservedRowScroll);
                 syncCardActionButtonsFromState();
                 await deferredUserDataPromise;
                 state.homepageLoad.deferredCompleted = true;
@@ -10703,17 +10999,28 @@ try {
             }
         }
 
-        function scheduleDeferredHomepageStage() {
+        function scheduleDeferredHomepageStage(options = {}) {
+            if (state.homepageLoad.deferredStarted || scheduleDeferredHomepageStage._scheduled) return;
+            scheduleDeferredHomepageStage._scheduled = true;
+            const delayMs = Math.max(0, Number(options?.delayMs || 0));
             const run = () => {
+                scheduleDeferredHomepageStage._scheduled = false;
                 void runDeferredHomepageStage();
+            };
+            const runWithDelay = () => {
+                if (delayMs > 0) {
+                    setTimeout(run, delayMs);
+                    return;
+                }
+                run();
             };
             const hasIdleCallback = typeof window.requestIdleCallback === "function";
             if (hasIdleCallback) {
-                window.requestIdleCallback(() => run(), { timeout: 300 });
+                window.requestIdleCallback(() => runWithDelay(), { timeout: 300 + delayMs });
                 return;
             }
             requestAnimationFrame(() => {
-                setTimeout(run, 80);
+                setTimeout(runWithDelay, 80);
             });
         }
 
@@ -11668,7 +11975,20 @@ try {
                     renderError(ui.opportunitiesGrid, "Failed to load opportunities.");
                 });
                 setStoredLastVisitTs(Date.now());
-                scheduleDeferredHomepageStage();
+                wireHomepageDeferredPanelLoaders();
+                if (restoredSnapshot) {
+                    const restoredAgeMs = Math.max(
+                        0,
+                        Date.now() - Number(state.dashboardRestore.sourceSavedAt || 0),
+                    );
+                    const delayMs = Math.max(
+                        0,
+                        DASHBOARD_RESTORE_DEFERRED_REFRESH_GRACE_MS - restoredAgeMs,
+                    );
+                    scheduleDeferredHomepageStage({ delayMs });
+                } else {
+                    scheduleDeferredHomepageStage();
+                }
 
                 enableInfiniteScroll(
                     "upcomingGrid",

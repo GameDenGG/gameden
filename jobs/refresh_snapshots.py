@@ -2637,6 +2637,12 @@ def _build_homepage_critical_payload(payload: dict) -> dict:
         "upcoming",
         "seasonal_summary",
         "seasonalSale",
+        "alertSignals",
+        "dealRadar",
+        "marketRadar",
+        "deal_radar",
+        "daily_digest",
+        "dailyDigest",
     )
     return {key: payload[key] for key in allowed_keys if key in payload}
 
@@ -2946,6 +2952,38 @@ def rebuild_dashboard_cache(session: Session) -> None:
     worth_buying_rows = worth_buying_now_rows
     player_surges = _build_player_surges(alert_signals, trending_rows)
     seasonal_summary = {}
+    biggest_price_drops_rows = [
+        {
+            "id": int(row.id),
+            "game_id": int(row.game_id),
+            "event_type": row.event_type,
+            "old_price": row.old_price,
+            "new_price": row.new_price,
+            "discount_percent": row.discount_percent,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+        }
+        for row in biggest_price_drop_events
+    ]
+    digest_now = utcnow()
+    digest_window_start = digest_now - datetime.timedelta(hours=24)
+    digest_limit = min(12, HOMEPAGE_RAIL_LIMIT)
+    digest_sections = {
+        "biggest_price_drops": biggest_price_drops_rows[:digest_limit],
+        "new_historical_lows": new_historical_lows_rows[:digest_limit],
+        "buy_now_opportunities": buy_now_picks[:digest_limit],
+        "trending_games": trending_rows[:digest_limit],
+        "radar_signals": deal_radar[:digest_limit],
+    }
+    daily_digest = {
+        "personalized": False,
+        "window_hours": 24,
+        "window_start": digest_window_start.isoformat(),
+        "window_end": digest_now.isoformat(),
+        "generated_at": digest_now.isoformat(),
+        "counts": {key: len(value) for key, value in digest_sections.items()},
+        "sections": digest_sections,
+        "highlights": [],
+    }
 
     # Homepage dashboard cache is shared and not user-scoped; keep personal lists
     # empty here and hydrate them via user-scoped API calls in the frontend.
@@ -2973,18 +3011,7 @@ def rebuild_dashboard_cache(session: Session) -> None:
         "home:trending": trending_deals_rows,
         "newHistoricalLows": new_historical_lows_rows,
         "home:historical_lows": new_historical_lows_rows,
-        "biggestPriceDrops": [
-            {
-                "id": int(row.id),
-                "game_id": int(row.game_id),
-                "event_type": row.event_type,
-                "old_price": row.old_price,
-                "new_price": row.new_price,
-                "discount_percent": row.discount_percent,
-                "created_at": row.created_at.isoformat() if row.created_at else None,
-            }
-            for row in biggest_price_drop_events
-        ],
+        "biggestPriceDrops": biggest_price_drops_rows,
         "topReviewed": top_reviewed_rows,
         "mostPlayedDeals": top_played_rows,
         "topPlayed": top_played_rows,
@@ -3006,6 +3033,8 @@ def rebuild_dashboard_cache(session: Session) -> None:
         "deal_radar": deal_radar,
         "player_surges": player_surges,
         "seasonal_summary": seasonal_summary,
+        "daily_digest": daily_digest,
+        "dailyDigest": daily_digest,
         "decision_dashboard": {
             "worth_buying_now": worth_buying_rows,
             "biggest_discounts": biggest_discounts_rows,

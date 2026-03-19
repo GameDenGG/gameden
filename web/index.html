@@ -10244,6 +10244,8 @@ try {
             renderSkeleton(ui.newHistoricalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.newDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.recommendedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.dailyDigestList, "panel-list", 4, { itemClass: "digest-item" });
+            renderSkeleton(ui.dealRadarFeed, "radar-list", 4, { itemClass: "deal-radar-card", thumbClass: "deal-radar-thumb" });
         }
 
         function renderCriticalHomepageSections() {
@@ -10256,6 +10258,8 @@ try {
             renderNewHistoricalLows();
             renderNewDeals();
             renderRecommendedDeals();
+            renderDailyDigest();
+            renderDealRadar();
         }
 
         function renderDeferredHomepageSkeletons() {
@@ -10268,9 +10272,7 @@ try {
             renderSkeleton(ui.recentlyUpdatedList, "mini-list", 3, { itemClass: "mini-item" });
             renderSkeleton(ui.topPlayedList, "mini-list", 4, { itemClass: "mini-item" });
             renderSkeleton(ui.trendingList, "mini-list", 4, { itemClass: "mini-item" });
-            renderSkeleton(ui.dailyDigestList, "panel-list", 4, { itemClass: "digest-item" });
             renderSkeleton(ui.alertsList, "mini-list", 4, { itemClass: "mini-item" });
-            renderSkeleton(ui.dealRadarFeed, "radar-list", 4, { itemClass: "deal-radar-card", thumbClass: "deal-radar-thumb" });
             renderSkeleton(ui.leaderboardList, "mini-list", 4, { itemClass: "mini-item" });
             renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.wishlistList, "mini-list", 3, { itemClass: "mini-item" });
@@ -10280,6 +10282,7 @@ try {
         async function loadCriticalHomepageData() {
             try {
                 const criticalPayload = await fetchJson("/dashboard/home?mode=critical");
+                const criticalDigest = criticalPayload?.daily_digest || criticalPayload?.dailyDigest || null;
                 hydrateDashboardState(
                     criticalPayload,
                     null,
@@ -10287,7 +10290,7 @@ try {
                     null,
                     null,
                     null,
-                    null,
+                    criticalDigest,
                     { deferAnalytics: true },
                 );
                 state.homepageLoad.criticalLoaded = true;
@@ -10319,7 +10322,12 @@ try {
             state.personalListStatus.watchlistLoading = true;
             state.personalListStatus.wishlistError = null;
             state.personalListStatus.watchlistError = null;
-            state.dailyDigestStatus.loading = true;
+            const hasCriticalDigest = !!(
+                state.dailyDigest
+                && typeof state.dailyDigest === "object"
+                && Object.keys(state.dailyDigest.sections || {}).length
+            );
+            state.dailyDigestStatus.loading = !hasCriticalDigest;
             state.dailyDigestStatus.error = null;
             setPanelVisibility(ui.recommendedForYouPanel, true);
             setPanelVisibility(ui.wishlistPanel, true);

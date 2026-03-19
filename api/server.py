@@ -5029,6 +5029,15 @@ def get_dashboard_home(request: Request, mode: str | None = None):
 
         if normalized_mode == "critical":
             payload = dict(cached_payload)
+            # If critical cache is missing and we fell back to full home payload,
+            # rebuild the strict critical contract on-demand to avoid shipping
+            # oversized first-paint payloads.
+            try:
+                from jobs.refresh_snapshots import _build_homepage_critical_payload
+
+                payload = _build_homepage_critical_payload(payload)
+            except Exception:
+                logger.exception("Failed to normalize critical dashboard payload from cache_key=%s", cache_row.cache_key)
             needs_opportunities = not _dashboard_rows(payload, "deal_opportunities", "dealOpportunities")
             needs_opportunity_radar = not _dashboard_rows(payload, "opportunity_radar", "opportunityRadar")
             if needs_opportunities or needs_opportunity_radar:

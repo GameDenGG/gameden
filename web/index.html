@@ -4615,6 +4615,7 @@ input:focus-visible {
                 deferredStarted: false,
                 deferredCompleted: false,
             },
+            personalSummaryLoaded: false,
             visibleCounts: {
                 dealRankedGrid: 8,
                 opportunitiesGrid: 8,
@@ -8173,7 +8174,7 @@ input:focus-visible {
                     : "Trending and high deal-score picks from live snapshot signals.";
             }
 
-            if (loading) {
+            if (loading && !displayItems.length) {
                 renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
                 return;
             }
@@ -10085,6 +10086,61 @@ try {
             return dashboardData;
         }
 
+        function applyPersonalSummaryPayload(payload) {
+            if (!payload || typeof payload !== "object") return false;
+            const wishlistItems = uniqueGamesByName(payload?.wishlist || []);
+            const watchlistItems = uniqueGamesByName(payload?.watchlist || []);
+            const alertItems = uniqueAlertSignals(payload?.alerts || []);
+            let applied = false;
+
+            if (wishlistItems.length && !safeArray(state.wishlist).length) {
+                state.wishlist = wishlistItems;
+                applied = true;
+            }
+            if (watchlistItems.length && !safeArray(state.watchlist).length) {
+                state.watchlist = watchlistItems;
+                applied = true;
+            }
+            if (alertItems.length) {
+                state.alertSignals = uniqueAlertSignals([
+                    ...safeArray(state.alertSignals),
+                    ...alertItems,
+                ]);
+                applied = true;
+            }
+
+            if (applied) {
+                state.personalListStatus.wishlistLoading = false;
+                state.personalListStatus.watchlistLoading = false;
+                state.personalListStatus.wishlistError = null;
+                state.personalListStatus.watchlistError = null;
+                state.personalSummaryLoaded = true;
+            }
+            return applied;
+        }
+
+        async function loadPersonalSummary() {
+            const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
+            if (!knownUser) return null;
+            try {
+                const payload = await fetchJson(
+                    `/api/home-personal-summary?user_id=${encodeURIComponent(CURRENT_USER_ID)}`
+                );
+                if (!payload || typeof payload !== "object") return null;
+                const applied = applyPersonalSummaryPayload(payload);
+                state.personalSummaryLoaded = true;
+                if (applied) {
+                    renderWishlist();
+                    renderWatchlist();
+                    renderAlerts();
+                    syncCardActionButtonsFromState();
+                }
+                return payload;
+            } catch {
+                return null;
+            }
+        }
+
         async function loadPersonalizedDeals() {
             const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
             state.personalizedStatus.enabled = true;
@@ -10123,7 +10179,9 @@ try {
                 state.watchlist = items;
                 return items;
             } catch (error) {
-                state.watchlist = [];
+                if (!safeArray(state.watchlist).length) {
+                    state.watchlist = [];
+                }
                 state.personalListStatus.watchlistError = error;
                 throw error;
             } finally {
@@ -10145,7 +10203,9 @@ try {
                     state.personalListStatus.wishlistError = null;
                     return [];
                 }
-                state.wishlist = [];
+                if (!safeArray(state.wishlist).length) {
+                    state.wishlist = [];
+                }
                 state.personalListStatus.wishlistError = error;
                 throw error;
             } finally {
@@ -10179,23 +10239,55 @@ try {
         }
 
         async function loadDeferredHomepageData(dashboardData) {
+            const watchlistPromise = loadUserWatchlist().catch((error) => {
+                console.warn("Failed to load user watchlist", error);
+                return [];
+            });
+            watchlistPromise.then(() => {
+                renderWatchlist();
+                syncCardActionButtonsFromState();
+            });
+
+            const wishlistPromise = loadUserWishlist().catch((error) => {
+                console.warn("Failed to load user wishlist", error);
+                return [];
+            });
+            wishlistPromise.then(() => {
+                renderWishlist();
+                syncCardActionButtonsFromState();
+            });
+
+            const alertsPromise = loadUserAlertSignals().catch((error) => {
+                console.warn("Failed to load user alerts", error);
+                return [];
+            });
+            alertsPromise.then((userAlertSignals) => {
+                if (safeArray(userAlertSignals).length) {
+                    state.alertSignals = uniqueAlertSignals([
+                        ...safeArray(state.alertSignals),
+                        ...safeArray(userAlertSignals),
+                    ]);
+                }
+                renderAlerts();
+            });
+
+            const personalizedPromise = loadPersonalizedDeals().catch((error) => {
+                console.warn("Failed to load personalized deals", error);
+                return [];
+            });
+            personalizedPromise.then((personalizedDeals) => {
+                if (!state.personalizedStatus.error) {
+                    state.personalizedDeals = uniqueGamesByName(personalizedDeals || []);
+                }
+                renderPersonalizedDeals();
+                syncCardActionButtonsFromState();
+            });
+
             const deferredUserDataPromise = Promise.all([
-                loadUserWatchlist().catch((error) => {
-                    console.warn("Failed to load user watchlist", error);
-                    return [];
-                }),
-                loadUserWishlist().catch((error) => {
-                    console.warn("Failed to load user wishlist", error);
-                    return [];
-                }),
-                loadUserAlertSignals().catch((error) => {
-                    console.warn("Failed to load user alerts", error);
-                    return [];
-                }),
-                loadPersonalizedDeals().catch((error) => {
-                    console.warn("Failed to load personalized deals", error);
-                    return [];
-                }),
+                watchlistPromise,
+                wishlistPromise,
+                alertsPromise,
+                personalizedPromise,
             ]);
 
             const needsFiltersFallback = !hasFilterOptions(dashboardData?.filters);
@@ -10206,20 +10298,10 @@ try {
                 })
                 : Promise.resolve(null);
 
-            const [[, , userAlertSignals, personalizedDeals], filtersFallback] = await Promise.all([
+            const [, filtersFallback] = await Promise.all([
                 deferredUserDataPromise,
                 filtersFallbackPromise,
             ]);
-
-            if (safeArray(userAlertSignals).length) {
-                state.alertSignals = uniqueAlertSignals([
-                    ...safeArray(state.alertSignals),
-                    ...safeArray(userAlertSignals),
-                ]);
-            }
-            if (!state.personalizedStatus.error) {
-                state.personalizedDeals = uniqueGamesByName(personalizedDeals || []);
-            }
 
             if (filtersFallback && typeof filtersFallback === "object") {
                 dashboardData.filters = buildMergedDashboardFilters(
@@ -10275,11 +10357,25 @@ try {
             renderSkeleton(ui.recentlyUpdatedList, "mini-list", 3, { itemClass: "mini-item" });
             renderSkeleton(ui.topPlayedList, "mini-list", 4, { itemClass: "mini-item" });
             renderSkeleton(ui.trendingList, "mini-list", 4, { itemClass: "mini-item" });
-            renderSkeleton(ui.alertsList, "mini-list", 4, { itemClass: "mini-item" });
+            const showAlertsSkeleton = !safeArray(state.alertSignals).length
+                && !state.personalSummaryLoaded
+                && !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
+            if (showAlertsSkeleton) {
+                renderSkeleton(ui.alertsList, "mini-list", 4, { itemClass: "mini-item" });
+            }
             renderSkeleton(ui.leaderboardList, "mini-list", 4, { itemClass: "mini-item" });
-            renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
-            renderSkeleton(ui.wishlistList, "mini-list", 3, { itemClass: "mini-item" });
-            renderSkeleton(ui.watchlistList, "mini-list", 3, { itemClass: "mini-item" });
+            const showPersonalizedSkeleton = !!state.personalizedStatus?.loading
+                && !safeArray(state.personalizedDeals).length
+                && !state.personalizedStatus?.fallbackMode;
+            if (showPersonalizedSkeleton) {
+                renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+            }
+            if (!!state.personalListStatus?.wishlistLoading && !safeArray(state.wishlist).length) {
+                renderSkeleton(ui.wishlistList, "mini-list", 3, { itemClass: "mini-item" });
+            }
+            if (!!state.personalListStatus?.watchlistLoading && !safeArray(state.watchlist).length) {
+                renderSkeleton(ui.watchlistList, "mini-list", 3, { itemClass: "mini-item" });
+            }
         }
 
         async function loadCriticalHomepageData() {
@@ -10296,6 +10392,7 @@ try {
                     criticalDigest,
                     { deferAnalytics: true },
                 );
+                void loadPersonalSummary();
                 state.personalizedStatus.enabled = true;
                 state.personalizedStatus.loading = false;
                 state.personalizedStatus.error = null;
@@ -10335,8 +10432,10 @@ try {
             state.personalizedStatus.error = null;
             state.personalizedStatus.personalized = false;
             state.personalizedStatus.fallbackMode = allowFallback;
-            state.personalListStatus.wishlistLoading = false;
-            state.personalListStatus.watchlistLoading = false;
+            const hasWishlistSeed = safeArray(state.wishlist).length > 0;
+            const hasWatchlistSeed = safeArray(state.watchlist).length > 0;
+            state.personalListStatus.wishlistLoading = !hasWishlistSeed && knownUser;
+            state.personalListStatus.watchlistLoading = !hasWatchlistSeed && knownUser;
             state.personalListStatus.wishlistError = null;
             state.personalListStatus.watchlistError = null;
             const hasCriticalDigest = !!(

@@ -5952,6 +5952,121 @@ def list_watchlist_alert_feed(
         session.close()
 
 
+@app.get("/api/home-personal-summary")
+@json_etag()
+@ttl_cache(ttl_seconds=30, endpoint_key="/api/home-personal-summary")
+def get_home_personal_summary(
+    request: Request,
+    user_id: str = Query(default=DEFAULT_USER_ID),
+    limit: int = Query(default=4, ge=1, le=8),
+):
+    started = _start_timer()
+    normalized_user_id = normalize_user_id(user_id)
+    if _is_anonymous_user_id(normalized_user_id):
+        return {
+            "user_id": normalized_user_id,
+            "personalized": False,
+            "wishlist": [],
+            "watchlist": [],
+            "alerts": [],
+            "generated_at": utc_now().isoformat(),
+        }
+
+    session = ReadSessionLocal()
+    try:
+        normalized_limit = max(1, min(int(limit), 8))
+        wishlist_rows = (
+            session.query(WishlistItem.game_id, WishlistItem.game_name)
+            .filter(WishlistItem.user_id == normalized_user_id)
+            .order_by(WishlistItem.created_at.desc(), WishlistItem.id.desc())
+            .limit(normalized_limit)
+            .all()
+        )
+        watchlist_rows = (
+            session.query(Watchlist.game_id)
+            .filter(Watchlist.user_id == normalized_user_id)
+            .order_by(Watchlist.created_at.desc(), Watchlist.id.desc())
+            .limit(normalized_limit)
+            .all()
+        )
+        alert_rows = (
+            session.query(UserAlert, Game)
+            .outerjoin(Game, Game.id == UserAlert.game_id)
+            .filter(UserAlert.user_id == normalized_user_id)
+            .order_by(UserAlert.created_at.desc(), UserAlert.id.desc())
+            .limit(min(3, normalized_limit))
+            .all()
+        )
+
+        game_ids: set[int] = set()
+        for game_id, _ in wishlist_rows:
+            if game_id is not None:
+                game_ids.add(int(game_id))
+        for (game_id,) in watchlist_rows:
+            if game_id is not None:
+                game_ids.add(int(game_id))
+
+        name_map: dict[int, str] = {}
+        if game_ids:
+            for game_id, name in session.query(Game.id, Game.name).filter(Game.id.in_(game_ids)).all():
+                if game_id is None or not name:
+                    continue
+                name_map[int(game_id)] = name
+
+        wishlist_payload: list[dict] = []
+        for game_id, game_name in wishlist_rows:
+            if game_id is None:
+                continue
+            normalized_id = int(game_id)
+            resolved_name = game_name or name_map.get(normalized_id) or f"Game {normalized_id}"
+            wishlist_payload.append(
+                {
+                    "game_id": normalized_id,
+                    "game_name": resolved_name,
+                }
+            )
+
+        watchlist_payload: list[dict] = []
+        for (game_id,) in watchlist_rows:
+            if game_id is None:
+                continue
+            normalized_id = int(game_id)
+            resolved_name = name_map.get(normalized_id) or f"Game {normalized_id}"
+            watchlist_payload.append(
+                {
+                    "game_id": normalized_id,
+                    "game_name": resolved_name,
+                }
+            )
+
+        alerts_payload: list[dict] = []
+        for alert, game in alert_rows:
+            if alert is None:
+                continue
+            game_id = int(alert.game_id) if alert.game_id is not None else 0
+            game_name = game.name if game and game.name else f"Game {game_id}"
+            alerts_payload.append(
+                {
+                    "game_id": game_id,
+                    "game_name": game_name,
+                    "alert_type": str(alert.alert_type or "").upper(),
+                    "alert_created_at": alert.created_at.isoformat() if alert.created_at else None,
+                }
+            )
+
+        return {
+            "user_id": normalized_user_id,
+            "personalized": True,
+            "wishlist": wishlist_payload,
+            "watchlist": watchlist_payload,
+            "alerts": alerts_payload,
+            "generated_at": utc_now().isoformat(),
+        }
+    finally:
+        session.close()
+        _log_timing("/api/home-personal-summary", started)
+
+
 @app.get("/api/deal-radar")
 @json_etag()
 @ttl_cache(ttl_seconds=45, endpoint_key="/api/deal-radar")

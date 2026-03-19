@@ -9580,40 +9580,59 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                 || []
             );
             const alertSignals = uniqueAlertSignals(dashboardPayload?.alertSignals || []);
-            const dealRadarFromEndpoint = uniqueDealRadarSignals(dealRadarPayload?.items || dealRadarPayload || []);
+            const hasDealRadarPayload = dealRadarPayload !== null && dealRadarPayload !== undefined;
+            const hasOpportunitiesPayload = opportunitiesPayload !== null && opportunitiesPayload !== undefined;
+            const hasOpportunityRadarPayload = opportunityRadarPayload !== null && opportunityRadarPayload !== undefined;
+            const hasDailyDigestPayload = dailyDigestPayload !== null && dailyDigestPayload !== undefined;
+            const dealRadarFromEndpoint = hasDealRadarPayload
+                ? uniqueDealRadarSignals(dealRadarPayload?.items || dealRadarPayload || [])
+                : [];
             const dealRadarFromDashboard = uniqueDealRadarSignals(
                 dashboardPayload?.deal_radar
                 || dashboardPayload?.marketRadar
                 || dashboardPayload?.dealRadar
                 || []
             );
-            const dealRadar = uniqueDealRadarSignals([
-                ...dealRadarFromEndpoint,
-                ...dealRadarFromDashboard,
-            ]);
-            const opportunitiesFromEndpoint = uniqueGamesByName(opportunitiesPayload?.items || opportunitiesPayload || []);
+            const shouldHydrateDealRadar = hasDealRadarPayload || dealRadarFromDashboard.length > 0;
+            const dealRadar = shouldHydrateDealRadar
+                ? uniqueDealRadarSignals([
+                    ...dealRadarFromEndpoint,
+                    ...dealRadarFromDashboard,
+                ])
+                : safeArray(state.dealRadar);
+            const opportunitiesFromEndpoint = hasOpportunitiesPayload
+                ? uniqueGamesByName(opportunitiesPayload?.items || opportunitiesPayload || [])
+                : [];
             const opportunitiesFromDashboard = uniqueGamesByName(
                 dashboardPayload?.deal_opportunities
                 || dashboardPayload?.dealOpportunities
                 || []
             );
-            const opportunitiesNow = uniqueGamesByName([
-                ...opportunitiesFromEndpoint,
-                ...opportunitiesFromDashboard,
-            ]);
-            const opportunityRadarFromEndpoint = uniqueGamesByName(
-                opportunityRadarPayload?.items || opportunityRadarPayload || []
-            );
+            const shouldHydrateOpportunities = hasOpportunitiesPayload || opportunitiesFromDashboard.length > 0;
+            const opportunitiesNow = shouldHydrateOpportunities
+                ? uniqueGamesByName([
+                    ...opportunitiesFromEndpoint,
+                    ...opportunitiesFromDashboard,
+                ])
+                : safeArray(state.opportunitiesNow);
+            const opportunityRadarFromEndpoint = hasOpportunityRadarPayload
+                ? uniqueGamesByName(opportunityRadarPayload?.items || opportunityRadarPayload || [])
+                : [];
             const opportunityRadarFromDashboard = uniqueGamesByName(
                 dashboardPayload?.opportunity_radar
                 || dashboardPayload?.opportunityRadar
                 || []
             );
-            const opportunityRadar = uniqueGamesByName([
-                ...opportunityRadarFromEndpoint,
-                ...opportunityRadarFromDashboard,
-                ...opportunitiesNow,
-            ]);
+            const shouldHydrateOpportunityRadar = hasOpportunityRadarPayload
+                || opportunityRadarFromDashboard.length > 0
+                || opportunitiesNow.length > 0;
+            const opportunityRadar = shouldHydrateOpportunityRadar
+                ? uniqueGamesByName([
+                    ...opportunityRadarFromEndpoint,
+                    ...opportunityRadarFromDashboard,
+                    ...opportunitiesNow,
+                ])
+                : safeArray(state.opportunityRadar);
             const decisionPool = uniqueGamesByName([
                 ...opportunitiesNow,
                 ...opportunityRadar,
@@ -9718,22 +9737,24 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
             state.watchlist = [];
             state.alertSignals = alertSignals;
             state.dealRadar = dealRadar;
-            const digestSource = dailyDigestPayload && typeof dailyDigestPayload === "object" ? dailyDigestPayload : {};
-            const digestSections = digestSource.sections && typeof digestSource.sections === "object"
-                ? digestSource.sections
-                : {};
-            const digestHighlights = safeArray(digestSource.highlights);
-            state.dailyDigest = {
-                sections: digestSections,
-                highlights: digestHighlights,
-                counts: digestSource.counts && typeof digestSource.counts === "object" ? digestSource.counts : {},
-                personalized: !!digestSource.personalized,
-                window_start: digestSource.window_start || null,
-                window_end: digestSource.window_end || null,
-                generated_at: digestSource.generated_at || null,
-            };
-            state.dailyDigestStatus.loading = false;
-            state.dailyDigestStatus.error = null;
+            if (hasDailyDigestPayload) {
+                const digestSource = dailyDigestPayload && typeof dailyDigestPayload === "object" ? dailyDigestPayload : {};
+                const digestSections = digestSource.sections && typeof digestSource.sections === "object"
+                    ? digestSource.sections
+                    : {};
+                const digestHighlights = safeArray(digestSource.highlights);
+                state.dailyDigest = {
+                    sections: digestSections,
+                    highlights: digestHighlights,
+                    counts: digestSource.counts && typeof digestSource.counts === "object" ? digestSource.counts : {},
+                    personalized: !!digestSource.personalized,
+                    window_start: digestSource.window_start || null,
+                    window_end: digestSource.window_end || null,
+                    generated_at: digestSource.generated_at || null,
+                };
+                state.dailyDigestStatus.loading = false;
+                state.dailyDigestStatus.error = null;
+            }
             const analyticsFallbackPool = uniqueGamesByName([
                 ...releasedItems,
                 ...topPlayed,
@@ -9758,6 +9779,58 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
             computeRecentlyUpdated();
         }
 
+        function applyDeferredHomepageSections({
+            dealRadarPayload,
+            opportunitiesPayload,
+            opportunityRadarPayload,
+            dailyDigestPayload,
+        }) {
+            const hasDealRadarPayload = dealRadarPayload !== null && dealRadarPayload !== undefined;
+            const hasOpportunitiesPayload = opportunitiesPayload !== null && opportunitiesPayload !== undefined;
+            const hasOpportunityRadarPayload = opportunityRadarPayload !== null && opportunityRadarPayload !== undefined;
+            const hasDailyDigestPayload = dailyDigestPayload !== null && dailyDigestPayload !== undefined;
+
+            if (hasDealRadarPayload) {
+                state.dealRadar = uniqueDealRadarSignals(dealRadarPayload?.items || dealRadarPayload || []);
+            }
+            if (hasOpportunitiesPayload) {
+                state.opportunitiesNow = uniqueGamesByName(opportunitiesPayload?.items || opportunitiesPayload || []);
+            }
+            if (hasOpportunityRadarPayload || hasOpportunitiesPayload) {
+                const radarFromEndpoint = hasOpportunityRadarPayload
+                    ? uniqueGamesByName(opportunityRadarPayload?.items || opportunityRadarPayload || [])
+                    : [];
+                const mergedRadar = uniqueGamesByName([
+                    ...radarFromEndpoint,
+                    ...safeArray(state.opportunitiesNow),
+                ]);
+                state.opportunityRadar = mergedRadar.length ? mergedRadar : safeArray(state.opportunitiesNow);
+            }
+            if (hasDailyDigestPayload) {
+                const digestSource = dailyDigestPayload && typeof dailyDigestPayload === "object" ? dailyDigestPayload : {};
+                const digestSections = digestSource.sections && typeof digestSource.sections === "object"
+                    ? digestSource.sections
+                    : {};
+                const digestHighlights = safeArray(digestSource.highlights);
+                state.dailyDigest = {
+                    sections: digestSections,
+                    highlights: digestHighlights,
+                    counts: digestSource.counts && typeof digestSource.counts === "object" ? digestSource.counts : {},
+                    personalized: !!digestSource.personalized,
+                    window_start: digestSource.window_start || null,
+                    window_end: digestSource.window_end || null,
+                    generated_at: digestSource.generated_at || null,
+                };
+                state.dailyDigestStatus.loading = false;
+                state.dailyDigestStatus.error = null;
+            }
+
+            if (hasOpportunitiesPayload) renderOpportunities();
+            if (hasOpportunityRadarPayload || hasOpportunitiesPayload) renderOpportunityRadar();
+            if (hasDealRadarPayload) renderDealRadar();
+            if (hasDailyDigestPayload) renderDailyDigest();
+        }
+
         async function loadDashboardData() {
             const releasedParams = buildReleasedCatalogParams({ page: 1, pageSize: CATALOG_PAGE_SIZE });
             const emptySeasonal = { sale_event: null, expected_games: [], mode: "potential_sale" };
@@ -9775,10 +9848,10 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
 let dashboardData = null;
 let seasonalData = emptySeasonal;
 let releasedData = emptyReleased;
-let dealRadarData = emptyDealRadar;
-let opportunitiesData = emptyOpportunities;
-let opportunityRadarData = emptyOpportunityRadar;
-let dailyDigestData = emptyDailyDigest;
+let dealRadarData = null;
+let opportunitiesData = null;
+let opportunityRadarData = null;
+let dailyDigestData = null;
 
 try {
     dashboardData = await fetchJson("/dashboard/home");
@@ -9841,15 +9914,15 @@ try {
                     ? Promise.resolve({ items: dashboardDealRadarSeed })
                     : fetchJson(marketRadarEndpointUrl)
                         .catch(() => fetchJson(dealRadarEndpointUrl))
-                        .catch(() => emptyDealRadar),
+                        .catch(() => null),
 
                 dashboardOpportunitySeed.length
                     ? Promise.resolve({ items: dashboardOpportunitySeed })
-                    : fetchJson(opportunitiesEndpointUrl).catch(() => emptyOpportunities),
+                    : fetchJson(opportunitiesEndpointUrl).catch(() => null),
 
                 dashboardOpportunityRadarSeed.length
                     ? Promise.resolve({ items: dashboardOpportunityRadarSeed })
-                    : fetchJson(opportunityRadarEndpointUrl).catch(() => emptyOpportunityRadar),
+                    : fetchJson(opportunityRadarEndpointUrl).catch(() => null),
 
                 (
                     dashboardDigestSeed
@@ -9860,16 +9933,15 @@ try {
                     )
                 )
                     ? Promise.resolve(dashboardDigestSeed)
-                    : fetchJson(dailyDigestEndpointUrl).catch(() => emptyDailyDigest),
+                    : fetchJson(dailyDigestEndpointUrl).catch(() => null),
             ]);
 
-            // Re-render or hydrate the lower-priority homepage sections here.
-            // Put your existing render calls for:
-            // - dealRadarData
-            // - opportunitiesData
-            // - opportunityRadarData
-            // - dailyDigestData
-            // in this block.
+            applyDeferredHomepageSections({
+                dealRadarPayload: dealRadarData,
+                opportunitiesPayload: opportunitiesData,
+                opportunityRadarPayload: opportunityRadarData,
+                dailyDigestPayload: dailyDigestData,
+            });
         } catch (secondaryError) {
             console.warn("Secondary homepage sections failed to load", secondaryError);
         }
@@ -9920,16 +9992,21 @@ try {
             [dealRadarData, opportunitiesData, opportunityRadarData, dailyDigestData] = await Promise.all([
                 fetchJson(marketRadarEndpointUrl)
                     .catch(() => fetchJson(dealRadarEndpointUrl))
-                    .catch(() => emptyDealRadar),
+                    .catch(() => null),
 
-                fetchJson(opportunitiesEndpointUrl).catch(() => emptyOpportunities),
+                fetchJson(opportunitiesEndpointUrl).catch(() => null),
 
-                fetchJson(opportunityRadarEndpointUrl).catch(() => emptyOpportunityRadar),
+                fetchJson(opportunityRadarEndpointUrl).catch(() => null),
 
-                fetchJson(dailyDigestEndpointUrl).catch(() => emptyDailyDigest),
+                fetchJson(dailyDigestEndpointUrl).catch(() => null),
             ]);
 
-            // Put the lower-priority section render calls here too.
+            applyDeferredHomepageSections({
+                dealRadarPayload: dealRadarData,
+                opportunitiesPayload: opportunitiesData,
+                opportunityRadarPayload: opportunityRadarData,
+                dailyDigestPayload: dailyDigestData,
+            });
         } catch (secondaryError) {
             console.warn("Secondary homepage fallbacks failed to load", secondaryError);
         }

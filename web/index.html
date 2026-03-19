@@ -9774,9 +9774,7 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                 analyticsFallbackPool,
                 scoreLeaderboardRow,
             );
-            computeNewDeals();
-            computeRecommendedDeals();
-            computeRecentlyUpdated();
+            scheduleNonCriticalHomepageAnalytics();
         }
 
         function applyDeferredHomepageSections({
@@ -9829,6 +9827,25 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
             if (hasOpportunityRadarPayload || hasOpportunitiesPayload) renderOpportunityRadar();
             if (hasDealRadarPayload) renderDealRadar();
             if (hasDailyDigestPayload) renderDailyDigest();
+        }
+
+        function scheduleNonCriticalHomepageAnalytics() {
+            if (scheduleNonCriticalHomepageAnalytics._pending) return;
+            scheduleNonCriticalHomepageAnalytics._pending = true;
+            const run = () => {
+                scheduleNonCriticalHomepageAnalytics._pending = false;
+                computeNewDeals();
+                computeRecommendedDeals();
+                computeRecentlyUpdated();
+                renderNewDeals();
+                renderRecommendedDeals();
+                renderRecentlyUpdated();
+            };
+            if (typeof window.requestIdleCallback === "function") {
+                window.requestIdleCallback(() => run(), { timeout: 1200 });
+            } else {
+                setTimeout(run, 0);
+            }
         }
 
         async function loadDashboardData() {

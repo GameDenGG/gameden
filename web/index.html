@@ -10215,6 +10215,9 @@ try {
             );
             const opportunities = uniqueGamesByName(opportunitiesPayload?.items || opportunitiesPayload || []);
             state.opportunitiesNow = opportunities;
+            if (!safeArray(state.opportunityRadar).length) {
+                state.opportunityRadar = opportunities;
+            }
             state.homepageLoad.criticalLoaded = true;
             renderOpportunities();
         }
@@ -11205,7 +11208,10 @@ try {
                 ui.includeFreeCheckbox.checked = state.filters.includeFree;
                 ui.dealsOnlyCheckbox.checked = state.filters.dealsOnly;
 
-                await loadCriticalHomepageData();
+                loadCriticalHomepageData().catch((error) => {
+                    console.error(error);
+                    renderError(ui.opportunitiesGrid, "Failed to load opportunities.");
+                });
                 setStoredLastVisitTs(Date.now());
                 scheduleDeferredHomepageStage();
 

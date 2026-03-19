@@ -8307,14 +8307,45 @@ input:focus-visible {
             });
         }
 
-        function buildYourDealsFallbackRows(limit = 24) {
-            const candidatePool = uniqueGamesByName([
+        function buildProtectedVisibleRailIdentitySet() {
+            const keys = new Set();
+            const addRows = (rows) => {
+                safeArray(rows).forEach((row) => {
+                    const identity = gameIdentityKey(row);
+                    if (identity) keys.add(identity);
+                });
+            };
+            addRows(state.opportunitiesNow);
+            addRows(state.opportunityRadar);
+            addRows(state.buyNowPicks);
+            return keys;
+        }
+
+        function filterRowsByIdentityExclusion(rows, blockedKeys, limit = 24) {
+            const normalizedLimit = Math.max(1, Number(limit) || 24);
+            const blocked = blockedKeys instanceof Set ? blockedKeys : new Set();
+            const filtered = [];
+            for (const row of uniqueGamesByIdentity(rows)) {
+                const identity = gameIdentityKey(row);
+                if (!identity || blocked.has(identity)) continue;
+                filtered.push(row);
+                if (filtered.length >= normalizedLimit) break;
+            }
+            return filtered;
+        }
+
+        function buildYourDealsFallbackRows(limit = 24, options = {}) {
+            const normalizedLimit = Math.max(1, Number(limit) || 24);
+            const excludeKeys = options?.excludeKeys instanceof Set ? options.excludeKeys : new Set();
+            const seedRows = safeArray(options?.seedRows);
+            const candidatePool = uniqueGamesByIdentity([
+                ...seedRows,
                 ...safeArray(state.trendingNow),
                 ...safeArray(state.discoveryTrending),
                 ...safeArray(state.dealRanked),
-                ...safeArray(state.opportunityRadar),
                 ...safeArray(state.worthBuyingNow),
-            ]);
+                ...safeArray(state.newHistoricalLows),
+            ]).slice(0, normalizedLimit * 4);
 
             const ranked = candidatePool
                 .map((row) => {
@@ -8334,10 +8365,14 @@ input:focus-visible {
                     );
                     return { game, rankScore };
                 })
-                .filter((entry) => Number(entry.game?.price ?? entry.game?.latest_price ?? -1) >= 0)
+                .filter((entry) => {
+                    const identity = gameIdentityKey(entry.game);
+                    if (!identity || excludeKeys.has(identity)) return false;
+                    return Number(entry.game?.price ?? entry.game?.latest_price ?? -1) >= 0;
+                })
                 .sort((left, right) => right.rankScore - left.rankScore);
 
-            return ranked.slice(0, Math.max(1, Number(limit) || 48)).map((entry) => entry.game);
+            return ranked.slice(0, normalizedLimit).map((entry) => entry.game);
         }
 
         function renderPersonalizedDeals() {
@@ -8346,11 +8381,21 @@ input:focus-visible {
             const error = state.personalizedStatus?.error;
             const apiItems = safeArray(state.personalizedDeals);
             const fallbackMode = !knownUser || !!state.personalizedStatus?.fallbackMode;
-            const useFallbackRows = fallbackMode && !apiItems.length;
-            const fallbackRows = useFallbackRows
-                ? buildYourDealsFallbackRows(HOMEPAGE_SECTION_LIMITS.personalizedDeals)
-                : [];
-            const displayItems = useFallbackRows ? fallbackRows : apiItems;
+            const personalizedLimit = HOMEPAGE_SECTION_LIMITS.personalizedDeals;
+            const protectedKeys = buildProtectedVisibleRailIdentitySet();
+            const uniqueApiItems = filterRowsByIdentityExclusion(apiItems, protectedKeys, personalizedLimit);
+            const useFallbackRows = fallbackMode && !uniqueApiItems.length;
+            const fallbackRows = buildYourDealsFallbackRows(personalizedLimit, {
+                excludeKeys: protectedKeys,
+                seedRows: uniqueApiItems,
+            });
+            const displayItems = useFallbackRows
+                ? fallbackRows
+                : filterRowsByIdentityExclusion(
+                    [...uniqueApiItems, ...fallbackRows],
+                    protectedKeys,
+                    personalizedLimit,
+                );
             const personalizedActive = knownUser && !fallbackMode && !!state.personalizedStatus?.personalized;
 
             setPanelVisibility(ui.recommendedForYouPanel, true);

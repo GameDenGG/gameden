@@ -3049,6 +3049,59 @@ def _build_player_surges(alert_rows: list[dict], trending_rows: list[dict], limi
     return _dedupe_snapshot_rows(candidates)[:limit]
 
 
+def _is_released_snapshot_row(row: dict) -> bool:
+    if not isinstance(row, dict):
+        return False
+    if bool(row.get("is_upcoming")):
+        return False
+    released_value = row.get("is_released")
+    if released_value is None:
+        return True
+    try:
+        return int(released_value) == 1
+    except Exception:
+        return bool(released_value)
+
+
+def _released_snapshot_rows(rows: list[dict]) -> list[dict]:
+    return [row for row in _dedupe_snapshot_rows(rows) if _is_released_snapshot_row(row)]
+
+
+def _compose_unique_snapshot_rows(
+    primary_rows: list[dict],
+    fallback_rows: list[dict],
+    blocked_keys: set[str],
+    limit: int,
+) -> list[dict]:
+    bounded_limit = max(1, int(limit))
+    selected: list[dict] = []
+    seen_keys: set[str] = set()
+    for source_rows in (primary_rows, fallback_rows):
+        for idx, row in enumerate(_dedupe_snapshot_rows(source_rows)):
+            if not isinstance(row, dict):
+                continue
+            row_key = _snapshot_identity_key(row, idx)
+            if not row_key or row_key in seen_keys or row_key in blocked_keys:
+                continue
+            selected.append(row)
+            seen_keys.add(row_key)
+            blocked_keys.add(row_key)
+            if len(selected) >= bounded_limit:
+                return selected
+    return selected
+
+
+def _is_wait_candidate_row(row: dict) -> bool:
+    if not isinstance(row, dict):
+        return False
+    if _normalize_buy_recommendation(row.get("buy_recommendation")) == "WAIT":
+        return True
+    return (
+        safe_num(row.get("price_vs_low_ratio"), 0.0) >= 1.08
+        or safe_num(row.get("predicted_next_discount_percent"), 0.0) >= 35
+    )
+
+
 def rebuild_dashboard_cache(session: Session) -> None:
     hold_filter = func.upper(func.coalesce(Game.priority_tier, "")) == ROLLOUT_HOLD_TIER
     total_games = int(session.query(func.count(Game.id)).scalar() or 0)
@@ -3068,6 +3121,7 @@ def rebuild_dashboard_cache(session: Session) -> None:
             GameSnapshot.latest_discount_percent.isnot(None),
             GameSnapshot.latest_discount_percent > 0,
             GameSnapshot.is_upcoming.is_(False),
+            GameSnapshot.is_released == 1,
         )
         .order_by(GameSnapshot.worth_buying_score.desc(), GameSnapshot.game_id.asc())
         .limit(HOMEPAGE_DEAL_CANDIDATE_POOL)
@@ -3075,31 +3129,53 @@ def rebuild_dashboard_cache(session: Session) -> None:
     )
     recommended_deals = (
         session.query(GameSnapshot)
+        .filter(
+            GameSnapshot.is_upcoming.is_(False),
+            GameSnapshot.is_released == 1,
+        )
         .order_by(GameSnapshot.recommended_score.desc(), GameSnapshot.game_id.asc())
         .limit(HOMEPAGE_DEAL_CANDIDATE_POOL)
         .all()
     )
     deal_ranked = (
         session.query(GameSnapshot)
+        .filter(
+            GameSnapshot.is_upcoming.is_(False),
+            GameSnapshot.is_released == 1,
+        )
         .order_by(GameSnapshot.deal_score.desc(), GameSnapshot.game_id.asc())
         .limit(HOMEPAGE_DEAL_CANDIDATE_POOL)
         .all()
     )
     biggest_deals = (
         session.query(GameSnapshot)
+        .filter(
+            GameSnapshot.is_upcoming.is_(False),
+            GameSnapshot.is_released == 1,
+            GameSnapshot.latest_discount_percent.isnot(None),
+            GameSnapshot.latest_discount_percent > 0,
+        )
         .order_by(GameSnapshot.latest_discount_percent.desc(), GameSnapshot.game_id.asc())
         .limit(HOMEPAGE_DEAL_CANDIDATE_POOL)
         .all()
     )
     historical_lows = (
         session.query(GameSnapshot)
-        .filter(GameSnapshot.is_historical_low.is_(True))
+        .filter(
+            GameSnapshot.is_historical_low.is_(True),
+            GameSnapshot.is_upcoming.is_(False),
+            GameSnapshot.is_released == 1,
+        )
         .order_by(GameSnapshot.deal_score.desc(), GameSnapshot.game_id.asc())
         .limit(HOMEPAGE_RAIL_LIMIT)
         .all()
     )
     top_reviewed = (
         session.query(GameSnapshot)
+        .filter(
+            GameSnapshot.is_upcoming.is_(False),
+            GameSnapshot.is_released == 1,
+        )
         .order_by(GameSnapshot.review_score.desc(), GameSnapshot.review_count.desc(), GameSnapshot.game_id.asc())
         .limit(HOMEPAGE_RAIL_LIMIT)
         .all()
@@ -3108,6 +3184,7 @@ def rebuild_dashboard_cache(session: Session) -> None:
         session.query(GameSnapshot)
         .filter(
             GameSnapshot.is_upcoming.is_(False),
+            GameSnapshot.is_released == 1,
             (GameSnapshot.current_players.isnot(None) | GameSnapshot.avg_player_count.isnot(None)),
             (
                 (GameSnapshot.current_players > 0)
@@ -3128,6 +3205,7 @@ def rebuild_dashboard_cache(session: Session) -> None:
         session.query(GameSnapshot)
         .filter(
             GameSnapshot.is_upcoming.is_(False),
+            GameSnapshot.is_released == 1,
             GameSnapshot.current_players.isnot(None),
             GameSnapshot.current_players > 0,
             (
@@ -3150,6 +3228,7 @@ def rebuild_dashboard_cache(session: Session) -> None:
         session.query(GameSnapshot)
         .filter(
             GameSnapshot.is_upcoming.is_(False),
+            GameSnapshot.is_released == 1,
             (GameSnapshot.current_players.isnot(None) | GameSnapshot.avg_player_count.isnot(None)),
             (
                 (GameSnapshot.current_players > 0)
@@ -3175,7 +3254,12 @@ def rebuild_dashboard_cache(session: Session) -> None:
     )
     trending_deals = (
         session.query(GameSnapshot)
-        .filter(GameSnapshot.latest_discount_percent.isnot(None), GameSnapshot.latest_discount_percent > 0)
+        .filter(
+            GameSnapshot.is_upcoming.is_(False),
+            GameSnapshot.is_released == 1,
+            GameSnapshot.latest_discount_percent.isnot(None),
+            GameSnapshot.latest_discount_percent > 0,
+        )
         .order_by(GameSnapshot.momentum_score.desc(), GameSnapshot.game_id.asc())
         .limit(HOMEPAGE_DEAL_CANDIDATE_POOL)
         .all()
@@ -3217,7 +3301,7 @@ def rebuild_dashboard_cache(session: Session) -> None:
         }
         for event in new_historical_low_events:
             row = snapshots_by_id.get(int(event.game_id))
-            if row:
+            if row and not bool(row.is_upcoming) and int(row.is_released or 0) == 1:
                 new_historical_lows.append(_snapshot_row_to_dict(row))
     biggest_price_drop_events = (
         session.query(DealEvent)
@@ -3276,7 +3360,7 @@ def rebuild_dashboard_cache(session: Session) -> None:
     upcoming_rows = [_snapshot_row_to_dict(row) for row in upcoming][:HOMEPAGE_RAIL_LIMIT]
     new_historical_lows_rows = _dedupe_snapshot_rows(new_historical_lows)
 
-    decision_pool = _dedupe_snapshot_rows(
+    decision_pool = _released_snapshot_rows(
         [
             *worth_buying_now_rows,
             *recommended_deals_rows,
@@ -3345,6 +3429,60 @@ def rebuild_dashboard_cache(session: Session) -> None:
     biggest_discounts_rows = diversified_visible_rails.get("biggest_discounts", biggest_discounts_rows)
     worth_buying_rows = diversified_visible_rails.get("worth_buying_now", worth_buying_rows)
     trending_now_rows = diversified_visible_rails.get("trending_now", trending_now_rows)
+    protected_primary_pool = _released_snapshot_rows([
+        *decision_pool,
+        *worth_buying_rows,
+        *biggest_discounts_rows,
+        *deal_ranked_rows,
+    ])
+    protected_visible_keys: set[str] = set()
+    deal_opportunities_rows = _compose_unique_snapshot_rows(
+        deal_opportunities_rows,
+        protected_primary_pool,
+        protected_visible_keys,
+        HOMEPAGE_RAIL_LIMIT,
+    )
+    opportunity_radar_rows = _compose_unique_snapshot_rows(
+        opportunity_radar_rows,
+        protected_primary_pool,
+        protected_visible_keys,
+        HOMEPAGE_RAIL_LIMIT,
+    )
+    buy_now_picks = _compose_unique_snapshot_rows(
+        buy_now_picks,
+        _released_snapshot_rows([*worth_buying_rows, *protected_primary_pool]),
+        protected_visible_keys,
+        HOMEPAGE_RAIL_LIMIT,
+    )
+    deal_ranked_rows = _compose_unique_snapshot_rows(
+        deal_ranked_rows,
+        _released_snapshot_rows([*biggest_discounts_rows, *protected_primary_pool]),
+        protected_visible_keys,
+        HOMEPAGE_RAIL_LIMIT,
+    )
+    wait_biggest_exclusions: set[str] = set()
+    biggest_discounts_rows = _compose_unique_snapshot_rows(
+        biggest_discounts_rows,
+        _released_snapshot_rows([*deal_ranked_rows, *protected_primary_pool]),
+        wait_biggest_exclusions,
+        HOMEPAGE_RAIL_LIMIT,
+    )
+    wait_candidate_rows = [
+        row
+        for row in _released_snapshot_rows([
+            *wait_picks,
+            *decision_pool,
+            *trending_now_rows,
+            *new_historical_lows_rows,
+        ])
+        if _is_wait_candidate_row(row)
+    ]
+    wait_picks = _compose_unique_snapshot_rows(
+        wait_candidate_rows,
+        decision_pool,
+        wait_biggest_exclusions,
+        HOMEPAGE_RAIL_LIMIT,
+    )
     player_surges = _build_player_surges(alert_signals, trending_rows)
     seasonal_summary = _build_cached_seasonal_summary(decision_pool, limit=24)
     catalog_seed_rows = [

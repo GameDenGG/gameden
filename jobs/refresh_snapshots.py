@@ -94,6 +94,9 @@ SALE_EVENT_GAP_DAYS = SNAPSHOT_SALE_EVENT_GAP_DAYS
 PREDICTION_SALE_HISTORY_LIMIT = SNAPSHOT_PREDICTION_SALE_HISTORY_LIMIT
 UPCOMING_LIMIT = SNAPSHOT_UPCOMING_LIMIT
 HOMEPAGE_RAIL_LIMIT = SNAPSHOT_HOMEPAGE_RAIL_LIMIT
+HOMEPAGE_CRITICAL_RAIL_LIMIT = min(8, HOMEPAGE_RAIL_LIMIT)
+HOMEPAGE_CRITICAL_DIGEST_LIMIT = 6
+HOMEPAGE_CRITICAL_RADAR_LIMIT = min(8, HOMEPAGE_RAIL_LIMIT)
 HOMEPAGE_DEAL_CANDIDATE_POOL = SNAPSHOT_HOMEPAGE_DEAL_CANDIDATE_POOL
 HOMEPAGE_DIVERSITY_WINDOW = SNAPSHOT_HOMEPAGE_DIVERSITY_WINDOW
 RETRY_BACKOFF_BASE_SECONDS = SNAPSHOT_RETRY_BACKOFF_BASE_SECONDS
@@ -2622,22 +2625,12 @@ def _build_homepage_critical_payload(payload: dict) -> dict:
         "dealRanked",
         "biggestDeals",
         "biggest_discounts",
-        "historicalLows",
         "trendingDeals",
         "newHistoricalLows",
         "trending_now",
         "buy_now_picks",
         "wait_picks",
         "new_historical_lows",
-        "topReviewed",
-        "mostPlayedDeals",
-        "topPlayed",
-        "trending",
-        "leaderboard",
-        "upcoming",
-        "seasonal_summary",
-        "seasonalSale",
-        "alertSignals",
         "dealRadar",
         "marketRadar",
         "deal_radar",
@@ -2668,7 +2661,6 @@ def _build_homepage_critical_payload(payload: dict) -> dict:
             "id": row.get("id") or game_id,
             "game_name": row.get("game_name") or row.get("name"),
             "steam_appid": row.get("steam_appid"),
-            "store_url": row.get("store_url"),
             "banner_url": banner_url,
             "price": price,
             "original_price": original_price,
@@ -2694,21 +2686,20 @@ def _build_homepage_critical_payload(payload: dict) -> dict:
             "deal_heat_level": row.get("deal_heat_level"),
             "review_score": row.get("review_score"),
             "review_score_label": review_score_label,
-            "review_count": review_count,
+            "deal_detected_at": row.get("deal_detected_at"),
+            "deal_updated_at": row.get("deal_updated_at"),
+            "historical_low_timestamp": row.get("historical_low_timestamp"),
             "alert_type": row.get("alert_type"),
             "alert_label": row.get("alert_label"),
             "alert_created_at": row.get("alert_created_at") or row.get("created_at"),
-            "alert_metadata": row.get("alert_metadata"),
             "event_type": row.get("event_type"),
             "created_at": row.get("created_at"),
             "timestamp": row.get("timestamp"),
             "signal_type": row.get("signal_type"),
             "signal_text": row.get("signal_text"),
             "image": row.get("image"),
+            "digest_reason_lines": row.get("digest_reason_lines"),
             "opportunity_reason": row.get("opportunity_reason"),
-            "opportunity_reasons": row.get("opportunity_reasons"),
-            "personalization_reason": row.get("personalization_reason"),
-            "personalization_reasons": row.get("personalization_reasons"),
             "section": row.get("section"),
             "section_label": row.get("section_label"),
             "occurred_at": row.get("occurred_at"),
@@ -2719,9 +2710,11 @@ def _build_homepage_critical_payload(payload: dict) -> dict:
             if value is not None and value != "" and value != [] and value != {}
         }
 
-    def slim_rows(rows: list[dict]) -> list[dict]:
+    def slim_rows(rows: list[dict], limit: int | None = None) -> list[dict]:
+        if limit is None:
+            limit = HOMEPAGE_CRITICAL_RAIL_LIMIT
         slimmed_rows: list[dict] = []
-        for row in rows:
+        for row in rows[:limit]:
             slimmed = slim_row(row)
             if slimmed:
                 slimmed_rows.append(slimmed)
@@ -2735,9 +2728,13 @@ def _build_homepage_critical_payload(payload: dict) -> dict:
         if isinstance(sections, dict):
             for key, value in sections.items():
                 if isinstance(value, list):
-                    slim_sections[str(key)] = slim_rows(value)
+                    slim_sections[str(key)] = slim_rows(value, HOMEPAGE_CRITICAL_DIGEST_LIMIT)
         highlights = digest.get("highlights")
-        slim_highlights = slim_rows(highlights) if isinstance(highlights, list) else []
+        slim_highlights = (
+            slim_rows(highlights, HOMEPAGE_CRITICAL_DIGEST_LIMIT)
+            if isinstance(highlights, list)
+            else []
+        )
         counts = digest.get("counts")
         if not isinstance(counts, dict):
             counts = {key: len(value) for key, value in slim_sections.items()}
@@ -2758,7 +2755,10 @@ def _build_homepage_critical_payload(payload: dict) -> dict:
             continue
         value = payload[key]
         if isinstance(value, list):
-            trimmed[key] = slim_rows(value)
+            list_limit = HOMEPAGE_CRITICAL_RAIL_LIMIT
+            if key in {"dealRadar", "marketRadar", "deal_radar"}:
+                list_limit = HOMEPAGE_CRITICAL_RADAR_LIMIT
+            trimmed[key] = slim_rows(value, list_limit)
         elif key in {"daily_digest", "dailyDigest"} and isinstance(value, dict):
             trimmed[key] = slim_daily_digest(value)
         else:

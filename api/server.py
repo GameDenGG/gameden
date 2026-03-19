@@ -207,7 +207,7 @@ CRITICAL_DASHBOARD_CACHE_KEY = "home_critical_v1"
 LEGACY_DASHBOARD_CACHE_KEYS = ("home",)
 DASHBOARD_CACHE_STALE_AFTER = datetime.timedelta(minutes=API_DASHBOARD_CACHE_STALE_MINUTES)
 DEAL_RADAR_CACHE_KEY = "home:deal_radar"
-HOMEPAGE_CRITICAL_LIMIT = 24
+HOMEPAGE_CRITICAL_LIMIT = 8
 OPPORTUNITY_QUERY_MULTIPLIER = 8
 OPPORTUNITY_MIN_CANDIDATES = 96
 OPPORTUNITY_MAX_CANDIDATES = 320
@@ -4818,23 +4818,12 @@ def _trim_dashboard_home_payload(payload: dict, mode: str) -> dict:
         "dealRanked",
         "biggestDeals",
         "biggest_discounts",
-        "historicalLows",
         "trendingDeals",
         "newHistoricalLows",
-        "worth_buying_now",
         "trending_now",
         "buy_now_picks",
         "wait_picks",
         "new_historical_lows",
-        "topReviewed",
-        "mostPlayedDeals",
-        "topPlayed",
-        "trending",
-        "leaderboard",
-        "upcoming",
-        "seasonal_summary",
-        "seasonalSale",
-        "alertSignals",
         "dealRadar",
         "marketRadar",
         "deal_radar",
@@ -4844,8 +4833,6 @@ def _trim_dashboard_home_payload(payload: dict, mode: str) -> dict:
         "dealOpportunities",
         "opportunity_radar",
         "opportunityRadar",
-        "released",
-        "releasedGames",
         "_meta",
     }
     return {key: value for key, value in payload.items() if key in allowed_keys}

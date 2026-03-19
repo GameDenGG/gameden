@@ -10314,11 +10314,11 @@ try {
             };
             const hasIdleCallback = typeof window.requestIdleCallback === "function";
             if (hasIdleCallback) {
-                window.requestIdleCallback(() => run(), { timeout: 1500 });
+                window.requestIdleCallback(() => run(), { timeout: 300 });
                 return;
             }
             requestAnimationFrame(() => {
-                setTimeout(run, 180);
+                setTimeout(run, 80);
             });
         }
 

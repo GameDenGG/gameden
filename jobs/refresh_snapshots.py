@@ -80,6 +80,7 @@ from database.schema_guard import assert_scale_schema_ready
 from services.push_notifications import send_push_notification
 
 CACHE_KEY = "home_v1"
+CRITICAL_CACHE_KEY = "home_critical_v1"
 LEGACY_CACHE_KEYS = ("home",)
 # Shared runtime settings (defined once in config.py).
 SNAPSHOT_MIN_BATCH_SIZE = CONFIG_SNAPSHOT_MIN_BATCH_SIZE
@@ -2611,6 +2612,35 @@ def _dedupe_snapshot_rows(rows: list[dict]) -> list[dict]:
     return deduped
 
 
+def _build_homepage_critical_payload(payload: dict) -> dict:
+    allowed_keys = (
+        "catalogSummary",
+        "recommendedDeals",
+        "worthBuyingNow",
+        "worth_buying_now",
+        "topDealsToday",
+        "dealRanked",
+        "biggestDeals",
+        "biggest_discounts",
+        "historicalLows",
+        "trendingDeals",
+        "newHistoricalLows",
+        "trending_now",
+        "buy_now_picks",
+        "wait_picks",
+        "new_historical_lows",
+        "topReviewed",
+        "mostPlayedDeals",
+        "topPlayed",
+        "trending",
+        "leaderboard",
+        "upcoming",
+        "seasonal_summary",
+        "seasonalSale",
+    )
+    return {key: payload[key] for key in allowed_keys if key in payload}
+
+
 def _build_decision_picks(rows: list[dict], recommendation: str, limit: int = HOMEPAGE_RAIL_LIMIT) -> list[dict]:
     target = _normalize_buy_recommendation(recommendation)
     if not target:
@@ -2990,8 +3020,10 @@ def rebuild_dashboard_cache(session: Session) -> None:
         "generated_at": utcnow().isoformat(),
     }
 
+    critical_payload = _build_homepage_critical_payload(payload)
     section_payloads = {
         CACHE_KEY: payload,
+        CRITICAL_CACHE_KEY: critical_payload,
         "home:worth_buying": {"items": payload.get("worthBuyingNow", []), "generated_at": payload["generated_at"]},
         "home:trending": {"items": payload.get("trendingDeals", []), "generated_at": payload["generated_at"]},
         "home:historical_lows": {"items": payload.get("newHistoricalLows", []), "generated_at": payload["generated_at"]},

@@ -12,7 +12,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import and_, case, func, or_, text
@@ -203,6 +203,7 @@ async def startup_guardrails() -> None:
     )
 
 PRIMARY_DASHBOARD_CACHE_KEY = "home_v1"
+CRITICAL_DASHBOARD_CACHE_KEY = "home_critical_v1"
 LEGACY_DASHBOARD_CACHE_KEYS = ("home",)
 DASHBOARD_CACHE_STALE_AFTER = datetime.timedelta(minutes=API_DASHBOARD_CACHE_STALE_MINUTES)
 DEAL_RADAR_CACHE_KEY = "home:deal_radar"
@@ -3498,6 +3499,7 @@ def metrics():
 
         cache_keys = [
             PRIMARY_DASHBOARD_CACHE_KEY,
+            CRITICAL_DASHBOARD_CACHE_KEY,
             *LEGACY_DASHBOARD_CACHE_KEYS,
             "home:worth_buying",
             "home:trending",
@@ -4623,7 +4625,12 @@ def _dashboard_cache_is_stale(cache_row: DashboardCache, now: datetime.datetime)
     return now - updated_at > DASHBOARD_CACHE_STALE_AFTER
 
 
-def _read_dashboard_cache(session):
+def _read_dashboard_cache(session, *, mode: str | None = None):
+    normalized_mode = str(mode or "").strip().lower()
+    if normalized_mode == "critical":
+        row, payload = _read_cache_payload(session, CRITICAL_DASHBOARD_CACHE_KEY)
+        if row is not None:
+            return row, payload
     for cache_key in _dashboard_cache_keys():
         row, payload = _read_cache_payload(session, cache_key)
         if row is not None:
@@ -4836,17 +4843,22 @@ def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
 def get_dashboard_home(request: Request, mode: str | None = None):
     started = _start_timer()
     try:
+        normalized_mode = str(mode or "").strip().lower()
         read_session = ReadSessionLocal()
         try:
-            cache_row, cached_payload = _read_dashboard_cache(read_session)
+            cache_row, cached_payload = _read_dashboard_cache(read_session, mode=normalized_mode)
+            if normalized_mode == "critical" and (
+                cache_row is None or _dashboard_payload_is_empty(cached_payload)
+            ):
+                fallback_row, fallback_payload = _read_dashboard_cache(read_session)
+                if fallback_row is not None and not _dashboard_payload_is_empty(fallback_payload):
+                    cache_row, cached_payload = fallback_row, fallback_payload
         finally:
             read_session.close()
 
-        should_refresh = (
-            cache_row is None
-            or _dashboard_payload_is_empty(cached_payload)
-            or _dashboard_cache_is_stale(cache_row, utc_now())
-        )
+        should_refresh = cache_row is None or _dashboard_payload_is_empty(cached_payload)
+        if normalized_mode != "critical" and cache_row is not None:
+            should_refresh = should_refresh or _dashboard_cache_is_stale(cache_row, utc_now())
         if should_refresh:
             rebuilt_row, rebuilt_payload = _rebuild_dashboard_cache_on_demand()
             if rebuilt_row is not None and not _dashboard_payload_is_empty(rebuilt_payload):
@@ -4869,6 +4881,15 @@ def get_dashboard_home(request: Request, mode: str | None = None):
             raise HTTPException(status_code=503, detail="Dashboard cache is empty")
         if not isinstance(cached_payload, dict):
             raise HTTPException(status_code=503, detail="Dashboard cache payload has unexpected shape")
+
+        if normalized_mode == "critical":
+            payload = dict(cached_payload)
+            payload["_meta"] = {
+                "cache_key": cache_row.cache_key,
+                "generated_at": cache_row.updated_at.isoformat() if cache_row.updated_at else None,
+            }
+            trimmed = _trim_dashboard_home_payload(payload, normalized_mode)
+            return JSONResponse(content=trimmed)
 
         payload = _augment_dashboard_home_payload(cached_payload)
         payload["_meta"] = {

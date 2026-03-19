@@ -8155,9 +8155,11 @@ input:focus-visible {
             const loading = !!state.personalizedStatus?.loading;
             const error = state.personalizedStatus?.error;
             const apiItems = safeArray(state.personalizedDeals);
-            const fallbackRows = buildYourDealsFallbackRows(HOMEPAGE_SECTION_LIMITS.personalizedDeals);
             const fallbackMode = !knownUser || !!state.personalizedStatus?.fallbackMode;
             const useFallbackRows = fallbackMode && !apiItems.length;
+            const fallbackRows = useFallbackRows
+                ? buildYourDealsFallbackRows(HOMEPAGE_SECTION_LIMITS.personalizedDeals)
+                : [];
             const displayItems = useFallbackRows ? fallbackRows : apiItems;
             const personalizedActive = knownUser && !fallbackMode && !!state.personalizedStatus?.personalized;
 
@@ -10252,6 +10254,7 @@ try {
             renderDealRanked();
             renderOpportunities();
             renderOpportunityRadar();
+            renderPersonalizedDeals();
             renderActiveDiscoveryTabPane();
             renderWorthBuyingNow();
             renderTrendingDeals();
@@ -10293,6 +10296,11 @@ try {
                     criticalDigest,
                     { deferAnalytics: true },
                 );
+                state.personalizedStatus.enabled = true;
+                state.personalizedStatus.loading = false;
+                state.personalizedStatus.error = null;
+                state.personalizedStatus.personalized = false;
+                state.personalizedStatus.fallbackMode = true;
                 state.homepageLoad.criticalLoaded = true;
                 renderCriticalHomepageSections();
             } catch (error) {
@@ -10313,13 +10321,22 @@ try {
             if (state.homepageLoad.deferredStarted) return;
             state.homepageLoad.deferredStarted = true;
 
+            const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
+            const hasFallbackSeed = !!(
+                safeArray(state.trendingNow).length
+                || safeArray(state.discoveryTrending).length
+                || safeArray(state.dealRanked).length
+                || safeArray(state.opportunityRadar).length
+                || safeArray(state.worthBuyingNow).length
+            );
+            const allowFallback = !knownUser || hasFallbackSeed || state.personalizedStatus.fallbackMode;
             state.personalizedStatus.enabled = true;
-            state.personalizedStatus.loading = true;
+            state.personalizedStatus.loading = !allowFallback;
             state.personalizedStatus.error = null;
             state.personalizedStatus.personalized = false;
-            state.personalizedStatus.fallbackMode = isDefaultOrAnonymousUserId(CURRENT_USER_ID);
-            state.personalListStatus.wishlistLoading = true;
-            state.personalListStatus.watchlistLoading = true;
+            state.personalizedStatus.fallbackMode = allowFallback;
+            state.personalListStatus.wishlistLoading = false;
+            state.personalListStatus.watchlistLoading = false;
             state.personalListStatus.wishlistError = null;
             state.personalListStatus.watchlistError = null;
             const hasCriticalDigest = !!(

@@ -2644,7 +2644,126 @@ def _build_homepage_critical_payload(payload: dict) -> dict:
         "daily_digest",
         "dailyDigest",
     )
-    return {key: payload[key] for key in allowed_keys if key in payload}
+    def slim_row(row: dict) -> dict:
+        if not isinstance(row, dict):
+            return {}
+        price = row.get("price")
+        if price is None:
+            price = row.get("latest_price")
+        original_price = row.get("original_price")
+        if original_price is None:
+            original_price = row.get("latest_original_price")
+        discount_percent = row.get("discount_percent")
+        if discount_percent is None:
+            discount_percent = row.get("latest_discount_percent")
+        banner_url = row.get("banner_url") or row.get("image") or row.get("header_image")
+        game_id = row.get("game_id") or row.get("id")
+        buy_score = row.get("buy_score")
+        if buy_score is None:
+            buy_score = row.get("worth_buying_score")
+        review_score_label = row.get("review_score_label") or row.get("review_label")
+        review_count = row.get("review_count") or row.get("review_total_count")
+        slimmed = {
+            "game_id": game_id,
+            "id": row.get("id") or game_id,
+            "game_name": row.get("game_name") or row.get("name"),
+            "steam_appid": row.get("steam_appid"),
+            "store_url": row.get("store_url"),
+            "banner_url": banner_url,
+            "price": price,
+            "original_price": original_price,
+            "discount_percent": discount_percent,
+            "historical_low": row.get("historical_low"),
+            "historical_status": row.get("historical_status"),
+            "price_vs_low_ratio": row.get("price_vs_low_ratio"),
+            "current_players": row.get("current_players"),
+            "player_change": row.get("player_change"),
+            "short_term_player_trend": row.get("short_term_player_trend"),
+            "momentum_score": row.get("momentum_score"),
+            "popularity_score": row.get("popularity_score"),
+            "deal_score": row.get("deal_score"),
+            "buy_score": buy_score,
+            "worth_buying_score": row.get("worth_buying_score"),
+            "deal_opportunity_score": row.get("deal_opportunity_score"),
+            "buy_recommendation": row.get("buy_recommendation"),
+            "buy_reason": row.get("buy_reason"),
+            "predicted_sale_reason": row.get("predicted_sale_reason"),
+            "worth_buying_reason_summary": row.get("worth_buying_reason_summary"),
+            "trend_reason_summary": row.get("trend_reason_summary"),
+            "deal_heat_reason": row.get("deal_heat_reason"),
+            "deal_heat_level": row.get("deal_heat_level"),
+            "review_score": row.get("review_score"),
+            "review_score_label": review_score_label,
+            "review_count": review_count,
+            "alert_type": row.get("alert_type"),
+            "alert_label": row.get("alert_label"),
+            "alert_created_at": row.get("alert_created_at") or row.get("created_at"),
+            "alert_metadata": row.get("alert_metadata"),
+            "event_type": row.get("event_type"),
+            "created_at": row.get("created_at"),
+            "timestamp": row.get("timestamp"),
+            "signal_type": row.get("signal_type"),
+            "signal_text": row.get("signal_text"),
+            "image": row.get("image"),
+            "opportunity_reason": row.get("opportunity_reason"),
+            "opportunity_reasons": row.get("opportunity_reasons"),
+            "personalization_reason": row.get("personalization_reason"),
+            "personalization_reasons": row.get("personalization_reasons"),
+            "section": row.get("section"),
+            "section_label": row.get("section_label"),
+            "occurred_at": row.get("occurred_at"),
+        }
+        return {
+            key: value
+            for key, value in slimmed.items()
+            if value is not None and value != "" and value != [] and value != {}
+        }
+
+    def slim_rows(rows: list[dict]) -> list[dict]:
+        slimmed_rows: list[dict] = []
+        for row in rows:
+            slimmed = slim_row(row)
+            if slimmed:
+                slimmed_rows.append(slimmed)
+        return slimmed_rows
+
+    def slim_daily_digest(digest: dict) -> dict:
+        if not isinstance(digest, dict):
+            return {}
+        sections = digest.get("sections")
+        slim_sections: dict[str, list[dict]] = {}
+        if isinstance(sections, dict):
+            for key, value in sections.items():
+                if isinstance(value, list):
+                    slim_sections[str(key)] = slim_rows(value)
+        highlights = digest.get("highlights")
+        slim_highlights = slim_rows(highlights) if isinstance(highlights, list) else []
+        counts = digest.get("counts")
+        if not isinstance(counts, dict):
+            counts = {key: len(value) for key, value in slim_sections.items()}
+        return {
+            "personalized": bool(digest.get("personalized")),
+            "window_hours": digest.get("window_hours"),
+            "window_start": digest.get("window_start"),
+            "window_end": digest.get("window_end"),
+            "generated_at": digest.get("generated_at"),
+            "counts": counts,
+            "sections": slim_sections,
+            "highlights": slim_highlights,
+        }
+
+    trimmed: dict[str, Any] = {}
+    for key in allowed_keys:
+        if key not in payload:
+            continue
+        value = payload[key]
+        if isinstance(value, list):
+            trimmed[key] = slim_rows(value)
+        elif key in {"daily_digest", "dailyDigest"} and isinstance(value, dict):
+            trimmed[key] = slim_daily_digest(value)
+        else:
+            trimmed[key] = value
+    return trimmed
 
 
 def _build_decision_picks(rows: list[dict], recommendation: str, limit: int = HOMEPAGE_RAIL_LIMIT) -> list[dict]:

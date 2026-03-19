@@ -4195,7 +4195,7 @@ input:focus-visible {
             marketRadar: 24,
             dealOpportunities: 24,
             opportunityRadar: 24,
-            personalizedDeals: 24,
+            personalizedDeals: 12,
             alertSignals: 40,
             dailyDigestSection: 6,
         });
@@ -10443,7 +10443,7 @@ try {
             state.personalizedStatus.loading = true;
             try {
                 const payload = await fetchJson(
-                    `/api/personalized-deals?user_id=${encodeURIComponent(CURRENT_USER_ID)}&limit=${HOMEPAGE_SECTION_LIMITS.personalizedDeals}`,
+                    `/api/personalized-deals?user_id=${encodeURIComponent(CURRENT_USER_ID)}&limit=${HOMEPAGE_SECTION_LIMITS.personalizedDeals}&summary=1`,
                 );
                 const items = uniqueGamesByName(payload?.items || payload || []);
                 const personalized = !!payload?.personalized && knownUser;

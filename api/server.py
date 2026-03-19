@@ -211,9 +211,9 @@ HOMEPAGE_CRITICAL_LIMIT = 8
 OPPORTUNITY_QUERY_MULTIPLIER = 8
 OPPORTUNITY_MIN_CANDIDATES = 96
 OPPORTUNITY_MAX_CANDIDATES = 320
-PERSONALIZED_QUERY_MULTIPLIER = 12
-PERSONALIZED_MIN_CANDIDATES = 120
-PERSONALIZED_MAX_CANDIDATES = 360
+PERSONALIZED_QUERY_MULTIPLIER = 4
+PERSONALIZED_MIN_CANDIDATES = 48
+PERSONALIZED_MAX_CANDIDATES = 120
 DAILY_DIGEST_WINDOW_HOURS = 24
 DAILY_DIGEST_EVENT_SCAN_LIMIT = 360
 DAILY_DIGEST_ALERT_SCAN_LIMIT = 320
@@ -6838,6 +6838,92 @@ def get_seo_discovery_page(
         _log_timing("/api/seo/discovery", started)
 
 
+def _score_personalized_fallback_row(row: dict) -> float:
+    discount = safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0))
+    return (
+        safe_num(row.get("deal_opportunity_score"), 0.0) * 0.42
+        + safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0)) * 0.38
+        + safe_num(row.get("deal_score"), 0.0) * 0.30
+        + safe_num(row.get("trending_score"), 0.0) * 0.24
+        + safe_num(row.get("momentum_score"), 0.0) * 0.18
+        + safe_num(row.get("popularity_score"), 0.0) * 0.10
+        + discount * 0.16
+    )
+
+
+def _compact_personalized_feed_item(row: dict) -> dict:
+    compact = {
+        "game_id": int(safe_num(row.get("game_id") or row.get("id"), 0.0)),
+        "game_name": str(row.get("game_name") or row.get("name") or "").strip(),
+        "store_url": row.get("store_url"),
+        "banner_url": row.get("banner_url") or row.get("header_image"),
+        "price": row.get("price", row.get("latest_price")),
+        "original_price": row.get("original_price", row.get("latest_original_price")),
+        "discount_percent": row.get("discount_percent", row.get("latest_discount_percent")),
+        "historical_status": row.get("historical_status"),
+        "deal_score": row.get("deal_score"),
+        "buy_score": row.get("buy_score", row.get("worth_buying_score")),
+        "worth_buying_score": row.get("worth_buying_score"),
+        "trending_score": row.get("trending_score"),
+        "momentum_score": row.get("momentum_score"),
+        "deal_opportunity_score": row.get("deal_opportunity_score"),
+        "deal_opportunity_reason": row.get("deal_opportunity_reason"),
+        "buy_recommendation": row.get("buy_recommendation"),
+        "buy_reason": row.get("buy_reason"),
+        "price_vs_low_ratio": row.get("price_vs_low_ratio"),
+        "predicted_next_sale_price": row.get("predicted_next_sale_price"),
+        "predicted_next_discount_percent": row.get("predicted_next_discount_percent"),
+        "predicted_sale_confidence": row.get("predicted_sale_confidence"),
+        "review_score": row.get("review_score"),
+        "review_score_label": row.get("review_score_label"),
+        "current_players": row.get("current_players"),
+        "deal_detected_at": row.get("deal_detected_at"),
+        "personalization_score": safe_num(row.get("personalization_score"), 0.0),
+    }
+    if compact["game_id"] <= 0:
+        compact["game_id"] = int(safe_num(row.get("id"), 0.0))
+    compact["id"] = compact["game_id"]
+    return compact
+
+
+def _build_personalized_fallback_items(session: Session, limit: int) -> list[dict]:
+    _, payload = _read_dashboard_cache(session)
+    if not isinstance(payload, dict):
+        return []
+    candidate_rows = _dedupe_dashboard_rows(
+        [
+            *_dashboard_rows(payload, "deal_opportunities", "dealOpportunities"),
+            *_dashboard_rows(payload, "worth_buying_now", "worthBuyingNow"),
+            *_dashboard_rows(payload, "dealRanked", "topDealsToday"),
+            *_dashboard_rows(payload, "trending_now", "trendingDeals", "trending"),
+            *_dashboard_rows(payload, "biggest_discounts", "biggestDeals"),
+            *_dashboard_rows(payload, "new_historical_lows", "newHistoricalLows"),
+        ]
+    )
+    if not candidate_rows:
+        return []
+    scored: list[tuple[float, int, dict]] = []
+    for index, row in enumerate(candidate_rows):
+        if not isinstance(row, dict):
+            continue
+        score = _score_personalized_fallback_row(row)
+        normalized = dict(row)
+        normalized["personalization_score"] = round(score, 2)
+        scored.append((score, -index, normalized))
+    scored.sort(key=lambda entry: (entry[0], entry[1]), reverse=True)
+    items: list[dict] = []
+    for _, _, raw_item in scored:
+        compact = _compact_personalized_feed_item(raw_item)
+        if compact.get("game_id", 0) <= 0:
+            continue
+        if not str(compact.get("game_name") or "").strip():
+            continue
+        items.append(compact)
+        if len(items) >= int(limit):
+            break
+    return items
+
+
 @app.get("/api/personalized-deals")
 @json_etag()
 @ttl_cache(ttl_seconds=45, endpoint_key="/api/personalized-deals")
@@ -6845,6 +6931,7 @@ def list_personalized_deals(
     request: Request,
     user_id: str = Query(default=DEFAULT_USER_ID),
     limit: int = Query(default=20, ge=1, le=120),
+    summary: bool = Query(default=False),
 ):
     started = _start_timer()
     normalized_user_id = normalize_user_id(user_id)
@@ -6881,6 +6968,85 @@ def list_personalized_deals(
         watchlist_game_ids = {int(game_id) for game_id, _ in watchlist_rows if game_id is not None}
         target_game_ids = {int(game_id) for game_id, _ in target_rows if game_id is not None}
         has_personal_seed_data = bool(wishlist_game_ids or watchlist_game_ids or target_game_ids)
+        if not personalization_enabled or not has_personal_seed_data:
+            fallback_items = _build_personalized_fallback_items(session, normalized_limit)
+            return {
+                "user_id": normalized_user_id,
+                "personalized": False,
+                "fallback_mode": True,
+                "fallback_reason": "Using bounded shared ranking until enough personal signals are available.",
+                "count": len(fallback_items),
+                "items": fallback_items,
+                "generated_at": now.isoformat(),
+            }
+        if bool(summary):
+            seed_game_id_list = list(wishlist_game_ids | watchlist_game_ids | target_game_ids)
+            seed_candidate_limit = max(normalized_limit, min(36, max(12, len(seed_game_id_list) * 6)))
+            seed_rows = _query_release_feed_rows(
+                session,
+                limit=seed_candidate_limit,
+                projection_filters=[GameDiscoveryFeed.game_id.in_(seed_game_id_list)],
+                snapshot_filters=[GameSnapshot.game_id.in_(seed_game_id_list)],
+                projection_order_by=[
+                    GameDiscoveryFeed.buy_score.desc().nullslast(),
+                    GameDiscoveryFeed.worth_buying_score.desc().nullslast(),
+                    GameDiscoveryFeed.deal_opportunity_score.desc().nullslast(),
+                    GameDiscoveryFeed.deal_score.desc().nullslast(),
+                    GameDiscoveryFeed.updated_at.desc().nullslast(),
+                    GameDiscoveryFeed.game_id.asc(),
+                ],
+                snapshot_order_by=[
+                    GameSnapshot.buy_score.desc().nullslast(),
+                    GameSnapshot.worth_buying_score.desc().nullslast(),
+                    GameSnapshot.deal_opportunity_score.desc().nullslast(),
+                    GameSnapshot.deal_score.desc().nullslast(),
+                    GameSnapshot.updated_at.desc().nullslast(),
+                    GameSnapshot.game_id.asc(),
+                ],
+            )
+            personalized_seed_items: list[dict] = []
+            for snapshot in seed_rows:
+                item = _build_personalized_deal_item(
+                    snapshot,
+                    wishlist_game_ids=wishlist_game_ids,
+                    watchlist_game_ids=watchlist_game_ids,
+                    target_game_ids=target_game_ids,
+                    recent_game_ids=set(),
+                    token_weights={},
+                    recent_event_counts={},
+                    personalization_enabled=True,
+                    has_personal_seed_data=True,
+                )
+                if item is None:
+                    continue
+                personalized_seed_items.append(_compact_personalized_feed_item(item))
+            fallback_items = _build_personalized_fallback_items(session, max(normalized_limit * 2, normalized_limit + 8))
+            merged_items: list[dict] = []
+            seen_game_ids: set[int] = set()
+            for item in [*personalized_seed_items, *fallback_items]:
+                if not isinstance(item, dict):
+                    continue
+                game_id = int(safe_num(item.get("game_id") or item.get("id"), 0.0))
+                if game_id <= 0 or game_id in seen_game_ids:
+                    continue
+                merged_items.append(item)
+                seen_game_ids.add(game_id)
+                if len(merged_items) >= normalized_limit:
+                    break
+            personalized_feed = len(personalized_seed_items) > 0
+            return {
+                "user_id": normalized_user_id,
+                "personalized": personalized_feed,
+                "fallback_mode": not personalized_feed,
+                "fallback_reason": (
+                    None
+                    if personalized_feed
+                    else "Using bounded shared ranking until enough personal signals are available."
+                ),
+                "count": len(merged_items),
+                "items": merged_items,
+                "generated_at": now.isoformat(),
+            }
 
         recent_touch_by_game: dict[int, datetime.datetime] = {}
         for game_id, touched_at in [*wishlist_rows, *watchlist_rows, *target_rows]:
@@ -6919,16 +7085,8 @@ def list_personalized_deals(
             recent_game_ids=recent_game_ids,
         )
 
-        query_multiplier = (
-            PERSONALIZED_QUERY_MULTIPLIER
-            if personalization_enabled
-            else max(4, PERSONALIZED_QUERY_MULTIPLIER // 2)
-        )
-        minimum_candidate_pool = (
-            PERSONALIZED_MIN_CANDIDATES
-            if personalization_enabled
-            else max(60, PERSONALIZED_MIN_CANDIDATES // 2)
-        )
+        query_multiplier = max(4, PERSONALIZED_QUERY_MULTIPLIER)
+        minimum_candidate_pool = max(PERSONALIZED_MIN_CANDIDATES, normalized_limit * 3)
         candidate_limit = max(
             minimum_candidate_pool,
             min(PERSONALIZED_MAX_CANDIDATES, normalized_limit * query_multiplier),
@@ -6998,14 +7156,16 @@ def list_personalized_deals(
 
         candidate_game_ids = [int(snapshot.game_id) for snapshot in candidate_rows]
         recent_event_counts: dict[int, int] = {}
-        if personalization_enabled and candidate_game_ids:
+        event_scan_limit = max(32, min(64, normalized_limit * 3))
+        event_game_ids = candidate_game_ids[:event_scan_limit]
+        if event_game_ids:
             event_rows = (
                 session.query(
                     DealEvent.game_id,
                     func.count(DealEvent.id),
                 )
                 .filter(
-                    DealEvent.game_id.in_(candidate_game_ids),
+                    DealEvent.game_id.in_(event_game_ids),
                     DealEvent.created_at >= event_cutoff,
                 )
                 .group_by(DealEvent.game_id)
@@ -7110,7 +7270,7 @@ def list_personalized_deals(
                     break
 
         scored_rows.sort(key=lambda entry: (entry[0], entry[1]), reverse=True)
-        items = [item for _, _, item in scored_rows[:normalized_limit]]
+        items = [_compact_personalized_feed_item(item) for _, _, item in scored_rows[:normalized_limit]]
         personalized_feed = personalization_enabled and has_personal_seed_data and personalized_scored_count > 0
 
         return {

@@ -116,6 +116,14 @@ HOMEPAGE_PRIMARY_DIVERSITY_RAIL_ORDER = (
     "worth_buying_now",
     "trending_now",
 )
+HOMEPAGE_VISIBLE_DIVERSITY_RAIL_ORDER = (
+    "deal_opportunities",
+    "opportunity_radar",
+    "deal_ranked",
+    "biggest_discounts",
+    "worth_buying_now",
+    "trending_now",
+)
 EXTENDED_PLATFORM_FILTER_OPTIONS = ("Steam Deck", "VR Compatibility")
 UTC = datetime.timezone.utc
 DEAL_EVENT_NEW_SALE = "NEW_SALE"
@@ -3195,6 +3203,26 @@ def rebuild_dashboard_cache(session: Session) -> None:
     biggest_discounts_rows = diversified_primary_rails.get("biggest_discounts", biggest_discounts_rows)
     worth_buying_rows = diversified_primary_rails.get("worth_buying_now", worth_buying_rows)
     trending_now_rows = diversified_primary_rails.get("trending_now", trending_now_rows)
+    visible_uniqueness_window = max(primary_uniqueness_window, HOMEPAGE_CRITICAL_RAIL_LIMIT)
+    diversified_visible_rails = _apply_homepage_payload_diversity(
+        rail_candidates={
+            "deal_opportunities": deal_opportunities_rows,
+            "opportunity_radar": opportunity_radar_rows,
+            "deal_ranked": deal_ranked_rows,
+            "biggest_discounts": biggest_discounts_rows,
+            "worth_buying_now": worth_buying_rows,
+            "trending_now": trending_now_rows,
+        },
+        section_limit=HOMEPAGE_RAIL_LIMIT,
+        uniqueness_window=visible_uniqueness_window,
+        rail_order=HOMEPAGE_VISIBLE_DIVERSITY_RAIL_ORDER,
+    )
+    deal_opportunities_rows = diversified_visible_rails.get("deal_opportunities", deal_opportunities_rows)
+    opportunity_radar_rows = diversified_visible_rails.get("opportunity_radar", opportunity_radar_rows)
+    deal_ranked_rows = diversified_visible_rails.get("deal_ranked", deal_ranked_rows)
+    biggest_discounts_rows = diversified_visible_rails.get("biggest_discounts", biggest_discounts_rows)
+    worth_buying_rows = diversified_visible_rails.get("worth_buying_now", worth_buying_rows)
+    trending_now_rows = diversified_visible_rails.get("trending_now", trending_now_rows)
     player_surges = _build_player_surges(alert_signals, trending_rows)
     seasonal_summary = {}
     biggest_price_drops_rows = [

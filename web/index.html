@@ -4629,22 +4629,22 @@ input:focus-visible {
                 restoredAt: 0,
             },
             visibleCounts: {
-                dealRankedGrid: 8,
-                opportunitiesGrid: 8,
-                opportunityRadarGrid: 8,
-                personalizedDealsGrid: 8,
-                worthBuyingGrid: 8,
-                trendingDealsGrid: 8,
-                newHistoricalLowsGrid: 8,
-                newDealsGrid: 8,
-                recommendedDealsGrid: 8,
-                dealRadarFeed: 8,
-                historicalLowsGrid: 12,
+                dealRankedGrid: 6,
+                opportunitiesGrid: 6,
+                opportunityRadarGrid: 6,
+                personalizedDealsGrid: 6,
+                worthBuyingGrid: 6,
+                trendingDealsGrid: 6,
+                newHistoricalLowsGrid: 6,
+                newDealsGrid: 6,
+                recommendedDealsGrid: 6,
+                dealRadarFeed: 6,
+                historicalLowsGrid: 8,
                 releasedGamesGrid: 2,
-                topReviewedGrid: 12,
+                topReviewedGrid: 8,
                 upcomingGrid: 2,
-                seasonalTopGrid: 12,
-                seasonalLowerGrid: 12,
+                seasonalTopGrid: 8,
+                seasonalLowerGrid: 8,
             },
         };
 
@@ -7166,6 +7166,23 @@ input:focus-visible {
             const previousView = container.dataset.renderView || "";
             const previousSignature = container.dataset.renderSignature || "";
             const previousCount = Number(container.dataset.renderedCount || 0);
+            const isNoopRender =
+                previousView === String(view || "")
+                && previousSignature === renderSignature
+                && previousCount === visibleCount;
+
+            if (isNoopRender) {
+                updateShowAllButton(showAllButton, view, title, items.length, visibleCount);
+                if (toggleButton) {
+                    if (items.length > visibleCount) {
+                        toggleButton.classList.remove("hidden");
+                        toggleButton.innerHTML = `Show More <span class="dropdown-arrow">&#8675;</span>`;
+                    } else {
+                        toggleButton.classList.add("hidden");
+                    }
+                }
+                return;
+            }
 
             const canAppend =
                 previousView === String(view || "")
@@ -9787,15 +9804,33 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                 || dashboardPayload?.opportunityRadar
                 || []
             );
+            const opportunityIdentityKeys = new Set(
+                opportunitiesNow
+                    .map((row) => gameIdentityKey(row))
+                    .filter((key) => !!key),
+            );
+            const opportunityRadarSeed = uniqueGamesByName([
+                ...opportunityRadarFromEndpoint,
+                ...opportunityRadarFromDashboard,
+            ]);
+            const opportunityRadarDistinct = opportunityRadarSeed.filter((row) => {
+                const key = gameIdentityKey(row);
+                if (!key) return false;
+                return !opportunityIdentityKeys.has(key);
+            });
             const shouldHydrateOpportunityRadar = hasOpportunityRadarPayload
                 || opportunityRadarFromDashboard.length > 0
                 || opportunitiesNow.length > 0;
             const opportunityRadar = shouldHydrateOpportunityRadar
-                ? uniqueGamesByName([
-                    ...opportunityRadarFromEndpoint,
-                    ...opportunityRadarFromDashboard,
-                    ...opportunitiesNow,
-                ])
+                ? (
+                    opportunityRadarDistinct.length
+                        ? opportunityRadarDistinct
+                        : (
+                            opportunityRadarSeed.length
+                                ? opportunityRadarSeed
+                                : opportunitiesNow
+                        )
+                )
                 : safeArray(state.opportunityRadar);
             const decisionPool = uniqueGamesByName([
                 ...opportunitiesNow,
@@ -9977,12 +10012,21 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                 const radarFromEndpoint = hasOpportunityRadarPayload
                     ? uniqueGamesByName(opportunityRadarPayload?.items || opportunityRadarPayload || [])
                     : [];
-                const mergedRadar = uniqueGamesByName([
-                    ...radarFromEndpoint,
-                    ...safeArray(state.opportunitiesNow),
-                ]);
-                if (mergedRadar.length || !safeArray(state.opportunityRadar).length) {
-                    state.opportunityRadar = mergedRadar.length ? mergedRadar : safeArray(state.opportunitiesNow);
+                const opportunityIdentityKeys = new Set(
+                    safeArray(state.opportunitiesNow)
+                        .map((row) => gameIdentityKey(row))
+                        .filter((key) => !!key),
+                );
+                const distinctRadar = radarFromEndpoint.filter((row) => {
+                    const key = gameIdentityKey(row);
+                    if (!key) return false;
+                    return !opportunityIdentityKeys.has(key);
+                });
+                const nextRadar = distinctRadar.length
+                    ? distinctRadar
+                    : (radarFromEndpoint.length ? radarFromEndpoint : safeArray(state.opportunitiesNow));
+                if (nextRadar.length || !safeArray(state.opportunityRadar).length) {
+                    state.opportunityRadar = nextRadar;
                 }
             }
             if (hasDailyDigestPayload) {
@@ -10408,34 +10452,39 @@ try {
 
         async function loadDeferredHomepageData(dashboardDataPromise) {
             const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
-            const watchlistPromise = knownUser
+            const hasWatchlistSeed = safeArray(state.watchlist).length > 0;
+            const hasWishlistSeed = safeArray(state.wishlist).length > 0;
+            const hasAlertSeed = !!state.personalSummaryLoaded && safeArray(state.alertSignals).length > 0;
+            const hasPersonalizedSeed = safeArray(state.personalizedDeals).length > 0;
+
+            const watchlistPromise = knownUser && !hasWatchlistSeed
                 ? loadUserWatchlist().catch((error) => {
                     console.warn("Failed to load user watchlist", error);
                     return [];
                 })
-                : Promise.resolve([]);
+                : Promise.resolve(safeArray(state.watchlist));
             watchlistPromise.then(() => {
                 renderWatchlist();
                 syncCardActionButtonsFromState();
             });
 
-            const wishlistPromise = knownUser
+            const wishlistPromise = knownUser && !hasWishlistSeed
                 ? loadUserWishlist().catch((error) => {
                     console.warn("Failed to load user wishlist", error);
                     return [];
                 })
-                : Promise.resolve([]);
+                : Promise.resolve(safeArray(state.wishlist));
             wishlistPromise.then(() => {
                 renderWishlist();
                 syncCardActionButtonsFromState();
             });
 
-            const alertsPromise = knownUser
+            const alertsPromise = knownUser && !hasAlertSeed
                 ? loadUserAlertSignals().catch((error) => {
                     console.warn("Failed to load user alerts", error);
                     return [];
                 })
-                : Promise.resolve([]);
+                : Promise.resolve(safeArray(state.alertSignals));
             alertsPromise.then((userAlertSignals) => {
                 if (safeArray(userAlertSignals).length) {
                     state.alertSignals = uniqueAlertSignals([
@@ -10446,12 +10495,12 @@ try {
                 renderAlerts();
             });
 
-            const personalizedPromise = knownUser
+            const personalizedPromise = knownUser && !hasPersonalizedSeed
                 ? loadPersonalizedDeals().catch((error) => {
                     console.warn("Failed to load personalized deals", error);
                     return [];
                 })
-                : Promise.resolve([]);
+                : Promise.resolve(safeArray(state.personalizedDeals));
             personalizedPromise.then((personalizedDeals) => {
                 if (!state.personalizedStatus.error) {
                     state.personalizedDeals = uniqueGamesByName(personalizedDeals || []);
@@ -10476,10 +10525,7 @@ try {
                 })
                 : Promise.resolve(null);
 
-            const [, filtersFallback] = await Promise.all([
-                deferredUserDataPromise,
-                filtersFallbackPromise,
-            ]);
+            const filtersFallback = await filtersFallbackPromise;
 
             if (filtersFallback && typeof filtersFallback === "object") {
                 dashboardData.filters = buildMergedDashboardFilters(
@@ -10496,6 +10542,9 @@ try {
             renderAlerts();
             syncCardActionButtonsFromState();
             scheduleDashboardSnapshotPersist();
+            void deferredUserDataPromise.then(() => {
+                scheduleDashboardSnapshotPersist();
+            });
         }
 
         function renderCriticalHomepageSkeletons() {

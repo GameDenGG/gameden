@@ -109,6 +109,13 @@ HOMEPAGE_DIVERSITY_RAIL_ORDER = (
     "biggest_deals",
     "trending_deals",
 )
+HOMEPAGE_PRIMARY_DIVERSITY_RAIL_ORDER = (
+    "deal_opportunities",
+    "opportunity_radar",
+    "biggest_discounts",
+    "worth_buying_now",
+    "trending_now",
+)
 EXTENDED_PLATFORM_FILTER_OPTIONS = ("Steam Deck", "VR Compatibility")
 UTC = datetime.timezone.utc
 DEAL_EVENT_NEW_SALE = "NEW_SALE"
@@ -2615,27 +2622,154 @@ def _dedupe_snapshot_rows(rows: list[dict]) -> list[dict]:
     return deduped
 
 
+def _take_diverse_payload_rows(
+    ranked_candidates: list[dict],
+    used_keys: set[str],
+    section_limit: int,
+    uniqueness_window: int,
+) -> list[dict]:
+    selected: list[dict] = []
+    deferred: list[dict] = []
+    section_seen: set[str] = set()
+    unique_target = max(0, min(section_limit, uniqueness_window))
+
+    for idx, row in enumerate(ranked_candidates):
+        if not isinstance(row, dict):
+            continue
+        key = _snapshot_identity_key(row, idx)
+        if key in section_seen:
+            continue
+        if len(selected) < unique_target and key in used_keys:
+            deferred.append(row)
+            continue
+        selected.append(row)
+        section_seen.add(key)
+        if len(selected) >= section_limit:
+            return selected
+
+    for idx, row in enumerate(deferred):
+        if not isinstance(row, dict):
+            continue
+        key = _snapshot_identity_key(row, idx)
+        if key in section_seen:
+            continue
+        selected.append(row)
+        section_seen.add(key)
+        if len(selected) >= section_limit:
+            return selected
+
+    return selected
+
+
+def _apply_homepage_payload_diversity(
+    rail_candidates: dict[str, list[dict]],
+    section_limit: int,
+    uniqueness_window: int,
+    rail_order: tuple[str, ...],
+) -> dict[str, list[dict]]:
+    diversified: dict[str, list[dict]] = {
+        key: _dedupe_snapshot_rows(rows)
+        for key, rows in rail_candidates.items()
+    }
+    used_keys: set[str] = set()
+    for rail_key in rail_order:
+        rows = diversified.get(rail_key, [])
+        diversified_rows = _take_diverse_payload_rows(
+            ranked_candidates=rows,
+            used_keys=used_keys,
+            section_limit=section_limit,
+            uniqueness_window=uniqueness_window,
+        )
+        diversified[rail_key] = diversified_rows
+        for idx, row in enumerate(diversified_rows[:uniqueness_window]):
+            used_keys.add(_snapshot_identity_key(row, idx))
+    return diversified
+
+
+def _score_homepage_opportunity_row(row: dict) -> float:
+    buy_score = safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0))
+    discount = safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0))
+    return (
+        safe_num(row.get("deal_opportunity_score"), 0.0) * 0.9
+        + buy_score * 0.45
+        + safe_num(row.get("deal_score"), 0.0) * 0.35
+        + safe_num(row.get("momentum_score"), 0.0) * 0.2
+        + safe_num(row.get("trending_score"), 0.0) * 0.15
+        + discount * 0.12
+    )
+
+
+def _build_homepage_opportunity_rails(decision_pool: list[dict], limit: int) -> tuple[list[dict], list[dict]]:
+    ranked_candidates = sorted(
+        _dedupe_snapshot_rows(decision_pool),
+        key=lambda row: (
+            _score_homepage_opportunity_row(row),
+            safe_num(row.get("deal_opportunity_score"), 0.0),
+            safe_num(row.get("deal_score"), 0.0),
+            safe_num(row.get("latest_discount_percent"), safe_num(row.get("discount_percent"), 0.0)),
+        ),
+        reverse=True,
+    )
+    opportunity_rows = ranked_candidates[:limit]
+    opportunity_keys = {
+        _snapshot_identity_key(row, idx)
+        for idx, row in enumerate(opportunity_rows)
+        if isinstance(row, dict)
+    }
+
+    radar_candidates = sorted(
+        _dedupe_snapshot_rows(decision_pool),
+        key=lambda row: (
+            safe_num(row.get("deal_opportunity_score"), 0.0),
+            safe_num(row.get("momentum_score"), 0.0),
+            safe_num(row.get("deal_score"), 0.0),
+            safe_num(row.get("latest_discount_percent"), safe_num(row.get("discount_percent"), 0.0)),
+        ),
+        reverse=True,
+    )
+
+    radar_rows: list[dict] = []
+    radar_keys: set[str] = set()
+    for idx, row in enumerate(radar_candidates):
+        if not isinstance(row, dict):
+            continue
+        key = _snapshot_identity_key(row, idx)
+        if key in opportunity_keys:
+            continue
+        radar_rows.append(row)
+        radar_keys.add(key)
+        if len(radar_rows) >= limit:
+            break
+
+    if len(radar_rows) < limit:
+        for idx, row in enumerate(radar_candidates):
+            if not isinstance(row, dict):
+                continue
+            key = _snapshot_identity_key(row, idx)
+            if key in radar_keys:
+                continue
+            radar_rows.append(row)
+            radar_keys.add(key)
+            if len(radar_rows) >= limit:
+                break
+
+    return opportunity_rows, radar_rows
+
+
 def _build_homepage_critical_payload(payload: dict) -> dict:
     allowed_keys = (
         "catalogSummary",
-        "recommendedDeals",
-        "worthBuyingNow",
-        "worth_buying_now",
-        "topDealsToday",
         "dealRanked",
-        "biggestDeals",
         "biggest_discounts",
-        "trendingDeals",
-        "newHistoricalLows",
+        "worth_buying_now",
         "trending_now",
+        "new_historical_lows",
         "buy_now_picks",
         "wait_picks",
-        "new_historical_lows",
-        "dealRadar",
-        "marketRadar",
+        "deal_opportunities",
+        "opportunity_radar",
         "deal_radar",
         "daily_digest",
-        "dailyDigest",
     )
     def slim_row(row: dict) -> dict:
         if not isinstance(row, dict):
@@ -2671,38 +2805,29 @@ def _build_homepage_critical_payload(payload: dict) -> dict:
             "current_players": row.get("current_players"),
             "player_change": row.get("player_change"),
             "short_term_player_trend": row.get("short_term_player_trend"),
-            "momentum_score": row.get("momentum_score"),
-            "popularity_score": row.get("popularity_score"),
             "deal_score": row.get("deal_score"),
             "buy_score": buy_score,
             "worth_buying_score": row.get("worth_buying_score"),
             "deal_opportunity_score": row.get("deal_opportunity_score"),
             "buy_recommendation": row.get("buy_recommendation"),
             "buy_reason": row.get("buy_reason"),
+            "predicted_next_discount_percent": row.get("predicted_next_discount_percent"),
             "predicted_sale_reason": row.get("predicted_sale_reason"),
             "worth_buying_reason_summary": row.get("worth_buying_reason_summary"),
             "trend_reason_summary": row.get("trend_reason_summary"),
             "deal_heat_reason": row.get("deal_heat_reason"),
-            "deal_heat_level": row.get("deal_heat_level"),
             "review_score": row.get("review_score"),
             "review_score_label": review_score_label,
             "deal_detected_at": row.get("deal_detected_at"),
-            "deal_updated_at": row.get("deal_updated_at"),
-            "historical_low_timestamp": row.get("historical_low_timestamp"),
             "alert_type": row.get("alert_type"),
             "alert_label": row.get("alert_label"),
             "alert_created_at": row.get("alert_created_at") or row.get("created_at"),
-            "event_type": row.get("event_type"),
-            "created_at": row.get("created_at"),
             "timestamp": row.get("timestamp"),
             "signal_type": row.get("signal_type"),
             "signal_text": row.get("signal_text"),
             "image": row.get("image"),
-            "digest_reason_lines": row.get("digest_reason_lines"),
             "opportunity_reason": row.get("opportunity_reason"),
-            "section": row.get("section"),
-            "section_label": row.get("section_label"),
-            "occurred_at": row.get("occurred_at"),
+            "opportunity_reasons": row.get("opportunity_reasons"),
         }
         return {
             key: value
@@ -2756,10 +2881,10 @@ def _build_homepage_critical_payload(payload: dict) -> dict:
         value = payload[key]
         if isinstance(value, list):
             list_limit = HOMEPAGE_CRITICAL_RAIL_LIMIT
-            if key in {"dealRadar", "marketRadar", "deal_radar"}:
+            if key in {"deal_radar"}:
                 list_limit = HOMEPAGE_CRITICAL_RADAR_LIMIT
             trimmed[key] = slim_rows(value, list_limit)
-        elif key in {"daily_digest", "dailyDigest"} and isinstance(value, dict):
+        elif key in {"daily_digest"} and isinstance(value, dict):
             trimmed[key] = slim_daily_digest(value)
         else:
             trimmed[key] = value
@@ -3069,6 +3194,28 @@ def rebuild_dashboard_cache(session: Session) -> None:
     trending_now_rows = trending_rows if trending_rows else trending_deals_rows
     biggest_discounts_rows = biggest_deals_rows
     worth_buying_rows = worth_buying_now_rows
+    deal_opportunities_rows, opportunity_radar_rows = _build_homepage_opportunity_rails(
+        decision_pool=decision_pool,
+        limit=HOMEPAGE_RAIL_LIMIT,
+    )
+    primary_uniqueness_window = max(HOMEPAGE_DIVERSITY_WINDOW, min(HOMEPAGE_RAIL_LIMIT, 6))
+    diversified_primary_rails = _apply_homepage_payload_diversity(
+        rail_candidates={
+            "deal_opportunities": deal_opportunities_rows,
+            "opportunity_radar": opportunity_radar_rows,
+            "biggest_discounts": biggest_discounts_rows,
+            "worth_buying_now": worth_buying_rows,
+            "trending_now": trending_now_rows,
+        },
+        section_limit=HOMEPAGE_RAIL_LIMIT,
+        uniqueness_window=primary_uniqueness_window,
+        rail_order=HOMEPAGE_PRIMARY_DIVERSITY_RAIL_ORDER,
+    )
+    deal_opportunities_rows = diversified_primary_rails.get("deal_opportunities", deal_opportunities_rows)
+    opportunity_radar_rows = diversified_primary_rails.get("opportunity_radar", opportunity_radar_rows)
+    biggest_discounts_rows = diversified_primary_rails.get("biggest_discounts", biggest_discounts_rows)
+    worth_buying_rows = diversified_primary_rails.get("worth_buying_now", worth_buying_rows)
+    trending_now_rows = diversified_primary_rails.get("trending_now", trending_now_rows)
     player_surges = _build_player_surges(alert_signals, trending_rows)
     seasonal_summary = {}
     biggest_price_drops_rows = [
@@ -3149,6 +3296,10 @@ def rebuild_dashboard_cache(session: Session) -> None:
         "wait_picks": wait_picks,
         "new_historical_lows": new_historical_lows_rows,
         "trending_now": trending_now_rows,
+        "deal_opportunities": deal_opportunities_rows,
+        "dealOpportunities": deal_opportunities_rows,
+        "opportunity_radar": opportunity_radar_rows,
+        "opportunityRadar": opportunity_radar_rows,
         "deal_radar": deal_radar,
         "player_surges": player_surges,
         "seasonal_summary": seasonal_summary,
@@ -3161,6 +3312,8 @@ def rebuild_dashboard_cache(session: Session) -> None:
             "wait_picks": wait_picks,
             "new_historical_lows": new_historical_lows_rows,
             "trending_now": trending_now_rows,
+            "deal_opportunities": deal_opportunities_rows,
+            "opportunity_radar": opportunity_radar_rows,
             "deal_radar": deal_radar,
             "player_surges": player_surges,
             "seasonal_summary": seasonal_summary,
@@ -3179,6 +3332,8 @@ def rebuild_dashboard_cache(session: Session) -> None:
         "home:alerts": {"items": payload.get("alertSignals", []), "generated_at": payload["generated_at"]},
         "home:deal_radar": {"items": payload.get("dealRadar", []), "generated_at": payload["generated_at"]},
         "home:market_radar": {"items": payload.get("dealRadar", []), "generated_at": payload["generated_at"]},
+        "home:deal_opportunities": {"items": payload.get("deal_opportunities", []), "generated_at": payload["generated_at"]},
+        "home:opportunity_radar": {"items": payload.get("opportunity_radar", []), "generated_at": payload["generated_at"]},
         "home:top_played": {"items": payload.get("topPlayed", []), "generated_at": payload["generated_at"]},
         "home:upcoming": {"items": payload.get("upcoming", []), "generated_at": payload["generated_at"]},
     }

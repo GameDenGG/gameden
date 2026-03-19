@@ -1691,7 +1691,7 @@ def _collect_deal_opportunity_items(session, limit: int) -> list[dict]:
     return [item for _, _, item in scored_items[:normalized_limit]]
 
 
-def _collect_opportunity_radar_items(session, limit: int) -> list[dict]:
+def _collect_opportunity_item_pair(session, limit: int) -> tuple[list[dict], list[dict]]:
     normalized_limit = max(1, int(limit))
     candidate_limit = max(
         OPPORTUNITY_MIN_CANDIDATES,
@@ -1700,35 +1700,97 @@ def _collect_opportunity_radar_items(session, limit: int) -> list[dict]:
     rows = _query_release_feed_rows(
         session,
         limit=candidate_limit,
-        projection_filters=[
-            GameDiscoveryFeed.deal_opportunity_score.isnot(None),
-            GameDiscoveryFeed.deal_opportunity_score > 0,
-        ],
-        snapshot_filters=[
-            GameSnapshot.deal_opportunity_score.isnot(None),
-            GameSnapshot.deal_opportunity_score > 0,
-        ],
         projection_order_by=[
-            GameDiscoveryFeed.deal_opportunity_score.desc().nullslast(),
+            GameDiscoveryFeed.buy_score.desc().nullslast(),
+            GameDiscoveryFeed.worth_buying_score.desc().nullslast(),
+            GameDiscoveryFeed.deal_score.desc().nullslast(),
+            GameDiscoveryFeed.momentum_score.desc().nullslast(),
+            GameDiscoveryFeed.popularity_score.desc().nullslast(),
+            GameDiscoveryFeed.latest_discount_percent.desc().nullslast(),
             GameDiscoveryFeed.updated_at.desc().nullslast(),
             GameDiscoveryFeed.game_id.asc(),
         ],
         snapshot_order_by=[
-            GameSnapshot.deal_opportunity_score.desc().nullslast(),
+            GameSnapshot.buy_score.desc().nullslast(),
+            GameSnapshot.worth_buying_score.desc().nullslast(),
+            GameSnapshot.deal_score.desc().nullslast(),
+            GameSnapshot.momentum_score.desc().nullslast(),
+            GameSnapshot.popularity_score.desc().nullslast(),
+            GameSnapshot.latest_discount_percent.desc().nullslast(),
             GameSnapshot.updated_at.desc().nullslast(),
             GameSnapshot.game_id.asc(),
         ],
     )
 
-    items: list[dict] = []
+    scored_opportunities: list[tuple[float, datetime.datetime, dict]] = []
+    scored_radar: list[tuple[float, datetime.datetime, dict]] = []
     for snapshot in rows:
-        parsed = _build_opportunity_radar_item(snapshot)
-        if parsed is None:
+        opportunity_item = _build_deal_opportunity_item(snapshot)
+        if opportunity_item is not None:
+            updated_at = snapshot.updated_at if isinstance(snapshot.updated_at, datetime.datetime) else utc_now()
+            if updated_at.tzinfo is None:
+                updated_at = updated_at.replace(tzinfo=datetime.timezone.utc)
+            scored_opportunities.append((safe_num(opportunity_item.get("opportunity_score"), 0.0), updated_at, opportunity_item))
+
+        radar_item = _build_opportunity_radar_item(snapshot)
+        if radar_item is not None:
+            updated_at = snapshot.updated_at if isinstance(snapshot.updated_at, datetime.datetime) else utc_now()
+            if updated_at.tzinfo is None:
+                updated_at = updated_at.replace(tzinfo=datetime.timezone.utc)
+            scored_radar.append((safe_num(radar_item.get("deal_opportunity_score"), 0.0), updated_at, radar_item))
+
+    scored_opportunities.sort(key=lambda entry: (entry[0], entry[1]), reverse=True)
+    opportunity_items = [item for _, _, item in scored_opportunities[:normalized_limit]]
+    excluded_game_ids = {
+        int(safe_num(item.get("game_id"), 0.0))
+        for item in opportunity_items
+        if int(safe_num(item.get("game_id"), 0.0)) > 0
+    }
+
+    scored_radar.sort(key=lambda entry: (entry[0], entry[1]), reverse=True)
+    radar_items: list[dict] = []
+    seen_radar_ids: set[int] = set()
+    for _, _, item in scored_radar:
+        game_id = int(safe_num(item.get("game_id"), 0.0))
+        if game_id <= 0 or game_id in excluded_game_ids or game_id in seen_radar_ids:
             continue
-        items.append(parsed)
-        if len(items) >= normalized_limit:
+        seen_radar_ids.add(game_id)
+        radar_items.append(item)
+        if len(radar_items) >= normalized_limit:
             break
-    return items
+
+    if len(radar_items) < normalized_limit:
+        for _, _, item in scored_radar:
+            game_id = int(safe_num(item.get("game_id"), 0.0))
+            if game_id <= 0 or game_id in seen_radar_ids:
+                continue
+            seen_radar_ids.add(game_id)
+            radar_items.append(item)
+            if len(radar_items) >= normalized_limit:
+                break
+
+    return opportunity_items, radar_items
+
+
+def _collect_opportunity_radar_items(session, limit: int, exclude_game_ids: set[int] | None = None) -> list[dict]:
+    normalized_limit = max(1, int(limit))
+    excluded: set[int] = set()
+    for game_id in (exclude_game_ids or set()):
+        try:
+            parsed_id = int(game_id)
+        except Exception:
+            continue
+        if parsed_id > 0:
+            excluded.add(parsed_id)
+    _, radar_items = _collect_opportunity_item_pair(session, normalized_limit)
+    if not excluded:
+        return radar_items[:normalized_limit]
+    filtered_items = [
+        item
+        for item in radar_items
+        if int(safe_num(item.get("game_id"), 0.0)) not in excluded
+    ]
+    return filtered_items[:normalized_limit]
 
 
 def _coerce_utc_datetime(value: datetime.datetime | None) -> datetime.datetime | None:
@@ -4972,14 +5034,33 @@ def get_dashboard_home(request: Request, mode: str | None = None):
             if needs_opportunities or needs_opportunity_radar:
                 critical_session = ReadSessionLocal()
                 try:
-                    if needs_opportunities:
-                        items = _collect_deal_opportunity_items(critical_session, HOMEPAGE_CRITICAL_LIMIT)
-                        payload["deal_opportunities"] = items
-                        payload["dealOpportunities"] = items
-                    if needs_opportunity_radar:
-                        items = _collect_opportunity_radar_items(critical_session, HOMEPAGE_CRITICAL_LIMIT)
-                        payload["opportunity_radar"] = items
-                        payload["opportunityRadar"] = items
+                    if needs_opportunities and needs_opportunity_radar:
+                        opportunity_items, radar_items = _collect_opportunity_item_pair(
+                            critical_session,
+                            HOMEPAGE_CRITICAL_LIMIT,
+                        )
+                        payload["deal_opportunities"] = opportunity_items
+                        payload["dealOpportunities"] = opportunity_items
+                        payload["opportunity_radar"] = radar_items
+                        payload["opportunityRadar"] = radar_items
+                    elif needs_opportunities:
+                        opportunity_items = _collect_deal_opportunity_items(critical_session, HOMEPAGE_CRITICAL_LIMIT)
+                        payload["deal_opportunities"] = opportunity_items
+                        payload["dealOpportunities"] = opportunity_items
+                    elif needs_opportunity_radar:
+                        existing_opportunities = _dashboard_rows(payload, "deal_opportunities", "dealOpportunities")
+                        exclude_ids: set[int] = set()
+                        for row in existing_opportunities:
+                            game_id = int(safe_num(row.get("game_id") or row.get("id"), 0.0))
+                            if game_id > 0:
+                                exclude_ids.add(game_id)
+                        radar_items = _collect_opportunity_radar_items(
+                            critical_session,
+                            HOMEPAGE_CRITICAL_LIMIT,
+                            exclude_game_ids=exclude_ids,
+                        )
+                        payload["opportunity_radar"] = radar_items
+                        payload["opportunityRadar"] = radar_items
                 finally:
                     critical_session.close()
             payload["_meta"] = {

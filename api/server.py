@@ -4712,6 +4712,42 @@ def _build_player_surges(alert_rows: list[dict], trending_rows: list[dict], limi
     return _dedupe_dashboard_rows(surge_rows)[:limit]
 
 
+def _trim_dashboard_home_payload(payload: dict, mode: str) -> dict:
+    normalized_mode = str(mode or "full").strip().lower()
+    if normalized_mode != "critical":
+        return payload
+    allowed_keys = {
+        "catalogSummary",
+        "recommendedDeals",
+        "worthBuyingNow",
+        "worth_buying_now",
+        "topDealsToday",
+        "dealRanked",
+        "biggestDeals",
+        "biggest_discounts",
+        "historicalLows",
+        "trendingDeals",
+        "newHistoricalLows",
+        "worth_buying_now",
+        "trending_now",
+        "buy_now_picks",
+        "wait_picks",
+        "new_historical_lows",
+        "topReviewed",
+        "mostPlayedDeals",
+        "topPlayed",
+        "trending",
+        "leaderboard",
+        "upcoming",
+        "seasonal_summary",
+        "seasonalSale",
+        "released",
+        "releasedGames",
+        "_meta",
+    }
+    return {key: value for key, value in payload.items() if key in allowed_keys}
+
+
 def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
     payload = dict(raw_payload)
 
@@ -4797,7 +4833,7 @@ def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
 @app.get("/dashboard/home")
 @json_etag()
 @ttl_cache(ttl_seconds=60, endpoint_key="/dashboard/home")
-def get_dashboard_home(request: Request):
+def get_dashboard_home(request: Request, mode: str | None = None):
     started = _start_timer()
     try:
         read_session = ReadSessionLocal()
@@ -4839,7 +4875,7 @@ def get_dashboard_home(request: Request):
             "cache_key": cache_row.cache_key,
             "generated_at": cache_row.updated_at.isoformat() if cache_row.updated_at else None,
         }
-        return payload
+        return _trim_dashboard_home_payload(payload, mode)
     finally:
         _log_timing("/dashboard/home", started)
 

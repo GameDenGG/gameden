@@ -9886,7 +9886,7 @@ const scheduleCatalogSeed = (payload) => {
 };
 
 try {
-    dashboardData = await fetchJson("/dashboard/home");
+    dashboardData = await fetchJson("/dashboard/home?mode=critical");
 
     const dashboardSeasonal = normalizeSeasonalPayload(
         dashboardData?.seasonalSale || dashboardData?.seasonal_summary || null

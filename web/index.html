@@ -10115,7 +10115,7 @@ const scheduleCatalogSeed = (payload) => {
 };
 
 try {
-    dashboardData = await fetchJson("/dashboard/home");
+    dashboardData = await fetchJson("/dashboard/home?mode=deferred");
 
     const dashboardSeasonal = normalizeSeasonalPayload(
         dashboardData?.seasonalSale || dashboardData?.seasonal_summary || null

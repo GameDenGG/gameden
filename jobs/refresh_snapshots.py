@@ -3089,27 +3089,6 @@ def rebuild_dashboard_cache(session: Session) -> None:
             row = snapshots_by_id.get(int(event.game_id))
             if row:
                 new_historical_lows.append(_snapshot_row_to_dict(row))
-    historical_lows_this_week_events = (
-        session.query(DealEvent)
-        .filter(
-            DealEvent.event_type == DEAL_EVENT_HISTORICAL_LOW,
-            DealEvent.created_at >= utcnow() - datetime.timedelta(days=7),
-        )
-        .order_by(DealEvent.created_at.desc(), DealEvent.id.desc())
-        .limit(24)
-        .all()
-    )
-    historical_lows_this_week = []
-    if historical_lows_this_week_events:
-        week_ids = [int(row.game_id) for row in historical_lows_this_week_events]
-        week_snapshots = {
-            int(row.game_id): row
-            for row in session.query(GameSnapshot).filter(GameSnapshot.game_id.in_(week_ids)).all()
-        }
-        for event in historical_lows_this_week_events:
-            snap = week_snapshots.get(int(event.game_id))
-            if snap:
-                historical_lows_this_week.append(_snapshot_row_to_dict(snap))
     biggest_price_drop_events = (
         session.query(DealEvent)
         .filter(DealEvent.event_type == DEAL_EVENT_PRICE_DROP)
@@ -3164,7 +3143,7 @@ def rebuild_dashboard_cache(session: Session) -> None:
     top_played_rows = [_snapshot_row_to_dict(row) for row in top_played]
     trending_rows = [_snapshot_row_to_dict(row) for row in trending]
     leaderboard_rows = [_snapshot_row_to_dict(row) for row in leaderboard]
-    upcoming_rows = [_snapshot_row_to_dict(row) for row in upcoming]
+    upcoming_rows = [_snapshot_row_to_dict(row) for row in upcoming][:HOMEPAGE_RAIL_LIMIT]
     new_historical_lows_rows = _dedupe_snapshot_rows(new_historical_lows)
 
     decision_pool = _dedupe_snapshot_rows(
@@ -3266,20 +3245,20 @@ def rebuild_dashboard_cache(session: Session) -> None:
             "updated_at": utcnow().isoformat(),
         },
         "recommendedDeals": recommended_deals_rows,
-        "worthBuyingNow": worth_buying_now_rows,
-        "home:worth_buying": worth_buying_now_rows,
-        "topDealsToday": deal_ranked_rows,
         "dealRanked": deal_ranked_rows,
-        "biggestDeals": biggest_deals_rows,
-        "historicalLowsThisWeek": historical_lows_this_week,
+        "biggest_discounts": biggest_discounts_rows,
+        "worth_buying_now": worth_buying_rows,
+        "trending_now": trending_now_rows,
+        "new_historical_lows": new_historical_lows_rows,
+        "buy_now_picks": buy_now_picks,
+        "wait_picks": wait_picks,
+        "deal_opportunities": deal_opportunities_rows,
+        "opportunity_radar": opportunity_radar_rows,
+        "deal_radar": deal_radar,
+        "daily_digest": daily_digest,
         "historicalLows": historical_lows_rows,
-        "trendingDeals": trending_deals_rows,
-        "home:trending": trending_deals_rows,
-        "newHistoricalLows": new_historical_lows_rows,
-        "home:historical_lows": new_historical_lows_rows,
         "biggestPriceDrops": biggest_price_drops_rows,
         "topReviewed": top_reviewed_rows,
-        "mostPlayedDeals": top_played_rows,
         "topPlayed": top_played_rows,
         "trending": trending_rows,
         "leaderboard": leaderboard_rows,
@@ -3288,36 +3267,8 @@ def rebuild_dashboard_cache(session: Session) -> None:
         "watchlist": watchlist,
         "filters": build_dashboard_filters(session),
         "alertSignals": alert_signals,
-        "dealRadar": deal_radar,
-        "marketRadar": deal_radar,
-        "worth_buying_now": worth_buying_rows,
-        "biggest_discounts": biggest_discounts_rows,
-        "buy_now_picks": buy_now_picks,
-        "wait_picks": wait_picks,
-        "new_historical_lows": new_historical_lows_rows,
-        "trending_now": trending_now_rows,
-        "deal_opportunities": deal_opportunities_rows,
-        "dealOpportunities": deal_opportunities_rows,
-        "opportunity_radar": opportunity_radar_rows,
-        "opportunityRadar": opportunity_radar_rows,
-        "deal_radar": deal_radar,
         "player_surges": player_surges,
         "seasonal_summary": seasonal_summary,
-        "daily_digest": daily_digest,
-        "dailyDigest": daily_digest,
-        "decision_dashboard": {
-            "worth_buying_now": worth_buying_rows,
-            "biggest_discounts": biggest_discounts_rows,
-            "buy_now_picks": buy_now_picks,
-            "wait_picks": wait_picks,
-            "new_historical_lows": new_historical_lows_rows,
-            "trending_now": trending_now_rows,
-            "deal_opportunities": deal_opportunities_rows,
-            "opportunity_radar": opportunity_radar_rows,
-            "deal_radar": deal_radar,
-            "player_surges": player_surges,
-            "seasonal_summary": seasonal_summary,
-        },
         "generated_at": utcnow().isoformat(),
     }
 
@@ -3325,13 +3276,13 @@ def rebuild_dashboard_cache(session: Session) -> None:
     section_payloads = {
         CACHE_KEY: payload,
         CRITICAL_CACHE_KEY: critical_payload,
-        "home:worth_buying": {"items": payload.get("worthBuyingNow", []), "generated_at": payload["generated_at"]},
-        "home:trending": {"items": payload.get("trendingDeals", []), "generated_at": payload["generated_at"]},
-        "home:historical_lows": {"items": payload.get("newHistoricalLows", []), "generated_at": payload["generated_at"]},
+        "home:worth_buying": {"items": payload.get("worth_buying_now", []), "generated_at": payload["generated_at"]},
+        "home:trending": {"items": payload.get("trending_now", []), "generated_at": payload["generated_at"]},
+        "home:historical_lows": {"items": payload.get("new_historical_lows", []), "generated_at": payload["generated_at"]},
         "home:biggest_price_drops": {"items": payload.get("biggestPriceDrops", []), "generated_at": payload["generated_at"]},
         "home:alerts": {"items": payload.get("alertSignals", []), "generated_at": payload["generated_at"]},
-        "home:deal_radar": {"items": payload.get("dealRadar", []), "generated_at": payload["generated_at"]},
-        "home:market_radar": {"items": payload.get("dealRadar", []), "generated_at": payload["generated_at"]},
+        "home:deal_radar": {"items": payload.get("deal_radar", []), "generated_at": payload["generated_at"]},
+        "home:market_radar": {"items": payload.get("deal_radar", []), "generated_at": payload["generated_at"]},
         "home:deal_opportunities": {"items": payload.get("deal_opportunities", []), "generated_at": payload["generated_at"]},
         "home:opportunity_radar": {"items": payload.get("opportunity_radar", []), "generated_at": payload["generated_at"]},
         "home:top_played": {"items": payload.get("topPlayed", []), "generated_at": payload["generated_at"]},

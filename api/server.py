@@ -4786,6 +4786,25 @@ def _read_dashboard_cache(session, *, mode: str | None = None):
     return None, None
 
 
+def _upsert_dashboard_cache_payload(cache_key: str, payload: dict, *, updated_at: datetime.datetime | None = None) -> None:
+    write_session = Session()
+    try:
+        now = updated_at or utc_now()
+        payload_json = json.dumps(payload, ensure_ascii=False)
+        row = write_session.query(DashboardCache).filter(DashboardCache.cache_key == cache_key).first()
+        if row is None:
+            write_session.add(DashboardCache(cache_key=cache_key, payload=payload_json, updated_at=now))
+        else:
+            row.payload = payload_json
+            row.updated_at = now
+        write_session.commit()
+    except Exception:
+        write_session.rollback()
+        logger.exception("Failed to upsert dashboard cache key=%s", cache_key)
+    finally:
+        write_session.close()
+
+
 def _rebuild_dashboard_cache_on_demand():
     session = Session()
     try:
@@ -4869,34 +4888,53 @@ def _build_player_surges(alert_rows: list[dict], trending_rows: list[dict], limi
 
 def _trim_dashboard_home_payload(payload: dict, mode: str) -> dict:
     normalized_mode = str(mode or "full").strip().lower()
-    if normalized_mode != "critical":
+    if normalized_mode not in {"critical", "deferred"}:
         return payload
-    allowed_keys = {
-        "catalogSummary",
-        "recommendedDeals",
-        "worthBuyingNow",
-        "worth_buying_now",
-        "topDealsToday",
-        "dealRanked",
-        "biggestDeals",
-        "biggest_discounts",
-        "trendingDeals",
-        "newHistoricalLows",
-        "trending_now",
-        "buy_now_picks",
-        "wait_picks",
-        "new_historical_lows",
-        "dealRadar",
-        "marketRadar",
-        "deal_radar",
-        "daily_digest",
-        "dailyDigest",
-        "deal_opportunities",
-        "dealOpportunities",
-        "opportunity_radar",
-        "opportunityRadar",
-        "_meta",
-    }
+
+    if normalized_mode == "critical":
+        allowed_keys = {
+            "catalogSummary",
+            "dealRanked",
+            "biggest_discounts",
+            "worth_buying_now",
+            "trending_now",
+            "new_historical_lows",
+            "buy_now_picks",
+            "wait_picks",
+            "deal_radar",
+            "deal_opportunities",
+            "opportunity_radar",
+            "daily_digest",
+            "_meta",
+        }
+    else:
+        allowed_keys = {
+            "catalogSummary",
+            "filters",
+            "recommendedDeals",
+            "dealRanked",
+            "biggest_discounts",
+            "worth_buying_now",
+            "trending_now",
+            "new_historical_lows",
+            "buy_now_picks",
+            "wait_picks",
+            "historicalLows",
+            "topReviewed",
+            "topPlayed",
+            "trending",
+            "leaderboard",
+            "upcoming",
+            "alertSignals",
+            "deal_radar",
+            "deal_opportunities",
+            "opportunity_radar",
+            "player_surges",
+            "seasonal_summary",
+            "daily_digest",
+            "generated_at",
+            "_meta",
+        }
     return {key: value for key, value in payload.items() if key in allowed_keys}
 
 
@@ -4970,14 +5008,24 @@ def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
         payload["worthBuyingNow"] = worth_buying_now
     if not _dashboard_rows(payload, "biggestDeals"):
         payload["biggestDeals"] = biggest_discounts
+    if not _dashboard_rows(payload, "topDealsToday"):
+        payload["topDealsToday"] = _dashboard_rows(payload, "dealRanked") or biggest_discounts
     if not _dashboard_rows(payload, "newHistoricalLows"):
         payload["newHistoricalLows"] = new_historical_lows
+    if not _dashboard_rows(payload, "trendingDeals"):
+        payload["trendingDeals"] = trending_now
     if not _dashboard_rows(payload, "trending"):
         payload["trending"] = trending_now
     if not _dashboard_rows(payload, "dealRadar"):
         payload["dealRadar"] = deal_radar
     if not _dashboard_rows(payload, "marketRadar"):
         payload["marketRadar"] = deal_radar
+    if not _dashboard_rows(payload, "dealOpportunities"):
+        payload["dealOpportunities"] = _dashboard_rows(payload, "deal_opportunities")
+    if not _dashboard_rows(payload, "opportunityRadar"):
+        payload["opportunityRadar"] = _dashboard_rows(payload, "opportunity_radar")
+    if "dailyDigest" not in payload and isinstance(payload.get("daily_digest"), dict):
+        payload["dailyDigest"] = payload["daily_digest"]
 
     return payload
 
@@ -5029,6 +5077,8 @@ def get_dashboard_home(request: Request, mode: str | None = None):
 
         if normalized_mode == "critical":
             payload = dict(cached_payload)
+            served_cache_key = cache_row.cache_key
+            generated_at = cache_row.updated_at.isoformat() if cache_row.updated_at else None
             # If critical cache is missing and we fell back to full home payload,
             # rebuild the strict critical contract on-demand to avoid shipping
             # oversized first-paint payloads.
@@ -5072,9 +5122,16 @@ def get_dashboard_home(request: Request, mode: str | None = None):
                         payload["opportunityRadar"] = radar_items
                 finally:
                     critical_session.close()
+            if served_cache_key != CRITICAL_DASHBOARD_CACHE_KEY:
+                _upsert_dashboard_cache_payload(
+                    CRITICAL_DASHBOARD_CACHE_KEY,
+                    payload,
+                    updated_at=cache_row.updated_at or utc_now(),
+                )
+                served_cache_key = CRITICAL_DASHBOARD_CACHE_KEY
             payload["_meta"] = {
-                "cache_key": cache_row.cache_key,
-                "generated_at": cache_row.updated_at.isoformat() if cache_row.updated_at else None,
+                "cache_key": served_cache_key,
+                "generated_at": generated_at,
             }
             trimmed = _trim_dashboard_home_payload(payload, normalized_mode)
             return JSONResponse(content=trimmed)

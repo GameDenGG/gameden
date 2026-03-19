@@ -183,6 +183,26 @@ body {
     font-size: 13px;
 }
 
+.view-toggle {
+    display: inline-flex;
+    gap: 8px;
+    margin: 0 0 14px;
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: rgba(121, 168, 255, 0.06);
+}
+
+.view-toggle .btn {
+    min-width: 132px;
+}
+
+.view-toggle .btn.is-active {
+    border-color: rgba(121, 222, 255, 0.7);
+    background: rgba(121, 222, 255, 0.22);
+    color: #ecf9ff;
+}
+
 .grid {
     display: grid;
     gap: 14px;
@@ -385,6 +405,17 @@ body {
         font-size: 12px;
     }
 
+    .view-toggle {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .view-toggle .btn {
+        width: 100%;
+        min-width: 0;
+    }
+
     .grid {
         grid-template-columns: 1fr;
         gap: 10px;
@@ -458,24 +489,33 @@ body {
 <body>
 <div class="page">
     <div class="topbar">
-    <div class="brand">GameDen.gg Watchlist</div>
+    <div class="brand">GameDen.gg Tracked Items</div>
         <div class="actions">
             <button class="btn" id="refreshBtn" type="button">Refresh</button>
+            <a class="btn" id="openWatchlistBtn" href="watchlist.html?tab=watchlist">Open Watchlist</a>
+            <a class="btn" id="openWishlistBtn" href="watchlist.html?tab=wishlist">Open Wishlist</a>
             <a class="btn" href="index.html">Back to dashboard</a>
         </div>
     </div>
 
     <section class="hero">
         <h1>Track What Matters</h1>
-        <p>Watchlist entries surface sale starts, historical-low hits, and buy-score signals from snapshot-backed data.</p>
+        <p>Watchlist and wishlist entries are unified here so tracked games stay in one coherent, snapshot-backed workflow.</p>
         <div class="meta-row">User scope: <strong id="userScope"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-30" aria-hidden="true"></span></strong></div>
     </section>
+
+    <nav class="view-toggle" id="viewToggle" aria-label="Tracked items view">
+        <a class="btn" id="watchTabBtn" href="watchlist.html?tab=watchlist">Watchlist</a>
+        <a class="btn" id="wishTabBtn" href="watchlist.html?tab=wishlist">Wishlist</a>
+    </nav>
 
     <section id="content"></section>
 </div>
 
 <script>
 const WATCHLIST_STORAGE_KEY = "gameden.user_id";
+const TRACKED_TAB_WATCHLIST = "watchlist";
+const TRACKED_TAB_WISHLIST = "wishlist";
 
 function getCurrentUserId() {
     const fallback = "legacy-user";
@@ -490,7 +530,15 @@ function getCurrentUserId() {
 }
 
 const CURRENT_USER_ID = getCurrentUserId();
+const urlParams = new URLSearchParams(window.location.search || "");
+const ACTIVE_TAB = String(urlParams.get("tab") || TRACKED_TAB_WATCHLIST).trim().toLowerCase() === TRACKED_TAB_WISHLIST
+    ? TRACKED_TAB_WISHLIST
+    : TRACKED_TAB_WATCHLIST;
 const contentEl = document.getElementById("content");
+const watchTabBtn = document.getElementById("watchTabBtn");
+const wishTabBtn = document.getElementById("wishTabBtn");
+const openWatchlistBtn = document.getElementById("openWatchlistBtn");
+const openWishlistBtn = document.getElementById("openWishlistBtn");
 const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
 
 if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
@@ -503,6 +551,21 @@ function renderWatchlistSkeleton() {
         return;
     }
     contentEl.innerHTML = `<div class="loading">Loading watchlist...</div>`;
+}
+
+function syncTabUi() {
+    if (watchTabBtn) watchTabBtn.classList.toggle("is-active", ACTIVE_TAB === TRACKED_TAB_WATCHLIST);
+    if (wishTabBtn) wishTabBtn.classList.toggle("is-active", ACTIVE_TAB === TRACKED_TAB_WISHLIST);
+    if (openWatchlistBtn) openWatchlistBtn.classList.toggle("is-active", ACTIVE_TAB === TRACKED_TAB_WATCHLIST);
+    if (openWishlistBtn) openWishlistBtn.classList.toggle("is-active", ACTIVE_TAB === TRACKED_TAB_WISHLIST);
+}
+
+function normalizeWatchlistItems(payload) {
+    return Array.isArray(payload?.items) ? payload.items : [];
+}
+
+function normalizeWishlistItems(payload) {
+    return Array.isArray(payload) ? payload : [];
 }
 
 function escapeHtml(value) {
@@ -579,23 +642,36 @@ async function removeWatch(gameId) {
     await fetchJson(`/api/watchlist/${encodeURIComponent(gameId)}?user_id=${encodeURIComponent(CURRENT_USER_ID)}`, {
         method: "DELETE",
     });
-    await loadWatchlist();
 }
 
-function render(items, alertsByGame = new Map()) {
+async function removeWish(gameId) {
+    await fetchJson("/wishlist/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            user_id: CURRENT_USER_ID,
+            game_id: gameId,
+        }),
+    });
+}
+
+function render(items, alertsByGame = new Map(), tab = TRACKED_TAB_WATCHLIST) {
     if (!items.length) {
-        contentEl.innerHTML = `<div class="empty">No watched games yet. Add titles from the homepage or game pages to start tracking signals.</div>`;
+        contentEl.innerHTML = tab === TRACKED_TAB_WISHLIST
+            ? `<div class="empty">No wishlist games yet. Save games on the dashboard to keep them here.</div>`
+            : `<div class="empty">No watched games yet. Add titles from the homepage or game pages to start tracking signals.</div>`;
         return;
     }
 
     contentEl.innerHTML = `
         <div class="grid">
             ${items.map((item) => {
-                const bannerStyle = item.banner_url
-                    ? ` style="background-image:url('${encodeURI(item.banner_url).replaceAll("'", "%27")}')"`
+                const bannerUrl = item.banner_url || item.image_url || item.header_image || item.image || null;
+                const bannerStyle = bannerUrl
+                    ? ` style="background-image:url('${encodeURI(bannerUrl).replaceAll("'", "%27")}')"`
                     : "";
                 const discount = Number(item.latest_discount_percent || 0);
-                const watchSignals = Array.isArray(item.signals) ? item.signals : [];
+                const watchSignals = tab === TRACKED_TAB_WATCHLIST && Array.isArray(item.signals) ? item.signals : [];
                 const alertSignals = alertsByGame.get(Number(item.game_id || 0)) || [];
                 const mergedSignals = [...watchSignals];
                 const seenSignalLabels = new Set(
@@ -614,6 +690,9 @@ function render(items, alertsByGame = new Map()) {
                     });
                 }
                 const signals = mergedSignals.slice(0, 3);
+                const removeAttr = tab === TRACKED_TAB_WISHLIST
+                    ? `data-remove-wish="${Number(item.game_id || 0)}"`
+                    : `data-remove-watch="${Number(item.game_id || 0)}"`;
                 return `
                     <article class="card">
                         <a class="thumb" href="game.html?game_name=${encodeURIComponent(item.game_name || "")}"${bannerStyle}></a>
@@ -636,11 +715,11 @@ function render(items, alertsByGame = new Map()) {
                             <div class="signals">
                                 ${signals.length
                                     ? signals.map((signal) => `<span class="signal ${signalTone(signal)}">${escapeHtml(signal.label || signal.type || "Signal")}</span>`).join("")
-                                    : '<span class="signal">Watching for new signals</span>'}
+                                    : `<span class="signal">${tab === TRACKED_TAB_WISHLIST ? "Wishlisted" : "Watching for new signals"}</span>`}
                             </div>
                             <div class="card-actions">
                                 <a class="btn" href="game.html?game_name=${encodeURIComponent(item.game_name || "")}">Open game</a>
-                                <button class="btn" type="button" data-remove-watch="${Number(item.game_id || 0)}">Remove</button>
+                                <button class="btn" type="button" ${removeAttr}>Remove</button>
                             </div>
                         </div>
                     </article>
@@ -657,6 +736,23 @@ function render(items, alertsByGame = new Map()) {
             setActionPending(button, true);
             try {
                 await removeWatch(gameId);
+                await loadWatchlist();
+            } catch (error) {
+                console.error(error);
+                setActionPending(button, false);
+            }
+        });
+    });
+
+    contentEl.querySelectorAll("[data-remove-wish]").forEach((button) => {
+        button.addEventListener("click", async () => {
+            const gameId = Number(button.getAttribute("data-remove-wish") || 0);
+            if (!Number.isFinite(gameId) || gameId <= 0) return;
+            if (button.disabled || button.classList.contains("is-pending")) return;
+            setActionPending(button, true);
+            try {
+                await removeWish(gameId);
+                await loadWatchlist();
             } catch (error) {
                 console.error(error);
                 setActionPending(button, false);
@@ -670,17 +766,20 @@ async function loadWatchlist() {
     document.getElementById("userScope").textContent = CURRENT_USER_ID;
     renderWatchlistSkeleton();
     try {
-        const [watchlistPayload, alertsPayload] = await Promise.all([
+        const [watchlistPayload, wishlistPayload, alertsPayload] = await Promise.all([
             fetchJson(`/api/watchlist?user_id=${encodeURIComponent(CURRENT_USER_ID)}`),
+            fetchJson(`/wishlist/${encodeURIComponent(CURRENT_USER_ID)}`),
             fetchJson(`/api/alerts?user_id=${encodeURIComponent(CURRENT_USER_ID)}&limit=120`).catch(() => ({ items: [] })),
         ]);
-        const items = Array.isArray(watchlistPayload?.items) ? watchlistPayload.items : [];
+        const watchlistItems = normalizeWatchlistItems(watchlistPayload);
+        const wishlistItems = normalizeWishlistItems(wishlistPayload);
+        const items = ACTIVE_TAB === TRACKED_TAB_WISHLIST ? wishlistItems : watchlistItems;
         const alertsByGame = buildAlertMap(Array.isArray(alertsPayload?.items) ? alertsPayload.items : []);
-        render(items, alertsByGame);
+        render(items, alertsByGame, ACTIVE_TAB);
         return true;
     } catch (error) {
         console.error(error);
-        contentEl.innerHTML = `<div class="error">Failed to load watchlist data.</div>`;
+        contentEl.innerHTML = `<div class="error">Failed to load tracked items.</div>`;
         return false;
     } finally {
         contentEl.setAttribute("aria-busy", "false");
@@ -699,6 +798,7 @@ document.getElementById("refreshBtn").addEventListener("click", async () => {
     }
 });
 
+syncTabUi();
 void loadWatchlist();
 </script>
 </body>

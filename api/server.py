@@ -5224,6 +5224,7 @@ def _trim_dashboard_home_payload(payload: dict, mode: str) -> dict:
             "catalogSummary",
             "filters",
             "seasonal_summary",
+            "upcoming",
             "generated_at",
             "_meta",
         }

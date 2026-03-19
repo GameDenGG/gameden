@@ -780,8 +780,7 @@ input:focus-visible {
 .homepage-main-column {
     grid-area: main;
     max-width: 100%;
-    overflow-x: hidden;
-    overflow-x: clip;
+    overflow-x: visible;
 }
 
 .side-column,
@@ -878,6 +877,10 @@ input:focus-visible {
 .discovery-tabs-shell {
     display: grid;
     gap: 8px;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
 }
 
 .discovery-tabs-head {
@@ -905,7 +908,7 @@ input:focus-visible {
     gap: 8px;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 2px 0 4px;
+    padding: 2px 2px 6px;
     scrollbar-width: thin;
     -webkit-overflow-scrolling: touch;
 }
@@ -956,6 +959,13 @@ input:focus-visible {
 
 .discovery-tab-pane .panel {
     margin: 0;
+}
+
+.discovery-tabs-body,
+.discovery-tab-pane {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
 }
 
 .panel {
@@ -1024,6 +1034,20 @@ input:focus-visible {
 
 .panel-head .row-nav {
     align-self: flex-start;
+}
+
+#recommendedForYouPanel .panel-head {
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+#recommendedForYouPanel .panel-head .panel-title-wrap {
+    flex: 1 1 220px;
+}
+
+#recommendedForYouPanel .panel-head .row-nav {
+    flex: 0 0 auto;
+    margin-left: auto;
 }
 
 .panel-title-wrap {
@@ -3993,6 +4017,7 @@ input:focus-visible {
                             <h2 class="panel-title">Wishlist</h2>
                             <div class="panel-subtitle">Games you want to keep an eye on for future buys.</div>
                         </div>
+                        <a class="panel-action" href="watchlist.html?tab=wishlist">Open Wishlist</a>
                     </div>
                     <div class="panel-body">
                         <div id="wishlistList" class="mini-list"></div>
@@ -4005,7 +4030,7 @@ input:focus-visible {
                             <h2 class="panel-title">Watchlist</h2>
                             <div class="panel-subtitle">Games you want to monitor closely for sale movement.</div>
                         </div>
-                        <a class="panel-action" href="watchlist.html">Open Watchlist</a>
+                        <a class="panel-action" href="watchlist.html?tab=watchlist">Open Watchlist</a>
                     </div>
                     <div class="panel-body">
                         <div id="watchlistList" class="mini-list"></div>
@@ -4612,7 +4637,7 @@ input:focus-visible {
                 open: false,
                 previousFocusedElement: null,
             },
-            moreIntelExpanded: false,
+            moreIntelExpanded: true,
             analyticsPanelExpanded: false,
             discoveryTabs: {
                 activeKey: DISCOVERY_DEFAULT_TAB_KEY,
@@ -4874,6 +4899,33 @@ input:focus-visible {
                 protectedVisibleKeys,
                 railSectionLimit,
             );
+
+            const decisionFallbackPool = filterProtectedDealRailRows([
+                ...safeArray(state.worthBuyingNow),
+                ...safeArray(state.dealRanked),
+                ...safeArray(state.biggestDiscounts),
+                ...safeArray(state.trendingNow),
+                ...safeArray(state.trendingDeals),
+                ...safeArray(state.newHistoricalLows),
+                ...safeArray(state.latestPrices),
+            ]);
+            if (!state.buyNowPicks.length) {
+                state.buyNowPicks = pickByRecommendation(decisionFallbackPool, "BUY_NOW", railSectionLimit);
+                if (!state.buyNowPicks.length) {
+                    state.buyNowPicks = safeArray(state.worthBuyingNow).slice(0, railSectionLimit);
+                }
+            }
+            if (!state.waitPicks.length) {
+                state.waitPicks = pickByRecommendation(decisionFallbackPool, "WAIT", railSectionLimit);
+                if (!state.waitPicks.length) {
+                    state.waitPicks = decisionFallbackPool
+                        .filter((row) =>
+                            Number(row?.price_vs_low_ratio || 0) >= 1.08
+                            || Number(row?.predicted_next_discount_percent || 0) >= 35
+                        )
+                        .slice(0, railSectionLimit);
+                }
+            }
             sanitizePersonalizedDealsState();
         }
 
@@ -4887,6 +4939,7 @@ input:focus-visible {
                 worthBuyingNow: safeArray(state.worthBuyingNow).slice(0, boundedLimit),
                 trendingDeals: safeArray(state.trendingDeals).slice(0, boundedLimit),
                 newHistoricalLows: safeArray(state.newHistoricalLows).slice(0, boundedLimit),
+                upcoming: safeArray(state.upcoming).slice(0, boundedLimit),
                 newDeals: safeArray(state.newDeals).slice(0, boundedLimit),
                 recommendedDeals: safeArray(state.recommendedDeals).slice(0, boundedLimit),
                 dealRadar: safeArray(state.dealRadar).slice(0, boundedLimit),
@@ -4949,6 +5002,7 @@ input:focus-visible {
                 state.worthBuyingNow = uniqueGamesByName(sections.worthBuyingNow || []);
                 state.trendingDeals = uniqueGamesByName(sections.trendingDeals || []);
                 state.newHistoricalLows = uniqueGamesByName(sections.newHistoricalLows || []);
+                state.upcoming = uniqueGamesByName(sections.upcoming || []);
                 state.newDeals = uniqueGamesByName(sections.newDeals || []);
                 state.recommendedDeals = uniqueGamesByName(sections.recommendedDeals || []);
                 state.dealRadar = uniqueDealRadarSignals(sections.dealRadar || []);
@@ -4983,7 +5037,7 @@ input:focus-visible {
                 if (parsed.discoveryActiveKey) {
                     state.discoveryTabs.activeKey = String(parsed.discoveryActiveKey);
                 }
-                state.moreIntelExpanded = !!parsed.moreIntelExpanded;
+                state.moreIntelExpanded = true;
                 state.analyticsPanelExpanded = !!parsed.analyticsPanelExpanded;
                 sanitizeProtectedHomepageRailState();
                 state.dashboardRestore.restored = true;
@@ -5189,6 +5243,9 @@ input:focus-visible {
                 ...row,
                 game_id: row.game_id ?? row.id ?? null,
                 game_name: row.game_name ?? row.name ?? "",
+                steam_appid: row.steam_appid ?? row.appid ?? null,
+                banner_url: row.banner_url ?? row.image_url ?? row.header_image ?? row.image ?? null,
+                image_url: row.image_url ?? row.banner_url ?? row.header_image ?? row.image ?? null,
                 price: row.price ?? row.latest_price ?? null,
                 original_price: row.original_price ?? row.latest_original_price ?? null,
                 discount_percent: row.discount_percent ?? row.latest_discount_percent ?? null,
@@ -6483,7 +6540,7 @@ input:focus-visible {
         }
 
         function buildBannerHtml(game, context = {}) {
-            let banner = game.banner_url;
+            let banner = game.banner_url || game.image_url || game.header_image || game.image;
 
             if (!banner && game.steam_appid) {
                 banner = `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`;
@@ -9072,6 +9129,8 @@ input:focus-visible {
             const tabPanes = Array.from(tabsBody.querySelectorAll("[data-discovery-tab-pane]"));
             const hasTab = tabButtons.some((button) => button.dataset.discoveryTab === key);
             if (!hasTab) return;
+            const preserveScroll = options.preserveScroll !== false;
+            const preservedScrollY = preserveScroll ? Math.max(0, window.scrollY || 0) : 0;
 
             state.discoveryTabs.activeKey = key;
 
@@ -9093,6 +9152,14 @@ input:focus-visible {
             });
 
             renderDiscoveryTabPane(key);
+            if (preserveScroll && options.focus !== true) {
+                requestAnimationFrame(() => {
+                    const nextScrollY = Math.max(0, window.scrollY || 0);
+                    if (Math.abs(nextScrollY - preservedScrollY) >= 2) {
+                        window.scrollTo({ top: preservedScrollY, behavior: "auto" });
+                    }
+                });
+            }
         }
 
         function mountDiscoveryTabs(definitions) {
@@ -11493,16 +11560,21 @@ try {
             }
             const inWishlist = isInWishlist(target.game_name, target.game_id);
             if (inWishlist) {
-                await fetchJson(`/wishlist/${encodeURIComponent(target.game_name)}`, {
-                    method: "DELETE",
-                });
-            } else {
-                await fetchJson("/wishlist", {
+                await fetchJson("/wishlist/remove", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
+                        user_id: CURRENT_USER_ID,
                         game_id: target.game_id,
-                        game_name: target.game_name,
+                    }),
+                });
+            } else {
+                await fetchJson("/wishlist/add", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        user_id: CURRENT_USER_ID,
+                        game_id: target.game_id,
                     }),
                 });
             }

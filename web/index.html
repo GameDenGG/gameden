@@ -9548,7 +9548,9 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
             opportunitiesPayload,
             opportunityRadarPayload,
             dailyDigestPayload,
+            options = {},
         ) {
+            const deferAnalytics = options?.deferAnalytics === true;
             const biggestDiscounts = uniqueGamesByName(
                 dashboardPayload?.biggest_discounts
                 || dashboardPayload?.biggestDeals
@@ -9755,26 +9757,28 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                 state.dailyDigestStatus.loading = false;
                 state.dailyDigestStatus.error = null;
             }
-            const analyticsFallbackPool = uniqueGamesByName([
-                ...releasedItems,
-                ...topPlayed,
-                ...trending,
-                ...leaderboard,
-                ...trendingDeals,
-                ...state.discoveryTrending,
-            ]);
-            state.topPlayed = buildAnalyticsRows(topPlayed, analyticsFallbackPool, scoreTopPlayedRow);
-            state.trending = buildAnalyticsRows(
-                trending.length ? trending : state.discoveryTrending,
-                analyticsFallbackPool,
-                scoreTrendingRow,
-            );
-            state.leaderboard = buildAnalyticsRows(
-                leaderboard.length ? leaderboard : topPlayed,
-                analyticsFallbackPool,
-                scoreLeaderboardRow,
-            );
-            scheduleNonCriticalHomepageAnalytics();
+            if (!deferAnalytics) {
+                const analyticsFallbackPool = uniqueGamesByName([
+                    ...releasedItems,
+                    ...topPlayed,
+                    ...trending,
+                    ...leaderboard,
+                    ...trendingDeals,
+                    ...state.discoveryTrending,
+                ]);
+                state.topPlayed = buildAnalyticsRows(topPlayed, analyticsFallbackPool, scoreTopPlayedRow);
+                state.trending = buildAnalyticsRows(
+                    trending.length ? trending : state.discoveryTrending,
+                    analyticsFallbackPool,
+                    scoreTrendingRow,
+                );
+                state.leaderboard = buildAnalyticsRows(
+                    leaderboard.length ? leaderboard : topPlayed,
+                    analyticsFallbackPool,
+                    scoreLeaderboardRow,
+                );
+                scheduleNonCriticalHomepageAnalytics();
+            }
         }
 
         function applyDeferredHomepageSections({
@@ -9789,10 +9793,16 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
             const hasDailyDigestPayload = dailyDigestPayload !== null && dailyDigestPayload !== undefined;
 
             if (hasDealRadarPayload) {
-                state.dealRadar = uniqueDealRadarSignals(dealRadarPayload?.items || dealRadarPayload || []);
+                const nextDealRadar = uniqueDealRadarSignals(dealRadarPayload?.items || dealRadarPayload || []);
+                if (nextDealRadar.length || !safeArray(state.dealRadar).length) {
+                    state.dealRadar = nextDealRadar;
+                }
             }
             if (hasOpportunitiesPayload) {
-                state.opportunitiesNow = uniqueGamesByName(opportunitiesPayload?.items || opportunitiesPayload || []);
+                const nextOpportunities = uniqueGamesByName(opportunitiesPayload?.items || opportunitiesPayload || []);
+                if (nextOpportunities.length || !safeArray(state.opportunitiesNow).length) {
+                    state.opportunitiesNow = nextOpportunities;
+                }
             }
             if (hasOpportunityRadarPayload || hasOpportunitiesPayload) {
                 const radarFromEndpoint = hasOpportunityRadarPayload
@@ -9802,7 +9812,9 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                     ...radarFromEndpoint,
                     ...safeArray(state.opportunitiesNow),
                 ]);
-                state.opportunityRadar = mergedRadar.length ? mergedRadar : safeArray(state.opportunitiesNow);
+                if (mergedRadar.length || !safeArray(state.opportunityRadar).length) {
+                    state.opportunityRadar = mergedRadar.length ? mergedRadar : safeArray(state.opportunitiesNow);
+                }
             }
             if (hasDailyDigestPayload) {
                 const digestSource = dailyDigestPayload && typeof dailyDigestPayload === "object" ? dailyDigestPayload : {};
@@ -9810,17 +9822,20 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                     ? digestSource.sections
                     : {};
                 const digestHighlights = safeArray(digestSource.highlights);
-                state.dailyDigest = {
-                    sections: digestSections,
-                    highlights: digestHighlights,
-                    counts: digestSource.counts && typeof digestSource.counts === "object" ? digestSource.counts : {},
-                    personalized: !!digestSource.personalized,
-                    window_start: digestSource.window_start || null,
-                    window_end: digestSource.window_end || null,
-                    generated_at: digestSource.generated_at || null,
-                };
-                state.dailyDigestStatus.loading = false;
-                state.dailyDigestStatus.error = null;
+                const hasDigestContent = !!Object.keys(digestSections).length || digestHighlights.length > 0;
+                if (hasDigestContent || !state.dailyDigest || !Object.keys(state.dailyDigest.sections || {}).length) {
+                    state.dailyDigest = {
+                        sections: digestSections,
+                        highlights: digestHighlights,
+                        counts: digestSource.counts && typeof digestSource.counts === "object" ? digestSource.counts : {},
+                        personalized: !!digestSource.personalized,
+                        window_start: digestSource.window_start || null,
+                        window_end: digestSource.window_end || null,
+                        generated_at: digestSource.generated_at || null,
+                    };
+                    state.dailyDigestStatus.loading = false;
+                    state.dailyDigestStatus.error = null;
+                }
             }
 
             if (hasOpportunitiesPayload) renderOpportunities();
@@ -9886,7 +9901,7 @@ const scheduleCatalogSeed = (payload) => {
 };
 
 try {
-    dashboardData = await fetchJson("/dashboard/home?mode=critical");
+    dashboardData = await fetchJson("/dashboard/home");
 
     const dashboardSeasonal = normalizeSeasonalPayload(
         dashboardData?.seasonalSale || dashboardData?.seasonal_summary || null
@@ -10221,19 +10236,31 @@ try {
         }
 
         function renderCriticalHomepageSkeletons() {
-            renderSkeleton(ui.opportunitiesGrid, "deal-cards", 6, { cardClass: "game-card" });
-        }
-
-        function renderDeferredHomepageSkeletons() {
-            renderSkeleton(ui.seasonalSaleTopGrid, "deal-cards", 4, { cardClass: "game-card" });
-            renderSkeleton(ui.seasonalSaleLowerGrid, "deal-cards", 4, { cardClass: "game-card" });
             renderSkeleton(ui.dealRankedGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.opportunitiesGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.opportunityRadarGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.worthBuyingGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.trendingDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.newHistoricalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.newDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.recommendedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+        }
+
+        function renderCriticalHomepageSections() {
+            renderDealRanked();
+            renderOpportunities();
+            renderOpportunityRadar();
+            renderActiveDiscoveryTabPane();
+            renderWorthBuyingNow();
+            renderTrendingDeals();
+            renderNewHistoricalLows();
+            renderNewDeals();
+            renderRecommendedDeals();
+        }
+
+        function renderDeferredHomepageSkeletons() {
+            renderSkeleton(ui.seasonalSaleTopGrid, "deal-cards", 4, { cardClass: "game-card" });
+            renderSkeleton(ui.seasonalSaleLowerGrid, "deal-cards", 4, { cardClass: "game-card" });
             renderSkeleton(ui.historicalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.releasedGamesGrid, "deal-cards", 2, { cardClass: "game-card", compact: true });
             renderSkeleton(ui.topReviewedGrid, "deal-cards", 6, { cardClass: "game-card" });
@@ -10251,16 +10278,32 @@ try {
         }
 
         async function loadCriticalHomepageData() {
-            const opportunitiesPayload = await fetchJson(
-                `/api/deal-opportunities?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`,
-            );
-            const opportunities = uniqueGamesByName(opportunitiesPayload?.items || opportunitiesPayload || []);
-            state.opportunitiesNow = opportunities;
-            if (!safeArray(state.opportunityRadar).length) {
-                state.opportunityRadar = opportunities;
+            try {
+                const criticalPayload = await fetchJson("/dashboard/home?mode=critical");
+                hydrateDashboardState(
+                    criticalPayload,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    { deferAnalytics: true },
+                );
+                state.homepageLoad.criticalLoaded = true;
+                renderCriticalHomepageSections();
+            } catch (error) {
+                const opportunitiesPayload = await fetchJson(
+                    `/api/deal-opportunities?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`,
+                );
+                const opportunities = uniqueGamesByName(opportunitiesPayload?.items || opportunitiesPayload || []);
+                state.opportunitiesNow = opportunities;
+                if (!safeArray(state.opportunityRadar).length) {
+                    state.opportunityRadar = opportunities;
+                }
+                state.homepageLoad.criticalLoaded = true;
+                renderOpportunities();
             }
-            state.homepageLoad.criticalLoaded = true;
-            renderOpportunities();
         }
 
         async function runDeferredHomepageStage() {

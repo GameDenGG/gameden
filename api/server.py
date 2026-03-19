@@ -207,6 +207,7 @@ CRITICAL_DASHBOARD_CACHE_KEY = "home_critical_v1"
 LEGACY_DASHBOARD_CACHE_KEYS = ("home",)
 DASHBOARD_CACHE_STALE_AFTER = datetime.timedelta(minutes=API_DASHBOARD_CACHE_STALE_MINUTES)
 DEAL_RADAR_CACHE_KEY = "home:deal_radar"
+HOMEPAGE_CRITICAL_LIMIT = 24
 OPPORTUNITY_QUERY_MULTIPLIER = 8
 OPPORTUNITY_MIN_CANDIDATES = 96
 OPPORTUNITY_MAX_CANDIDATES = 320
@@ -1643,6 +1644,91 @@ def _build_opportunity_radar_item(snapshot: FeedProjectionRow) -> dict | None:
         "opportunity_reason": " and ".join(reasons[:2]),
         "updated_at": updated_at.isoformat(),
     }
+
+
+def _collect_deal_opportunity_items(session, limit: int) -> list[dict]:
+    normalized_limit = max(1, int(limit))
+    candidate_limit = max(
+        OPPORTUNITY_MIN_CANDIDATES,
+        min(OPPORTUNITY_MAX_CANDIDATES, normalized_limit * OPPORTUNITY_QUERY_MULTIPLIER),
+    )
+    rows = _query_release_feed_rows(
+        session,
+        limit=candidate_limit,
+        projection_order_by=[
+            GameDiscoveryFeed.buy_score.desc().nullslast(),
+            GameDiscoveryFeed.worth_buying_score.desc().nullslast(),
+            GameDiscoveryFeed.deal_score.desc().nullslast(),
+            GameDiscoveryFeed.momentum_score.desc().nullslast(),
+            GameDiscoveryFeed.popularity_score.desc().nullslast(),
+            GameDiscoveryFeed.latest_discount_percent.desc().nullslast(),
+            GameDiscoveryFeed.updated_at.desc().nullslast(),
+            GameDiscoveryFeed.game_id.asc(),
+        ],
+        snapshot_order_by=[
+            GameSnapshot.buy_score.desc().nullslast(),
+            GameSnapshot.worth_buying_score.desc().nullslast(),
+            GameSnapshot.deal_score.desc().nullslast(),
+            GameSnapshot.momentum_score.desc().nullslast(),
+            GameSnapshot.popularity_score.desc().nullslast(),
+            GameSnapshot.latest_discount_percent.desc().nullslast(),
+            GameSnapshot.updated_at.desc().nullslast(),
+            GameSnapshot.game_id.asc(),
+        ],
+    )
+
+    scored_items: list[tuple[float, datetime.datetime, dict]] = []
+    for snapshot in rows:
+        parsed = _build_deal_opportunity_item(snapshot)
+        if parsed is None:
+            continue
+        updated_at = snapshot.updated_at if isinstance(snapshot.updated_at, datetime.datetime) else utc_now()
+        if updated_at.tzinfo is None:
+            updated_at = updated_at.replace(tzinfo=datetime.timezone.utc)
+        scored_items.append((safe_num(parsed.get("opportunity_score"), 0.0), updated_at, parsed))
+
+    scored_items.sort(key=lambda entry: (entry[0], entry[1]), reverse=True)
+    return [item for _, _, item in scored_items[:normalized_limit]]
+
+
+def _collect_opportunity_radar_items(session, limit: int) -> list[dict]:
+    normalized_limit = max(1, int(limit))
+    candidate_limit = max(
+        OPPORTUNITY_MIN_CANDIDATES,
+        min(OPPORTUNITY_MAX_CANDIDATES, normalized_limit * OPPORTUNITY_QUERY_MULTIPLIER),
+    )
+    rows = _query_release_feed_rows(
+        session,
+        limit=candidate_limit,
+        projection_filters=[
+            GameDiscoveryFeed.deal_opportunity_score.isnot(None),
+            GameDiscoveryFeed.deal_opportunity_score > 0,
+        ],
+        snapshot_filters=[
+            GameSnapshot.deal_opportunity_score.isnot(None),
+            GameSnapshot.deal_opportunity_score > 0,
+        ],
+        projection_order_by=[
+            GameDiscoveryFeed.deal_opportunity_score.desc().nullslast(),
+            GameDiscoveryFeed.updated_at.desc().nullslast(),
+            GameDiscoveryFeed.game_id.asc(),
+        ],
+        snapshot_order_by=[
+            GameSnapshot.deal_opportunity_score.desc().nullslast(),
+            GameSnapshot.updated_at.desc().nullslast(),
+            GameSnapshot.game_id.asc(),
+        ],
+    )
+
+    items: list[dict] = []
+    for snapshot in rows:
+        parsed = _build_opportunity_radar_item(snapshot)
+        if parsed is None:
+            continue
+        items.append(parsed)
+        if len(items) >= normalized_limit:
+            break
+    return items
 
 
 def _coerce_utc_datetime(value: datetime.datetime | None) -> datetime.datetime | None:
@@ -4748,6 +4834,10 @@ def _trim_dashboard_home_payload(payload: dict, mode: str) -> dict:
         "upcoming",
         "seasonal_summary",
         "seasonalSale",
+        "deal_opportunities",
+        "dealOpportunities",
+        "opportunity_radar",
+        "opportunityRadar",
         "released",
         "releasedGames",
         "_meta",
@@ -4884,6 +4974,21 @@ def get_dashboard_home(request: Request, mode: str | None = None):
 
         if normalized_mode == "critical":
             payload = dict(cached_payload)
+            needs_opportunities = not _dashboard_rows(payload, "deal_opportunities", "dealOpportunities")
+            needs_opportunity_radar = not _dashboard_rows(payload, "opportunity_radar", "opportunityRadar")
+            if needs_opportunities or needs_opportunity_radar:
+                critical_session = ReadSessionLocal()
+                try:
+                    if needs_opportunities:
+                        items = _collect_deal_opportunity_items(critical_session, HOMEPAGE_CRITICAL_LIMIT)
+                        payload["deal_opportunities"] = items
+                        payload["dealOpportunities"] = items
+                    if needs_opportunity_radar:
+                        items = _collect_opportunity_radar_items(critical_session, HOMEPAGE_CRITICAL_LIMIT)
+                        payload["opportunity_radar"] = items
+                        payload["opportunityRadar"] = items
+                finally:
+                    critical_session.close()
             payload["_meta"] = {
                 "cache_key": cache_row.cache_key,
                 "generated_at": cache_row.updated_at.isoformat() if cache_row.updated_at else None,
@@ -5914,50 +6019,7 @@ def list_deal_opportunities(
     started = _start_timer()
     session = ReadSessionLocal()
     try:
-        normalized_limit = max(1, int(limit))
-        candidate_limit = max(
-            OPPORTUNITY_MIN_CANDIDATES,
-            min(OPPORTUNITY_MAX_CANDIDATES, normalized_limit * OPPORTUNITY_QUERY_MULTIPLIER),
-        )
-
-        rows = _query_release_feed_rows(
-            session,
-            limit=candidate_limit,
-            projection_order_by=[
-                GameDiscoveryFeed.buy_score.desc().nullslast(),
-                GameDiscoveryFeed.worth_buying_score.desc().nullslast(),
-                GameDiscoveryFeed.deal_score.desc().nullslast(),
-                GameDiscoveryFeed.momentum_score.desc().nullslast(),
-                GameDiscoveryFeed.popularity_score.desc().nullslast(),
-                GameDiscoveryFeed.latest_discount_percent.desc().nullslast(),
-                GameDiscoveryFeed.updated_at.desc().nullslast(),
-                GameDiscoveryFeed.game_id.asc(),
-            ],
-            snapshot_order_by=[
-                GameSnapshot.buy_score.desc().nullslast(),
-                GameSnapshot.worth_buying_score.desc().nullslast(),
-                GameSnapshot.deal_score.desc().nullslast(),
-                GameSnapshot.momentum_score.desc().nullslast(),
-                GameSnapshot.popularity_score.desc().nullslast(),
-                GameSnapshot.latest_discount_percent.desc().nullslast(),
-                GameSnapshot.updated_at.desc().nullslast(),
-                GameSnapshot.game_id.asc(),
-            ],
-        )
-
-        scored_items: list[tuple[float, datetime.datetime, dict]] = []
-        for snapshot in rows:
-            parsed = _build_deal_opportunity_item(snapshot)
-            if parsed is None:
-                continue
-            updated_at = snapshot.updated_at if isinstance(snapshot.updated_at, datetime.datetime) else utc_now()
-            if updated_at.tzinfo is None:
-                updated_at = updated_at.replace(tzinfo=datetime.timezone.utc)
-            scored_items.append((safe_num(parsed.get("opportunity_score"), 0.0), updated_at, parsed))
-
-        scored_items.sort(key=lambda entry: (entry[0], entry[1]), reverse=True)
-        items = [item for _, _, item in scored_items[:normalized_limit]]
-
+        items = _collect_deal_opportunity_items(session, limit)
         return {
             "count": len(items),
             "items": items,
@@ -5978,44 +6040,7 @@ def list_opportunity_radar(
     started = _start_timer()
     session = ReadSessionLocal()
     try:
-        normalized_limit = max(1, int(limit))
-        candidate_limit = max(
-            OPPORTUNITY_MIN_CANDIDATES,
-            min(OPPORTUNITY_MAX_CANDIDATES, normalized_limit * OPPORTUNITY_QUERY_MULTIPLIER),
-        )
-
-        rows = _query_release_feed_rows(
-            session,
-            limit=candidate_limit,
-            projection_filters=[
-                GameDiscoveryFeed.deal_opportunity_score.isnot(None),
-                GameDiscoveryFeed.deal_opportunity_score > 0,
-            ],
-            snapshot_filters=[
-                GameSnapshot.deal_opportunity_score.isnot(None),
-                GameSnapshot.deal_opportunity_score > 0,
-            ],
-            projection_order_by=[
-                GameDiscoveryFeed.deal_opportunity_score.desc().nullslast(),
-                GameDiscoveryFeed.updated_at.desc().nullslast(),
-                GameDiscoveryFeed.game_id.asc(),
-            ],
-            snapshot_order_by=[
-                GameSnapshot.deal_opportunity_score.desc().nullslast(),
-                GameSnapshot.updated_at.desc().nullslast(),
-                GameSnapshot.game_id.asc(),
-            ],
-        )
-
-        items: list[dict] = []
-        for snapshot in rows:
-            parsed = _build_opportunity_radar_item(snapshot)
-            if parsed is None:
-                continue
-            items.append(parsed)
-            if len(items) >= normalized_limit:
-                break
-
+        items = _collect_opportunity_radar_items(session, limit)
         return {
             "count": len(items),
             "items": items,

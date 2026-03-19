@@ -1446,10 +1446,9 @@ def _query_release_feed_rows(
 
 def _build_deal_opportunity_item(snapshot: FeedProjectionRow) -> dict | None:
     price = snapshot.latest_price
-    if price is None:
-        return None
-
     discount = max(0, int(round(safe_num(snapshot.latest_discount_percent, 0.0))))
+    if price is None or safe_num(price, 0.0) <= 0 or discount <= 0:
+        return None
     deal_score = safe_num(snapshot.deal_score, 0.0)
     popularity_score = safe_num(snapshot.popularity_score, 0.0)
     momentum_score = safe_num(snapshot.momentum_score, 0.0)
@@ -1546,6 +1545,9 @@ def _build_deal_opportunity_item(snapshot: FeedProjectionRow) -> dict | None:
         "price": snapshot.latest_price,
         "original_price": snapshot.latest_original_price,
         "discount_percent": snapshot.latest_discount_percent,
+        "is_released": getattr(snapshot, "is_released", 1),
+        "is_upcoming": getattr(snapshot, "is_upcoming", False),
+        "release_date": getattr(snapshot, "release_date", None),
         "historical_low": snapshot.historical_low,
         "historical_status": snapshot.historical_status,
         "price_vs_low_ratio": snapshot.price_vs_low_ratio,
@@ -1587,7 +1589,9 @@ def _build_deal_opportunity_item(snapshot: FeedProjectionRow) -> dict | None:
 
 
 def _build_opportunity_radar_item(snapshot: FeedProjectionRow) -> dict | None:
-    if snapshot.latest_price is None:
+    if snapshot.latest_price is None or safe_num(snapshot.latest_price, 0.0) <= 0:
+        return None
+    if safe_num(snapshot.latest_discount_percent, 0.0) <= 0:
         return None
 
     score = round(safe_num(snapshot.deal_opportunity_score, 0.0), 2)
@@ -1625,6 +1629,9 @@ def _build_opportunity_radar_item(snapshot: FeedProjectionRow) -> dict | None:
         "price": snapshot.latest_price,
         "original_price": snapshot.latest_original_price,
         "discount_percent": snapshot.latest_discount_percent,
+        "is_released": getattr(snapshot, "is_released", 1),
+        "is_upcoming": getattr(snapshot, "is_upcoming", False),
+        "release_date": getattr(snapshot, "release_date", None),
         "historical_low": snapshot.historical_low,
         "historical_status": snapshot.historical_status,
         "price_vs_low_ratio": snapshot.price_vs_low_ratio,
@@ -1652,48 +1659,8 @@ def _build_opportunity_radar_item(snapshot: FeedProjectionRow) -> dict | None:
 
 
 def _collect_deal_opportunity_items(session, limit: int) -> list[dict]:
-    normalized_limit = max(1, int(limit))
-    candidate_limit = max(
-        OPPORTUNITY_MIN_CANDIDATES,
-        min(OPPORTUNITY_MAX_CANDIDATES, normalized_limit * OPPORTUNITY_QUERY_MULTIPLIER),
-    )
-    rows = _query_release_feed_rows(
-        session,
-        limit=candidate_limit,
-        projection_order_by=[
-            GameDiscoveryFeed.buy_score.desc().nullslast(),
-            GameDiscoveryFeed.worth_buying_score.desc().nullslast(),
-            GameDiscoveryFeed.deal_score.desc().nullslast(),
-            GameDiscoveryFeed.momentum_score.desc().nullslast(),
-            GameDiscoveryFeed.popularity_score.desc().nullslast(),
-            GameDiscoveryFeed.latest_discount_percent.desc().nullslast(),
-            GameDiscoveryFeed.updated_at.desc().nullslast(),
-            GameDiscoveryFeed.game_id.asc(),
-        ],
-        snapshot_order_by=[
-            GameSnapshot.buy_score.desc().nullslast(),
-            GameSnapshot.worth_buying_score.desc().nullslast(),
-            GameSnapshot.deal_score.desc().nullslast(),
-            GameSnapshot.momentum_score.desc().nullslast(),
-            GameSnapshot.popularity_score.desc().nullslast(),
-            GameSnapshot.latest_discount_percent.desc().nullslast(),
-            GameSnapshot.updated_at.desc().nullslast(),
-            GameSnapshot.game_id.asc(),
-        ],
-    )
-
-    scored_items: list[tuple[float, datetime.datetime, dict]] = []
-    for snapshot in rows:
-        parsed = _build_deal_opportunity_item(snapshot)
-        if parsed is None:
-            continue
-        updated_at = snapshot.updated_at if isinstance(snapshot.updated_at, datetime.datetime) else utc_now()
-        if updated_at.tzinfo is None:
-            updated_at = updated_at.replace(tzinfo=datetime.timezone.utc)
-        scored_items.append((safe_num(parsed.get("opportunity_score"), 0.0), updated_at, parsed))
-
-    scored_items.sort(key=lambda entry: (entry[0], entry[1]), reverse=True)
-    return [item for _, _, item in scored_items[:normalized_limit]]
+    opportunities, _ = _collect_opportunity_item_pair(session, limit)
+    return opportunities
 
 
 def _collect_opportunity_item_pair(session, limit: int) -> tuple[list[dict], list[dict]]:
@@ -1763,16 +1730,6 @@ def _collect_opportunity_item_pair(session, limit: int) -> tuple[list[dict], lis
         radar_items.append(item)
         if len(radar_items) >= normalized_limit:
             break
-
-    if len(radar_items) < normalized_limit:
-        for _, _, item in scored_radar:
-            game_id = int(safe_num(item.get("game_id"), 0.0))
-            if game_id <= 0 or game_id in seen_radar_ids:
-                continue
-            seen_radar_ids.add(game_id)
-            radar_items.append(item)
-            if len(radar_items) >= normalized_limit:
-                break
 
     return opportunity_items, radar_items
 
@@ -2075,6 +2032,12 @@ def _build_personalized_deal_item(
 ) -> dict | None:
     if snapshot.latest_price is None:
         return None
+    if safe_num(snapshot.latest_price, 0.0) <= 0:
+        return None
+    if safe_num(snapshot.latest_discount_percent, 0.0) <= 0:
+        return None
+    if bool(getattr(snapshot, "is_upcoming", False)):
+        return None
 
     use_personal_context = personalization_enabled and has_personal_seed_data
     game_id = int(snapshot.game_id)
@@ -2214,6 +2177,9 @@ def _build_personalized_deal_item(
         "id": game_id,
         "game_name": snapshot.game_name,
         "steam_appid": snapshot.steam_appid,
+        "is_released": getattr(snapshot, "is_released", 1),
+        "is_upcoming": getattr(snapshot, "is_upcoming", False),
+        "release_date": getattr(snapshot, "release_date", None),
         "banner_url": snapshot.banner_url,
         "image_url": snapshot.banner_url,
         "store_url": snapshot.store_url,
@@ -3780,7 +3746,7 @@ def get_historical_lows(limit: int = Query(default=API_DEFAULT_LIST_LIMIT, ge=1,
     try:
         cached_rows = _read_cached_section_items(session, "home:historical_lows", limit=limit)
         if cached_rows:
-            return cached_rows
+            return _filter_valid_deal_payload_rows(cached_rows, limit=limit)
 
         latest_prices = get_latest_price_rows(session)
         game_map = build_game_map(session)
@@ -3821,7 +3787,7 @@ def get_historical_lows(limit: int = Query(default=API_DEFAULT_LIST_LIMIT, ge=1,
             reverse=True,
         )
 
-        return rows[:limit]
+        return _filter_valid_deal_payload_rows(rows, limit=limit)
 
     finally:
         session.close()
@@ -3881,9 +3847,13 @@ def get_seasonal_summary(limit: int = Query(default=12, ge=1, le=30)):
 
 @app.get("/games/biggest-discounts")
 def get_biggest_discounts(limit: int = Query(default=20, ge=1, le=100)):
-    session = Session()
+    session = ReadSessionLocal()
 
     try:
+        cached_rows = _read_cached_section_items(session, "home:biggest_discounts", limit=limit)
+        if cached_rows:
+            return _filter_valid_deal_payload_rows(cached_rows, limit=limit)
+
         latest_prices = get_latest_price_rows(session)
         game_map = build_game_map(session)
         insight_map = compute_historical_insight_map(session)
@@ -3900,7 +3870,8 @@ def get_biggest_discounts(limit: int = Query(default=20, ge=1, le=100)):
             reverse=True,
         )
 
-        return [serialize_price_row(row, game_map, insight_map) for row in discounted_rows[:limit]]
+        serialized_rows = [serialize_price_row(row, game_map, insight_map) for row in discounted_rows[:limit]]
+        return _filter_valid_deal_payload_rows(serialized_rows, limit=limit)
 
     finally:
         session.close()
@@ -5016,6 +4987,205 @@ def _decision_rows_by_recommendation(rows: list[dict], recommendation: str, limi
     return picked
 
 
+def _is_released_dashboard_row(row: dict) -> bool:
+    if not isinstance(row, dict):
+        return False
+    if bool(row.get("is_upcoming")):
+        return False
+    released_value = row.get("is_released")
+    if released_value is None:
+        return True
+    try:
+        return int(released_value) == 1
+    except Exception:
+        return bool(released_value)
+
+
+def _dashboard_row_has_actual_sale(row: dict) -> bool:
+    if not isinstance(row, dict):
+        return False
+    price = safe_num(row.get("price"), safe_num(row.get("latest_price"), 0.0))
+    discount = safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0))
+    return price > 0 and discount > 0
+
+
+def _released_dashboard_rows(rows: list[dict]) -> list[dict]:
+    return [row for row in _dedupe_dashboard_rows(rows) if _is_released_dashboard_row(row)]
+
+
+def _released_deal_dashboard_rows(rows: list[dict]) -> list[dict]:
+    return [
+        row
+        for row in _dedupe_dashboard_rows(rows)
+        if _is_released_dashboard_row(row) and _dashboard_row_has_actual_sale(row)
+    ]
+
+
+def _compose_unique_dashboard_rows(
+    primary_rows: list[dict],
+    fallback_rows: list[dict],
+    blocked_keys: set[str],
+    limit: int,
+) -> list[dict]:
+    bounded_limit = max(1, int(limit))
+    selected: list[dict] = []
+    seen_keys: set[str] = set()
+    for source_rows in (primary_rows, fallback_rows):
+        for idx, row in enumerate(_dedupe_dashboard_rows(source_rows)):
+            if not isinstance(row, dict):
+                continue
+            row_key = _dashboard_identity_key(row, idx)
+            if not row_key or row_key in seen_keys or row_key in blocked_keys:
+                continue
+            selected.append(row)
+            seen_keys.add(row_key)
+            blocked_keys.add(row_key)
+            if len(selected) >= bounded_limit:
+                return selected
+    return selected
+
+
+def _is_wait_dashboard_candidate(row: dict) -> bool:
+    if not isinstance(row, dict):
+        return False
+    if _normalize_buy_recommendation(row.get("buy_recommendation")) == "WAIT":
+        return True
+    return (
+        safe_num(row.get("price_vs_low_ratio"), 0.0) >= 1.08
+        or safe_num(row.get("predicted_next_discount_percent"), 0.0) >= 35
+    )
+
+
+def _is_valid_deal_payload_row(row: dict) -> bool:
+    if not isinstance(row, dict):
+        return False
+    if bool(row.get("is_upcoming")):
+        return False
+    released_value = row.get("is_released")
+    if released_value is not None:
+        try:
+            if int(released_value) != 1:
+                return False
+        except Exception:
+            if not bool(released_value):
+                return False
+    price = safe_num(row.get("price"), safe_num(row.get("latest_price"), 0.0))
+    discount = safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0))
+    return price > 0 and discount > 0
+
+
+def _filter_valid_deal_payload_rows(rows: list[dict], limit: int | None = None) -> list[dict]:
+    filtered = [row for row in _dedupe_dashboard_rows(rows) if _is_valid_deal_payload_row(row)]
+    if limit is None:
+        return filtered
+    return filtered[: max(1, int(limit))]
+
+
+def _dashboard_sort_game_id(row: dict) -> int:
+    return int(safe_num((row or {}).get("game_id") or (row or {}).get("id"), 0.0))
+
+
+def _score_dashboard_opportunity_row(row: dict) -> float:
+    buy_score = safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0))
+    discount = safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0))
+    return (
+        safe_num(row.get("deal_opportunity_score"), 0.0) * 0.9
+        + buy_score * 0.45
+        + safe_num(row.get("deal_score"), 0.0) * 0.35
+        + safe_num(row.get("momentum_score"), 0.0) * 0.2
+        + safe_num(row.get("trending_score"), 0.0) * 0.15
+        + discount * 0.12
+    )
+
+
+def _allocate_protected_dashboard_deal_rails(
+    candidate_pool: list[dict],
+    limit: int,
+) -> tuple[dict[str, list[dict]], set[str]]:
+    eligible_pool = _released_deal_dashboard_rows(candidate_pool)
+    if not eligible_pool:
+        return {
+            "deal_opportunities": [],
+            "opportunity_radar": [],
+            "worth_buying_now": [],
+            "biggest_discounts": [],
+            "wait_picks": [],
+        }, set()
+
+    bounded_limit = max(1, int(limit))
+    ranked_opportunities = sorted(
+        eligible_pool,
+        key=lambda row: (
+            _score_dashboard_opportunity_row(row),
+            safe_num(row.get("deal_opportunity_score"), 0.0),
+            safe_num(row.get("deal_score"), 0.0),
+            safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0)),
+            -_dashboard_sort_game_id(row),
+        ),
+        reverse=True,
+    )
+    ranked_radar = sorted(
+        eligible_pool,
+        key=lambda row: (
+            safe_num(row.get("deal_opportunity_score"), 0.0),
+            safe_num(row.get("momentum_score"), 0.0),
+            safe_num(row.get("deal_score"), 0.0),
+            safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0)),
+            -_dashboard_sort_game_id(row),
+        ),
+        reverse=True,
+    )
+    ranked_worth_buying = sorted(
+        eligible_pool,
+        key=lambda row: (
+            safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0)),
+            safe_num(row.get("worth_buying_score"), 0.0),
+            safe_num(row.get("deal_score"), 0.0),
+            safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0)),
+            -_dashboard_sort_game_id(row),
+        ),
+        reverse=True,
+    )
+    ranked_biggest_discounts = sorted(
+        eligible_pool,
+        key=lambda row: (
+            safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0)),
+            safe_num(row.get("deal_score"), 0.0),
+            safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0)),
+            -_dashboard_sort_game_id(row),
+        ),
+        reverse=True,
+    )
+    ranked_wait = sorted(
+        [row for row in eligible_pool if _is_wait_dashboard_candidate(row)],
+        key=lambda row: (
+            safe_num(row.get("predicted_next_discount_percent"), 0.0),
+            safe_num(row.get("price_vs_low_ratio"), 0.0),
+            safe_num(row.get("deal_score"), 0.0),
+            safe_num(row.get("momentum_score"), 0.0),
+            -_dashboard_sort_game_id(row),
+        ),
+        reverse=True,
+    )
+
+    used_keys: set[str] = set()
+    allocated: dict[str, list[dict]] = {}
+    for rail_key, ranked_rows in (
+        ("deal_opportunities", ranked_opportunities),
+        ("opportunity_radar", ranked_radar),
+        ("worth_buying_now", ranked_worth_buying),
+        ("biggest_discounts", ranked_biggest_discounts),
+        ("wait_picks", ranked_wait),
+    ):
+        allocated[rail_key] = _compose_unique_dashboard_rows(
+            _released_deal_dashboard_rows(ranked_rows),
+            eligible_pool,
+            used_keys,
+            bounded_limit,
+        )
+    return allocated, used_keys
+
+
 def _build_player_surges(alert_rows: list[dict], trending_rows: list[dict], limit: int = 24) -> list[dict]:
     surge_rows: list[dict] = []
     for row in alert_rows:
@@ -5063,39 +5233,56 @@ def _trim_dashboard_home_payload(payload: dict, mode: str) -> dict:
 def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
     payload = dict(raw_payload)
 
-    worth_buying_now = _dedupe_dashboard_rows(_dashboard_rows(payload, "worth_buying_now", "worthBuyingNow"))
-    biggest_discounts = _dedupe_dashboard_rows(_dashboard_rows(payload, "biggest_discounts", "biggestDeals"))
-    trending_now = _dedupe_dashboard_rows(_dashboard_rows(payload, "trending_now", "trending", "trendingDeals"))
-    new_historical_lows = _dedupe_dashboard_rows(_dashboard_rows(payload, "new_historical_lows", "newHistoricalLows"))
+    rail_limit = 24
+    worth_buying_now = _released_deal_dashboard_rows(_dashboard_rows(payload, "worth_buying_now", "worthBuyingNow"))
+    biggest_discounts = _released_deal_dashboard_rows(_dashboard_rows(payload, "biggest_discounts", "biggestDeals"))
+    trending_now = _released_dashboard_rows(_dashboard_rows(payload, "trending_now", "trending", "trendingDeals"))
+    new_historical_lows = _released_dashboard_rows(_dashboard_rows(payload, "new_historical_lows", "newHistoricalLows"))
     deal_radar = _dedupe_dashboard_rows(_dashboard_rows(payload, "deal_radar", "marketRadar", "dealRadar"))
     alert_signals = _dedupe_dashboard_rows(_dashboard_rows(payload, "alertSignals"))
+    deal_opportunities = _released_deal_dashboard_rows(_dashboard_rows(payload, "deal_opportunities", "dealOpportunities"))
+    opportunity_radar = _released_deal_dashboard_rows(_dashboard_rows(payload, "opportunity_radar", "opportunityRadar"))
+    deal_ranked = _released_deal_dashboard_rows(_dashboard_rows(payload, "dealRanked", "topDealsToday"))
 
-    decision_pool = _dedupe_dashboard_rows(
+    canonical_deal_pool = _released_deal_dashboard_rows(
         [
             *worth_buying_now,
             *_dashboard_rows(payload, "recommendedDeals"),
-            *_dashboard_rows(payload, "dealRanked", "topDealsToday"),
+            *deal_ranked,
             *biggest_discounts,
             *_dashboard_rows(payload, "trendingDeals"),
             *trending_now,
             *new_historical_lows,
         ]
     )
-    buy_now_picks = _dedupe_dashboard_rows(_dashboard_rows(payload, "buy_now_picks"))
-    wait_picks = _dedupe_dashboard_rows(_dashboard_rows(payload, "wait_picks"))
+    buy_now_picks = _released_deal_dashboard_rows(_dashboard_rows(payload, "buy_now_picks", "buyNowPicks"))
+    wait_picks = _released_deal_dashboard_rows(_dashboard_rows(payload, "wait_picks", "waitPicks"))
     if not buy_now_picks:
-        buy_now_picks = _decision_rows_by_recommendation(decision_pool, "BUY_NOW")
-    if not wait_picks:
-        wait_picks = _decision_rows_by_recommendation(decision_pool, "WAIT")
+        buy_now_picks = _released_deal_dashboard_rows(_decision_rows_by_recommendation(canonical_deal_pool, "BUY_NOW"))
     if not buy_now_picks:
-        buy_now_picks = worth_buying_now[:24]
-    if not wait_picks:
-        wait_picks = [
-            row
-            for row in decision_pool
-            if safe_num(row.get("price_vs_low_ratio"), 0.0) >= 1.08
-            or safe_num(row.get("predicted_next_discount_percent"), 0.0) >= 35
-        ][:24]
+        buy_now_picks = worth_buying_now[:rail_limit]
+    allocated_rails, protected_visible_keys = _allocate_protected_dashboard_deal_rails(
+        [*canonical_deal_pool, *deal_opportunities, *opportunity_radar],
+        rail_limit,
+    )
+    deal_opportunities = allocated_rails.get("deal_opportunities", [])
+    opportunity_radar = allocated_rails.get("opportunity_radar", [])
+    worth_buying_now = allocated_rails.get("worth_buying_now", [])
+    biggest_discounts = allocated_rails.get("biggest_discounts", [])
+    wait_picks = allocated_rails.get("wait_picks", [])
+
+    buy_now_picks = _compose_unique_dashboard_rows(
+        buy_now_picks,
+        _released_deal_dashboard_rows([*worth_buying_now, *canonical_deal_pool]),
+        protected_visible_keys,
+        rail_limit,
+    )
+    deal_ranked = _compose_unique_dashboard_rows(
+        _released_deal_dashboard_rows(deal_ranked),
+        _released_deal_dashboard_rows([*canonical_deal_pool, *biggest_discounts]),
+        protected_visible_keys,
+        rail_limit,
+    )
 
     player_surges = _dedupe_dashboard_rows(_dashboard_rows(payload, "player_surges"))
     if not player_surges:
@@ -5109,16 +5296,34 @@ def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
     payload["biggest_discounts"] = biggest_discounts
     payload["buy_now_picks"] = buy_now_picks
     payload["wait_picks"] = wait_picks
+    payload["deal_opportunities"] = deal_opportunities
+    payload["opportunity_radar"] = opportunity_radar
+    payload["dealRanked"] = deal_ranked
     payload["new_historical_lows"] = new_historical_lows
     payload["trending_now"] = trending_now
     payload["deal_radar"] = deal_radar
     payload["player_surges"] = player_surges
     payload["seasonal_summary"] = seasonal_summary
+    payload["worthBuyingNow"] = worth_buying_now
+    payload["biggestDeals"] = biggest_discounts
+    payload["buyNowPicks"] = buy_now_picks
+    payload["waitPicks"] = wait_picks
+    payload["topDealsToday"] = deal_ranked or biggest_discounts
+    payload["newHistoricalLows"] = new_historical_lows
+    payload["trendingDeals"] = trending_now
+    payload["trending"] = trending_now
+    payload["dealRadar"] = deal_radar
+    payload["marketRadar"] = deal_radar
+    payload["dealOpportunities"] = deal_opportunities
+    payload["opportunityRadar"] = opportunity_radar
     payload["decision_dashboard"] = {
         "worth_buying_now": worth_buying_now,
         "biggest_discounts": biggest_discounts,
         "buy_now_picks": buy_now_picks,
         "wait_picks": wait_picks,
+        "deal_opportunities": deal_opportunities,
+        "opportunity_radar": opportunity_radar,
+        "dealRanked": deal_ranked,
         "new_historical_lows": new_historical_lows,
         "trending_now": trending_now,
         "deal_radar": deal_radar,
@@ -5126,26 +5331,6 @@ def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
         "seasonal_summary": seasonal_summary,
     }
 
-    if not _dashboard_rows(payload, "worthBuyingNow"):
-        payload["worthBuyingNow"] = worth_buying_now
-    if not _dashboard_rows(payload, "biggestDeals"):
-        payload["biggestDeals"] = biggest_discounts
-    if not _dashboard_rows(payload, "topDealsToday"):
-        payload["topDealsToday"] = _dashboard_rows(payload, "dealRanked") or biggest_discounts
-    if not _dashboard_rows(payload, "newHistoricalLows"):
-        payload["newHistoricalLows"] = new_historical_lows
-    if not _dashboard_rows(payload, "trendingDeals"):
-        payload["trendingDeals"] = trending_now
-    if not _dashboard_rows(payload, "trending"):
-        payload["trending"] = trending_now
-    if not _dashboard_rows(payload, "dealRadar"):
-        payload["dealRadar"] = deal_radar
-    if not _dashboard_rows(payload, "marketRadar"):
-        payload["marketRadar"] = deal_radar
-    if not _dashboard_rows(payload, "dealOpportunities"):
-        payload["dealOpportunities"] = _dashboard_rows(payload, "deal_opportunities")
-    if not _dashboard_rows(payload, "opportunityRadar"):
-        payload["opportunityRadar"] = _dashboard_rows(payload, "opportunity_radar")
     if "dailyDigest" not in payload and isinstance(payload.get("daily_digest"), dict):
         payload["dailyDigest"] = payload["daily_digest"]
 
@@ -6404,6 +6589,14 @@ def list_deal_opportunities(
     started = _start_timer()
     session = ReadSessionLocal()
     try:
+        cached_items = _read_cached_section_items(session, "home:deal_opportunities", limit=limit)
+        if cached_items:
+            items = _filter_valid_deal_payload_rows(cached_items, limit=limit)
+            return {
+                "count": len(items),
+                "items": items,
+                "generated_at": utc_now().isoformat(),
+            }
         items = _collect_deal_opportunity_items(session, limit)
         return {
             "count": len(items),
@@ -6425,6 +6618,14 @@ def list_opportunity_radar(
     started = _start_timer()
     session = ReadSessionLocal()
     try:
+        cached_items = _read_cached_section_items(session, "home:opportunity_radar", limit=limit)
+        if cached_items:
+            items = _filter_valid_deal_payload_rows(cached_items, limit=limit)
+            return {
+                "count": len(items),
+                "items": items,
+                "generated_at": utc_now().isoformat(),
+            }
         items = _collect_opportunity_radar_items(session, limit)
         return {
             "count": len(items),
@@ -6994,6 +7195,10 @@ def _score_personalized_fallback_row(row: dict) -> float:
 
 
 def _compact_personalized_feed_item(row: dict) -> dict:
+    is_upcoming = row.get("is_upcoming")
+    is_released = row.get("is_released")
+    if is_released is None:
+        is_released = 0 if bool(is_upcoming) else 1
     compact = {
         "game_id": int(safe_num(row.get("game_id") or row.get("id"), 0.0)),
         "game_name": str(row.get("game_name") or row.get("name") or "").strip(),
@@ -7002,6 +7207,9 @@ def _compact_personalized_feed_item(row: dict) -> dict:
         "price": row.get("price", row.get("latest_price")),
         "original_price": row.get("original_price", row.get("latest_original_price")),
         "discount_percent": row.get("discount_percent", row.get("latest_discount_percent")),
+        "is_released": is_released,
+        "is_upcoming": is_upcoming,
+        "release_date": row.get("release_date"),
         "historical_status": row.get("historical_status"),
         "deal_score": row.get("deal_score"),
         "buy_score": row.get("buy_score", row.get("worth_buying_score")),
@@ -7032,7 +7240,8 @@ def _build_personalized_fallback_items(session: Session, limit: int) -> list[dic
     _, payload = _read_dashboard_cache(session)
     if not isinstance(payload, dict):
         return []
-    candidate_rows = _dedupe_dashboard_rows(
+    protected_visible_ids = _collect_protected_deal_game_ids(payload)
+    candidate_rows = _released_deal_dashboard_rows(
         [
             *_dashboard_rows(payload, "deal_opportunities", "dealOpportunities"),
             *_dashboard_rows(payload, "worth_buying_now", "worthBuyingNow"),
@@ -7047,6 +7256,9 @@ def _build_personalized_fallback_items(session: Session, limit: int) -> list[dic
     scored: list[tuple[float, int, dict]] = []
     for index, row in enumerate(candidate_rows):
         if not isinstance(row, dict):
+            continue
+        game_id = int(safe_num(row.get("game_id") or row.get("id"), 0.0))
+        if game_id > 0 and game_id in protected_visible_ids:
             continue
         score = _score_personalized_fallback_row(row)
         normalized = dict(row)
@@ -7064,6 +7276,26 @@ def _build_personalized_fallback_items(session: Session, limit: int) -> list[dic
         if len(items) >= int(limit):
             break
     return items
+
+
+def _collect_protected_deal_game_ids(payload: dict) -> set[int]:
+    if not isinstance(payload, dict):
+        return set()
+    protected_visible_ids: set[int] = set()
+    for row in _dedupe_dashboard_rows(
+        [
+            *_dashboard_rows(payload, "deal_opportunities", "dealOpportunities"),
+            *_dashboard_rows(payload, "opportunity_radar", "opportunityRadar"),
+            *_dashboard_rows(payload, "worth_buying_now", "worthBuyingNow"),
+            *_dashboard_rows(payload, "biggest_discounts", "biggestDeals"),
+            *_dashboard_rows(payload, "wait_picks", "waitPicks"),
+            *_dashboard_rows(payload, "buy_now_picks", "buyNowPicks"),
+        ]
+    ):
+        game_id = int(safe_num(row.get("game_id") or row.get("id"), 0.0))
+        if game_id > 0:
+            protected_visible_ids.add(game_id)
+    return protected_visible_ids
 
 
 @app.get("/api/personalized-deals")
@@ -7085,6 +7317,8 @@ def list_personalized_deals(
         now = utc_now()
         recent_cutoff = now - datetime.timedelta(days=21)
         event_cutoff = now - datetime.timedelta(days=30)
+        _, home_payload = _read_dashboard_cache(session)
+        protected_deal_ids = _collect_protected_deal_game_ids(home_payload if isinstance(home_payload, dict) else {})
 
         wishlist_rows: list[tuple[int | None, datetime.datetime | None]] = []
         watchlist_rows: list[tuple[int | None, datetime.datetime | None]] = []
@@ -7161,7 +7395,11 @@ def list_personalized_deals(
                 )
                 if item is None:
                     continue
-                personalized_seed_items.append(_compact_personalized_feed_item(item))
+                compact_item = _compact_personalized_feed_item(item)
+                game_id = int(safe_num(compact_item.get("game_id") or compact_item.get("id"), 0.0))
+                if game_id > 0 and game_id in protected_deal_ids:
+                    continue
+                personalized_seed_items.append(compact_item)
             fallback_items = _build_personalized_fallback_items(session, max(normalized_limit * 2, normalized_limit + 8))
             merged_items: list[dict] = []
             seen_game_ids: set[int] = set()
@@ -7169,7 +7407,7 @@ def list_personalized_deals(
                 if not isinstance(item, dict):
                     continue
                 game_id = int(safe_num(item.get("game_id") or item.get("id"), 0.0))
-                if game_id <= 0 or game_id in seen_game_ids:
+                if game_id <= 0 or game_id in seen_game_ids or game_id in protected_deal_ids:
                     continue
                 merged_items.append(item)
                 seen_game_ids.add(game_id)
@@ -7321,6 +7559,9 @@ def list_personalized_deals(
 
         scored_rows: list[tuple[float, datetime.datetime, dict]] = []
         for snapshot in candidate_rows:
+            game_id = int(snapshot.game_id)
+            if game_id in protected_deal_ids:
+                continue
             item = _build_personalized_deal_item(
                 snapshot,
                 wishlist_game_ids=wishlist_game_ids,
@@ -7390,7 +7631,7 @@ def list_personalized_deals(
             seen_game_ids = {int(safe_num(item.get("game_id"), 0.0)) for _, _, item in scored_rows}
             for snapshot in fallback_rows:
                 game_id = int(snapshot.game_id)
-                if game_id in seen_game_ids:
+                if game_id in seen_game_ids or game_id in protected_deal_ids:
                     continue
                 item = _build_personalized_deal_item(
                     snapshot,
@@ -7412,7 +7653,17 @@ def list_personalized_deals(
                     break
 
         scored_rows.sort(key=lambda entry: (entry[0], entry[1]), reverse=True)
-        items = [_compact_personalized_feed_item(item) for _, _, item in scored_rows[:normalized_limit]]
+        items: list[dict] = []
+        seen_items: set[int] = set()
+        for _, _, item in scored_rows:
+            compact_item = _compact_personalized_feed_item(item)
+            game_id = int(safe_num(compact_item.get("game_id") or compact_item.get("id"), 0.0))
+            if game_id <= 0 or game_id in seen_items or game_id in protected_deal_ids:
+                continue
+            items.append(compact_item)
+            seen_items.add(game_id)
+            if len(items) >= normalized_limit:
+                break
         personalized_feed = personalization_enabled and has_personal_seed_data and personalized_scored_count > 0
 
         return {

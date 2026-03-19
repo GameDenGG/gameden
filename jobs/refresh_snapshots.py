@@ -2920,11 +2920,18 @@ def _build_homepage_critical_payload(payload: dict) -> dict:
             buy_score = row.get("worth_buying_score")
         review_score_label = row.get("review_score_label") or row.get("review_label")
         review_count = row.get("review_count") or row.get("review_total_count")
+        is_upcoming = row.get("is_upcoming")
+        is_released = row.get("is_released")
+        if is_released is None:
+            is_released = 0 if bool(is_upcoming) else 1
         slimmed = {
             "game_id": game_id,
             "id": row.get("id") or game_id,
             "game_name": row.get("game_name") or row.get("name"),
             "steam_appid": row.get("steam_appid"),
+            "is_released": is_released,
+            "is_upcoming": is_upcoming,
+            "release_date": row.get("release_date"),
             "banner_url": banner_url,
             "price": price,
             "original_price": original_price,
@@ -3063,8 +3070,24 @@ def _is_released_snapshot_row(row: dict) -> bool:
         return bool(released_value)
 
 
+def _snapshot_row_has_actual_sale(row: dict) -> bool:
+    if not isinstance(row, dict):
+        return False
+    price = safe_num(row.get("price"), safe_num(row.get("latest_price"), 0.0))
+    discount = safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0))
+    return price > 0 and discount > 0
+
+
 def _released_snapshot_rows(rows: list[dict]) -> list[dict]:
     return [row for row in _dedupe_snapshot_rows(rows) if _is_released_snapshot_row(row)]
+
+
+def _released_deal_snapshot_rows(rows: list[dict]) -> list[dict]:
+    return [
+        row
+        for row in _dedupe_snapshot_rows(rows)
+        if _is_released_snapshot_row(row) and _snapshot_row_has_actual_sale(row)
+    ]
 
 
 def _compose_unique_snapshot_rows(
@@ -3100,6 +3123,98 @@ def _is_wait_candidate_row(row: dict) -> bool:
         safe_num(row.get("price_vs_low_ratio"), 0.0) >= 1.08
         or safe_num(row.get("predicted_next_discount_percent"), 0.0) >= 35
     )
+
+
+def _snapshot_sort_game_id(row: dict) -> int:
+    return int(safe_num((row or {}).get("game_id") or (row or {}).get("id"), 0.0))
+
+
+def _allocate_homepage_protected_deal_rails(
+    candidate_pool: list[dict],
+    limit: int,
+) -> tuple[dict[str, list[dict]], set[str]]:
+    eligible_pool = _released_deal_snapshot_rows(candidate_pool)
+    if not eligible_pool:
+        return {
+            "deal_opportunities": [],
+            "opportunity_radar": [],
+            "worth_buying_now": [],
+            "biggest_discounts": [],
+            "wait_picks": [],
+        }, set()
+
+    bounded_limit = max(1, int(limit))
+    ranked_opportunities = sorted(
+        eligible_pool,
+        key=lambda row: (
+            _score_homepage_opportunity_row(row),
+            safe_num(row.get("deal_opportunity_score"), 0.0),
+            safe_num(row.get("deal_score"), 0.0),
+            safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0)),
+            -_snapshot_sort_game_id(row),
+        ),
+        reverse=True,
+    )
+    ranked_radar = sorted(
+        eligible_pool,
+        key=lambda row: (
+            safe_num(row.get("deal_opportunity_score"), 0.0),
+            safe_num(row.get("momentum_score"), 0.0),
+            safe_num(row.get("deal_score"), 0.0),
+            safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0)),
+            -_snapshot_sort_game_id(row),
+        ),
+        reverse=True,
+    )
+    ranked_worth_buying = sorted(
+        eligible_pool,
+        key=lambda row: (
+            safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0)),
+            safe_num(row.get("worth_buying_score"), 0.0),
+            safe_num(row.get("deal_score"), 0.0),
+            safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0)),
+            -_snapshot_sort_game_id(row),
+        ),
+        reverse=True,
+    )
+    ranked_biggest_discounts = sorted(
+        eligible_pool,
+        key=lambda row: (
+            safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0)),
+            safe_num(row.get("deal_score"), 0.0),
+            safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0)),
+            -_snapshot_sort_game_id(row),
+        ),
+        reverse=True,
+    )
+    ranked_wait = sorted(
+        [row for row in eligible_pool if _is_wait_candidate_row(row)],
+        key=lambda row: (
+            safe_num(row.get("predicted_next_discount_percent"), 0.0),
+            safe_num(row.get("price_vs_low_ratio"), 0.0),
+            safe_num(row.get("deal_score"), 0.0),
+            safe_num(row.get("momentum_score"), 0.0),
+            -_snapshot_sort_game_id(row),
+        ),
+        reverse=True,
+    )
+
+    used_keys: set[str] = set()
+    allocated: dict[str, list[dict]] = {}
+    for rail_key, ranked_rows in (
+        ("deal_opportunities", ranked_opportunities),
+        ("opportunity_radar", ranked_radar),
+        ("worth_buying_now", ranked_worth_buying),
+        ("biggest_discounts", ranked_biggest_discounts),
+        ("wait_picks", ranked_wait),
+    ):
+        allocated[rail_key] = _compose_unique_snapshot_rows(
+            _released_deal_snapshot_rows(ranked_rows),
+            eligible_pool,
+            used_keys,
+            bounded_limit,
+        )
+    return allocated, used_keys
 
 
 def rebuild_dashboard_cache(session: Session) -> None:
@@ -3360,7 +3475,7 @@ def rebuild_dashboard_cache(session: Session) -> None:
     upcoming_rows = [_snapshot_row_to_dict(row) for row in upcoming][:HOMEPAGE_RAIL_LIMIT]
     new_historical_lows_rows = _dedupe_snapshot_rows(new_historical_lows)
 
-    decision_pool = _released_snapshot_rows(
+    canonical_deal_pool = _released_deal_snapshot_rows(
         [
             *worth_buying_now_rows,
             *recommended_deals_rows,
@@ -3371,118 +3486,39 @@ def rebuild_dashboard_cache(session: Session) -> None:
             *new_historical_lows_rows,
         ]
     )
-    buy_now_picks = _build_decision_picks(decision_pool, "BUY_NOW")
-    wait_picks = _build_decision_picks(decision_pool, "WAIT")
-    if not buy_now_picks:
-        buy_now_picks = worth_buying_now_rows[:HOMEPAGE_RAIL_LIMIT]
-    if not wait_picks:
-        wait_candidates = [
-            row
-            for row in decision_pool
-            if safe_num(row.get("price_vs_low_ratio"), 0.0) >= 1.08
-            or safe_num(row.get("predicted_next_discount_percent"), 0.0) >= 35
-        ]
-        wait_picks = wait_candidates[:HOMEPAGE_RAIL_LIMIT]
+    trending_now_rows = _released_deal_snapshot_rows(trending_rows if trending_rows else trending_deals_rows)
+    allocated_protected_rails, protected_visible_keys = _allocate_homepage_protected_deal_rails(
+        [*canonical_deal_pool, *trending_now_rows, *new_historical_lows_rows],
+        HOMEPAGE_RAIL_LIMIT,
+    )
+    deal_opportunities_rows = allocated_protected_rails.get("deal_opportunities", [])
+    opportunity_radar_rows = allocated_protected_rails.get("opportunity_radar", [])
+    worth_buying_rows = allocated_protected_rails.get("worth_buying_now", [])
+    biggest_discounts_rows = allocated_protected_rails.get("biggest_discounts", [])
+    wait_picks = allocated_protected_rails.get("wait_picks", [])
 
-    trending_now_rows = trending_rows if trending_rows else trending_deals_rows
-    biggest_discounts_rows = biggest_deals_rows
-    worth_buying_rows = worth_buying_now_rows
-    deal_opportunities_rows, opportunity_radar_rows = _build_homepage_opportunity_rails(
-        decision_pool=decision_pool,
-        limit=HOMEPAGE_RAIL_LIMIT,
-    )
-    primary_uniqueness_window = max(HOMEPAGE_DIVERSITY_WINDOW, min(HOMEPAGE_RAIL_LIMIT, 6))
-    diversified_primary_rails = _apply_homepage_payload_diversity(
-        rail_candidates={
-            "deal_opportunities": deal_opportunities_rows,
-            "opportunity_radar": opportunity_radar_rows,
-            "biggest_discounts": biggest_discounts_rows,
-            "worth_buying_now": worth_buying_rows,
-            "trending_now": trending_now_rows,
-        },
-        section_limit=HOMEPAGE_RAIL_LIMIT,
-        uniqueness_window=primary_uniqueness_window,
-        rail_order=HOMEPAGE_PRIMARY_DIVERSITY_RAIL_ORDER,
-    )
-    deal_opportunities_rows = diversified_primary_rails.get("deal_opportunities", deal_opportunities_rows)
-    opportunity_radar_rows = diversified_primary_rails.get("opportunity_radar", opportunity_radar_rows)
-    biggest_discounts_rows = diversified_primary_rails.get("biggest_discounts", biggest_discounts_rows)
-    worth_buying_rows = diversified_primary_rails.get("worth_buying_now", worth_buying_rows)
-    trending_now_rows = diversified_primary_rails.get("trending_now", trending_now_rows)
-    visible_uniqueness_window = max(primary_uniqueness_window, HOMEPAGE_CRITICAL_RAIL_LIMIT)
-    diversified_visible_rails = _apply_homepage_payload_diversity(
-        rail_candidates={
-            "deal_opportunities": deal_opportunities_rows,
-            "opportunity_radar": opportunity_radar_rows,
-            "deal_ranked": deal_ranked_rows,
-            "biggest_discounts": biggest_discounts_rows,
-            "worth_buying_now": worth_buying_rows,
-            "trending_now": trending_now_rows,
-        },
-        section_limit=HOMEPAGE_RAIL_LIMIT,
-        uniqueness_window=visible_uniqueness_window,
-        rail_order=HOMEPAGE_VISIBLE_DIVERSITY_RAIL_ORDER,
-    )
-    deal_opportunities_rows = diversified_visible_rails.get("deal_opportunities", deal_opportunities_rows)
-    opportunity_radar_rows = diversified_visible_rails.get("opportunity_radar", opportunity_radar_rows)
-    deal_ranked_rows = diversified_visible_rails.get("deal_ranked", deal_ranked_rows)
-    biggest_discounts_rows = diversified_visible_rails.get("biggest_discounts", biggest_discounts_rows)
-    worth_buying_rows = diversified_visible_rails.get("worth_buying_now", worth_buying_rows)
-    trending_now_rows = diversified_visible_rails.get("trending_now", trending_now_rows)
-    protected_primary_pool = _released_snapshot_rows([
-        *decision_pool,
-        *worth_buying_rows,
-        *biggest_discounts_rows,
-        *deal_ranked_rows,
-    ])
-    protected_visible_keys: set[str] = set()
-    deal_opportunities_rows = _compose_unique_snapshot_rows(
-        deal_opportunities_rows,
-        protected_primary_pool,
-        protected_visible_keys,
-        HOMEPAGE_RAIL_LIMIT,
-    )
-    opportunity_radar_rows = _compose_unique_snapshot_rows(
-        opportunity_radar_rows,
-        protected_primary_pool,
-        protected_visible_keys,
-        HOMEPAGE_RAIL_LIMIT,
-    )
+    buy_now_candidates = _released_deal_snapshot_rows(_build_decision_picks(canonical_deal_pool, "BUY_NOW"))
     buy_now_picks = _compose_unique_snapshot_rows(
-        buy_now_picks,
-        _released_snapshot_rows([*worth_buying_rows, *protected_primary_pool]),
+        buy_now_candidates,
+        _released_deal_snapshot_rows([*worth_buying_rows, *canonical_deal_pool]),
         protected_visible_keys,
         HOMEPAGE_RAIL_LIMIT,
     )
+    if not buy_now_picks:
+        buy_now_picks = _compose_unique_snapshot_rows(
+            _released_deal_snapshot_rows(worth_buying_now_rows),
+            _released_deal_snapshot_rows(canonical_deal_pool),
+            protected_visible_keys,
+            HOMEPAGE_RAIL_LIMIT,
+        )
+
     deal_ranked_rows = _compose_unique_snapshot_rows(
-        deal_ranked_rows,
-        _released_snapshot_rows([*biggest_discounts_rows, *protected_primary_pool]),
+        _released_deal_snapshot_rows(deal_ranked_rows),
+        _released_deal_snapshot_rows([*canonical_deal_pool, *biggest_discounts_rows]),
         protected_visible_keys,
         HOMEPAGE_RAIL_LIMIT,
     )
-    wait_biggest_exclusions: set[str] = set()
-    biggest_discounts_rows = _compose_unique_snapshot_rows(
-        biggest_discounts_rows,
-        _released_snapshot_rows([*deal_ranked_rows, *protected_primary_pool]),
-        wait_biggest_exclusions,
-        HOMEPAGE_RAIL_LIMIT,
-    )
-    wait_candidate_rows = [
-        row
-        for row in _released_snapshot_rows([
-            *wait_picks,
-            *decision_pool,
-            *trending_now_rows,
-            *new_historical_lows_rows,
-        ])
-        if _is_wait_candidate_row(row)
-    ]
-    wait_picks = _compose_unique_snapshot_rows(
-        wait_candidate_rows,
-        decision_pool,
-        wait_biggest_exclusions,
-        HOMEPAGE_RAIL_LIMIT,
-    )
+    decision_pool = canonical_deal_pool
     player_surges = _build_player_surges(alert_signals, trending_rows)
     seasonal_summary = _build_cached_seasonal_summary(decision_pool, limit=24)
     catalog_seed_rows = [

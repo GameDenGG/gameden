@@ -4787,20 +4787,22 @@ input:focus-visible {
         }
 
         function sanitizeProtectedHomepageRailState() {
-            state.dealRanked = filterReleasedRailRows(state.dealRanked);
-            state.worthBuyingNow = filterReleasedRailRows(state.worthBuyingNow);
-            state.trendingDeals = filterReleasedRailRows(state.trendingDeals);
-            state.newHistoricalLows = filterReleasedRailRows(state.newHistoricalLows);
-            state.biggestDiscounts = filterReleasedRailRows(state.biggestDiscounts);
-            state.biggestDeals = filterReleasedRailRows(state.biggestDeals);
-            state.buyNowPicks = filterReleasedRailRows(state.buyNowPicks);
-            state.waitPicks = filterReleasedRailRows(state.waitPicks);
+            state.dealRanked = filterProtectedDealRailRows(state.dealRanked);
+            state.worthBuyingNow = filterProtectedDealRailRows(state.worthBuyingNow);
+            state.trendingDeals = filterProtectedDealRailRows(state.trendingDeals);
+            state.newHistoricalLows = filterProtectedDealRailRows(state.newHistoricalLows);
+            state.biggestDiscounts = filterProtectedDealRailRows(state.biggestDiscounts);
+            state.biggestDeals = filterProtectedDealRailRows(state.biggestDeals);
+            state.buyNowPicks = filterProtectedDealRailRows(state.buyNowPicks);
+            state.opportunitiesNow = filterProtectedDealRailRows(state.opportunitiesNow);
+            state.opportunityRadar = filterProtectedDealRailRows(state.opportunityRadar);
+            state.waitPicks = filterProtectedDealRailRows(state.waitPicks);
 
             const railSectionLimit = Math.max(
                 1,
                 Number(HOMEPAGE_SECTION_LIMITS?.dealOpportunities || HOMEPAGE_SECTION_LIMITS?.opportunityRadar || 24),
             );
-            const protectedFallbackPool = filterReleasedRailRows([
+            const protectedFallbackPool = filterProtectedDealRailRows([
                 ...safeArray(state.dealRanked),
                 ...safeArray(state.worthBuyingNow),
                 ...safeArray(state.trendingDeals),
@@ -4808,44 +4810,71 @@ input:focus-visible {
             ]);
             const protectedVisibleKeys = new Set();
             state.opportunitiesNow = selectExclusiveRailRows(
-                filterReleasedRailRows(state.opportunitiesNow),
+                filterProtectedDealRailRows(state.opportunitiesNow),
                 protectedFallbackPool,
                 protectedVisibleKeys,
                 railSectionLimit,
             );
             state.opportunityRadar = selectExclusiveRailRows(
-                filterReleasedRailRows(state.opportunityRadar),
+                filterProtectedDealRailRows(state.opportunityRadar),
+                protectedFallbackPool,
+                protectedVisibleKeys,
+                railSectionLimit,
+            );
+            state.worthBuyingNow = selectExclusiveRailRows(
+                filterProtectedDealRailRows(state.worthBuyingNow),
                 protectedFallbackPool,
                 protectedVisibleKeys,
                 railSectionLimit,
             );
             state.buyNowPicks = selectExclusiveRailRows(
-                filterReleasedRailRows(state.buyNowPicks),
-                filterReleasedRailRows([
+                filterProtectedDealRailRows(state.buyNowPicks),
+                filterProtectedDealRailRows([
                     ...safeArray(state.worthBuyingNow),
                     ...protectedFallbackPool,
                 ]),
                 protectedVisibleKeys,
                 railSectionLimit,
             );
-            const biggestWaitKeys = new Set();
             state.biggestDiscounts = selectExclusiveRailRows(
-                filterReleasedRailRows(state.biggestDiscounts),
-                filterReleasedRailRows(state.dealRanked),
-                biggestWaitKeys,
+                filterProtectedDealRailRows(state.biggestDiscounts),
+                filterProtectedDealRailRows([
+                    ...safeArray(state.dealRanked),
+                    ...protectedFallbackPool,
+                ]),
+                protectedVisibleKeys,
+                railSectionLimit,
+            );
+            if (!state.biggestDiscounts.length) {
+                state.biggestDiscounts = safeArray(state.dealRanked).slice(0, railSectionLimit);
+            }
+            state.dealRanked = selectExclusiveRailRows(
+                filterProtectedDealRailRows(state.dealRanked),
+                filterProtectedDealRailRows([
+                    ...safeArray(state.biggestDiscounts),
+                    ...protectedFallbackPool,
+                ]),
+                protectedVisibleKeys,
                 railSectionLimit,
             );
             state.biggestDeals = state.biggestDiscounts;
             state.waitPicks = selectExclusiveRailRows(
-                filterReleasedRailRows(state.waitPicks),
-                filterReleasedRailRows([
+                filterProtectedDealRailRows(state.waitPicks),
+                filterProtectedDealRailRows([
+                    ...safeArray(state.waitPicks),
                     ...safeArray(state.worthBuyingNow),
                     ...safeArray(state.trendingDeals),
                     ...safeArray(state.newHistoricalLows),
+                    ...safeArray(state.dealRanked),
+                    ...safeArray(state.biggestDiscounts),
+                    ...safeArray(state.opportunitiesNow),
+                    ...safeArray(state.opportunityRadar),
+                    ...safeArray(state.buyNowPicks),
                 ]),
-                biggestWaitKeys,
+                protectedVisibleKeys,
                 railSectionLimit,
             );
+            sanitizePersonalizedDealsState();
         }
 
         function getDashboardSnapshotSections(limit = 24) {
@@ -5196,11 +5225,33 @@ input:focus-visible {
             if (normalized.is_upcoming === true) return true;
             const releasedFlag = normalized.is_released;
             if (releasedFlag === 0 || releasedFlag === "0" || releasedFlag === false) return true;
+            const releaseDate = Date.parse(normalized.release_date || "");
+            if (
+                !Number.isNaN(releaseDate)
+                && releaseDate > Date.now()
+                && releasedFlag !== 1
+                && releasedFlag !== "1"
+                && releasedFlag !== true
+            ) {
+                return true;
+            }
             return false;
         }
 
         function filterReleasedRailRows(rows) {
             return uniqueGamesByIdentity(rows).filter((row) => !isUnreleasedInventoryRow(row));
+        }
+
+        function hasActualDealRailSignal(row) {
+            const normalized = normalizeGameRow(row);
+            if (!normalized || typeof normalized !== "object") return false;
+            const price = Number(normalized.price ?? normalized.latest_price ?? 0);
+            const discount = Number(normalized.discount_percent ?? normalized.latest_discount_percent ?? 0);
+            return Number.isFinite(price) && price > 0 && Number.isFinite(discount) && discount > 0;
+        }
+
+        function filterProtectedDealRailRows(rows) {
+            return filterReleasedRailRows(rows).filter((row) => hasActualDealRailSignal(row));
         }
 
         function appendUniqueRailRows(rows, usedKeys, selected, limit) {
@@ -8424,8 +8475,21 @@ input:focus-visible {
             };
             addRows(state.opportunitiesNow);
             addRows(state.opportunityRadar);
+            addRows(state.worthBuyingNow);
             addRows(state.buyNowPicks);
+            addRows(state.biggestDiscounts.length ? state.biggestDiscounts : state.dealRanked);
+            addRows(state.waitPicks);
             return keys;
+        }
+
+        function sanitizePersonalizedDealsState(limit = HOMEPAGE_SECTION_LIMITS.personalizedDeals) {
+            const normalizedLimit = Math.max(1, Number(limit) || HOMEPAGE_SECTION_LIMITS.personalizedDeals || 24);
+            const protectedKeys = buildProtectedVisibleRailIdentitySet();
+            state.personalizedDeals = filterRowsByIdentityExclusion(
+                filterProtectedDealRailRows(state.personalizedDeals),
+                protectedKeys,
+                normalizedLimit,
+            );
         }
 
         function filterRowsByIdentityExclusion(rows, blockedKeys, limit = 24) {
@@ -8444,8 +8508,8 @@ input:focus-visible {
         function buildYourDealsFallbackRows(limit = 24, options = {}) {
             const normalizedLimit = Math.max(1, Number(limit) || 24);
             const excludeKeys = options?.excludeKeys instanceof Set ? options.excludeKeys : new Set();
-            const seedRows = safeArray(options?.seedRows);
-            const candidatePool = uniqueGamesByIdentity([
+            const seedRows = filterProtectedDealRailRows(options?.seedRows);
+            const candidatePool = filterProtectedDealRailRows([
                 ...seedRows,
                 ...safeArray(state.trendingNow),
                 ...safeArray(state.discoveryTrending),
@@ -8475,7 +8539,7 @@ input:focus-visible {
                 .filter((entry) => {
                     const identity = gameIdentityKey(entry.game);
                     if (!identity || excludeKeys.has(identity)) return false;
-                    return Number(entry.game?.price ?? entry.game?.latest_price ?? -1) >= 0;
+                    return hasActualDealRailSignal(entry.game);
                 })
                 .sort((left, right) => right.rankScore - left.rankScore);
 
@@ -8490,7 +8554,11 @@ input:focus-visible {
             const fallbackMode = !knownUser || !!state.personalizedStatus?.fallbackMode;
             const personalizedLimit = HOMEPAGE_SECTION_LIMITS.personalizedDeals;
             const protectedKeys = buildProtectedVisibleRailIdentitySet();
-            const uniqueApiItems = filterRowsByIdentityExclusion(apiItems, protectedKeys, personalizedLimit);
+            const uniqueApiItems = filterRowsByIdentityExclusion(
+                filterProtectedDealRailRows(apiItems),
+                protectedKeys,
+                personalizedLimit,
+            );
             const useFallbackRows = fallbackMode && !uniqueApiItems.length;
             const fallbackRows = buildYourDealsFallbackRows(personalizedLimit, {
                 excludeKeys: protectedKeys,
@@ -8499,7 +8567,7 @@ input:focus-visible {
             const displayItems = useFallbackRows
                 ? fallbackRows
                 : filterRowsByIdentityExclusion(
-                    [...uniqueApiItems, ...fallbackRows],
+                    filterProtectedDealRailRows([...uniqueApiItems, ...fallbackRows]),
                     protectedKeys,
                     personalizedLimit,
                 );
@@ -10237,6 +10305,7 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                 state.dailyDigestStatus.loading = false;
                 state.dailyDigestStatus.error = null;
             }
+            sanitizeProtectedHomepageRailState();
             if (!deferAnalytics) {
                 const analyticsFallbackPool = uniqueGamesByName([
                     ...releasedItems,
@@ -10279,13 +10348,13 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                 }
             }
             if (hasOpportunitiesPayload) {
-                const nextOpportunities = filterReleasedRailRows(opportunitiesPayload?.items || opportunitiesPayload || []);
+                const nextOpportunities = filterProtectedDealRailRows(opportunitiesPayload?.items || opportunitiesPayload || []);
                 if (nextOpportunities.length || !safeArray(state.opportunitiesNow).length) {
                     state.opportunitiesNow = nextOpportunities;
                 }
             }
             if (hasOpportunityRadarPayload) {
-                const radarFromEndpoint = filterReleasedRailRows(opportunityRadarPayload?.items || opportunityRadarPayload || []);
+                const radarFromEndpoint = filterProtectedDealRailRows(opportunityRadarPayload?.items || opportunityRadarPayload || []);
                 const opportunityIdentityKeys = new Set(
                     safeArray(state.opportunitiesNow)
                         .map((row) => gameIdentityKey(row))
@@ -10305,7 +10374,7 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
             }
             if (hasOpportunitiesPayload || hasOpportunityRadarPayload) {
                 const railSectionLimit = Math.max(1, Number(HOMEPAGE_SECTION_LIMITS?.dealOpportunities || HOMEPAGE_SECTION_LIMITS?.opportunityRadar || 24));
-                const protectedFallbackPool = filterReleasedRailRows([
+                const protectedFallbackPool = filterProtectedDealRailRows([
                     ...safeArray(state.dealRanked),
                     ...safeArray(state.worthBuyingNow),
                     ...safeArray(state.trendingNow),
@@ -10313,20 +10382,20 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                 ]);
                 const protectedVisibleKeys = new Set();
                 state.opportunitiesNow = selectExclusiveRailRows(
-                    filterReleasedRailRows(state.opportunitiesNow),
+                    filterProtectedDealRailRows(state.opportunitiesNow),
                     protectedFallbackPool,
                     protectedVisibleKeys,
                     railSectionLimit,
                 );
                 state.opportunityRadar = selectExclusiveRailRows(
-                    filterReleasedRailRows(state.opportunityRadar),
+                    filterProtectedDealRailRows(state.opportunityRadar),
                     protectedFallbackPool,
                     protectedVisibleKeys,
                     railSectionLimit,
                 );
                 state.buyNowPicks = selectExclusiveRailRows(
-                    filterReleasedRailRows(state.buyNowPicks),
-                    filterReleasedRailRows([
+                    filterProtectedDealRailRows(state.buyNowPicks),
+                    filterProtectedDealRailRows([
                         ...safeArray(state.worthBuyingNow),
                         ...protectedFallbackPool,
                     ]),
@@ -10355,6 +10424,7 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                     state.dailyDigestStatus.error = null;
                 }
             }
+            sanitizeProtectedHomepageRailState();
 
             if (hasOpportunitiesPayload) renderOpportunities();
             if (hasOpportunityRadarPayload || hasOpportunitiesPayload) {
@@ -10714,6 +10784,7 @@ try {
                 const items = uniqueGamesByName(payload?.items || payload || []);
                 const personalized = !!payload?.personalized && knownUser;
                 state.personalizedDeals = items;
+                sanitizePersonalizedDealsState();
                 state.personalizedStatus.personalized = personalized;
                 state.personalizedStatus.fallbackMode = !personalized;
                 return items;
@@ -10852,6 +10923,7 @@ try {
             personalizedPromise.then((personalizedDeals) => {
                 if (!state.personalizedStatus.error) {
                     state.personalizedDeals = uniqueGamesByName(personalizedDeals || []);
+                    sanitizePersonalizedDealsState();
                 }
                 renderPersonalizedDeals();
                 syncCardActionButtonsFromState();
@@ -11057,6 +11129,7 @@ try {
                             .then((items) => {
                                 if (!state.personalizedStatus.error) {
                                     state.personalizedDeals = uniqueGamesByName(items || []);
+                                    sanitizePersonalizedDealsState();
                                 }
                                 renderPersonalizedDeals();
                                 syncCardActionButtonsFromState();
@@ -11202,11 +11275,11 @@ try {
                     fetchJson(`/api/deal-opportunities?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`).catch(() => []),
                     fetchJson(`/api/opportunity-radar?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`).catch(() => []),
                 ]);
-                const opportunities = filterReleasedRailRows(opportunitiesPayload?.items || opportunitiesPayload || []);
+                const opportunities = filterProtectedDealRailRows(opportunitiesPayload?.items || opportunitiesPayload || []);
                 const protectedVisibleKeys = new Set();
                 state.opportunitiesNow = selectExclusiveRailRows(
                     opportunities,
-                    filterReleasedRailRows([
+                    filterProtectedDealRailRows([
                         ...safeArray(state.dealRanked),
                         ...safeArray(state.worthBuyingNow),
                     ]),
@@ -11214,14 +11287,15 @@ try {
                     HOMEPAGE_CRITICAL_SECTION_LIMIT,
                 );
                 state.opportunityRadar = selectExclusiveRailRows(
-                    filterReleasedRailRows(opportunityRadarPayload?.items || opportunityRadarPayload || []),
-                    filterReleasedRailRows([
+                    filterProtectedDealRailRows(opportunityRadarPayload?.items || opportunityRadarPayload || []),
+                    filterProtectedDealRailRows([
                         ...safeArray(state.dealRanked),
                         ...safeArray(state.worthBuyingNow),
                     ]),
                     protectedVisibleKeys,
                     HOMEPAGE_CRITICAL_SECTION_LIMIT,
                 );
+                sanitizeProtectedHomepageRailState();
                 state.homepageLoad.criticalLoaded = true;
                 renderCriticalHomepageSections();
             }
@@ -11435,8 +11509,9 @@ try {
             await loadUserWishlist();
             renderWishlist();
             renderWatchlist();
-
-            applyAllRenders();
+            renderPersonalizedDeals();
+            syncCardActionButtonsFromState();
+            scheduleDashboardSnapshotPersist();
         }
 
         async function toggleWatchlist(gameOrName, gameId = null) {
@@ -11497,7 +11572,11 @@ try {
                 }
             }
 
-            applyAllRenders();
+            renderWishlist();
+            renderWatchlist();
+            renderPersonalizedDeals();
+            syncCardActionButtonsFromState();
+            scheduleDashboardSnapshotPersist();
         }
 
         function wireCardActionButtons() {

@@ -3440,7 +3440,7 @@ def rebuild_dashboard_cache(session: Session) -> None:
         CRITICAL_CACHE_KEY: critical_payload,
         "home:worth_buying": {"items": payload.get("worth_buying_now", []), "generated_at": payload["generated_at"]},
         "home:trending": {"items": payload.get("trending_now", []), "generated_at": payload["generated_at"]},
-        "home:historical_lows": {"items": payload.get("new_historical_lows", []), "generated_at": payload["generated_at"]},
+        "home:historical_lows": {"items": payload.get("historicalLows", []), "generated_at": payload["generated_at"]},
         "home:biggest_price_drops": {"items": payload.get("biggestPriceDrops", []), "generated_at": payload["generated_at"]},
         "home:alerts": {"items": payload.get("alertSignals", []), "generated_at": payload["generated_at"]},
         "home:deal_radar": {"items": payload.get("deal_radar", []), "generated_at": payload["generated_at"]},

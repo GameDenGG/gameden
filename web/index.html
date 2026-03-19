@@ -4195,6 +4195,7 @@ input:focus-visible {
             marketRadar: 24,
             dealOpportunities: 24,
             opportunityRadar: 24,
+            upcoming: 24,
             personalizedDeals: 12,
             alertSignals: 40,
             dailyDigestSection: 6,
@@ -4629,6 +4630,7 @@ input:focus-visible {
                 restored: false,
                 restoredAt: 0,
                 sourceSavedAt: 0,
+                filterOptions: null,
             },
             visibleCounts: {
                 dealRankedGrid: 6,
@@ -4813,6 +4815,7 @@ input:focus-visible {
                     scroll_y: Math.max(0, Math.round(window.scrollY || 0)),
                     row_scroll: captureDashboardRowScrollPositions(),
                     filters: { ...state.filters },
+                    filterOptions: captureFilterOptionsFromControls(),
                     visibleCounts: { ...state.visibleCounts },
                     discoveryActiveKey: String(state.discoveryTabs?.activeKey || DISCOVERY_DEFAULT_TAB_KEY),
                     moreIntelExpanded: !!state.moreIntelExpanded,
@@ -4869,6 +4872,15 @@ input:focus-visible {
                         ...state.filters,
                         ...parsed.filters,
                     };
+                }
+                const parsedFilterOptions = parsed.filterOptions && typeof parsed.filterOptions === "object"
+                    ? parsed.filterOptions
+                    : null;
+                if (hasFilterOptions(parsedFilterOptions)) {
+                    state.dashboardRestore.filterOptions = parsedFilterOptions;
+                    applyFilterOptionsToControls(parsedFilterOptions);
+                } else {
+                    state.dashboardRestore.filterOptions = null;
                 }
                 if (parsed.visibleCounts && typeof parsed.visibleCounts === "object") {
                     state.visibleCounts = {
@@ -9683,6 +9695,22 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
             );
         }
 
+        function readSelectOptions(select) {
+            if (!(select instanceof HTMLSelectElement)) return [];
+            return Array.from(select.options)
+                .map((option) => String(option.value || "").trim())
+                .filter((value, index, values) => value && values.indexOf(value) === index);
+        }
+
+        function captureFilterOptionsFromControls() {
+            return {
+                genres: readSelectOptions(ui.genreSelect),
+                tags: readSelectOptions(ui.tagSelect),
+                platforms: readSelectOptions(ui.platformSelect),
+                review_labels: readSelectOptions(ui.reviewLabelSelect),
+            };
+        }
+
         function restoreSelectValue(select, value) {
             if (!select) return;
             const normalizedValue = String(value || "");
@@ -10597,8 +10625,24 @@ try {
                 personalizedPromise,
             ]);
 
-            const dashboardData = await Promise.resolve(dashboardDataPromise || null);
-            const needsFiltersFallback = !hasFilterOptions(dashboardData?.filters);
+            let dashboardData = await Promise.resolve(dashboardDataPromise || null);
+            const restoredFilterOptions = hasFilterOptions(state.dashboardRestore.filterOptions)
+                ? state.dashboardRestore.filterOptions
+                : null;
+            if (!hasFilterOptions(dashboardData?.filters) && restoredFilterOptions) {
+                const normalizedDashboardData = dashboardData && typeof dashboardData === "object"
+                    ? dashboardData
+                    : {};
+                normalizedDashboardData.filters = buildMergedDashboardFilters(
+                    normalizedDashboardData?.filters || {},
+                    restoredFilterOptions,
+                    { items: state.latestPrices },
+                );
+                dashboardData = normalizedDashboardData;
+                applyFilterOptionsToControls(normalizedDashboardData.filters || {});
+            }
+            const controlsFilterOptions = captureFilterOptionsFromControls();
+            const needsFiltersFallback = !hasFilterOptions(dashboardData?.filters) && !hasFilterOptions(controlsFilterOptions);
             const filtersFallbackPromise = needsFiltersFallback
                 ? fetchJson("/games/filters").catch((error) => {
                     console.warn("Failed to load filter options fallback", error);
@@ -10609,12 +10653,16 @@ try {
             const filtersFallback = await filtersFallbackPromise;
 
             if (filtersFallback && typeof filtersFallback === "object") {
-                dashboardData.filters = buildMergedDashboardFilters(
-                    dashboardData?.filters || {},
+                const normalizedDashboardData = dashboardData && typeof dashboardData === "object"
+                    ? dashboardData
+                    : {};
+                normalizedDashboardData.filters = buildMergedDashboardFilters(
+                    normalizedDashboardData?.filters || {},
                     filtersFallback,
                     { items: state.latestPrices },
                 );
-                applyFilterOptionsToControls(dashboardData.filters);
+                dashboardData = normalizedDashboardData;
+                applyFilterOptionsToControls(normalizedDashboardData.filters || {});
             }
 
             renderPersonalizedDeals();
@@ -10699,7 +10747,7 @@ try {
                     key: "panel:upcoming",
                     node: document.getElementById("upcomingPanel"),
                     shouldLoad: () => !safeArray(state.upcoming).length,
-                    load: () => fetchJson("/games/upcoming")
+                    load: () => fetchJson(`/games/upcoming?limit=${HOMEPAGE_SECTION_LIMITS.upcoming}`)
                         .then((payload) => {
                             const items = uniqueGamesByName(payload?.items || payload || []);
                             if (items.length || !safeArray(state.upcoming).length) {

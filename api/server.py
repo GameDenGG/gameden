@@ -3775,9 +3775,13 @@ def get_deal_ranked_games(
 
 @app.get("/games/historical-lows")
 def get_historical_lows(limit: int = Query(default=API_DEFAULT_LIST_LIMIT, ge=1, le=API_MAX_LIST_LIMIT)):
-    session = Session()
+    session = ReadSessionLocal()
 
     try:
+        cached_rows = _read_cached_section_items(session, "home:historical_lows", limit=limit)
+        if cached_rows:
+            return cached_rows
+
         latest_prices = get_latest_price_rows(session)
         game_map = build_game_map(session)
         insight_map = compute_historical_insight_map(session)
@@ -4222,10 +4226,19 @@ def search_games(q: str = Query(default="", min_length=0)):
 
 
 @app.get("/games/upcoming")
-def get_upcoming_games():
-    session = Session()
+def get_upcoming_games(
+    limit: int = Query(default=24, ge=1, le=250),
+    full: bool = Query(default=False),
+):
+    session = ReadSessionLocal()
 
     try:
+        normalized_limit = max(1, min(int(limit), 250))
+        if not full:
+            cached_rows = _read_cached_section_items(session, "home:upcoming", limit=normalized_limit)
+            if cached_rows:
+                return cached_rows
+
         rows = session.query(Game).filter(Game.is_released == 0).all()
 
         rows.sort(
@@ -4235,7 +4248,10 @@ def get_upcoming_games():
             )
         )
 
-        return [serialize_upcoming_row(row) for row in rows]
+        serialized_rows = [serialize_upcoming_row(row) for row in rows]
+        if full:
+            return serialized_rows
+        return serialized_rows[:normalized_limit]
 
     finally:
         session.close()
@@ -4771,10 +4787,32 @@ def get_leaderboard(
 
 
 @app.get("/games/filters")
+@json_etag()
+@ttl_cache(ttl_seconds=300, endpoint_key="/games/filters")
 def get_filters():
-    session = Session()
+    session = ReadSessionLocal()
 
     try:
+        _, cached_dashboard_payload = _read_dashboard_cache(session)
+        if isinstance(cached_dashboard_payload, dict):
+            cached_filters = cached_dashboard_payload.get("filters")
+            if isinstance(cached_filters, dict):
+                cached_result = {
+                    "genres": sorted({str(value).strip() for value in cached_filters.get("genres", []) if str(value).strip()}),
+                    "tags": sorted({str(value).strip() for value in cached_filters.get("tags", []) if str(value).strip()}),
+                    "platforms": _extend_platform_filter_options(
+                        sorted({str(value).strip() for value in cached_filters.get("platforms", []) if str(value).strip()})
+                    ),
+                    "review_labels": sorted({str(value).strip() for value in cached_filters.get("review_labels", []) if str(value).strip()}),
+                }
+                if (
+                    cached_result["genres"]
+                    or cached_result["tags"]
+                    or cached_result["platforms"]
+                    or cached_result["review_labels"]
+                ):
+                    return cached_result
+
         games = session.query(Game).all()
 
         genre_counts = {}

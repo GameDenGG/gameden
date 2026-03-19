@@ -4200,6 +4200,12 @@ input:focus-visible {
             dailyDigestSection: 6,
         });
         const HOMEPAGE_CRITICAL_SECTION_LIMIT = 8;
+        const HOMEPAGE_PRIORITY_IMAGE_SECTIONS = new Set([
+            "dealRankedGrid",
+            "opportunitiesGrid",
+            "opportunityRadarGrid",
+            "personalizedDealsGrid",
+        ]);
 
         function getCurrentUserId() {
             const fallback = DEFAULT_USER_ID;
@@ -6166,7 +6172,7 @@ input:focus-visible {
             }
         }
 
-        function buildBannerHtml(game) {
+        function buildBannerHtml(game, context = {}) {
             let banner = game.banner_url;
 
             if (!banner && game.steam_appid) {
@@ -6177,9 +6183,14 @@ input:focus-visible {
             return `<div class="card-banner"><div class="card-banner-fallback game-card-image">No artwork available</div></div>`;
             }
 
+            const index = Number(context?.index || 0);
+            const sectionKey = String(context?.sectionKey || "");
+            const priorityImage = HOMEPAGE_PRIORITY_IMAGE_SECTIONS.has(sectionKey) && index < 2;
+            const imageLoading = priorityImage ? "eager" : "lazy";
+            const imageFetchPriority = priorityImage ? "high" : "auto";
             return `
             <div class="card-banner">
-                <img class="card-banner-img game-card-image" src="${escapeHtml(banner)}" alt="" loading="lazy" decoding="async" />
+                <img class="card-banner-img game-card-image" src="${escapeHtml(banner)}" alt="" loading="${imageLoading}" fetchpriority="${imageFetchPriority}" decoding="async" />
                 <div class="card-banner-overlay"></div>
             </div>
             `;
@@ -6413,7 +6424,7 @@ input:focus-visible {
 
             body.innerHTML = `
                 <div>
-                    ${buildBannerHtml(game)}
+                    ${buildBannerHtml(game, context)}
                     <div style="padding:12px 0 0;">
                         <div class="modal-kv">
                             <div><strong>Price:</strong> ${fmtPrice(game.price)}</div>
@@ -9554,6 +9565,7 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
             options = {},
         ) {
             const deferAnalytics = options?.deferAnalytics === true;
+            const preservePersonalState = options?.preservePersonalState === true;
             const biggestDiscounts = uniqueGamesByName(
                 dashboardPayload?.biggest_discounts
                 || dashboardPayload?.biggestDeals
@@ -9738,9 +9750,16 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
             state.seasonalSale = seasonalState;
             state.catalogSummary = normalizeCatalogSummary(dashboardPayload?.catalogSummary);
             // Personal lists are user-scoped and should not be hydrated from shared dashboard cache.
-            state.wishlist = [];
-            state.watchlist = [];
-            state.alertSignals = alertSignals;
+            if (!preservePersonalState) {
+                state.wishlist = [];
+                state.watchlist = [];
+            }
+            state.alertSignals = preservePersonalState
+                ? uniqueAlertSignals([
+                    ...alertSignals,
+                    ...safeArray(state.alertSignals),
+                ])
+                : alertSignals;
             state.dealRadar = dealRadar;
             if (hasDailyDigestPayload) {
                 const digestSource = dailyDigestPayload && typeof dailyDigestPayload === "object" ? dailyDigestPayload : {};
@@ -10080,6 +10099,7 @@ try {
                 opportunitiesData,
                 opportunityRadarData,
                 dailyDigestData,
+                { preservePersonalState: true },
             );
             dashboardData.filters = dashboardData?.filters || {};
             scheduleCatalogSeed(releasedData);
@@ -10238,29 +10258,36 @@ try {
             return uniqueAlertSignals(items);
         }
 
-        async function loadDeferredHomepageData(dashboardData) {
-            const watchlistPromise = loadUserWatchlist().catch((error) => {
-                console.warn("Failed to load user watchlist", error);
-                return [];
-            });
+        async function loadDeferredHomepageData(dashboardDataPromise) {
+            const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
+            const watchlistPromise = knownUser
+                ? loadUserWatchlist().catch((error) => {
+                    console.warn("Failed to load user watchlist", error);
+                    return [];
+                })
+                : Promise.resolve([]);
             watchlistPromise.then(() => {
                 renderWatchlist();
                 syncCardActionButtonsFromState();
             });
 
-            const wishlistPromise = loadUserWishlist().catch((error) => {
-                console.warn("Failed to load user wishlist", error);
-                return [];
-            });
+            const wishlistPromise = knownUser
+                ? loadUserWishlist().catch((error) => {
+                    console.warn("Failed to load user wishlist", error);
+                    return [];
+                })
+                : Promise.resolve([]);
             wishlistPromise.then(() => {
                 renderWishlist();
                 syncCardActionButtonsFromState();
             });
 
-            const alertsPromise = loadUserAlertSignals().catch((error) => {
-                console.warn("Failed to load user alerts", error);
-                return [];
-            });
+            const alertsPromise = knownUser
+                ? loadUserAlertSignals().catch((error) => {
+                    console.warn("Failed to load user alerts", error);
+                    return [];
+                })
+                : Promise.resolve([]);
             alertsPromise.then((userAlertSignals) => {
                 if (safeArray(userAlertSignals).length) {
                     state.alertSignals = uniqueAlertSignals([
@@ -10271,10 +10298,12 @@ try {
                 renderAlerts();
             });
 
-            const personalizedPromise = loadPersonalizedDeals().catch((error) => {
-                console.warn("Failed to load personalized deals", error);
-                return [];
-            });
+            const personalizedPromise = knownUser
+                ? loadPersonalizedDeals().catch((error) => {
+                    console.warn("Failed to load personalized deals", error);
+                    return [];
+                })
+                : Promise.resolve([]);
             personalizedPromise.then((personalizedDeals) => {
                 if (!state.personalizedStatus.error) {
                     state.personalizedDeals = uniqueGamesByName(personalizedDeals || []);
@@ -10290,6 +10319,7 @@ try {
                 personalizedPromise,
             ]);
 
+            const dashboardData = await Promise.resolve(dashboardDataPromise || null);
             const needsFiltersFallback = !hasFilterOptions(dashboardData?.filters);
             const filtersFallbackPromise = needsFiltersFallback
                 ? fetchJson("/games/filters").catch((error) => {
@@ -10323,11 +10353,7 @@ try {
             renderSkeleton(ui.dealRankedGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.opportunitiesGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.opportunityRadarGrid, "deal-cards", 6, { cardClass: "game-card" });
-            renderSkeleton(ui.worthBuyingGrid, "deal-cards", 6, { cardClass: "game-card" });
-            renderSkeleton(ui.trendingDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
-            renderSkeleton(ui.newHistoricalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
-            renderSkeleton(ui.newDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
-            renderSkeleton(ui.recommendedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.dailyDigestList, "panel-list", 4, { itemClass: "digest-item" });
             renderSkeleton(ui.dealRadarFeed, "radar-list", 4, { itemClass: "deal-radar-card", thumbClass: "deal-radar-thumb" });
         }
@@ -10337,12 +10363,6 @@ try {
             renderOpportunities();
             renderOpportunityRadar();
             renderPersonalizedDeals();
-            renderActiveDiscoveryTabPane();
-            renderWorthBuyingNow();
-            renderTrendingDeals();
-            renderNewHistoricalLows();
-            renderNewDeals();
-            renderRecommendedDeals();
             renderDailyDigest();
             renderDealRadar();
         }
@@ -10390,7 +10410,7 @@ try {
                     null,
                     null,
                     criticalDigest,
-                    { deferAnalytics: true },
+                    { deferAnalytics: true, preservePersonalState: true },
                 );
                 void loadPersonalSummary();
                 state.personalizedStatus.enabled = true;
@@ -10451,11 +10471,13 @@ try {
             renderDeferredHomepageSkeletons();
 
             try {
-                const data = await loadDashboardData();
+                const dashboardDataPromise = loadDashboardData();
+                const deferredUserDataPromise = loadDeferredHomepageData(dashboardDataPromise);
+                const data = await dashboardDataPromise;
                 applyFilterOptionsToControls(data.filters || {});
                 applyAllRenders();
                 syncCardActionButtonsFromState();
-                await loadDeferredHomepageData(data);
+                await deferredUserDataPromise;
                 state.homepageLoad.deferredCompleted = true;
             } catch (error) {
                 console.error("Deferred homepage stage failed", error);

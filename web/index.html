@@ -4209,6 +4209,7 @@ input:focus-visible {
         ]);
         const DASHBOARD_SNAPSHOT_STORAGE_KEY = "gameden.dashboard.snapshot.v1";
         const DASHBOARD_SNAPSHOT_MAX_AGE_MS = 5 * 60 * 1000;
+        const DASHBOARD_RESTORE_CRITICAL_REFRESH_GRACE_MS = 30 * 1000;
         const DASHBOARD_RESTORE_DEFERRED_REFRESH_GRACE_MS = 90 * 1000;
 
         function getCurrentUserId() {
@@ -4785,6 +4786,68 @@ input:focus-visible {
             });
         }
 
+        function sanitizeProtectedHomepageRailState() {
+            state.dealRanked = filterReleasedRailRows(state.dealRanked);
+            state.worthBuyingNow = filterReleasedRailRows(state.worthBuyingNow);
+            state.trendingDeals = filterReleasedRailRows(state.trendingDeals);
+            state.newHistoricalLows = filterReleasedRailRows(state.newHistoricalLows);
+            state.biggestDiscounts = filterReleasedRailRows(state.biggestDiscounts);
+            state.biggestDeals = filterReleasedRailRows(state.biggestDeals);
+            state.buyNowPicks = filterReleasedRailRows(state.buyNowPicks);
+            state.waitPicks = filterReleasedRailRows(state.waitPicks);
+
+            const railSectionLimit = Math.max(
+                1,
+                Number(HOMEPAGE_SECTION_LIMITS?.dealOpportunities || HOMEPAGE_SECTION_LIMITS?.opportunityRadar || 24),
+            );
+            const protectedFallbackPool = filterReleasedRailRows([
+                ...safeArray(state.dealRanked),
+                ...safeArray(state.worthBuyingNow),
+                ...safeArray(state.trendingDeals),
+                ...safeArray(state.newHistoricalLows),
+            ]);
+            const protectedVisibleKeys = new Set();
+            state.opportunitiesNow = selectExclusiveRailRows(
+                filterReleasedRailRows(state.opportunitiesNow),
+                protectedFallbackPool,
+                protectedVisibleKeys,
+                railSectionLimit,
+            );
+            state.opportunityRadar = selectExclusiveRailRows(
+                filterReleasedRailRows(state.opportunityRadar),
+                protectedFallbackPool,
+                protectedVisibleKeys,
+                railSectionLimit,
+            );
+            state.buyNowPicks = selectExclusiveRailRows(
+                filterReleasedRailRows(state.buyNowPicks),
+                filterReleasedRailRows([
+                    ...safeArray(state.worthBuyingNow),
+                    ...protectedFallbackPool,
+                ]),
+                protectedVisibleKeys,
+                railSectionLimit,
+            );
+            const biggestWaitKeys = new Set();
+            state.biggestDiscounts = selectExclusiveRailRows(
+                filterReleasedRailRows(state.biggestDiscounts),
+                filterReleasedRailRows(state.dealRanked),
+                biggestWaitKeys,
+                railSectionLimit,
+            );
+            state.biggestDeals = state.biggestDiscounts;
+            state.waitPicks = selectExclusiveRailRows(
+                filterReleasedRailRows(state.waitPicks),
+                filterReleasedRailRows([
+                    ...safeArray(state.worthBuyingNow),
+                    ...safeArray(state.trendingDeals),
+                    ...safeArray(state.newHistoricalLows),
+                ]),
+                biggestWaitKeys,
+                railSectionLimit,
+            );
+        }
+
         function getDashboardSnapshotSections(limit = 24) {
             const boundedLimit = Math.max(1, Number(limit) || 24);
             return {
@@ -4893,6 +4956,7 @@ input:focus-visible {
                 }
                 state.moreIntelExpanded = !!parsed.moreIntelExpanded;
                 state.analyticsPanelExpanded = !!parsed.analyticsPanelExpanded;
+                sanitizeProtectedHomepageRailState();
                 state.dashboardRestore.restored = true;
                 state.dashboardRestore.restoredAt = Date.now();
                 state.dashboardRestore.sourceSavedAt = savedAt;
@@ -7145,19 +7209,17 @@ input:focus-visible {
 
             const startIndex = Math.max(0, Number(options.startIndex || 0));
             const maxAnimated = Math.max(0, Number(options.maxAnimated ?? 12));
+            const animateExisting = options.animateExisting === true;
             const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
             const cards = Array.from(container.querySelectorAll(".game-card"));
             if (!cards.length || startIndex >= cards.length) return;
+            if (!animateExisting && startIndex === 0 && container.dataset.hasAnimated === "true") return;
 
             container.style.willChange = "transform";
+            const animatedCards = [];
             for (let i = startIndex; i < cards.length; i += 1) {
                 const card = cards[i];
                 const localIndex = i - startIndex;
-
-                card.style.willChange = "transform";
-                setTimeout(() => {
-                    card.style.willChange = "";
-                }, 400);
 
                 if (reduceMotion || localIndex >= maxAnimated) {
                     card.style.transition = "none";
@@ -7172,19 +7234,30 @@ input:focus-visible {
                 card.style.transition = "none";
                 card.style.transitionDelay = "0ms";
                 card.style.animationDelay = "0ms";
-                card.getBoundingClientRect();
-                card.style.transition = "opacity 0.24s ease, transform 0.24s ease";
-                card.style.transitionDelay = `${Math.min(localIndex, 10) * 28}ms`;
-                card.style.animationDelay = `${Math.min(localIndex, 10) * 28}ms`;
+                card.style.willChange = "transform";
+                animatedCards.push({ card, delay: `${Math.min(localIndex, 10) * 28}ms` });
+            }
 
+            if (animatedCards.length) {
                 requestAnimationFrame(() => {
-                    card.style.opacity = "1";
-                    card.style.transform = "translateY(0) scale(1)";
+                    animatedCards.forEach(({ card, delay }) => {
+                        card.style.transition = "opacity 0.24s ease, transform 0.24s ease";
+                        card.style.transitionDelay = delay;
+                        card.style.animationDelay = delay;
+                        card.style.opacity = "1";
+                        card.style.transform = "translateY(0) scale(1)";
+                    });
                 });
+                setTimeout(() => {
+                    animatedCards.forEach(({ card }) => {
+                        card.style.willChange = "";
+                    });
+                }, 400);
             }
 
             setTimeout(() => {
                 container.style.willChange = "";
+                container.dataset.hasAnimated = "true";
             }, 650);
         }
 
@@ -11054,6 +11127,20 @@ try {
             renderPersonalizedDeals();
             renderDailyDigest();
             renderDealRadar();
+            wireCardActionButtons();
+            wireSparklineHover();
+            scheduleDashboardSnapshotPersist();
+        }
+
+        function renderDeferredHomepageSections() {
+            renderSeasonalSale();
+            renderHistoricalLows();
+            renderTopReviewed();
+            renderTopPlayed();
+            renderTrending();
+            renderLeaderboard();
+            renderUpcoming();
+            wireSparklineHover();
             scheduleDashboardSnapshotPersist();
         }
 
@@ -11111,17 +11198,47 @@ try {
                 state.homepageLoad.criticalLoaded = true;
                 renderCriticalHomepageSections();
             } catch (error) {
-                const opportunitiesPayload = await fetchJson(
-                    `/api/deal-opportunities?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`,
+                const [opportunitiesPayload, opportunityRadarPayload] = await Promise.all([
+                    fetchJson(`/api/deal-opportunities?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`).catch(() => []),
+                    fetchJson(`/api/opportunity-radar?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`).catch(() => []),
+                ]);
+                const opportunities = filterReleasedRailRows(opportunitiesPayload?.items || opportunitiesPayload || []);
+                const protectedVisibleKeys = new Set();
+                state.opportunitiesNow = selectExclusiveRailRows(
+                    opportunities,
+                    filterReleasedRailRows([
+                        ...safeArray(state.dealRanked),
+                        ...safeArray(state.worthBuyingNow),
+                    ]),
+                    protectedVisibleKeys,
+                    HOMEPAGE_CRITICAL_SECTION_LIMIT,
                 );
-                const opportunities = uniqueGamesByName(opportunitiesPayload?.items || opportunitiesPayload || []);
-                state.opportunitiesNow = opportunities;
-                if (!safeArray(state.opportunityRadar).length) {
-                    state.opportunityRadar = opportunities;
-                }
+                state.opportunityRadar = selectExclusiveRailRows(
+                    filterReleasedRailRows(opportunityRadarPayload?.items || opportunityRadarPayload || []),
+                    filterReleasedRailRows([
+                        ...safeArray(state.dealRanked),
+                        ...safeArray(state.worthBuyingNow),
+                    ]),
+                    protectedVisibleKeys,
+                    HOMEPAGE_CRITICAL_SECTION_LIMIT,
+                );
                 state.homepageLoad.criticalLoaded = true;
-                renderOpportunities();
+                renderCriticalHomepageSections();
             }
+        }
+
+        function shouldFetchCriticalDashboardBundle() {
+            if (!state.dashboardRestore.restored) return true;
+            const snapshotSavedAt = Number(state.dashboardRestore.sourceSavedAt || 0);
+            if (!Number.isFinite(snapshotSavedAt) || snapshotSavedAt <= 0) return true;
+            const hasCriticalSeed = !!(
+                safeArray(state.dealRanked).length
+                && safeArray(state.opportunitiesNow).length
+                && safeArray(state.opportunityRadar).length
+            );
+            if (!hasCriticalSeed) return true;
+            const snapshotAgeMs = Math.max(0, Date.now() - snapshotSavedAt);
+            return snapshotAgeMs >= DASHBOARD_RESTORE_CRITICAL_REFRESH_GRACE_MS;
         }
 
         function shouldFetchDeferredDashboardBundle() {
@@ -11130,6 +11247,31 @@ try {
             if (!Number.isFinite(snapshotSavedAt) || snapshotSavedAt <= 0) return true;
             const snapshotAgeMs = Math.max(0, Date.now() - snapshotSavedAt);
             return snapshotAgeMs >= DASHBOARD_RESTORE_DEFERRED_REFRESH_GRACE_MS;
+        }
+
+        function scheduleNonCriticalHomepageWireup() {
+            if (scheduleNonCriticalHomepageWireup._scheduled) return;
+            scheduleNonCriticalHomepageWireup._scheduled = true;
+            const run = () => {
+                scheduleNonCriticalHomepageWireup._scheduled = false;
+                wireHomepageJumpNavActiveState();
+                wireSeasonalToggles();
+                wireRecentlyUpdatedToggle();
+                wireMoreIntelDisclosure();
+                wireAnalyticsPanelDisclosure();
+                wireDealRadarMore();
+                wireAlertsPanelToggle();
+                wireRowNav();
+                wireKeyboardShortcuts();
+                wireDragScroll();
+                wireTrackedGameLinks();
+                wireQuickView();
+            };
+            if (typeof window.requestIdleCallback === "function") {
+                window.requestIdleCallback(() => run(), { timeout: 1000 });
+                return;
+            }
+            setTimeout(run, 120);
         }
 
         async function runDeferredHomepageStage() {
@@ -11184,7 +11326,7 @@ try {
                     const preservedScrollY = Math.max(0, Math.round(window.scrollY || 0));
                     const preservedRowScroll = captureDashboardRowScrollPositions();
                     applyFilterOptionsToControls(data?.filters || {});
-                    applyAllRenders();
+                    renderDeferredHomepageSections();
                     if (preservedScrollY > 0) {
                         window.scrollTo({ top: preservedScrollY, behavior: "auto" });
                     }
@@ -12153,24 +12295,32 @@ try {
                 if (!restoredSnapshot) {
                     renderCriticalHomepageSkeletons();
                 }
+                const restoredAgeMs = restoredSnapshot
+                    ? Math.max(0, Date.now() - Number(state.dashboardRestore.sourceSavedAt || 0))
+                    : 0;
+                const shouldFetchCriticalBundle = shouldFetchCriticalDashboardBundle();
+                const criticalRefreshDelayMs = restoredSnapshot && !shouldFetchCriticalBundle
+                    ? Math.max(0, DASHBOARD_RESTORE_CRITICAL_REFRESH_GRACE_MS - restoredAgeMs)
+                    : 0;
+                const startCriticalLoad = () => loadCriticalHomepageData().catch((error) => {
+                    console.error(error);
+                    renderError(ui.opportunitiesGrid, "Failed to load opportunities.");
+                });
+                if (restoredSnapshot && !shouldFetchCriticalBundle) {
+                    setTimeout(() => {
+                        void startCriticalLoad();
+                    }, criticalRefreshDelayMs);
+                } else {
+                    void startCriticalLoad();
+                }
 
                 wireFilters();
                 wireScrollBehavior();
                 wireHomepageJumpNav();
-                wireHomepageJumpNavActiveState();
                 wireSectionReveal();
-                wireSeasonalToggles();
-                wireRecentlyUpdatedToggle();
-                wireMoreIntelDisclosure();
-                wireAnalyticsPanelDisclosure();
-                wireDealRadarMore();
-                wireAlertsPanelToggle();
-                wireRowNav();
-                wireKeyboardShortcuts();
-                wireDragScroll();
-                wireTrackedGameLinks();
-                wireQuickView();
+                wireCardActionButtons();
                 wireCatalogLifecycle();
+                scheduleNonCriticalHomepageWireup();
 
                 ui.includeFreeCheckbox.checked = state.filters.includeFree;
                 ui.dealsOnlyCheckbox.checked = state.filters.dealsOnly;
@@ -12183,17 +12333,9 @@ try {
                     renderAlerts();
                 }
 
-                loadCriticalHomepageData().catch((error) => {
-                    console.error(error);
-                    renderError(ui.opportunitiesGrid, "Failed to load opportunities.");
-                });
                 setStoredLastVisitTs(Date.now());
                 wireHomepageDeferredPanelLoaders();
                 if (restoredSnapshot) {
-                    const restoredAgeMs = Math.max(
-                        0,
-                        Date.now() - Number(state.dashboardRestore.sourceSavedAt || 0),
-                    );
                     const delayMs = Math.max(
                         0,
                         DASHBOARD_RESTORE_DEFERRED_REFRESH_GRACE_MS - restoredAgeMs,

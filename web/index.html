@@ -4206,6 +4206,8 @@ input:focus-visible {
             "opportunityRadarGrid",
             "personalizedDealsGrid",
         ]);
+        const DASHBOARD_SNAPSHOT_STORAGE_KEY = "gameden.dashboard.snapshot.v1";
+        const DASHBOARD_SNAPSHOT_MAX_AGE_MS = 5 * 60 * 1000;
 
         function getCurrentUserId() {
             const fallback = DEFAULT_USER_ID;
@@ -4622,6 +4624,10 @@ input:focus-visible {
                 deferredCompleted: false,
             },
             personalSummaryLoaded: false,
+            dashboardRestore: {
+                restored: false,
+                restoredAt: 0,
+            },
             visibleCounts: {
                 dealRankedGrid: 8,
                 opportunitiesGrid: 8,
@@ -4748,6 +4754,146 @@ input:focus-visible {
         const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
         if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
             skeletonUi.ensureStyles();
+        }
+
+        function captureDashboardRowScrollPositions() {
+            const positions = {};
+            document.querySelectorAll(".row-scroller[id]").forEach((node) => {
+                if (!(node instanceof HTMLElement)) return;
+                const key = String(node.id || "").trim();
+                if (!key) return;
+                positions[key] = Math.max(0, Math.round(node.scrollLeft || 0));
+            });
+            return positions;
+        }
+
+        function restoreDashboardRowScrollPositions(positions) {
+            if (!positions || typeof positions !== "object") return;
+            requestAnimationFrame(() => {
+                document.querySelectorAll(".row-scroller[id]").forEach((node) => {
+                    if (!(node instanceof HTMLElement)) return;
+                    const key = String(node.id || "").trim();
+                    if (!key) return;
+                    const target = Number(positions[key]);
+                    if (!Number.isFinite(target) || target <= 0) return;
+                    node.scrollLeft = target;
+                });
+            });
+        }
+
+        function getDashboardSnapshotSections(limit = 24) {
+            const boundedLimit = Math.max(1, Number(limit) || 24);
+            return {
+                dealRanked: safeArray(state.dealRanked).slice(0, boundedLimit),
+                opportunitiesNow: safeArray(state.opportunitiesNow).slice(0, boundedLimit),
+                opportunityRadar: safeArray(state.opportunityRadar).slice(0, boundedLimit),
+                personalizedDeals: safeArray(state.personalizedDeals).slice(0, boundedLimit),
+                worthBuyingNow: safeArray(state.worthBuyingNow).slice(0, boundedLimit),
+                trendingDeals: safeArray(state.trendingDeals).slice(0, boundedLimit),
+                newHistoricalLows: safeArray(state.newHistoricalLows).slice(0, boundedLimit),
+                newDeals: safeArray(state.newDeals).slice(0, boundedLimit),
+                recommendedDeals: safeArray(state.recommendedDeals).slice(0, boundedLimit),
+                dealRadar: safeArray(state.dealRadar).slice(0, boundedLimit),
+                alertSignals: safeArray(state.alertSignals).slice(0, boundedLimit),
+                wishlist: safeArray(state.wishlist).slice(0, 12),
+                watchlist: safeArray(state.watchlist).slice(0, 12),
+                dailyDigest: state.dailyDigest && typeof state.dailyDigest === "object"
+                    ? state.dailyDigest
+                    : { sections: {}, highlights: [], counts: {} },
+            };
+        }
+
+        function persistDashboardSnapshot() {
+            try {
+                if (!state.homepageLoad.criticalLoaded) return;
+                const payload = {
+                    saved_at: Date.now(),
+                    scroll_y: Math.max(0, Math.round(window.scrollY || 0)),
+                    row_scroll: captureDashboardRowScrollPositions(),
+                    filters: { ...state.filters },
+                    visibleCounts: { ...state.visibleCounts },
+                    discoveryActiveKey: String(state.discoveryTabs?.activeKey || DISCOVERY_DEFAULT_TAB_KEY),
+                    moreIntelExpanded: !!state.moreIntelExpanded,
+                    analyticsPanelExpanded: !!state.analyticsPanelExpanded,
+                    sections: getDashboardSnapshotSections(24),
+                };
+                sessionStorage.setItem(DASHBOARD_SNAPSHOT_STORAGE_KEY, JSON.stringify(payload));
+            } catch {
+                // Ignore storage failures.
+            }
+        }
+
+        function scheduleDashboardSnapshotPersist() {
+            if (scheduleDashboardSnapshotPersist._timer) {
+                clearTimeout(scheduleDashboardSnapshotPersist._timer);
+            }
+            scheduleDashboardSnapshotPersist._timer = setTimeout(() => {
+                scheduleDashboardSnapshotPersist._timer = null;
+                persistDashboardSnapshot();
+            }, 120);
+        }
+
+        function restoreDashboardSnapshot() {
+            try {
+                const raw = sessionStorage.getItem(DASHBOARD_SNAPSHOT_STORAGE_KEY);
+                if (!raw) return false;
+                const parsed = JSON.parse(raw);
+                if (!parsed || typeof parsed !== "object") return false;
+                const savedAt = Number(parsed.saved_at || 0);
+                if (!Number.isFinite(savedAt) || (Date.now() - savedAt) > DASHBOARD_SNAPSHOT_MAX_AGE_MS) {
+                    return false;
+                }
+
+                const sections = parsed.sections && typeof parsed.sections === "object" ? parsed.sections : {};
+                state.dealRanked = uniqueGamesByName(sections.dealRanked || []);
+                state.opportunitiesNow = uniqueGamesByName(sections.opportunitiesNow || []);
+                state.opportunityRadar = uniqueGamesByName(sections.opportunityRadar || []);
+                state.personalizedDeals = uniqueGamesByName(sections.personalizedDeals || []);
+                state.worthBuyingNow = uniqueGamesByName(sections.worthBuyingNow || []);
+                state.trendingDeals = uniqueGamesByName(sections.trendingDeals || []);
+                state.newHistoricalLows = uniqueGamesByName(sections.newHistoricalLows || []);
+                state.newDeals = uniqueGamesByName(sections.newDeals || []);
+                state.recommendedDeals = uniqueGamesByName(sections.recommendedDeals || []);
+                state.dealRadar = uniqueDealRadarSignals(sections.dealRadar || []);
+                state.alertSignals = uniqueAlertSignals(sections.alertSignals || []);
+                state.wishlist = uniqueGamesByName(sections.wishlist || []);
+                state.watchlist = uniqueGamesByName(sections.watchlist || []);
+                state.dailyDigest = sections.dailyDigest && typeof sections.dailyDigest === "object"
+                    ? sections.dailyDigest
+                    : { sections: {}, highlights: [], counts: {} };
+
+                if (parsed.filters && typeof parsed.filters === "object") {
+                    state.filters = {
+                        ...state.filters,
+                        ...parsed.filters,
+                    };
+                }
+                if (parsed.visibleCounts && typeof parsed.visibleCounts === "object") {
+                    state.visibleCounts = {
+                        ...state.visibleCounts,
+                        ...parsed.visibleCounts,
+                    };
+                }
+                if (parsed.discoveryActiveKey) {
+                    state.discoveryTabs.activeKey = String(parsed.discoveryActiveKey);
+                }
+                state.moreIntelExpanded = !!parsed.moreIntelExpanded;
+                state.analyticsPanelExpanded = !!parsed.analyticsPanelExpanded;
+                state.dashboardRestore.restored = true;
+                state.dashboardRestore.restoredAt = Date.now();
+
+                const scrollY = Number(parsed.scroll_y || 0);
+                const rowScroll = parsed.row_scroll && typeof parsed.row_scroll === "object" ? parsed.row_scroll : {};
+                requestAnimationFrame(() => {
+                    if (Number.isFinite(scrollY) && scrollY > 0) {
+                        window.scrollTo({ top: scrollY, behavior: "auto" });
+                    }
+                    restoreDashboardRowScrollPositions(rowScroll);
+                });
+                return true;
+            } catch {
+                return false;
+            }
         }
 
         function renderSkeleton(container, kind, count = 1, options = {}) {
@@ -8901,6 +9047,7 @@ input:focus-visible {
             wireCardActionButtons();
             wireTrackedGameLinks();
             wireSparklineHover();
+            scheduleDashboardSnapshotPersist();
         }
 
         function updateAllGamesSubtitle() {
@@ -9864,6 +10011,7 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
             if (hasOpportunityRadarPayload || hasOpportunitiesPayload) renderOpportunityRadar();
             if (hasDealRadarPayload) renderDealRadar();
             if (hasDailyDigestPayload) renderDailyDigest();
+            scheduleDashboardSnapshotPersist();
         }
 
         function scheduleNonCriticalHomepageAnalytics() {
@@ -10347,6 +10495,7 @@ try {
             renderWatchlist();
             renderAlerts();
             syncCardActionButtonsFromState();
+            scheduleDashboardSnapshotPersist();
         }
 
         function renderCriticalHomepageSkeletons() {
@@ -10365,6 +10514,7 @@ try {
             renderPersonalizedDeals();
             renderDailyDigest();
             renderDealRadar();
+            scheduleDashboardSnapshotPersist();
         }
 
         function renderDeferredHomepageSkeletons() {
@@ -10474,11 +10624,18 @@ try {
                 const dashboardDataPromise = loadDashboardData();
                 const deferredUserDataPromise = loadDeferredHomepageData(dashboardDataPromise);
                 const data = await dashboardDataPromise;
+                const preservedScrollY = Math.max(0, Math.round(window.scrollY || 0));
+                const preservedRowScroll = captureDashboardRowScrollPositions();
                 applyFilterOptionsToControls(data.filters || {});
                 applyAllRenders();
+                if (preservedScrollY > 0) {
+                    window.scrollTo({ top: preservedScrollY, behavior: "auto" });
+                }
+                restoreDashboardRowScrollPositions(preservedRowScroll);
                 syncCardActionButtonsFromState();
                 await deferredUserDataPromise;
                 state.homepageLoad.deferredCompleted = true;
+                scheduleDashboardSnapshotPersist();
             } catch (error) {
                 console.error("Deferred homepage stage failed", error);
                 state.personalizedStatus.loading = false;
@@ -11396,6 +11553,7 @@ try {
         function wireCatalogLifecycle() {
             if (wireCatalogLifecycle._wired) return;
             const stop = () => {
+                persistDashboardSnapshot();
                 cancelCatalogLoad();
                 clearSearchRequest();
                 if (wireSectionReveal._observer) {
@@ -11405,6 +11563,13 @@ try {
             };
             window.addEventListener("pagehide", stop);
             window.addEventListener("beforeunload", stop);
+            window.addEventListener("pageshow", (event) => {
+                if (!event.persisted) return;
+                const restored = restoreDashboardSnapshot();
+                if (restored) {
+                    renderCriticalHomepageSections();
+                }
+            });
             wireCatalogLifecycle._wired = true;
         }
 
@@ -11415,7 +11580,10 @@ try {
                 applyDiscoverySectionOrder();
                 wireResponsiveHomepageLayout();
                 state.lastVisitTs = getStoredLastVisitTs();
-                renderCriticalHomepageSkeletons();
+                const restoredSnapshot = restoreDashboardSnapshot();
+                if (!restoredSnapshot) {
+                    renderCriticalHomepageSkeletons();
+                }
 
                 wireFilters();
                 wireScrollBehavior();
@@ -11437,6 +11605,14 @@ try {
 
                 ui.includeFreeCheckbox.checked = state.filters.includeFree;
                 ui.dealsOnlyCheckbox.checked = state.filters.dealsOnly;
+
+                if (restoredSnapshot) {
+                    state.homepageLoad.criticalLoaded = true;
+                    renderCriticalHomepageSections();
+                    renderWishlist();
+                    renderWatchlist();
+                    renderAlerts();
+                }
 
                 loadCriticalHomepageData().catch((error) => {
                     console.error(error);

@@ -10119,7 +10119,6 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
         }
 
         async function loadDashboardData() {
-            const releasedParams = buildReleasedCatalogParams({ page: 1, pageSize: CATALOG_PAGE_SIZE });
             const emptySeasonal = { sale_event: null, expected_games: [], mode: "potential_sale" };
             const emptyReleased = { items: [] };
             const emptyDealRadar = { items: [] };
@@ -10217,7 +10216,7 @@ try {
             : fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal)
     );
     if (!hasReleasedSeed) {
-        fetchJson(`/games/released?${releasedParams.toString()}`)
+        fetchJson(`/dashboard/catalog-seed?limit=${HOMEPAGE_SECTION_LIMITS.releasedGames}`)
             .catch(() => emptyReleased)
             .then((payload) => {
                 releasedData = payload || emptyReleased;
@@ -10310,7 +10309,7 @@ try {
     };
 
     seasonalData = await fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal);
-    fetchJson(`/games/released?${releasedParams.toString()}`)
+    fetchJson(`/dashboard/catalog-seed?limit=${HOMEPAGE_SECTION_LIMITS.releasedGames}`)
         .catch(() => emptyReleased)
         .then((payload) => {
             releasedData = payload || emptyReleased;

@@ -207,6 +207,11 @@ CRITICAL_DASHBOARD_CACHE_KEY = "home_critical_v1"
 LEGACY_DASHBOARD_CACHE_KEYS = ("home",)
 DASHBOARD_CACHE_STALE_AFTER = datetime.timedelta(minutes=API_DASHBOARD_CACHE_STALE_MINUTES)
 DEAL_RADAR_CACHE_KEY = "home:deal_radar"
+SEASONAL_SUMMARY_CACHE_KEY = "home:seasonal_summary"
+TOP_REVIEWED_CACHE_KEY = "home:top_reviewed"
+TOP_PLAYED_CACHE_KEY = "home:top_played"
+LEADERBOARD_CACHE_KEY = "home:leaderboard"
+CATALOG_SEED_CACHE_KEY = "home:catalog_seed"
 HOMEPAGE_CRITICAL_LIMIT = 8
 OPPORTUNITY_QUERY_MULTIPLIER = 8
 OPPORTUNITY_MIN_CANDIDATES = 96
@@ -3825,6 +3830,18 @@ def get_seasonal_summary(limit: int = Query(default=12, ge=1, le=30)):
     session = ReadSessionLocal()
 
     try:
+        cached_items = _read_cached_section_items(session, SEASONAL_SUMMARY_CACHE_KEY, limit=limit)
+        _, cached_section_payload = _read_cache_payload(session, SEASONAL_SUMMARY_CACHE_KEY)
+        if isinstance(cached_section_payload, dict):
+            cached_summary = _limit_seasonal_summary_payload(cached_section_payload, limit)
+            if cached_summary.get("sale_event") or cached_items:
+                return cached_summary
+        _, home_payload = _read_dashboard_cache(session)
+        if isinstance(home_payload, dict) and isinstance(home_payload.get("seasonal_summary"), dict):
+            cached_summary = _limit_seasonal_summary_payload(home_payload.get("seasonal_summary") or {}, limit)
+            if cached_summary.get("sale_event") or cached_summary.get("expected_games"):
+                return cached_summary
+
         today = utc_now().date()
         sale_window = get_seasonal_sale_window(today)
         latest_prices = get_latest_price_rows(session)
@@ -3887,9 +3904,13 @@ def get_biggest_discounts(limit: int = Query(default=20, ge=1, le=100)):
 
 @app.get("/games/top-reviewed")
 def get_top_reviewed_games(limit: int = Query(default=20, ge=1, le=100)):
-    session = Session()
+    session = ReadSessionLocal()
 
     try:
+        cached_rows = _read_cached_section_items(session, TOP_REVIEWED_CACHE_KEY, limit=limit)
+        if cached_rows:
+            return cached_rows
+
         latest_prices = get_latest_price_rows(session)
         game_map = build_game_map(session)
         insight_map = compute_historical_insight_map(session)
@@ -3918,9 +3939,13 @@ def get_top_reviewed_games(limit: int = Query(default=20, ge=1, le=100)):
 
 @app.get("/games/top-played")
 def get_top_played_games(limit: int = Query(default=50, ge=1, le=100)):
-    session = Session()
+    session = ReadSessionLocal()
 
     try:
+        cached_rows = _read_cached_section_items(session, TOP_PLAYED_CACHE_KEY, limit=limit)
+        if cached_rows:
+            return cached_rows
+
         latest_prices = get_latest_price_rows(session)
         game_map = build_game_map(session)
         insight_map = compute_historical_insight_map(session)
@@ -3942,9 +3967,13 @@ def get_top_played_games(limit: int = Query(default=50, ge=1, le=100)):
 
 @app.get("/games/player-leaderboard")
 def get_player_leaderboard(limit: int = Query(default=100, ge=1, le=250)):
-    session = Session()
+    session = ReadSessionLocal()
 
     try:
+        cached_rows = _read_cached_section_items(session, LEADERBOARD_CACHE_KEY, limit=limit)
+        if cached_rows:
+            return cached_rows
+
         latest_prices = get_latest_price_rows(session)
         snapshot_map = {
             row.game_name: row
@@ -4208,6 +4237,51 @@ def get_upcoming_games():
 
         return [serialize_upcoming_row(row) for row in rows]
 
+    finally:
+        session.close()
+
+
+@app.get("/dashboard/catalog-seed")
+@json_etag()
+@ttl_cache(ttl_seconds=60, endpoint_key="/dashboard/catalog-seed")
+def get_dashboard_catalog_seed(
+    request: Request,
+    limit: int = Query(default=24, ge=1, le=60),
+):
+    started = _start_timer()
+    session = ReadSessionLocal()
+    try:
+        normalized_limit = max(1, min(int(limit), 60))
+        row, payload = _read_cache_payload(session, CATALOG_SEED_CACHE_KEY)
+        if row is not None and isinstance(payload, dict):
+            items = payload.get("items")
+            if isinstance(items, list) and items:
+                bounded_items = [item for item in items if isinstance(item, dict)][:normalized_limit]
+                response_payload = {
+                    "items": bounded_items,
+                    "total": max(len(bounded_items), int(payload.get("total") or 0)),
+                    "total_pages": 1,
+                    "generated_at": payload.get("generated_at"),
+                }
+                _log_timing("/dashboard/catalog-seed", started)
+                return response_payload
+
+        _, home_payload = _read_dashboard_cache(session)
+        fallback_rows: list[dict] = []
+        if isinstance(home_payload, dict):
+            for key in ("dealRanked", "worth_buying_now", "biggest_discounts", "trending_now"):
+                candidate_rows = home_payload.get(key)
+                if isinstance(candidate_rows, list):
+                    fallback_rows.extend(candidate_rows)
+        fallback_items = _dedupe_dashboard_rows(fallback_rows)[:normalized_limit]
+        response_payload = {
+            "items": fallback_items,
+            "total": len(fallback_items),
+            "total_pages": 1,
+            "generated_at": home_payload.get("generated_at") if isinstance(home_payload, dict) else None,
+        }
+        _log_timing("/dashboard/catalog-seed", started)
+        return response_payload
     finally:
         session.close()
 
@@ -4748,6 +4822,36 @@ def _read_cache_payload(session: Session, cache_key: str):
     except json.JSONDecodeError:
         logger.exception("Invalid dashboard cache JSON for key=%s", cache_key)
         return row, None
+
+
+def _read_cached_section_items(session: Session, cache_key: str, *, limit: int | None = None) -> list[dict]:
+    _, payload = _read_cache_payload(session, cache_key)
+    rows: list[dict] = []
+    if isinstance(payload, dict):
+        items = payload.get("items")
+        if isinstance(items, list):
+            rows = [row for row in items if isinstance(row, dict)]
+    elif isinstance(payload, list):
+        rows = [row for row in payload if isinstance(row, dict)]
+    if limit is not None:
+        return rows[: max(1, int(limit))]
+    return rows
+
+
+def _limit_seasonal_summary_payload(payload: dict, limit: int) -> dict:
+    if not isinstance(payload, dict):
+        return {}
+    bounded_limit = max(1, int(limit))
+    items = payload.get("items")
+    if not isinstance(items, list):
+        items = payload.get("expected_games")
+    if not isinstance(items, list):
+        items = []
+    trimmed_items = [row for row in items if isinstance(row, dict)][:bounded_limit]
+    normalized = dict(payload)
+    normalized["items"] = trimmed_items
+    normalized["expected_games"] = trimmed_items
+    return normalized
 
 
 def _dashboard_cache_keys() -> tuple[str, ...]:

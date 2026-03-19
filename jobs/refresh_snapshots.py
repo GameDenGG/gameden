@@ -2764,6 +2764,128 @@ def _build_homepage_opportunity_rails(decision_pool: list[dict], limit: int) -> 
     return opportunity_rows, radar_rows
 
 
+def _seasonal_sale_window(now_date: datetime.date) -> dict:
+    year = now_date.year
+    windows = [
+        {
+            "name": "Steam Spring Sale",
+            "slug": "spring_sale",
+            "start": datetime.date(year, 3, 10),
+            "end": datetime.date(year, 3, 24),
+        },
+        {
+            "name": "Steam Summer Sale",
+            "slug": "summer_sale",
+            "start": datetime.date(year, 6, 20),
+            "end": datetime.date(year, 7, 4),
+        },
+        {
+            "name": "Steam Autumn Sale",
+            "slug": "autumn_sale",
+            "start": datetime.date(year, 11, 20),
+            "end": datetime.date(year, 12, 3),
+        },
+        {
+            "name": "Steam Winter Sale",
+            "slug": "winter_sale",
+            "start": datetime.date(year, 12, 18),
+            "end": datetime.date(year + 1, 1, 5),
+        },
+    ]
+    for window in windows:
+        if window["start"] <= now_date <= window["end"]:
+            return {**window, "status": "live", "days_until_start": 0}
+    upcoming_windows = [window for window in windows if window["start"] > now_date]
+    if not upcoming_windows:
+        next_window = {
+            "name": "Steam Spring Sale",
+            "slug": "spring_sale",
+            "start": datetime.date(year + 1, 3, 10),
+            "end": datetime.date(year + 1, 3, 24),
+        }
+    else:
+        next_window = upcoming_windows[0]
+    return {
+        **next_window,
+        "status": "upcoming",
+        "days_until_start": (next_window["start"] - now_date).days,
+    }
+
+
+def _build_cached_seasonal_summary(decision_pool: list[dict], limit: int = 24) -> dict:
+    sale_window = _seasonal_sale_window(utcnow().date())
+    mode = "active_sale" if sale_window.get("status") == "live" else "potential_sale"
+    if mode == "active_sale":
+        candidates = [row for row in decision_pool if safe_num(row.get("discount_percent"), 0.0) > 0]
+    else:
+        candidates = [row for row in decision_pool if safe_num(row.get("discount_percent"), 0.0) <= 0]
+    if not candidates:
+        candidates = decision_pool
+    raw_items = _dedupe_snapshot_rows(candidates)[:max(1, int(limit))]
+    items: list[dict] = []
+    for row in raw_items:
+        compact = _compact_catalog_seed_row(row)
+        if not compact:
+            continue
+        compact["deal_score"] = row.get("deal_score")
+        compact["buy_recommendation"] = row.get("buy_recommendation")
+        compact["historical_status"] = row.get("historical_status")
+        compact["predicted_sale_score"] = row.get("predicted_sale_score")
+        compact["seasonal_relevance_score"] = row.get("seasonal_relevance_score")
+        items.append(
+            {
+                key: value
+                for key, value in compact.items()
+                if value is not None and value != "" and value != []
+            }
+        )
+    return {
+        "sale_event": {
+            "name": sale_window["name"],
+            "slug": sale_window["slug"],
+            "status": sale_window["status"],
+            "start_date": sale_window["start"].isoformat(),
+            "end_date": sale_window["end"].isoformat(),
+            "days_until_start": sale_window["days_until_start"],
+        },
+        "mode": mode,
+        "items": items,
+        "expected_games": items,
+    }
+
+
+def _compact_catalog_seed_row(row: dict) -> dict:
+    if not isinstance(row, dict):
+        return {}
+    game_id = row.get("game_id") or row.get("id")
+    if safe_num(game_id, 0.0) <= 0:
+        return {}
+    game_name = str(row.get("game_name") or row.get("name") or "").strip()
+    if not game_name:
+        return {}
+    slimmed = {
+        "game_id": int(game_id),
+        "id": int(game_id),
+        "game_name": game_name,
+        "steam_appid": row.get("steam_appid"),
+        "banner_url": row.get("banner_url") or row.get("image") or row.get("header_image"),
+        "price": row.get("price"),
+        "original_price": row.get("original_price"),
+        "discount_percent": row.get("discount_percent"),
+        "review_score": row.get("review_score"),
+        "review_score_label": row.get("review_score_label") or row.get("review_label"),
+        "current_players": row.get("current_players"),
+        "genres": row.get("genres") if isinstance(row.get("genres"), list) else [],
+        "tags": row.get("tags") if isinstance(row.get("tags"), list) else [],
+        "platforms": row.get("platforms") if isinstance(row.get("platforms"), list) else [],
+    }
+    return {
+        key: value
+        for key, value in slimmed.items()
+        if value is not None and value != "" and value != []
+    }
+
+
 def _build_homepage_critical_payload(payload: dict) -> dict:
     allowed_keys = (
         "catalogSummary",
@@ -3224,7 +3346,19 @@ def rebuild_dashboard_cache(session: Session) -> None:
     worth_buying_rows = diversified_visible_rails.get("worth_buying_now", worth_buying_rows)
     trending_now_rows = diversified_visible_rails.get("trending_now", trending_now_rows)
     player_surges = _build_player_surges(alert_signals, trending_rows)
-    seasonal_summary = {}
+    seasonal_summary = _build_cached_seasonal_summary(decision_pool, limit=24)
+    catalog_seed_rows = [
+        _compact_catalog_seed_row(row)
+        for row in _dedupe_snapshot_rows([
+            *deal_ranked_rows,
+            *deal_opportunities_rows,
+            *opportunity_radar_rows,
+            *worth_buying_rows,
+            *biggest_discounts_rows,
+            *trending_now_rows,
+        ])[:24]
+    ]
+    catalog_seed_rows = [row for row in catalog_seed_rows if row]
     biggest_price_drops_rows = [
         {
             "id": int(row.id),
@@ -3313,8 +3447,12 @@ def rebuild_dashboard_cache(session: Session) -> None:
         "home:market_radar": {"items": payload.get("deal_radar", []), "generated_at": payload["generated_at"]},
         "home:deal_opportunities": {"items": payload.get("deal_opportunities", []), "generated_at": payload["generated_at"]},
         "home:opportunity_radar": {"items": payload.get("opportunity_radar", []), "generated_at": payload["generated_at"]},
+        "home:seasonal_summary": {"items": payload.get("seasonal_summary", {}).get("items", []), **payload.get("seasonal_summary", {}), "generated_at": payload["generated_at"]},
+        "home:top_reviewed": {"items": payload.get("topReviewed", []), "generated_at": payload["generated_at"]},
         "home:top_played": {"items": payload.get("topPlayed", []), "generated_at": payload["generated_at"]},
+        "home:leaderboard": {"items": payload.get("leaderboard", []), "generated_at": payload["generated_at"]},
         "home:upcoming": {"items": payload.get("upcoming", []), "generated_at": payload["generated_at"]},
+        "home:catalog_seed": {"items": catalog_seed_rows, "total": len(catalog_seed_rows), "total_pages": 1, "generated_at": payload["generated_at"]},
     }
     for legacy_cache_key in LEGACY_CACHE_KEYS:
         section_payloads[legacy_cache_key] = payload

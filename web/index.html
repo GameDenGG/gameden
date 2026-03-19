@@ -9869,6 +9869,21 @@ let dealRadarData = null;
 let opportunitiesData = null;
 let opportunityRadarData = null;
 let dailyDigestData = null;
+const scheduleCatalogSeed = (payload) => {
+    if (!payload || !safeArray(payload.items).length) return;
+    const run = () => {
+        seedCatalogFromPayload(payload);
+        if (!hasFilterOptions(dashboardData?.filters)) {
+            dashboardData.filters = buildMergedDashboardFilters(dashboardData?.filters || {}, {}, payload);
+            applyFilterOptionsToControls(dashboardData.filters || {});
+        }
+    };
+    if (typeof window.requestIdleCallback === "function") {
+        window.requestIdleCallback(() => run(), { timeout: 1200 });
+    } else {
+        setTimeout(run, 0);
+    }
+};
 
 try {
     dashboardData = await fetchJson("/dashboard/home");
@@ -9895,6 +9910,8 @@ try {
         ...safeArray(dashboardData?.new_historical_lows),
         ...safeArray(dashboardData?.upcoming),
     ]);
+    const hasReleasedSeed = dashboardReleasedSeed.length > 0;
+    releasedData = hasReleasedSeed ? { items: dashboardReleasedSeed } : emptyReleased;
 
     const dashboardDealRadarSeed = safeArray(dashboardData?.deal_radar).length
         ? safeArray(dashboardData?.deal_radar)
@@ -9913,15 +9930,19 @@ try {
     const dashboardDigestSeed = dashboardData?.daily_digest || dashboardData?.dailyDigest;
 
     // Only block on priority content.
-    [seasonalData, releasedData] = await Promise.all([
+    seasonalData = await (
         (dashboardSeasonal.sale_event || safeArray(dashboardSeasonal.expected_games).length)
             ? Promise.resolve(dashboardSeasonal)
-            : fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal),
-
-        dashboardReleasedSeed.length
-            ? Promise.resolve({ items: dashboardReleasedSeed })
-            : fetchJson(`/games/released?${releasedParams.toString()}`).catch(() => emptyReleased),
-    ]);
+            : fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal)
+    );
+    if (!hasReleasedSeed) {
+        fetchJson(`/games/released?${releasedParams.toString()}`)
+            .catch(() => emptyReleased)
+            .then((payload) => {
+                releasedData = payload || emptyReleased;
+                scheduleCatalogSeed(releasedData);
+            });
+    }
 
     // Start lower-priority content in background. Do not await here.
     setTimeout(async () => {
@@ -9999,10 +10020,13 @@ try {
         daily_digest: emptyDailyDigest,
     };
 
-    [seasonalData, releasedData] = await Promise.all([
-        fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal),
-        fetchJson(`/games/released?${releasedParams.toString()}`).catch(() => emptyReleased),
-    ]);
+    seasonalData = await fetchJson("/sales/seasonal-summary?limit=24").catch(() => emptySeasonal);
+    fetchJson(`/games/released?${releasedParams.toString()}`)
+        .catch(() => emptyReleased)
+        .then((payload) => {
+            releasedData = payload || emptyReleased;
+            scheduleCatalogSeed(releasedData);
+        });
 
     setTimeout(async () => {
         try {
@@ -10039,8 +10063,8 @@ try {
                 opportunityRadarData,
                 dailyDigestData,
             );
-            seedCatalogFromPayload(releasedData);
-            dashboardData.filters = buildMergedDashboardFilters(dashboardData?.filters || {}, {}, releasedData);
+            dashboardData.filters = dashboardData?.filters || {};
+            scheduleCatalogSeed(releasedData);
             return dashboardData;
         }
 

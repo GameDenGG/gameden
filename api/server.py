@@ -4,6 +4,7 @@ import math
 import mimetypes
 import re
 import time
+import uuid
 from pathlib import Path
 from statistics import mean
 from types import SimpleNamespace
@@ -224,6 +225,10 @@ DAILY_DIGEST_EVENT_SCAN_LIMIT = 360
 DAILY_DIGEST_ALERT_SCAN_LIMIT = 320
 DAILY_DIGEST_SNAPSHOT_SCAN_LIMIT = 220
 DEFAULT_USER_ID = API_DEFAULT_USER_ID
+VIEWER_ID_COOKIE_NAME = "gameden_viewer_id"
+VIEWER_ID_HEADER_NAME = "x-gameden-viewer"
+VIEWER_ID_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
+ANONYMOUS_USER_ID_RE = re.compile(r"^anon_[0-9a-f]{32}$")
 SITEMAP_STATIC_PATHS = (
     "/",
     "/all-results",
@@ -358,6 +363,83 @@ async def canonical_host_redirect_middleware(request: Request, call_next):
         return RedirectResponse(url=target, status_code=308)
 
     return await call_next(request)
+
+
+def _new_anonymous_user_id() -> str:
+    return f"anon_{uuid.uuid4().hex}"
+
+
+def _normalize_anonymous_user_id(value: str | None) -> str | None:
+    normalized = str(value or "").strip().lower()
+    if not normalized:
+        return None
+    if ANONYMOUS_USER_ID_RE.fullmatch(normalized):
+        return normalized
+    return None
+
+
+def _resolve_viewer_id(request: Request) -> tuple[str, bool]:
+    cookie_viewer_id = _normalize_anonymous_user_id(request.cookies.get(VIEWER_ID_COOKIE_NAME))
+    if cookie_viewer_id:
+        return cookie_viewer_id, False
+
+    header_viewer_id = _normalize_anonymous_user_id(request.headers.get(VIEWER_ID_HEADER_NAME))
+    if header_viewer_id:
+        return header_viewer_id, True
+
+    query_viewer_id = _normalize_anonymous_user_id(request.query_params.get("user_id"))
+    if query_viewer_id:
+        return query_viewer_id, True
+
+    return _new_anonymous_user_id(), True
+
+
+def _viewer_cookie_samesite() -> str:
+    return "none" if IS_DEPLOYED_RUNTIME else "lax"
+
+
+def _set_viewer_cookie(response: Response, viewer_id: str) -> None:
+    response.set_cookie(
+        key=VIEWER_ID_COOKIE_NAME,
+        value=viewer_id,
+        max_age=VIEWER_ID_MAX_AGE_SECONDS,
+        httponly=True,
+        secure=IS_DEPLOYED_RUNTIME,
+        samesite=_viewer_cookie_samesite(),
+        path="/",
+    )
+
+
+def resolve_request_user_id(request: Request, candidate: str | None = None) -> str:
+    authenticated_user_id = str(getattr(request.state, "authenticated_user_id", "") or "").strip()
+    if authenticated_user_id and not _is_anonymous_user_id(authenticated_user_id):
+        return authenticated_user_id
+
+    viewer_id = _normalize_anonymous_user_id(getattr(request.state, "viewer_id", None))
+    if not viewer_id:
+        viewer_id = _new_anonymous_user_id()
+
+    normalized_candidate = normalize_user_id(candidate)
+    if normalized_candidate == viewer_id:
+        return viewer_id
+
+    candidate_anonymous = _normalize_anonymous_user_id(normalized_candidate)
+    if candidate_anonymous:
+        return viewer_id
+
+    return viewer_id
+
+
+@app.middleware("http")
+async def viewer_identity_middleware(request: Request, call_next):
+    viewer_id, should_set_cookie = _resolve_viewer_id(request)
+    request.state.viewer_id = viewer_id
+
+    response = await call_next(request)
+    if should_set_cookie or request.cookies.get(VIEWER_ID_COOKIE_NAME) != viewer_id:
+        _set_viewer_cookie(response, viewer_id)
+    response.headers.setdefault("X-GameDen-Viewer", viewer_id)
+    return response
 
 
 class AlertCreateRequest(BaseModel):
@@ -988,6 +1070,18 @@ def serialize_list_item(row):
 def normalize_user_id(value: str | None) -> str:
     text_value = (value or "").strip()
     return text_value or DEFAULT_USER_ID
+
+
+def _is_game_watchlisted_for_user(session: Session, game_id: int, user_id: str | None) -> bool:
+    normalized_user_id = normalize_user_id(user_id)
+    if _is_guest_user_id(normalized_user_id):
+        return False
+    return (
+        session.query(Watchlist.id)
+        .filter(Watchlist.user_id == normalized_user_id, Watchlist.game_id == int(game_id))
+        .first()
+        is not None
+    )
 
 
 def _is_anonymous_user_id(value: str | None) -> bool:
@@ -3245,7 +3339,7 @@ def _ensure_game_detail_contract(payload: dict) -> dict:
     return normalized
 
 
-def build_game_detail_payload(session, game: Game):
+def build_game_detail_payload(session, game: Game, user_id: str | None = None):
     rows = (
         session.query(GamePrice)
         .filter(GamePrice.game_name == game.name)
@@ -3278,12 +3372,7 @@ def build_game_detail_payload(session, game: Game):
 
     banner_url = build_steam_banner_url(game.store_url, game.appid)
     release_dt = parse_release_date_to_datetime(game.release_date_text)
-    watchlisted = (
-        session.query(Watchlist.id)
-        .filter(Watchlist.user_id == DEFAULT_USER_ID, Watchlist.game_id == game.id)
-        .first()
-        is not None
-    )
+    watchlisted = _is_game_watchlisted_for_user(session, int(game.id), user_id)
     wishlist_count = session.query(func.count(WishlistItem.id)).filter(WishlistItem.game_id == game.id).scalar() or 0
 
     return {
@@ -5642,9 +5731,10 @@ def get_dashboard_home(request: Request, mode: str | None = None):
 
 
 @app.get("/games/detail")
-def game_detail(game_name: str):
+def game_detail(request: Request, game_name: str):
     session = Session()
     try:
+        viewer_user_id = resolve_request_user_id(request)
         game = session.query(Game).filter(Game.name == game_name).first()
         if not game:
             return {"error": "Game not found"}
@@ -5670,7 +5760,7 @@ def game_detail(game_name: str):
         )
         factor_map = {factor.get("name"): factor.get("score") for factor in deal.get("factors", [])}
 
-        payload = build_game_detail_payload(session, game)
+        payload = build_game_detail_payload(session, game, user_id=viewer_user_id)
         payload["game_name"] = payload.get("name")
         payload["price"] = payload.get("current_price")
         payload["historical_low"] = payload.get("historical_low_price")
@@ -5777,7 +5867,8 @@ def get_game_price_history_windowed(
 
 
 @app.get("/games/{game_id}")
-def get_game_detail(game_id: int):
+def get_game_detail(request: Request, game_id: int):
+    viewer_user_id = resolve_request_user_id(request)
     session = ReadSessionLocal()
     try:
         game = session.query(Game).filter(Game.id == game_id).first()
@@ -5788,8 +5879,9 @@ def get_game_detail(game_id: int):
         if snapshot is not None or latest is not None:
             payload = _build_snapshot_game_detail_payload(game, snapshot, latest)
         else:
-            payload = build_game_detail_payload(session, game)
+            payload = build_game_detail_payload(session, game, user_id=viewer_user_id)
             payload["share_card_url"] = _build_canonical_url(f"/share/deal/{int(game_id)}")
+        payload["watchlisted"] = _is_game_watchlisted_for_user(session, int(game_id), viewer_user_id)
         return _ensure_game_detail_contract(payload)
     finally:
         session.close()
@@ -5800,6 +5892,7 @@ def get_game_detail(game_id: int):
 @ttl_cache(ttl_seconds=60, endpoint_key="/games/by-name")
 def get_game_by_name(request: Request, game_name: str):
     started = _start_timer()
+    viewer_user_id = resolve_request_user_id(request)
     session = ReadSessionLocal()
     try:
         name_value = (game_name or "").strip()
@@ -5815,8 +5908,9 @@ def get_game_by_name(request: Request, game_name: str):
         if snapshot is not None or latest is not None:
             payload = _build_snapshot_game_detail_payload(game, snapshot, latest)
         else:
-            payload = build_game_detail_payload(session, game)
+            payload = build_game_detail_payload(session, game, user_id=viewer_user_id)
             payload["share_card_url"] = _build_canonical_url(f"/share/deal/{int(game.id)}")
+        payload["watchlisted"] = _is_game_watchlisted_for_user(session, int(game.id), viewer_user_id)
         return _ensure_game_detail_contract(payload)
     finally:
         session.close()
@@ -6470,12 +6564,14 @@ def list_alerts():
 
 
 @app.get("/wishlist")
-def list_wishlist():
+def list_wishlist(request: Request):
+    normalized_user_id = resolve_request_user_id(request)
     session = Session()
     try:
         rows = (
             session.query(WishlistItem, Game.name)
             .outerjoin(Game, Game.id == WishlistItem.game_id)
+            .filter(WishlistItem.user_id == normalized_user_id)
             .order_by(WishlistItem.created_at.desc())
             .all()
         )
@@ -6578,10 +6674,11 @@ def count_unread_alerts(user_id: str):
 
 @app.get("/api/alerts")
 def list_watchlist_alert_feed(
+    request: Request,
     user_id: str = Query(default=DEFAULT_USER_ID),
     limit: int = Query(default=API_DEFAULT_LIST_LIMIT, ge=1, le=API_MAX_LIST_LIMIT),
 ):
-    normalized_user_id = normalize_user_id(user_id)
+    normalized_user_id = resolve_request_user_id(request, user_id)
     session = Session()
     try:
         items = build_user_watchlist_alert_feed(session, normalized_user_id, limit=limit)
@@ -6594,6 +6691,15 @@ def list_watchlist_alert_feed(
         session.close()
 
 
+@app.get("/api/viewer")
+def get_viewer_identity(request: Request):
+    viewer_id = resolve_request_user_id(request)
+    return {
+        "user_id": viewer_id,
+        "anonymous": bool(_normalize_anonymous_user_id(viewer_id)),
+    }
+
+
 @app.get("/api/home-personal-summary")
 @json_etag()
 @ttl_cache(ttl_seconds=30, endpoint_key="/api/home-personal-summary")
@@ -6603,7 +6709,7 @@ def get_home_personal_summary(
     limit: int = Query(default=4, ge=1, le=8),
 ):
     started = _start_timer()
-    normalized_user_id = normalize_user_id(user_id)
+    normalized_user_id = resolve_request_user_id(request, user_id)
     if _is_guest_user_id(normalized_user_id):
         return {
             "user_id": normalized_user_id,
@@ -6828,7 +6934,7 @@ def get_daily_deal_digest(
     started = _start_timer()
     now = utc_now()
     window_start = now - datetime.timedelta(hours=DAILY_DIGEST_WINDOW_HOURS)
-    normalized_user_id = normalize_user_id(user_id)
+    normalized_user_id = resolve_request_user_id(request, user_id)
     personalization_enabled = not _is_anonymous_user_id(normalized_user_id)
     normalized_limit = max(3, int(section_limit))
 
@@ -7488,7 +7594,7 @@ def list_personalized_deals(
     summary: bool = Query(default=False),
 ):
     started = _start_timer()
-    normalized_user_id = normalize_user_id(user_id)
+    normalized_user_id = resolve_request_user_id(request, user_id)
     personalization_enabled = not _is_anonymous_user_id(normalized_user_id)
 
     session = ReadSessionLocal()
@@ -7937,7 +8043,8 @@ def unsubscribe_notifications(payload: PushUnsubscribeRequest):
 
 
 @app.post("/wishlist")
-def create_wishlist_item(payload: ListItemCreateRequest):
+def create_wishlist_item(payload: ListItemCreateRequest, request: Request):
+    normalized_user_id = resolve_request_user_id(request)
     session = Session()
     try:
         game = session.query(Game).filter(Game.name == payload.game_name).first()
@@ -7947,7 +8054,7 @@ def create_wishlist_item(payload: ListItemCreateRequest):
         existing = (
             session.query(WishlistItem)
             .filter(
-                WishlistItem.user_id == "legacy-user",
+                WishlistItem.user_id == normalized_user_id,
                 WishlistItem.game_id == game.id,
             )
             .first()
@@ -7955,7 +8062,7 @@ def create_wishlist_item(payload: ListItemCreateRequest):
         if existing:
             return serialize_list_item(existing)
 
-        item = WishlistItem(user_id="legacy-user", game_id=game.id, game_name=game.name)
+        item = WishlistItem(user_id=normalized_user_id, game_id=game.id, game_name=game.name)
         session.add(item)
         session.commit()
         session.refresh(item)
@@ -7965,7 +8072,8 @@ def create_wishlist_item(payload: ListItemCreateRequest):
 
 
 @app.delete("/wishlist/{game_name}")
-def delete_wishlist_item(game_name: str):
+def delete_wishlist_item(game_name: str, request: Request):
+    normalized_user_id = resolve_request_user_id(request)
     session = Session()
     try:
         game = session.query(Game).filter(Game.name == game_name).first()
@@ -7973,7 +8081,7 @@ def delete_wishlist_item(game_name: str):
             raise HTTPException(status_code=404, detail="Game not found")
         row = (
             session.query(WishlistItem)
-            .filter(WishlistItem.user_id == "legacy-user", WishlistItem.game_id == game.id)
+            .filter(WishlistItem.user_id == normalized_user_id, WishlistItem.game_id == game.id)
             .first()
         )
         if not row:
@@ -7986,12 +8094,10 @@ def delete_wishlist_item(game_name: str):
 
 
 @app.post("/wishlist/add")
-def wishlist_add(payload: WishlistMutationRequest):
+def wishlist_add(payload: WishlistMutationRequest, request: Request):
     session = Session()
     try:
-        user_id = (payload.user_id or "").strip()
-        if not user_id:
-            raise HTTPException(status_code=400, detail="user_id is required")
+        user_id = resolve_request_user_id(request, payload.user_id)
 
         game = session.query(Game).filter(Game.id == payload.game_id).first()
         if not game:
@@ -8034,12 +8140,10 @@ def wishlist_add(payload: WishlistMutationRequest):
 
 
 @app.post("/wishlist/remove")
-def wishlist_remove(payload: WishlistMutationRequest):
+def wishlist_remove(payload: WishlistMutationRequest, request: Request):
     session = Session()
     try:
-        user_id = (payload.user_id or "").strip()
-        if not user_id:
-            raise HTTPException(status_code=400, detail="user_id is required")
+        user_id = resolve_request_user_id(request, payload.user_id)
         row = (
             session.query(WishlistItem)
             .filter(
@@ -8058,14 +8162,15 @@ def wishlist_remove(payload: WishlistMutationRequest):
 
 
 @app.get("/wishlist/{user_id}")
-def list_user_wishlist(user_id: str):
+def list_user_wishlist(request: Request, user_id: str):
+    normalized_user_id = resolve_request_user_id(request, user_id)
     session = Session()
     try:
         rows = (
             session.query(WishlistItem, Game, GameSnapshot)
             .outerjoin(Game, Game.id == WishlistItem.game_id)
             .outerjoin(GameSnapshot, GameSnapshot.game_id == WishlistItem.game_id)
-            .filter(WishlistItem.user_id == user_id)
+            .filter(WishlistItem.user_id == normalized_user_id)
             .order_by(WishlistItem.created_at.desc())
             .all()
         )
@@ -8088,12 +8193,10 @@ def list_user_wishlist(user_id: str):
 
 
 @app.post("/deal-watchlists/add")
-def add_deal_watchlist(payload: DealWatchlistAddRequest):
+def add_deal_watchlist(payload: DealWatchlistAddRequest, request: Request):
     session = Session()
     try:
-        user_id = (payload.user_id or "").strip()
-        if not user_id:
-            raise HTTPException(status_code=400, detail="user_id is required")
+        user_id = resolve_request_user_id(request, payload.user_id)
         if payload.target_price is None and payload.target_discount_percent is None:
             raise HTTPException(status_code=400, detail="target_price or target_discount_percent is required")
         if payload.target_price is not None and payload.target_price < 0:
@@ -8147,12 +8250,10 @@ def add_deal_watchlist(payload: DealWatchlistAddRequest):
 
 
 @app.post("/deal-watchlists/remove")
-def remove_deal_watchlist(payload: DealWatchlistRemoveRequest):
+def remove_deal_watchlist(payload: DealWatchlistRemoveRequest, request: Request):
     session = Session()
     try:
-        user_id = (payload.user_id or "").strip()
-        if not user_id:
-            raise HTTPException(status_code=400, detail="user_id is required")
+        user_id = resolve_request_user_id(request, payload.user_id)
         row = (
             session.query(DealWatchlist)
             .filter(
@@ -8172,14 +8273,15 @@ def remove_deal_watchlist(payload: DealWatchlistRemoveRequest):
 
 
 @app.get("/deal-watchlists/{user_id}")
-def list_deal_watchlists(user_id: str):
+def list_deal_watchlists(request: Request, user_id: str):
+    normalized_user_id = resolve_request_user_id(request, user_id)
     session = Session()
     try:
         rows = (
             session.query(DealWatchlist, Game, GameSnapshot)
             .outerjoin(Game, Game.id == DealWatchlist.game_id)
             .outerjoin(GameSnapshot, GameSnapshot.game_id == DealWatchlist.game_id)
-            .filter(DealWatchlist.user_id == user_id, DealWatchlist.active.is_(True))
+            .filter(DealWatchlist.user_id == normalized_user_id, DealWatchlist.active.is_(True))
             .order_by(DealWatchlist.updated_at.desc(), DealWatchlist.id.desc())
             .all()
         )
@@ -8203,8 +8305,8 @@ def list_deal_watchlists(user_id: str):
 
 
 @app.get("/api/watchlist")
-def list_watchlist_api(user_id: str = Query(default=DEFAULT_USER_ID)):
-    normalized_user_id = normalize_user_id(user_id)
+def list_watchlist_api(request: Request, user_id: str = Query(default=DEFAULT_USER_ID)):
+    normalized_user_id = resolve_request_user_id(request, user_id)
     session = Session()
     try:
         items = build_watchlist_entries_payload(session, normalized_user_id)
@@ -8218,10 +8320,10 @@ def list_watchlist_api(user_id: str = Query(default=DEFAULT_USER_ID)):
 
 
 @app.post("/api/watchlist")
-def create_watchlist_api(payload: WatchlistMutationRequest):
+def create_watchlist_api(payload: WatchlistMutationRequest, request: Request):
     session = Session()
     try:
-        user_id = normalize_user_id(payload.user_id)
+        user_id = resolve_request_user_id(request, payload.user_id)
         game = session.query(Game).filter(Game.id == payload.game_id).first()
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
@@ -8264,8 +8366,12 @@ def create_watchlist_api(payload: WatchlistMutationRequest):
 
 
 @app.delete("/api/watchlist/{game_id}")
-def delete_watchlist_api(game_id: int, user_id: str = Query(default=DEFAULT_USER_ID)):
-    normalized_user_id = normalize_user_id(user_id)
+def delete_watchlist_api(
+    game_id: int,
+    request: Request,
+    user_id: str = Query(default=DEFAULT_USER_ID),
+):
+    normalized_user_id = resolve_request_user_id(request, user_id)
     session = Session()
     try:
         row = (
@@ -8288,13 +8394,14 @@ def watchlist_page():
 
 
 @app.get("/watchlist/items")
-def list_watchlist():
-    response = list_watchlist_api(DEFAULT_USER_ID)
+def list_watchlist(request: Request):
+    response = list_watchlist_api(request, DEFAULT_USER_ID)
     return response["items"]
 
 
 @app.post("/watchlist/items")
-def create_watchlist_item(payload: ListItemCreateRequest):
+def create_watchlist_item(payload: ListItemCreateRequest, request: Request):
+    normalized_user_id = resolve_request_user_id(request)
     session = Session()
     try:
         game = session.query(Game).filter(Game.name == payload.game_name).first()
@@ -8302,12 +8409,15 @@ def create_watchlist_item(payload: ListItemCreateRequest):
             raise HTTPException(status_code=404, detail="Game not found")
     finally:
         session.close()
-    response = create_watchlist_api(WatchlistMutationRequest(user_id=DEFAULT_USER_ID, game_id=int(game.id)))
+    response = create_watchlist_api(
+        WatchlistMutationRequest(user_id=normalized_user_id, game_id=int(game.id)),
+        request,
+    )
     return response.get("item") or {"game_name": payload.game_name, "game_id": int(game.id)}
 
 
 @app.delete("/watchlist/items/{game_name}")
-def delete_watchlist_item(game_name: str):
+def delete_watchlist_item(game_name: str, request: Request):
     session = Session()
     try:
         game = session.query(Game).filter(Game.name == game_name).first()
@@ -8315,7 +8425,7 @@ def delete_watchlist_item(game_name: str):
             raise HTTPException(status_code=404, detail="Game not found")
     finally:
         session.close()
-    response = delete_watchlist_api(int(game.id), DEFAULT_USER_ID)
+    response = delete_watchlist_api(int(game.id), request, DEFAULT_USER_ID)
     return {
         "ok": bool(response.get("ok")),
         "deleted": bool(response.get("deleted")),

@@ -14,13 +14,34 @@ const clearTargetAlertBtn = document.getElementById("clearTargetAlertBtn");
 const targetAlertStatus = document.getElementById("targetAlertStatus");
 
 function getCurrentUserId() {
+  const runtime = window.GameDenSite;
+  if (runtime && typeof runtime.getViewerId === "function") {
+    const runtimeViewerId = String(runtime.getViewerId() || "").trim();
+    if (runtimeViewerId) return runtimeViewerId;
+  }
+  const createFallbackViewerId = () => {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return `anon_${String(window.crypto.randomUUID()).replaceAll("-", "").toLowerCase()}`;
+    }
+    const entropy = `${Date.now().toString(16)}${Math.floor(Math.random() * 1e12).toString(16)}`.slice(0, 32);
+    return `anon_${entropy.padEnd(32, "0")}`;
+  };
   try {
     const stored = String(localStorage.getItem(WATCHLIST_STORAGE_KEY) || "").trim();
-    if (stored) return stored;
-    localStorage.setItem(WATCHLIST_STORAGE_KEY, DEFAULT_USER_ID);
-    return DEFAULT_USER_ID;
+    const normalizedStored = stored.toLowerCase();
+    if (
+      stored
+      && normalizedStored !== String(DEFAULT_USER_ID || "").toLowerCase()
+      && normalizedStored !== "anonymous"
+      && normalizedStored !== "guest"
+    ) {
+      return stored;
+    }
+    const nextId = createFallbackViewerId();
+    localStorage.setItem(WATCHLIST_STORAGE_KEY, nextId);
+    return nextId;
   } catch {
-    return DEFAULT_USER_ID;
+    return createFallbackViewerId();
   }
 }
 

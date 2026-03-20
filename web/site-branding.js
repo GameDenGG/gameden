@@ -68,6 +68,10 @@
   const NEW_SIGNAL_DEFAULT_CAP = 800;
   const newSignalBuckets = new Map();
   const SKELETON_STYLE_ID = "gameden-skeleton-styles";
+  const VIEWER_ID_STORAGE_KEY = "gameden.user_id";
+  const VIEWER_ID_HEADER_NAME = "x-gameden-viewer";
+  const VIEWER_ID_RE = /^anon_[0-9a-f]{32}$/;
+  const LEGACY_VIEWER_IDS = new Set(["legacy-user", "anonymous", "guest"]);
 
   function warnOnce(key, message) {
     if (warnedKeys.has(key)) {
@@ -77,6 +81,48 @@
     if (typeof console !== "undefined" && typeof console.warn === "function") {
       console.warn(`[GameDenSite] ${message}`);
     }
+  }
+
+  function _newViewerId() {
+    if (typeof crypto !== "undefined" && crypto && typeof crypto.randomUUID === "function") {
+      return `anon_${String(crypto.randomUUID()).replaceAll("-", "").toLowerCase()}`;
+    }
+    const fallback = `${Date.now().toString(16)}${Math.floor(Math.random() * 1e12).toString(16)}`.slice(0, 32);
+    return `anon_${fallback.padEnd(32, "0")}`;
+  }
+
+  function _normalizeViewerId(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (!normalized) return "";
+    if (VIEWER_ID_RE.test(normalized)) return normalized;
+    return "";
+  }
+
+  function _readStoredViewerId() {
+    try {
+      const stored = String(window.localStorage.getItem(VIEWER_ID_STORAGE_KEY) || "").trim().toLowerCase();
+      if (!stored || LEGACY_VIEWER_IDS.has(stored)) return "";
+      return _normalizeViewerId(stored);
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function _persistViewerId(value) {
+    const normalized = _normalizeViewerId(value);
+    if (!normalized) return "";
+    try {
+      window.localStorage.setItem(VIEWER_ID_STORAGE_KEY, normalized);
+    } catch (_error) {
+      // Ignore storage failures.
+    }
+    return normalized;
+  }
+
+  function getViewerId() {
+    const stored = _readStoredViewerId();
+    if (stored) return stored;
+    return _persistViewerId(_newViewerId());
   }
 
   function normalizeSiteUrl(rawValue) {
@@ -190,15 +236,31 @@
   }
 
   async function _requestJson(url, requestUrl, options = {}) {
+    const requestOptions = { ...options };
+    const headers = new Headers(requestOptions.headers || {});
+    const viewerId = getViewerId();
+    if (viewerId && !headers.has(VIEWER_ID_HEADER_NAME)) {
+      headers.set(VIEWER_ID_HEADER_NAME, viewerId);
+    }
+    requestOptions.headers = headers;
+    if (requestOptions.credentials === undefined) {
+      requestOptions.credentials = "include";
+    }
+
     let response;
     try {
-      response = await fetch(requestUrl, options);
+      response = await fetch(requestUrl, requestOptions);
     } catch (networkError) {
       const error = new Error(`Network request failed for ${url} (${requestUrl})`);
       error.url = url;
       error.requestUrl = requestUrl;
       error.cause = networkError;
       throw error;
+    }
+
+    const responseViewerId = _normalizeViewerId(response.headers.get("x-gameden-viewer"));
+    if (responseViewerId) {
+      _persistViewerId(responseViewerId);
     }
 
     if (response.status === 204) return null;
@@ -772,6 +834,7 @@
   window.GameDenSite = Object.freeze({
     config: siteConfig,
     absoluteUrl,
+    getViewerId,
     resolveApiUrl,
     fetchJson,
     applyMetadata,

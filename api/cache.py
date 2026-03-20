@@ -34,7 +34,13 @@ def _extract_request(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Request |
 
 def _build_cache_key(request: Request) -> str:
     qp_items = sorted(list(request.query_params.multi_items()))
-    return f"{request.url.path}:{qp_items}"
+    viewer_scope = (
+        request.headers.get("x-gameden-viewer")
+        or request.cookies.get("gameden_viewer_id")
+        or request.query_params.get("user_id")
+        or ""
+    )
+    return f"{request.url.path}:{qp_items}:viewer={viewer_scope}"
 
 
 def ttl_cache(ttl_seconds: int, endpoint_key: str | None = None) -> Callable:

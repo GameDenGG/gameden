@@ -4292,14 +4292,34 @@ input:focus-visible {
         const DASHBOARD_RESTORE_DEFERRED_REFRESH_GRACE_MS = 90 * 1000;
 
         function getCurrentUserId() {
-            const fallback = DEFAULT_USER_ID;
+            const runtime = window.GameDenSite;
+            if (runtime && typeof runtime.getViewerId === "function") {
+                const runtimeViewerId = String(runtime.getViewerId() || "").trim();
+                if (runtimeViewerId) return runtimeViewerId;
+            }
+            const createFallbackViewerId = () => {
+                if (window.crypto && typeof window.crypto.randomUUID === "function") {
+                    return `anon_${String(window.crypto.randomUUID()).replaceAll("-", "").toLowerCase()}`;
+                }
+                const entropy = `${Date.now().toString(16)}${Math.floor(Math.random() * 1e12).toString(16)}`.slice(0, 32);
+                return `anon_${entropy.padEnd(32, "0")}`;
+            };
             try {
                 const stored = String(localStorage.getItem(WATCHLIST_STORAGE_KEY) || "").trim();
-                if (stored) return stored;
-                localStorage.setItem(WATCHLIST_STORAGE_KEY, fallback);
-                return fallback;
+                const normalizedStored = stored.toLowerCase();
+                if (
+                    stored
+                    && normalizedStored !== String(DEFAULT_USER_ID || "").toLowerCase()
+                    && normalizedStored !== "anonymous"
+                    && normalizedStored !== "guest"
+                ) {
+                    return stored;
+                }
+                const nextId = createFallbackViewerId();
+                localStorage.setItem(WATCHLIST_STORAGE_KEY, nextId);
+                return nextId;
             } catch {
-                return fallback;
+                return createFallbackViewerId();
             }
         }
 
@@ -5033,6 +5053,7 @@ input:focus-visible {
                 if (!state.homepageLoad.criticalLoaded) return;
                 const payload = {
                     saved_at: Date.now(),
+                    user_id: String(CURRENT_USER_ID || "").trim(),
                     scroll_y: Math.max(0, Math.round(window.scrollY || 0)),
                     row_scroll: captureDashboardRowScrollPositions(),
                     filters: { ...state.filters },
@@ -5065,6 +5086,11 @@ input:focus-visible {
                 if (!raw) return false;
                 const parsed = JSON.parse(raw);
                 if (!parsed || typeof parsed !== "object") return false;
+                const snapshotUserId = String(parsed.user_id || "").trim();
+                const currentUserId = String(CURRENT_USER_ID || "").trim();
+                if (!snapshotUserId || !currentUserId || snapshotUserId !== currentUserId) {
+                    return false;
+                }
                 const savedAt = Number(parsed.saved_at || 0);
                 if (!Number.isFinite(savedAt) || (Date.now() - savedAt) > DASHBOARD_SNAPSHOT_MAX_AGE_MS) {
                     return false;

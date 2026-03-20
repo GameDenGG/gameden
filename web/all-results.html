@@ -5,25 +5,39 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Browse the full GameDen.gg catalog with A-Z sorting, search, and filters.">
 <meta name="application-name" content="GameDen.gg">
-<link rel="canonical" href="all-results.html">
+<link rel="canonical" href="https://gameden.gg/all-results">
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="manifest" href="/site.webmanifest">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GameDen.gg">
 <meta property="og:title" content="GameDen.gg - All Games Directory">
 <meta property="og:description" content="Search and filter the full GameDen.gg catalog with snapshot-backed data.">
-<meta property="og:url" content="https://gameden.gg/all-results.html">
+<meta property="og:url" content="https://gameden.gg/all-results">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="GameDen.gg - All Games Directory">
 <meta name="twitter:description" content="Search and filter the full GameDen.gg catalog on GameDen.gg.">
-<meta name="twitter:url" content="https://gameden.gg/all-results.html">
+<meta name="twitter:url" content="https://gameden.gg/all-results">
 <title>GameDen.gg - All Games Directory</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://gameden.gg/all-results#page",
+  "url": "https://gameden.gg/all-results",
+  "name": "GameDen.gg - All Games Directory",
+  "description": "Browse snapshot-backed Steam game listings with search and filters.",
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": "https://gameden.gg/#website"
+  }
+}
+</script>
 <link rel="preconnect" href="https://cdn.cloudflare.steamstatic.com" crossorigin>
 <script src="/site-runtime-loader.js?v=20260316-1"></script>
 <script>
 if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
   window.GameDenSite.applyMetadata({
-    path: "all-results.html",
+    path: "/all-results",
     title: "GameDen.gg - All Games Directory",
     description: "Browse the full GameDen.gg catalog with A-Z sorting, search, and filters.",
     ogTitle: "GameDen.gg - All Games Directory",
@@ -138,8 +152,8 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
 <body>
 <main class="page">
   <header class="topbar">
-    <a class="back-link" href="index.html">Back to Dashboard</a>
-    <a class="brand" href="index.html" aria-label="GameDen.gg">
+    <a class="back-link" href="/">Back to Dashboard</a>
+    <a class="brand" href="/" aria-label="GameDen.gg">
       <img class="brand-logo" src="/assets/logo/gameden-logo-static.webp" alt="GameDen logo" loading="lazy" decoding="async">
       <span class="sr-only">GameDen.gg</span>
     </a>
@@ -223,7 +237,7 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
   const byPath = (obj, path) => String(path || "").split(".").reduce((acc, key) => (acc && typeof acc === "object") ? acc[key] : null, obj);
   const keyOf = (g) => { const id = n(g?.id ?? g?.game_id, null); const name = String(g?.game_name || "").trim().toLowerCase(); return id !== null ? `id:${Math.trunc(id)}` : (name ? `name:${name}` : ""); };
   const unique = (rows) => { const out = []; const seen = new Set(); for (const row of rows || []) { const key = keyOf(row); if (!key || seen.has(key)) continue; seen.add(key); out.push(row); } return out; };
-  const detailHref = (g) => { const q = new URLSearchParams(); const id = n(g?.id ?? g?.game_id, null); const name = String(g?.game_name || "").trim(); if (id !== null) q.set("game_id", String(Math.trunc(id))); if (name) q.set("game_name", name); return `game.html?${q.toString()}`; };
+  const detailHref = (g) => { const q = new URLSearchParams(); const id = n(g?.id ?? g?.game_id, null); const name = String(g?.game_name || "").trim(); if (name) q.set("game_name", name); if (id !== null) { const route = `/game/${String(Math.trunc(id))}`; const query = q.toString(); return query ? `${route}?${query}` : route; } const query = q.toString(); return query ? `/game?${query}` : "/game"; };
   const setStatus = (msg, err = false) => { if (!msg) { ui.status.classList.add("hidden"); ui.status.classList.remove("error"); ui.status.textContent = ""; return; } ui.status.textContent = msg; ui.status.classList.remove("hidden"); ui.status.classList.toggle("error", !!err); };
   const setCount = (total, shown) => ui.count.textContent = Number.isFinite(total) ? `${Math.round(shown || 0).toLocaleString()} of ${Math.round(total).toLocaleString()}` : "--";
   const hasMore = () => state.page <= state.totalPages;
@@ -418,7 +432,7 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
             return baseTitle.toLowerCase().includes(String(SITE_NAME).toLowerCase()) ? baseTitle : `${baseTitle} | ${SITE_NAME}`;
           })()
         : `${SITE_NAME} - ${state.title}`;
-      const path = seoPage ? (String(seoPage.path || `/${state.seoSlug}`).trim() || "/") : "all-results.html";
+      const path = seoPage ? (String(seoPage.path || `/${state.seoSlug}`).trim() || "/") : "/all-results";
       const description = seoPage ? (String(seoPage.description || subtitle).trim() || subtitle) : subtitle;
       window.GameDenSite.applyMetadata({
         path,

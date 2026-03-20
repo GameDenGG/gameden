@@ -5,29 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="GameDen.gg game detail with price history, discounts, player trends, and deal intelligence.">
 <meta name="application-name" content="GameDen.gg">
-<link rel="canonical" href="game.html">
+<link rel="canonical" href="https://gameden.gg/game">
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="manifest" href="/site.webmanifest">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GameDen.gg">
 <meta property="og:title" content="GameDen.gg - Game Detail">
 <meta property="og:description" content="Game-level pricing, player movement, and market intelligence on GameDen.gg.">
-<meta property="og:url" content="https://gameden.gg/game.html">
+<meta property="og:url" content="https://gameden.gg/game">
 <meta property="og:image" content="https://gameden.gg/web/favicon.ico">
 <meta property="og:image:alt" content="GameDen.gg deal card preview">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="GameDen.gg - Game Detail">
 <meta name="twitter:description" content="Game-level pricing, player movement, and market intelligence on GameDen.gg.">
-<meta name="twitter:url" content="https://gameden.gg/game.html">
+<meta name="twitter:url" content="https://gameden.gg/game">
 <meta name="twitter:image" content="https://gameden.gg/web/favicon.ico">
 <title>GameDen.gg - Game Detail</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "@id": "https://gameden.gg/game#page",
+  "url": "https://gameden.gg/game",
+  "name": "GameDen.gg - Game Detail",
+  "description": "Snapshot-backed Steam deal intelligence, pricing history, and momentum context."
+}
+</script>
+<script id="gameStructuredData" type="application/ld+json">
+{}
+</script>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdn.cloudflare.steamstatic.com" crossorigin>
 <script src="/site-runtime-loader.js?v=20260316-1"></script>
 <script>
 if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
     window.GameDenSite.applyMetadata({
-        path: "game.html",
+        path: "/game",
         title: "GameDen.gg - Game Detail",
         description: "GameDen.gg game detail with price history, discounts, player trends, and deal intelligence.",
         ogTitle: "GameDen.gg - Game Detail",
@@ -1218,7 +1231,7 @@ a {
 </head>
 <body>
 <div class="page">
-    <a class="back-link" href="index.html">&larr; Back to dashboard</a>
+    <a class="back-link" href="/">&larr; Back to dashboard</a>
 
     <section class="hero">
         <div class="hero-shell">
@@ -1383,10 +1396,21 @@ function getQueryParam(name) {
     return params.get(name);
 }
 
+function getPathGameId() {
+    const path = String(window.location.pathname || "").trim().replace(/\/+$/, "");
+    const segments = path.split("/").filter(Boolean);
+    if (segments.length < 2) return null;
+    if (segments[0].toLowerCase() !== "game") return null;
+    const parsed = Number(segments[1]);
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return Math.trunc(parsed);
+}
+
 const WATCHLIST_STORAGE_KEY = "gameden.user_id";
 const DEFAULT_USER_ID = "legacy-user";
 const gameName = getQueryParam("game_name");
-const gameIdParam = getQueryParam("game_id");
+const gameIdFromPath = getPathGameId();
+const gameIdParam = getQueryParam("game_id") || (Number.isFinite(gameIdFromPath) ? String(gameIdFromPath) : null);
 const watchButton = document.getElementById("watchButton");
 const shareDealButton = document.getElementById("shareDealButton");
 const storeCtaLink = document.getElementById("storeCtaLink");
@@ -1754,16 +1778,12 @@ function escapeHtml(value) {
 }
 
 function buildGameShareUrl(payload = currentGamePayload) {
-    const url = new URL(window.location.href);
-    url.search = "";
-
     const gameId = Number(payload?.id ?? payload?.game_id ?? currentGameId);
-    if (Number.isFinite(gameId) && gameId > 0) {
-        url.searchParams.set("game_id", String(Math.trunc(gameId)));
-    }
-
+    const normalizedGameId = Number.isFinite(gameId) && gameId > 0 ? Math.trunc(gameId) : null;
+    const path = normalizedGameId !== null ? `/game/${normalizedGameId}` : "/game";
+    const url = new URL(path, window.location.origin);
     const name = String(payload?.game_name || payload?.name || gameName || "").trim();
-    if (name) {
+    if (name && normalizedGameId === null) {
         url.searchParams.set("game_name", name);
     }
 
@@ -1837,6 +1857,68 @@ function applyGamePageMetadata(payload) {
         twitterImage: ogImage,
         ogImageAlt: `${gameTitle} deal card with price, discount, and confidence from GameDen.gg`,
     });
+}
+
+function applyGameStructuredData(payload) {
+    const scriptNode = document.getElementById("gameStructuredData");
+    if (!(scriptNode instanceof HTMLScriptElement)) {
+        return;
+    }
+
+    const gameTitle = String(payload?.game_name || payload?.name || "Game").trim() || "Game";
+    const url = buildGameShareUrl(payload);
+    const image = String(payload?.banner_url || payload?.header_image || payload?.image_url || "").trim();
+    const genres = Array.isArray(payload?.genres)
+        ? payload.genres.filter(Boolean).slice(0, 6)
+        : String(payload?.genres || "").split(",").map((entry) => entry.trim()).filter(Boolean).slice(0, 6);
+    const platforms = Array.isArray(payload?.platforms)
+        ? payload.platforms.filter(Boolean).slice(0, 6)
+        : String(payload?.platforms || "").split(",").map((entry) => entry.trim()).filter(Boolean).slice(0, 6);
+    const priceValue = Number(payload?.price ?? payload?.current_price);
+    const releaseDate = String(payload?.release_date || "").trim();
+
+    const schema = {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "@id": `${url}#game`,
+        "name": gameTitle,
+        "url": url,
+        "description": `${gameTitle}: ${buildShareSummary(payload)}`,
+        "applicationCategory": "Game",
+    };
+
+    if (image) schema.image = image;
+    if (genres.length) schema.genre = genres;
+    if (platforms.length) schema.operatingSystem = platforms.join(", ");
+    if (releaseDate) schema.datePublished = releaseDate;
+
+    const publisher = String(payload?.publisher || "").trim();
+    if (publisher) {
+        schema.publisher = {
+            "@type": "Organization",
+            "name": publisher,
+        };
+    }
+
+    const developer = String(payload?.developer || "").trim();
+    if (developer) {
+        schema.author = {
+            "@type": "Organization",
+            "name": developer,
+        };
+    }
+
+    if (Number.isFinite(priceValue) && priceValue >= 0) {
+        schema.offers = {
+            "@type": "Offer",
+            "url": url,
+            "priceCurrency": "USD",
+            "price": Number(priceValue).toFixed(2),
+            "availability": "https://schema.org/InStock",
+        };
+    }
+
+    scriptNode.textContent = JSON.stringify(schema);
 }
 
 async function copyTextToClipboard(textValue) {
@@ -2272,7 +2354,7 @@ async function loadGame() {
         }
         clearLoadingChrome();
         document.getElementById("gameTitle").innerText = "Missing game identifier";
-        document.querySelector(".content-grid").innerHTML = `<div class="error">game_id or game_name is required in URL query.</div>`;
+        document.querySelector(".content-grid").innerHTML = `<div class="error">game_id path segment or game_id/game_name query is required.</div>`;
         return;
     }
 
@@ -2310,6 +2392,7 @@ async function loadGame() {
     }
     setStoreCta(resolveStoreUrl(payload));
     applyGamePageMetadata(payload);
+    applyGameStructuredData(payload);
 
     document.getElementById("gameTitle").innerText = payload.game_name || gameName;
     document.getElementById("gameSub").innerText =
@@ -2420,11 +2503,16 @@ async function loadRelatedGames(gameId) {
                     ? rows.slice(0, 6).map((row) => {
                         const name = escapeHtml(row.game_name || "Unknown game");
                         const discount = Number(row.discount_percent || 0);
+                        const rowGameId = Number(row.game_id || row.id || 0);
+                        const encodedName = encodeURIComponent(row.game_name || "");
+                        const detailHref = Number.isFinite(rowGameId) && rowGameId > 0
+                            ? `/game/${Math.trunc(rowGameId)}?game_name=${encodedName}`
+                            : `/game?game_name=${encodedName}`;
                         const metric = discount > 0
                             ? `${discount}% off`
                             : `Players ${fmtInt(row.current_players)}`;
                         return `
-            <a class="related-item" href="game.html?game_name=${encodeURIComponent(row.game_name || "")}">
+            <a class="related-item" href="${detailHref}">
                                 <strong>${name}</strong>
                                 <span>${escapeHtml(metric)}</span>
                             </a>

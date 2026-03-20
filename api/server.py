@@ -224,14 +224,13 @@ DAILY_DIGEST_EVENT_SCAN_LIMIT = 360
 DAILY_DIGEST_ALERT_SCAN_LIMIT = 320
 DAILY_DIGEST_SNAPSHOT_SCAN_LIMIT = 220
 DEFAULT_USER_ID = API_DEFAULT_USER_ID
-SITEMAP_PATHS = (
+SITEMAP_STATIC_PATHS = (
     "/",
+    "/all-results",
+    "/game",
+    "/history",
+    "/game-detail",
     "/watchlist",
-    "/web/index.html",
-    "/web/all-results.html",
-    "/web/game-detail.html",
-    "/web/game.html",
-    "/web/history.html",
     "/historical-lows",
     "/best-deals",
     "/trending",
@@ -241,6 +240,7 @@ SITEMAP_PATHS = (
     "/under-20",
     "/popular-discounts",
 )
+SITEMAP_GAME_DETAIL_LIMIT = 1200
 EXTENDED_PLATFORM_FILTER_OPTIONS = ("Steam Deck", "VR Compatibility")
 SEARCH_SIMILARITY_THRESHOLD = API_SEARCH_SIMILARITY_THRESHOLD
 HISTORY_RANGE_DAYS: dict[str, int] = {
@@ -3365,7 +3365,7 @@ def site_manifest():
         "theme_color": "#050913",
         "icons": [
             {
-                "src": "/web/favicon.ico",
+                "src": "/favicon.ico",
                 "sizes": "any",
                 "type": "image/x-icon",
             }
@@ -3377,11 +3377,56 @@ def site_manifest():
     )
 
 
+def _collect_sitemap_game_paths(limit: int = SITEMAP_GAME_DETAIL_LIMIT) -> list[str]:
+    session = ReadSessionLocal()
+    try:
+        rows = (
+            session.query(GameSnapshot.game_id)
+            .filter(
+                GameSnapshot.game_id.isnot(None),
+                GameSnapshot.is_released == 1,
+                GameSnapshot.is_upcoming.is_(False),
+            )
+            .order_by(
+                case((GameSnapshot.popularity_score.is_(None), 1), else_=0).asc(),
+                GameSnapshot.popularity_score.desc(),
+                GameSnapshot.updated_at.desc(),
+                GameSnapshot.game_id.asc(),
+            )
+            .limit(max(1, int(limit)))
+            .all()
+        )
+        paths: list[str] = []
+        seen_ids: set[int] = set()
+        for row in rows:
+            game_id = int(safe_num(getattr(row, "game_id", 0), 0.0))
+            if game_id <= 0 or game_id in seen_ids:
+                continue
+            seen_ids.add(game_id)
+            paths.append(f"/game/{game_id}")
+        return paths
+    finally:
+        session.close()
+
+
 @app.get("/sitemap.xml", include_in_schema=False)
 def sitemap_xml():
     today = utc_now().date().isoformat()
+    ordered_paths: list[str] = []
+    seen_paths: set[str] = set()
+    for path in (*SITEMAP_STATIC_PATHS, *_collect_sitemap_game_paths()):
+        normalized = str(path or "").strip()
+        if not normalized:
+            continue
+        if not normalized.startswith("/"):
+            normalized = f"/{normalized}"
+        if normalized in seen_paths:
+            continue
+        seen_paths.add(normalized)
+        ordered_paths.append(normalized)
+
     urls = []
-    for path in SITEMAP_PATHS:
+    for path in ordered_paths:
         location = _build_canonical_url(path)
         urls.append(
             "  <url>\n"
@@ -3402,6 +3447,33 @@ def sitemap_xml():
 @app.get("/")
 def home():
     return FileResponse("web/index.html")
+
+
+@app.get("/all-results")
+def all_results_page():
+    return FileResponse("web/all-results.html")
+
+
+@app.get("/game")
+def game_page():
+    return FileResponse("web/game.html")
+
+
+@app.get("/game/{game_id}")
+def game_page_with_id(game_id: int):
+    if int(safe_num(game_id, 0.0)) <= 0:
+        raise HTTPException(status_code=404, detail="Game page not found")
+    return FileResponse("web/game.html")
+
+
+@app.get("/history")
+def history_page():
+    return FileResponse("web/history.html")
+
+
+@app.get("/game-detail")
+def game_detail_page():
+    return FileResponse("web/game-detail.html")
 
 
 @app.get("/favicon.ico", include_in_schema=False)

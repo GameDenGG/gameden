@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="dark">
 <meta name="description" content="GameDen.gg is a premium Steam market intelligence console for prices, discounts, player momentum, and deal discovery across thousands of games.">
 <meta name="application-name" content="GameDen.gg">
-<link rel="canonical" href="index.html">
+<link rel="canonical" href="https://gameden.gg/">
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="manifest" href="/site.webmanifest">
 <meta property="og:type" content="website">
@@ -19,6 +19,37 @@
 <meta name="twitter:description" content="Live Steam market intelligence for deals, momentum, and timing.">
 <meta name="twitter:url" content="https://gameden.gg/">
 <title>GameDen.gg</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://gameden.gg/#organization",
+      "name": "GameDen.gg",
+      "url": "https://gameden.gg/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://gameden.gg/assets/logo/gameden-logo-static.webp"
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://gameden.gg/#website",
+      "url": "https://gameden.gg/",
+      "name": "GameDen.gg",
+      "publisher": {
+        "@id": "https://gameden.gg/#organization"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://gameden.gg/all-results?search={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+  ]
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.cloudflare.steamstatic.com" crossorigin>
@@ -3221,6 +3252,39 @@ input:focus-visible {
         gap: 10px;
         padding: 12px 12px 0;
         padding-bottom: 7px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        column-gap: 8px;
+        row-gap: 6px;
+    }
+    .panel-head .panel-title-wrap {
+        min-width: 0;
+    }
+    .panel-head .row-nav,
+    .panel-head .panel-action {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
+        align-self: start;
+        margin: 0;
+    }
+    #recommendedForYouPanel .panel-head {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+    }
+    #recommendedForYouPanel .panel-head .panel-title-wrap {
+        min-width: 0;
+    }
+    #recommendedForYouPanel .panel-head .row-nav {
+        grid-column: 2;
+        grid-row: 1;
+        margin-left: 0;
+        justify-self: end;
+        align-self: start;
+    }
+    #recommendedForYouPanel .panel-body {
+        padding-top: 0;
     }
     .panel-title {
         font-size: 18px;
@@ -3267,7 +3331,6 @@ input:focus-visible {
         font-size: 10px;
     }
 
-    .panel-head,
     .sale-radar-head {
         flex-direction: column;
         align-items: stretch;
@@ -3899,7 +3962,7 @@ input:focus-visible {
                             <h2 class="panel-title">All Games</h2>
                             <div class="panel-subtitle" id="allGamesSubtitle">Two rotating top-selling picks from the full catalog.</div>
                         </div>
-                        <a class="panel-action" id="releasedGamesDirectoryBtn" href="all-results.html?view=released-games&title=All%20Games%20Directory">
+                        <a class="panel-action" id="releasedGamesDirectoryBtn" href="/all-results?view=released-games&title=All%20Games%20Directory">
                             Open Full Directory
                         </a>
                     </div>
@@ -4002,7 +4065,7 @@ input:focus-visible {
                             <h2 class="panel-title">Wishlist</h2>
                             <div class="panel-subtitle">Games you want to keep an eye on for future buys.</div>
                         </div>
-                        <a class="panel-action" href="watchlist.html?tab=wishlist">Open Wishlist</a>
+                        <a class="panel-action" href="/watchlist?tab=wishlist">Open Wishlist</a>
                     </div>
                     <div class="panel-body">
                         <div id="wishlistList" class="mini-list"></div>
@@ -4015,7 +4078,7 @@ input:focus-visible {
                             <h2 class="panel-title">Watchlist</h2>
                             <div class="panel-subtitle">Games you want to monitor closely for sale movement.</div>
                         </div>
-                        <a class="panel-action" href="watchlist.html?tab=watchlist">Open Watchlist</a>
+                        <a class="panel-action" href="/watchlist?tab=watchlist">Open Watchlist</a>
                     </div>
                     <div class="panel-body">
                         <div id="watchlistList" class="mini-list"></div>
@@ -5352,11 +5415,16 @@ input:focus-visible {
 
         function buildGameDetailHref(gameLike) {
             const normalized = normalizeGameRow(gameLike);
-            const params = new URLSearchParams();
-
             const gameId = Number(normalized?.game_id);
+            const params = new URLSearchParams();
             if (Number.isFinite(gameId) && gameId > 0) {
-                params.set("game_id", String(gameId));
+                const normalizedId = String(Math.trunc(gameId));
+                const gameName = String(normalized?.game_name || "").trim();
+                if (gameName) {
+                    params.set("game_name", gameName);
+                }
+                const query = params.toString();
+                return query ? `/game/${normalizedId}?${query}` : `/game/${normalizedId}`;
             }
 
             const gameName = String(normalized?.game_name || "").trim();
@@ -5365,7 +5433,7 @@ input:focus-visible {
             }
 
             const query = params.toString();
-    return query ? `game.html?${query}` : "game.html";
+            return query ? `/game?${query}` : "/game";
         }
 
         function getRenderableItemKey(item, index = 0) {
@@ -7459,7 +7527,7 @@ input:focus-visible {
             if (view === "new-deals" && state.lastVisitTs > 0) {
                 params.set("lastVisitTs", String(state.lastVisitTs));
             }
-    return `all-results.html?${params.toString()}`;
+            return `/all-results?${params.toString()}`;
         }
 
         function updateShowAllButton(button, view, title, totalCount, visibleCount) {

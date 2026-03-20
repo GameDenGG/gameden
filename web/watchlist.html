@@ -5,25 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="GameDen.gg watchlist: tracked games with live deal signals and buy-score context.">
 <meta name="application-name" content="GameDen.gg">
-<link rel="canonical" href="watchlist.html">
+<link rel="canonical" href="https://gameden.gg/watchlist">
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="manifest" href="/site.webmanifest">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GameDen.gg">
 <meta property="og:title" content="GameDen.gg - Watchlist">
 <meta property="og:description" content="Track your games and monitor sale, low-price, and buy-signal events in one place.">
-<meta property="og:url" content="https://gameden.gg/watchlist.html">
+<meta property="og:url" content="https://gameden.gg/watchlist">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="GameDen.gg - Watchlist">
 <meta name="twitter:description" content="Track your games and monitor sale, low-price, and buy-signal events.">
-<meta name="twitter:url" content="https://gameden.gg/watchlist.html">
+<meta name="twitter:url" content="https://gameden.gg/watchlist">
 <title>GameDen.gg - Watchlist</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "@id": "https://gameden.gg/watchlist#page",
+  "url": "https://gameden.gg/watchlist",
+  "name": "GameDen.gg - Watchlist",
+  "description": "Track watched and wishlisted Steam games with snapshot-backed market signals."
+}
+</script>
 <link rel="preconnect" href="https://cdn.cloudflare.steamstatic.com" crossorigin>
 <script src="/site-runtime-loader.js?v=20260316-1"></script>
 <script>
 if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
     window.GameDenSite.applyMetadata({
-        path: "watchlist.html",
+        path: "/watchlist",
         title: "GameDen.gg - Watchlist",
         description: "GameDen.gg watchlist: tracked games with live deal signals and buy-score context.",
         ogTitle: "GameDen.gg - Watchlist",
@@ -530,9 +540,9 @@ body {
     </div>
         <div class="actions">
             <button class="btn" id="refreshBtn" type="button">Refresh</button>
-            <a class="btn" id="openWatchlistBtn" href="watchlist.html?tab=watchlist">Open Watchlist</a>
-            <a class="btn" id="openWishlistBtn" href="watchlist.html?tab=wishlist">Open Wishlist</a>
-            <a class="btn" href="index.html">Back to dashboard</a>
+            <a class="btn" id="openWatchlistBtn" href="/watchlist?tab=watchlist">Open Watchlist</a>
+            <a class="btn" id="openWishlistBtn" href="/watchlist?tab=wishlist">Open Wishlist</a>
+            <a class="btn" href="/">Back to dashboard</a>
         </div>
     </div>
 
@@ -543,8 +553,8 @@ body {
     </section>
 
     <nav class="view-toggle" id="viewToggle" aria-label="Tracked items view">
-        <a class="btn" id="watchTabBtn" href="watchlist.html?tab=watchlist">Watchlist</a>
-        <a class="btn" id="wishTabBtn" href="watchlist.html?tab=wishlist">Wishlist</a>
+        <a class="btn" id="watchTabBtn" href="/watchlist?tab=watchlist">Watchlist</a>
+        <a class="btn" id="wishTabBtn" href="/watchlist?tab=wishlist">Wishlist</a>
     </nav>
 
     <section id="content"></section>
@@ -731,9 +741,14 @@ function render(items, alertsByGame = new Map(), tab = TRACKED_TAB_WATCHLIST) {
                 const removeAttr = tab === TRACKED_TAB_WISHLIST
                     ? `data-remove-wish="${Number(item.game_id || 0)}"`
                     : `data-remove-watch="${Number(item.game_id || 0)}"`;
+                const gameId = Number(item.game_id || 0);
+                const encodedName = encodeURIComponent(item.game_name || "");
+                const gameHref = Number.isFinite(gameId) && gameId > 0
+                    ? `/game/${Math.trunc(gameId)}?game_name=${encodedName}`
+                    : `/game?game_name=${encodedName}`;
                 return `
                     <article class="card">
-                        <a class="thumb" href="game.html?game_name=${encodeURIComponent(item.game_name || "")}"${bannerStyle}></a>
+                        <a class="thumb" href="${gameHref}"${bannerStyle}></a>
                         <div class="body">
                             <h2 class="name">${escapeHtml(item.game_name || "Unknown game")}</h2>
                             <div class="metrics">
@@ -756,7 +771,7 @@ function render(items, alertsByGame = new Map(), tab = TRACKED_TAB_WATCHLIST) {
                                     : `<span class="signal">${tab === TRACKED_TAB_WISHLIST ? "Wishlisted" : "Watching for new signals"}</span>`}
                             </div>
                             <div class="card-actions">
-                                <a class="btn" href="game.html?game_name=${encodeURIComponent(item.game_name || "")}">Open game</a>
+                                <a class="btn" href="${gameHref}">Open game</a>
                                 <button class="btn" type="button" ${removeAttr}>Remove</button>
                             </div>
                         </div>

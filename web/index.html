@@ -3882,32 +3882,6 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-intel" id="historicalLowsPanel">
-                    <div class="panel-head">
-                        <div class="panel-title-wrap">
-                            <h2 class="panel-title">Historical Lows</h2>
-                            <div class="panel-subtitle">Live tracked lows and near-lows with real prior baseline history.</div>
-                        </div>
-                        <div class="row-nav">
-                            <button class="row-nav-btn" type="button" data-row-left="historicalLowsGrid">&lt;</button>
-                            <button class="row-nav-btn" type="button" data-row-right="historicalLowsGrid">&gt;</button>
-                        </div>
-                    </div>
-                    <div class="panel-body">
-                        <div class="row-section">
-                            <div class="row-fade-left"></div>
-                            <div class="row-fade-right"></div>
-                            <div id="historicalLowsGrid" class="row-scroller"></div>
-                        </div>
-                        <div class="show-all-wrap">
-                            <a class="show-all-btn hidden" id="historicalLowsShowAllBtn" href="#">
-                                Show All
-                                <span class="dropdown-arrow">⇊</span>
-                            </a>
-                        </div>
-                    </div>
-                </section>
-
                 <section class="panel panel-catalog" id="allGamesPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -4463,8 +4437,6 @@ input:focus-visible {
             "recentlyUpdatedPanel",
             "dealRadarPanel",
             "analyticsPanel",
-            "historicalLowsPanel",
-            "topReviewedPanel",
         ]);
         const HOMEPAGE_SECTION_LAYOUT = Object.freeze([
             { id: "opportunitiesPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_NOW, priority: 10, column: "main" },
@@ -4528,13 +4500,20 @@ input:focus-visible {
                 tabKey: "all-games",
                 tabLabel: "All Games",
             },
+            {
+                id: "topReviewedPanel",
+                group: HOMEPAGE_SECTION_GROUPS.DISCOVER,
+                priority: 60,
+                column: "main",
+                discoveryTab: true,
+                tabKey: "top-reviewed",
+                tabLabel: "Top Reviewed",
+            },
 
             { id: "moreIntelSection", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 10, column: "lower" },
             { id: "recentlyUpdatedPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 20, column: "main" },
             { id: "dealRadarPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 30, column: "main" },
             { id: "analyticsPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 40, column: "main" },
-            { id: "historicalLowsPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 50, column: "main" },
-            { id: "topReviewedPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 60, column: "main" },
         ].map((entry) => Object.freeze(entry)));
 
         const state = {
@@ -7804,6 +7783,7 @@ input:focus-visible {
         }
 
         function renderHistoricalLows() {
+            if (!ui.historicalLowsGrid) return;
             renderPagedCards({
                 container: ui.historicalLowsGrid,
                 items: state.historicalLows,
@@ -7817,7 +7797,36 @@ input:focus-visible {
             });
         }
 
+        function ensureTopReviewedRowsLoaded(options = {}) {
+            const force = options?.force === true;
+            if (!force && safeArray(state.topReviewed).length) {
+                return Promise.resolve(safeArray(state.topReviewed));
+            }
+            const inflight = ensureTopReviewedRowsLoaded._inflight;
+            if (inflight) return inflight;
+            const task = fetchJson(`/games/top-reviewed?limit=${HOMEPAGE_SECTION_LIMITS.dealOpportunities}`)
+                .then((payload) => {
+                    const items = uniqueGamesByName(payload?.items || payload || []);
+                    if (items.length || !safeArray(state.topReviewed).length) {
+                        state.topReviewed = items;
+                    }
+                    renderTopReviewed();
+                    scheduleDashboardSnapshotPersist();
+                    return safeArray(state.topReviewed);
+                })
+                .catch((error) => {
+                    console.warn("Failed to load top reviewed games", error);
+                    return safeArray(state.topReviewed);
+                })
+                .finally(() => {
+                    ensureTopReviewedRowsLoaded._inflight = null;
+                });
+            ensureTopReviewedRowsLoaded._inflight = task;
+            return task;
+        }
+
         function renderTopReviewed() {
+            if (!ui.topReviewedGrid) return;
             renderPagedCards({
                 container: ui.topReviewedGrid,
                 items: state.topReviewed,
@@ -9143,6 +9152,12 @@ input:focus-visible {
                 case "all-games":
                     renderReleasedGames();
                     break;
+                case "top-reviewed":
+                    renderTopReviewed();
+                    if (!safeArray(state.topReviewed).length) {
+                        void ensureTopReviewedRowsLoaded();
+                    }
+                    break;
                 default:
                     renderDealRanked();
                     break;
@@ -9385,8 +9400,6 @@ input:focus-visible {
             renderActiveDiscoveryTabPane();
             renderNewDeals();
             renderRecommendedDeals();
-            renderHistoricalLows();
-            renderTopReviewed();
             renderSeasonalSale();
             renderTopPlayed();
             renderTrending();
@@ -11147,32 +11160,6 @@ try {
             const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
             const panelTasks = [
                 {
-                    key: "panel:historical-lows",
-                    node: document.getElementById("historicalLowsPanel"),
-                    shouldLoad: () => !safeArray(state.historicalLows).length,
-                    load: () => fetchJson(`/games/historical-lows?limit=${HOMEPAGE_SECTION_LIMITS.dealOpportunities}`)
-                        .then((payload) => {
-                            const items = uniqueGamesByName(payload?.items || payload || []);
-                            if (items.length || !safeArray(state.historicalLows).length) {
-                                state.historicalLows = items;
-                            }
-                            renderHistoricalLows();
-                        }),
-                },
-                {
-                    key: "panel:top-reviewed",
-                    node: document.getElementById("topReviewedPanel"),
-                    shouldLoad: () => !safeArray(state.topReviewed).length,
-                    load: () => fetchJson(`/games/top-reviewed?limit=${HOMEPAGE_SECTION_LIMITS.dealOpportunities}`)
-                        .then((payload) => {
-                            const items = uniqueGamesByName(payload?.items || payload || []);
-                            if (items.length || !safeArray(state.topReviewed).length) {
-                                state.topReviewed = items;
-                            }
-                            renderTopReviewed();
-                        }),
-                },
-                {
                     key: "panel:upcoming",
                     node: document.getElementById("upcomingPanel"),
                     shouldLoad: () => !safeArray(state.upcoming).length,
@@ -11325,12 +11312,11 @@ try {
 
         function renderDeferredHomepageSections() {
             renderSeasonalSale();
-            renderHistoricalLows();
-            renderTopReviewed();
             renderTopPlayed();
             renderTrending();
             renderLeaderboard();
             renderUpcoming();
+            renderActiveDiscoveryTabPane();
             wireSparklineHover();
             scheduleDashboardSnapshotPersist();
         }
@@ -11339,12 +11325,11 @@ try {
             if (!safeArray(state.recentlyUpdated).length) {
                 computeRecentlyUpdated();
             }
-            renderHistoricalLows();
-            renderTopReviewed();
             renderUpcoming();
             renderNewDeals();
             renderRecommendedDeals();
             renderRecentlyUpdated();
+            renderActiveDiscoveryTabPane();
             wireSparklineHover();
             scheduleDashboardSnapshotPersist();
         }
@@ -11352,11 +11337,8 @@ try {
         function renderDeferredHomepageSkeletons() {
             renderSkeleton(ui.seasonalSaleTopGrid, "deal-cards", 4, { cardClass: "game-card" });
             renderSkeleton(ui.seasonalSaleLowerGrid, "deal-cards", 4, { cardClass: "game-card" });
-            if (!safeArray(state.historicalLows).length) {
-                renderSkeleton(ui.historicalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
-            }
             renderSkeleton(ui.releasedGamesGrid, "deal-cards", 2, { cardClass: "game-card", compact: true });
-            if (!safeArray(state.topReviewed).length) {
+            if (isDiscoveryTabActive("top-reviewed") && !safeArray(state.topReviewed).length) {
                 renderSkeleton(ui.topReviewedGrid, "deal-cards", 6, { cardClass: "game-card" });
             }
             if (!safeArray(state.upcoming).length) {

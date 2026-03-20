@@ -141,6 +141,12 @@
             margin-bottom: 12px;
         }
 
+        .eyebrow-logo {
+            display: block;
+            width: auto;
+            height: 14px;
+        }
+
         .hero h1 {
             margin: 0 0 10px;
             font-size: clamp(30px, 4vw, 50px);
@@ -502,7 +508,10 @@
         <section class="hero">
             <div class="hero-grid">
                 <div>
-                    <div class="eyebrow">GameDen.gg - Price History</div>
+                    <div class="eyebrow" aria-label="GameDen.gg Price History">
+                        <img class="eyebrow-logo" src="/assets/logo/gameden-logo-static.webp" alt="GameDen logo" loading="lazy" decoding="async">
+                        <span>Price History</span>
+                    </div>
                     <h1 id="gameTitle">Loading game...</h1>
                     <p class="hero-subtitle" id="heroSubtitle">
                         Reviewing historical pricing, current player activity, and overall review snapshot.

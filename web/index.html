@@ -2501,6 +2501,18 @@ input:focus-visible {
     letter-spacing: 0.03em;
 }
 
+.site-footer-brand-logo {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+}
+
+.site-footer-brand-logo img {
+    display: block;
+    width: auto;
+    height: 32px;
+}
+
 .site-footer-meta {
     margin-top: 4px;
     font-size: 12px;
@@ -3638,7 +3650,6 @@ input:focus-visible {
             <div class="homepage-content-shell">
                 <div class="homepage-body homepage-content-grid dashboard-grid">
                     <main class="homepage-main main-column homepage-main-column" aria-label="Main market intelligence">
-                        <div class="column-zone-label main-zone-label">Main Content</div>
                 <section class="panel panel-seasonal panel-secondary-intel hidden" id="seasonalSaleTopPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -4155,7 +4166,10 @@ input:focus-visible {
         </div>
 
         <footer class="site-footer">
-            <strong id="footerBrand">GameDen.gg</strong>
+            <strong id="footerBrand" class="site-footer-brand-logo" aria-label="GameDen.gg">
+                <img src="/assets/logo/gameden-logo-static.webp" alt="GameDen logo" loading="lazy" decoding="async" />
+                <span class="sr-only">GameDen.gg</span>
+            </strong>
             <div class="site-footer-meta" id="footerSummary">
                 Snapshot-backed Steam intelligence for pricing, momentum, and timing decisions across the full catalog.
             </div>
@@ -4190,6 +4204,9 @@ input:focus-visible {
         const HERO_LOGO_SESSION_KEY = "gameden.hero_logo_intro_played";
         const HERO_LOGO_FALLBACK_TIMEOUT_MS = 8000;
         const HERO_LOGO_FADE_DURATION_MS = 340;
+        const SEARCH_INPUT_DEBOUNCE_MS = 150;
+        const SEARCH_CACHE_TTL_MS = 60 * 1000;
+        const SEARCH_CATALOG_RELOAD_DEBOUNCE_MS = 450;
         const HOMEPAGE_SECTION_LIMITS = Object.freeze({
             marketRadar: 24,
             dealOpportunities: 24,
@@ -4248,9 +4265,20 @@ input:focus-visible {
             }
         }
 
+        function renderFooterBrandLogo() {
+            const el = document.getElementById("footerBrand");
+            if (!el) return;
+            el.classList.add("site-footer-brand-logo");
+            el.setAttribute("aria-label", SITE_BRAND.name);
+            el.innerHTML = `
+                <img src="/assets/logo/gameden-logo-static.webp" alt="GameDen logo" loading="lazy" decoding="async" />
+                <span class="sr-only">${SITE_BRAND.name}</span>
+            `;
+        }
+
         function applySiteBranding() {
             document.title = SITE_BRAND.pageTitle;
-            setNodeText("footerBrand", SITE_BRAND.name);
+            renderFooterBrandLogo();
             setNodeText("footerSummary", SITE_BRAND.footerSummary);
             const searchInput = document.getElementById("searchInput");
             if (searchInput) {
@@ -4586,6 +4614,7 @@ input:focus-visible {
                 query: "",
                 requestId: 0,
                 controller: null,
+                cache: new Map(),
             },
             catalog: {
                 loading: false,
@@ -6119,6 +6148,124 @@ input:focus-visible {
             return `${fallback.slice(0, 19).trimEnd()}...`;
         }
 
+        function isUpcomingCard(game, context = {}) {
+            const viewToken = String(context?.view || "").trim().toLowerCase();
+            if (viewToken === "upcoming") return true;
+            if (game?.is_upcoming === true) return true;
+            const releasedFlag = game?.is_released;
+            if (releasedFlag === 0 || releasedFlag === "0" || releasedFlag === false) return true;
+            const releaseDateMs = Date.parse(String(game?.release_date || ""));
+            return Number.isFinite(releaseDateMs) && releaseDateMs > Date.now();
+        }
+
+        function formatUpcomingReleaseLabel(game) {
+            const releaseDateValue = String(game?.release_date || "").trim();
+            if (releaseDateValue) {
+                const parsed = Date.parse(releaseDateValue);
+                if (Number.isFinite(parsed)) {
+                    return `Releases ${new Date(parsed).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                    })}`;
+                }
+            }
+            const releaseText = String(game?.release_date_text || "").trim();
+            if (releaseText) return `Release ${releaseText}`;
+            return "Release date TBA";
+        }
+
+        function primaryGenreLabel(game) {
+            const genres = safeArray(game?.genres).map((value) => String(value || "").trim()).filter(Boolean);
+            if (genres.length) return genres[0];
+            const tags = safeArray(game?.tags).map((value) => String(value || "").trim()).filter(Boolean);
+            return tags.length ? tags[0] : "";
+        }
+
+        function primaryPlatformLabel(game) {
+            const platforms = safeArray(game?.platforms).map((value) => String(value || "").trim()).filter(Boolean);
+            return platforms.length ? platforms[0] : "";
+        }
+
+        function buildUpcomingMetadataStack(game) {
+            const releaseLabel = formatUpcomingReleaseLabel(game);
+            const genreLabel = primaryGenreLabel(game);
+            const platformLabel = primaryPlatformLabel(game);
+            const reviewScore = Number(game?.review_score);
+            const reviewLabel = String(getReviewLabel(game) || "").trim();
+            const popularity = Number(game?.popularity_score);
+            const upcomingHeat = Number(game?.upcoming_hot_score);
+
+            const primaryChips = ['<span class="meta-chip signal info">Upcoming</span>'];
+            if (Number.isFinite(upcomingHeat) && upcomingHeat > 0) {
+                primaryChips.push(`<span class="meta-chip metric">Heat ${Math.round(upcomingHeat)}</span>`);
+            }
+            if (Number.isFinite(popularity) && popularity > 0) {
+                primaryChips.push(`<span class="meta-chip metric">Interest ${Math.round(popularity)}</span>`);
+            }
+            if (Number.isFinite(reviewScore) && reviewScore > 0) {
+                primaryChips.push(`<span class="meta-chip signal info">${Math.round(reviewScore)}% reviews</span>`);
+            } else if (reviewLabel) {
+                primaryChips.push(`<span class="meta-chip signal info">${escapeHtml(reviewLabel)}</span>`);
+            }
+
+            const contextItems = [`<span class="context-item"><strong>${escapeHtml(releaseLabel)}</strong></span>`];
+            if (genreLabel) {
+                contextItems.push(`<span class="context-item">Genre <strong>${escapeHtml(genreLabel)}</strong></span>`);
+            }
+            if (platformLabel) {
+                contextItems.push(`<span class="context-item">Platform <strong>${escapeHtml(platformLabel)}</strong></span>`);
+            }
+
+            return `
+                <div class="card-meta-stack">
+                    <div class="card-meta-row deal-quality compact-primary">
+                        <div class="card-meta-cluster primary">
+                            ${primaryChips.slice(0, 4).join("")}
+                        </div>
+                    </div>
+                    <div class="card-meta-row context compact">
+                        ${contextItems.join('<span class="context-item">•</span>')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildUpcomingMiniStatsRow(game) {
+            const entries = [];
+            const upcomingHeat = Number(game?.upcoming_hot_score);
+            const popularity = Number(game?.popularity_score);
+            const reviewCount = Number(game?.review_total_count ?? game?.review_count);
+
+            if (Number.isFinite(upcomingHeat) && upcomingHeat > 0) {
+                entries.push({ label: "Heat", value: String(Math.round(upcomingHeat)) });
+            }
+            if (Number.isFinite(popularity) && popularity > 0) {
+                entries.push({ label: "Interest", value: String(Math.round(popularity)) });
+            }
+            if (Number.isFinite(reviewCount) && reviewCount > 0) {
+                entries.push({ label: "Reviews", value: fmtInt(reviewCount) });
+            }
+            if (!entries.length) return "";
+
+            return `
+                <div class="card-mini-stats">
+                    ${entries.slice(0, 2).map((entry) => `
+                        <span class="mini-stat">
+                            <span class="mini-stat-label">${escapeHtml(entry.label)}</span>
+                            <strong class="mini-stat-value">${escapeHtml(entry.value)}</strong>
+                        </span>
+                    `).join("")}
+                </div>
+            `;
+        }
+
+        function buildUpcomingPrimaryReason(game) {
+            const releaseLabel = formatUpcomingReleaseLabel(game);
+            if (releaseLabel) return releaseLabel;
+            return "Upcoming release";
+        }
+
         function buildCardSignalRow(game) {
             const primaryKeys = new Set([
                 "buy_now_pick",
@@ -6211,7 +6358,10 @@ input:focus-visible {
             `;
         }
 
-        function buildCardMetadataStack(game) {
+        function buildCardMetadataStack(game, context = {}) {
+            if (isUpcomingCard(game, context)) {
+                return buildUpcomingMetadataStack(game);
+            }
             return `
                 <div class="card-meta-stack">
                     ${buildCardDealQualityRow(game)}
@@ -6221,7 +6371,10 @@ input:focus-visible {
             `;
         }
 
-        function buildCardMiniStatsRow(game) {
+        function buildCardMiniStatsRow(game, context = {}) {
+            if (isUpcomingCard(game, context)) {
+                return buildUpcomingMiniStatsRow(game);
+            }
             const entries = [];
             const worth = Number(game.worth_buying_score ?? game.buy_score);
             const deal = Number(game.deal_score);
@@ -7056,8 +7209,22 @@ input:focus-visible {
         function gameCardHtml(game, context = {}) {
             const detailHref = buildGameDetailHref(game);
             const gameName = escapeHtml(game.game_name || "Unknown game");
-            const decisionExplainLines = buildDecisionExplainLines(game);
-            const primaryReason = decisionExplainLines.length ? escapeHtml(decisionExplainLines[0]) : "";
+            const upcomingCard = isUpcomingCard(game, context);
+            const decisionExplainLines = upcomingCard ? [] : buildDecisionExplainLines(game);
+            const primaryReason = upcomingCard
+                ? escapeHtml(buildUpcomingPrimaryReason(game))
+                : decisionExplainLines.length
+                    ? escapeHtml(decisionExplainLines[0])
+                    : "";
+            const currentPrice = Number(game.price);
+            const shouldUseTbaPrice = upcomingCard && (!Number.isFinite(currentPrice) || currentPrice <= 0);
+            const currentPriceLabel = shouldUseTbaPrice ? "TBA" : fmtPrice(game.price);
+            const showOriginalPrice = (
+                !upcomingCard
+                && game.original_price != null
+                && game.price != null
+                && game.original_price > game.price
+            );
             const newSignalClass = shouldRenderNewSignalCard(game, context) ? " is-new-signal" : "";
             return `
                 <article class="game-card${newSignalClass}">
@@ -7070,14 +7237,14 @@ input:focus-visible {
                             </h3>
                         </div>
                         <div class="price-stack">
-                            <div class="price-current">${fmtPrice(game.price)}</div>
-                            ${game.original_price != null && game.price != null && game.original_price > game.price ? `<div class="price-original">${fmtPrice(game.original_price)}</div>` : ""}
+                            <div class="price-current">${currentPriceLabel}</div>
+                            ${showOriginalPrice ? `<div class="price-original">${fmtPrice(game.original_price)}</div>` : ""}
                         </div>
                     </div>
                     ${buildActionButtons(game)}
-                    ${buildCardMetadataStack(game)}
+                    ${buildCardMetadataStack(game, context)}
                     ${primaryReason ? `<div class="card-reason-line">${primaryReason}</div>` : ""}
-                    ${buildCardMiniStatsRow(game)}
+                    ${buildCardMiniStatsRow(game, context)}
                 </article>
             `;
         }
@@ -9534,6 +9701,41 @@ input:focus-visible {
             return "Search failed. Please try again.";
         }
 
+        function getSearchCacheMap() {
+            if (!(state.search.cache instanceof Map)) {
+                state.search.cache = new Map();
+            }
+            return state.search.cache;
+        }
+
+        function getCachedSearchRows(query) {
+            const key = String(query || "").trim().toLowerCase();
+            if (!key) return null;
+            const cache = getSearchCacheMap();
+            const entry = cache.get(key);
+            if (!entry || typeof entry !== "object") return null;
+            const ageMs = Date.now() - Number(entry.cachedAt || 0);
+            if (!Number.isFinite(ageMs) || ageMs > SEARCH_CACHE_TTL_MS) {
+                cache.delete(key);
+                return null;
+            }
+            return safeArray(entry.rows).map(normalizeGameRow);
+        }
+
+        function setCachedSearchRows(query, rows) {
+            const key = String(query || "").trim().toLowerCase();
+            if (!key) return;
+            const cache = getSearchCacheMap();
+            cache.set(key, {
+                cachedAt: Date.now(),
+                rows: uniqueGamesByName(safeArray(rows).map(normalizeGameRow)),
+            });
+            if (cache.size > 80) {
+                const oldestKey = cache.keys().next().value;
+                if (oldestKey) cache.delete(oldestKey);
+            }
+        }
+
         async function refreshSearchResults() {
             const trimmed = String(state.filters.search || "").trim();
             if (!trimmed) {
@@ -9554,8 +9756,12 @@ input:focus-visible {
             state.search.controller = controller;
             state.search.query = trimmed;
             state.search.error = null;
-            state.search.loading = true;
-            state.search.results = [];
+            const cachedRows = getCachedSearchRows(trimmed);
+            const fallbackRows = cachedRows && cachedRows.length ? cachedRows : searchFallbackPool(trimmed, 10);
+            state.search.loading = !cachedRows;
+            if (fallbackRows.length) {
+                state.search.results = uniqueGamesByName(fallbackRows.map(normalizeGameRow));
+            }
             renderSearchResults();
 
             try {
@@ -9571,6 +9777,7 @@ input:focus-visible {
                 if (!isCurrent) return;
 
                 const remoteRows = uniqueGamesByName(safeArray(payload?.items ?? payload).map(normalizeGameRow));
+                setCachedSearchRows(trimmed, remoteRows);
                 state.search.results = remoteRows;
                 state.search.loading = false;
                 state.search.error = null;
@@ -9584,10 +9791,10 @@ input:focus-visible {
                 );
                 if (!isCurrent) return;
 
-                const fallbackRows = searchFallbackPool(trimmed, 20);
-                const hasFallback = fallbackRows.length > 0;
+                const errorFallbackRows = searchFallbackPool(trimmed, 20);
+                const hasFallback = errorFallbackRows.length > 0;
                 state.search.loading = false;
-                state.search.results = fallbackRows;
+                state.search.results = errorFallbackRows;
                 state.search.error = hasFallback ? null : resolveSearchErrorMessage(error);
                 state.search.controller = null;
                 renderSearchResults();
@@ -9604,7 +9811,7 @@ input:focus-visible {
                 return;
             }
 
-            if (state.search.loading) {
+            if (state.search.loading && !results.length) {
                 renderSkeleton(ui.searchResultsList, "search-results", 4);
                 openSearchResults();
                 return;
@@ -9990,27 +10197,36 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
             }
         }
 
-        function scheduleCatalogReloadFromInteraction() {
+        function scheduleCatalogReloadFromInteraction(options = {}) {
+            const softReload = options.softReload === true;
+            const debounceMs = Math.max(
+                120,
+                Number(options.debounceMs ?? CATALOG_RELOAD_DEBOUNCE_MS) || CATALOG_RELOAD_DEBOUNCE_MS,
+            );
             clearCatalogReloadTimer();
-            state.catalog.loading = true;
-            state.catalog.loaded = false;
-            state.catalog.loadingMore = false;
-            state.catalog.error = null;
-            state.catalog.pagesLoaded = 0;
-            state.catalog.totalPages = 0;
-            state.catalog.totalItems = 0;
-            state.catalog.nextPage = 1;
-            state.catalog.hasMore = false;
-            state.allGames = [];
-            state.catalog.pageCache = new Map();
-            state.catalog.inflightControllers = new Map();
-            refreshReleasedAndSearch({ resetVisible: true, refreshSearch: false });
+            if (!softReload) {
+                state.catalog.loading = true;
+                state.catalog.loaded = false;
+                state.catalog.loadingMore = false;
+                state.catalog.error = null;
+                state.catalog.pagesLoaded = 0;
+                state.catalog.totalPages = 0;
+                state.catalog.totalItems = 0;
+                state.catalog.nextPage = 1;
+                state.catalog.hasMore = false;
+                state.allGames = [];
+                state.catalog.pageCache = new Map();
+                state.catalog.inflightControllers = new Map();
+                refreshReleasedAndSearch({ resetVisible: true, refreshSearch: false });
+            } else {
+                refreshReleasedAndSearch({ resetVisible: false, refreshSearch: false });
+            }
             state.catalog.reloadTimer = setTimeout(() => {
                 void runCatalogQuery({ resetVisible: true }).catch((error) => {
                     if (isAbortLikeError(error)) return;
                     console.error("Catalog reload failed", error);
                 });
-            }, CATALOG_RELOAD_DEBOUNCE_MS);
+            }, debounceMs);
         }
 
         function populateSelect(select, values, placeholder) {
@@ -12062,18 +12278,28 @@ try {
                 void refreshSearchResults();
                 updateMobileFilterTrigger();
             };
+            const onSearchMutation = () => {
+                scheduleCatalogReloadFromInteraction({
+                    softReload: true,
+                    debounceMs: SEARCH_CATALOG_RELOAD_DEBOUNCE_MS,
+                });
+                void refreshSearchResults();
+                updateMobileFilterTrigger();
+            };
 
             ui.searchInput.addEventListener("input", (event) => {
                 const value = event.target.value;
                 if (searchInputTimer) clearTimeout(searchInputTimer);
                 searchInputTimer = setTimeout(() => {
                     state.filters.search = value.trim().toLowerCase();
-                    onFilterMutation();
-                }, 250);
+                    onSearchMutation();
+                }, SEARCH_INPUT_DEBOUNCE_MS);
             });
 
             ui.searchInput.addEventListener("focus", () => {
-                void refreshSearchResults();
+                if (String(state.filters.search || "").trim()) {
+                    void refreshSearchResults();
+                }
             });
 
             ui.searchInput.addEventListener("keydown", (event) => {

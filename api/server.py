@@ -669,6 +669,28 @@ def serialize_upcoming_row(game: Game) -> dict:
     }
 
 
+def serialize_upcoming_snapshot_row(snapshot: GameSnapshot) -> dict:
+    return {
+        "game_id": int(snapshot.game_id),
+        "game_name": snapshot.game_name,
+        "steam_appid": snapshot.steam_appid,
+        "release_date": snapshot.release_date.isoformat() if snapshot.release_date else None,
+        "release_date_text": snapshot.release_date_text,
+        "store_url": snapshot.store_url,
+        "banner_url": snapshot.banner_url or build_steam_banner_url(snapshot.store_url, snapshot.steam_appid),
+        "genres": parse_csv_field(snapshot.genres or ""),
+        "tags": parse_csv_field(snapshot.tags or ""),
+        "platforms": parse_csv_field(snapshot.platforms or ""),
+        "review_score": snapshot.review_score,
+        "review_score_label": snapshot.review_score_label,
+        "review_total_count": snapshot.review_count,
+        "popularity_score": snapshot.popularity_score,
+        "upcoming_hot_score": snapshot.upcoming_hot_score,
+        "is_upcoming": bool(snapshot.is_upcoming),
+        "is_released": int(snapshot.is_released or 0),
+    }
+
+
 def get_latest_price_rows(session):
     rows = session.query(GameSnapshot).all()
     latest_prices = []
@@ -4052,60 +4074,10 @@ def search_games_fast(
             return []
 
         normalized_query = _normalize_search_text(query_text)
-        try:
-            rows = session.execute(
-                text(
-                    """
-                    SELECT
-                        g.id,
-                        g.name AS game_name,
-                        g.developer,
-                        g.publisher,
-                        COALESCE(s.genres, g.genres, '') AS genres_csv,
-                        COALESCE(s.tags, g.tags, '') AS tags_csv,
-                        s.steam_appid,
-                        COALESCE(s.banner_url, 'https://cdn.cloudflare.steamstatic.com/steam/apps/' || g.appid || '/header.jpg') AS image_url,
-                        s.latest_price,
-                        s.latest_discount_percent,
-                        s.deal_score,
-                        COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
-                        s.worth_buying_score,
-                        COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
-                        COALESCE(s.review_score, g.review_score) AS review_score,
-                        COALESCE(s.review_count, g.review_total_count) AS review_total_count,
-                        s.deal_heat_reason,
-                        s.release_date,
-                        s.is_upcoming,
-                        similarity(lower(g.name), :normalized_q) AS sim
-                    FROM games g
-                    LEFT JOIN game_snapshots s ON s.game_id = g.id
-                    WHERE
-                        g.name ILIKE ('%' || :q || '%')
-                        OR COALESCE(g.developer, '') ILIKE ('%' || :q || '%')
-                        OR COALESCE(g.publisher, '') ILIKE ('%' || :q || '%')
-                        OR COALESCE(s.genres, COALESCE(g.genres, '')) ILIKE ('%' || :q || '%')
-                        OR COALESCE(s.tags, COALESCE(g.tags, '')) ILIKE ('%' || :q || '%')
-                        OR similarity(lower(g.name), :normalized_q) > :sim_threshold
-                    ORDER BY
-                        CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
-                        CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
-                        sim DESC,
-                        CASE WHEN lower(COALESCE(s.genres, COALESCE(g.genres, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
-                        CASE WHEN lower(COALESCE(s.tags, COALESCE(g.tags, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
-                        CASE WHEN lower(g.name) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
-                        COALESCE(s.deal_score, 0) DESC,
-                        g.name ASC
-                    LIMIT :limit
-                    """
-                ),
-                {
-                    "q": query_text,
-                    "normalized_q": normalized_query,
-                    "sim_threshold": SEARCH_SIMILARITY_THRESHOLD,
-                    "limit": int(limit),
-                },
-            ).mappings().all()
-        except Exception:
+        normalized_limit = max(1, min(int(limit), 20))
+        rows = []
+
+        if len(normalized_query) <= 2:
             rows = session.execute(
                 text(
                     """
@@ -4132,24 +4104,123 @@ def search_games_fast(
                     FROM games g
                     LEFT JOIN game_snapshots s ON s.game_id = g.id
                     WHERE
-                        g.name ILIKE ('%' || :q || '%')
-                        OR COALESCE(g.developer, '') ILIKE ('%' || :q || '%')
-                        OR COALESCE(g.publisher, '') ILIKE ('%' || :q || '%')
-                        OR COALESCE(s.genres, COALESCE(g.genres, '')) ILIKE ('%' || :q || '%')
-                        OR COALESCE(s.tags, COALESCE(g.tags, '')) ILIKE ('%' || :q || '%')
+                        lower(g.name) LIKE (:normalized_q || '%')
+                        OR lower(g.name) LIKE ('%' || :normalized_q || '%')
                     ORDER BY
                         CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
                         CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
-                        CASE WHEN lower(COALESCE(s.genres, COALESCE(g.genres, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
-                        CASE WHEN lower(COALESCE(s.tags, COALESCE(g.tags, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
-                        CASE WHEN lower(g.name) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
+                        COALESCE(s.popularity_score, 0) DESC,
+                        COALESCE(s.upcoming_hot_score, 0) DESC,
                         COALESCE(s.deal_score, 0) DESC,
                         g.name ASC
                     LIMIT :limit
                     """
                 ),
-                {"q": query_text, "normalized_q": normalized_query, "limit": int(limit)},
+                {
+                    "normalized_q": normalized_query,
+                    "limit": normalized_limit,
+                },
             ).mappings().all()
+
+        if not rows:
+            try:
+                rows = session.execute(
+                    text(
+                        """
+                        SELECT
+                            g.id,
+                            g.name AS game_name,
+                            g.developer,
+                            g.publisher,
+                            COALESCE(s.genres, g.genres, '') AS genres_csv,
+                            COALESCE(s.tags, g.tags, '') AS tags_csv,
+                            s.steam_appid,
+                            COALESCE(s.banner_url, 'https://cdn.cloudflare.steamstatic.com/steam/apps/' || g.appid || '/header.jpg') AS image_url,
+                            s.latest_price,
+                            s.latest_discount_percent,
+                            s.deal_score,
+                            COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
+                            s.worth_buying_score,
+                            COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
+                            COALESCE(s.review_score, g.review_score) AS review_score,
+                            COALESCE(s.review_count, g.review_total_count) AS review_total_count,
+                            s.deal_heat_reason,
+                            s.release_date,
+                            s.is_upcoming,
+                            similarity(lower(g.name), :normalized_q) AS sim
+                        FROM games g
+                        LEFT JOIN game_snapshots s ON s.game_id = g.id
+                        WHERE
+                            g.name ILIKE ('%' || :q || '%')
+                            OR COALESCE(g.developer, '') ILIKE ('%' || :q || '%')
+                            OR COALESCE(g.publisher, '') ILIKE ('%' || :q || '%')
+                            OR COALESCE(s.genres, COALESCE(g.genres, '')) ILIKE ('%' || :q || '%')
+                            OR COALESCE(s.tags, COALESCE(g.tags, '')) ILIKE ('%' || :q || '%')
+                            OR similarity(lower(g.name), :normalized_q) > :sim_threshold
+                        ORDER BY
+                            CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
+                            CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+                            sim DESC,
+                            CASE WHEN lower(COALESCE(s.genres, COALESCE(g.genres, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
+                            CASE WHEN lower(COALESCE(s.tags, COALESCE(g.tags, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
+                            CASE WHEN lower(g.name) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
+                            COALESCE(s.deal_score, 0) DESC,
+                            g.name ASC
+                        LIMIT :limit
+                        """
+                    ),
+                    {
+                        "q": query_text,
+                        "normalized_q": normalized_query,
+                        "sim_threshold": SEARCH_SIMILARITY_THRESHOLD,
+                        "limit": normalized_limit,
+                    },
+                ).mappings().all()
+            except Exception:
+                rows = session.execute(
+                    text(
+                        """
+                        SELECT
+                            g.id,
+                            g.name AS game_name,
+                            g.developer,
+                            g.publisher,
+                            COALESCE(s.genres, g.genres, '') AS genres_csv,
+                            COALESCE(s.tags, g.tags, '') AS tags_csv,
+                            s.steam_appid,
+                            COALESCE(s.banner_url, 'https://cdn.cloudflare.steamstatic.com/steam/apps/' || g.appid || '/header.jpg') AS image_url,
+                            s.latest_price,
+                            s.latest_discount_percent,
+                            s.deal_score,
+                            COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
+                            s.worth_buying_score,
+                            COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
+                            COALESCE(s.review_score, g.review_score) AS review_score,
+                            COALESCE(s.review_count, g.review_total_count) AS review_total_count,
+                            s.deal_heat_reason,
+                            s.release_date,
+                            s.is_upcoming
+                        FROM games g
+                        LEFT JOIN game_snapshots s ON s.game_id = g.id
+                        WHERE
+                            g.name ILIKE ('%' || :q || '%')
+                            OR COALESCE(g.developer, '') ILIKE ('%' || :q || '%')
+                            OR COALESCE(g.publisher, '') ILIKE ('%' || :q || '%')
+                            OR COALESCE(s.genres, COALESCE(g.genres, '')) ILIKE ('%' || :q || '%')
+                            OR COALESCE(s.tags, COALESCE(g.tags, '')) ILIKE ('%' || :q || '%')
+                        ORDER BY
+                            CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
+                            CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+                            CASE WHEN lower(COALESCE(s.genres, COALESCE(g.genres, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
+                            CASE WHEN lower(COALESCE(s.tags, COALESCE(g.tags, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
+                            CASE WHEN lower(g.name) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
+                            COALESCE(s.deal_score, 0) DESC,
+                            g.name ASC
+                        LIMIT :limit
+                        """
+                    ),
+                    {"q": query_text, "normalized_q": normalized_query, "limit": normalized_limit},
+                ).mappings().all()
 
         return [
             {
@@ -4216,6 +4287,26 @@ def get_upcoming_games(
             cached_rows = _read_cached_section_items(session, "home:upcoming", limit=normalized_limit)
             if cached_rows:
                 return cached_rows
+
+        artwork_priority = case((GameSnapshot.banner_url.isnot(None), 1), else_=0)
+        release_date_priority = case((GameSnapshot.release_date.is_(None), 1), else_=0)
+        snapshot_query = (
+            session.query(GameSnapshot)
+            .filter(GameSnapshot.is_upcoming.is_(True))
+            .order_by(
+                artwork_priority.desc(),
+                GameSnapshot.upcoming_hot_score.desc(),
+                release_date_priority.asc(),
+                GameSnapshot.release_date.asc(),
+                GameSnapshot.game_name.asc(),
+                GameSnapshot.game_id.asc(),
+            )
+        )
+        if not full:
+            snapshot_query = snapshot_query.limit(normalized_limit)
+        snapshot_rows = snapshot_query.all()
+        if snapshot_rows:
+            return [serialize_upcoming_snapshot_row(row) for row in snapshot_rows]
 
         rows = session.query(Game).filter(Game.is_released == 0).all()
 

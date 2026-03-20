@@ -37,14 +37,15 @@ if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function"
 :root{--bg:#050913;--panel:rgba(10,20,38,.92);--line:rgba(130,173,247,.24);--line2:rgba(130,173,247,.42);--text:#eff6ff;--muted:#9eb8e7;--accent:#6fe8ff;--good:#5ce4a9;--warn:#ffc77a}
 *{box-sizing:border-box}html,body{margin:0;padding:0}body{font-family:"IBM Plex Sans","Segoe UI",sans-serif;color:var(--text);background:radial-gradient(920px 540px at 4% -10%,rgba(103,234,255,.16),transparent 60%),radial-gradient(980px 700px at 98% 6%,rgba(188,168,255,.16),transparent 58%),linear-gradient(180deg,#050913 0,#040a16 100%)}
 a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0 44px}
-.topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}.brand{font-size:26px;font-weight:900;letter-spacing:.02em;text-decoration:none}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}.brand{display:inline-flex;align-items:center;text-decoration:none}.brand-logo{display:block;height:34px;width:auto}
 .back-link{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(111,232,255,.08);text-decoration:none;color:var(--text);font-weight:700;transition:transform .15s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease,color .18s ease;will-change:transform}
 .back-link:hover{border-color:var(--line2);background:rgba(111,232,255,.14);box-shadow:0 10px 20px rgba(2,8,22,.22);transform:translateY(-1px)}
 .back-link:active{transform:scale(.985)}
 .back-link:focus-visible{outline:2px solid rgba(121,222,255,.9);outline-offset:2px}
 .hero{border-radius:22px;border:1px solid var(--line);background:radial-gradient(circle at 88% 2%,rgba(111,232,255,.2),transparent 34%),linear-gradient(170deg,rgba(15,28,52,.96),rgba(8,16,29,.96));padding:22px;margin-bottom:14px}
 .hero h1{margin:10px 0 8px;font-size:clamp(30px,4.3vw,52px);line-height:.95;letter-spacing:-.04em}.hero p{margin:0;color:var(--muted);line-height:1.55}
-.eyebrow{display:inline-block;padding:5px 11px;border-radius:999px;border:1px solid rgba(111,232,255,.45);background:rgba(111,232,255,.12);color:#dcfbff;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 11px;border-radius:999px;border:1px solid rgba(111,232,255,.45);background:rgba(111,232,255,.12);color:#dcfbff;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.eyebrow-logo{display:block;height:14px;width:auto}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);border:0;white-space:nowrap}
 .controls{position:sticky;top:12px;z-index:30;margin-bottom:16px;border-radius:16px;border:1px solid var(--line);background:rgba(7,14,28,.86);backdrop-filter:blur(8px);padding:12px}
 .search-grid{display:grid;gap:10px;grid-template-columns:minmax(240px,1.8fr) repeat(3,minmax(140px,1fr))}
 .filter-grid{margin-top:10px;display:grid;gap:10px;grid-template-columns:repeat(5,minmax(120px,1fr))}
@@ -115,7 +116,7 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
 @media (max-width:760px){
   .page{width:min(1420px,100% - 14px)}
   .topbar{gap:8px;margin-bottom:12px}
-  .brand{font-size:22px}
+  .brand-logo{height:28px}
   .hero{padding:15px;margin-bottom:12px}
   .controls{margin-bottom:12px}
   .chips{gap:6px}
@@ -138,10 +139,16 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
 <main class="page">
   <header class="topbar">
     <a class="back-link" href="index.html">Back to Dashboard</a>
-    <a class="brand" href="index.html">GameDen.gg</a>
+    <a class="brand" href="index.html" aria-label="GameDen.gg">
+      <img class="brand-logo" src="/assets/logo/gameden-logo-static.webp" alt="GameDen logo" loading="lazy" decoding="async">
+      <span class="sr-only">GameDen.gg</span>
+    </a>
   </header>
   <section class="hero">
-    <span class="eyebrow">GameDen.gg Discovery Engine</span>
+    <span class="eyebrow">
+      <img class="eyebrow-logo" src="/assets/logo/gameden-logo-static.webp" alt="GameDen logo" loading="lazy" decoding="async">
+      <span>Discovery Engine</span>
+    </span>
     <h1 id="title">All Games Directory</h1>
     <p id="subtitle">A-Z by default. Search and filter the full released catalog with snapshot-backed data.</p>
   </section>

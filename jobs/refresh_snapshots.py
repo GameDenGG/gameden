@@ -3138,8 +3138,6 @@ def _allocate_homepage_protected_deal_rails(
         return {
             "deal_opportunities": [],
             "opportunity_radar": [],
-            "worth_buying_now": [],
-            "biggest_discounts": [],
             "wait_picks": [],
         }, set()
 
@@ -3166,27 +3164,6 @@ def _allocate_homepage_protected_deal_rails(
         ),
         reverse=True,
     )
-    ranked_worth_buying = sorted(
-        eligible_pool,
-        key=lambda row: (
-            safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0)),
-            safe_num(row.get("worth_buying_score"), 0.0),
-            safe_num(row.get("deal_score"), 0.0),
-            safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0)),
-            -_snapshot_sort_game_id(row),
-        ),
-        reverse=True,
-    )
-    ranked_biggest_discounts = sorted(
-        eligible_pool,
-        key=lambda row: (
-            safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0)),
-            safe_num(row.get("deal_score"), 0.0),
-            safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0)),
-            -_snapshot_sort_game_id(row),
-        ),
-        reverse=True,
-    )
     ranked_wait = sorted(
         [row for row in eligible_pool if _is_wait_candidate_row(row)],
         key=lambda row: (
@@ -3204,8 +3181,6 @@ def _allocate_homepage_protected_deal_rails(
     for rail_key, ranked_rows in (
         ("deal_opportunities", ranked_opportunities),
         ("opportunity_radar", ranked_radar),
-        ("worth_buying_now", ranked_worth_buying),
-        ("biggest_discounts", ranked_biggest_discounts),
         ("wait_picks", ranked_wait),
     ):
         allocated[rail_key] = _compose_unique_snapshot_rows(
@@ -3493,8 +3468,10 @@ def rebuild_dashboard_cache(session: Session) -> None:
     )
     deal_opportunities_rows = allocated_protected_rails.get("deal_opportunities", [])
     opportunity_radar_rows = allocated_protected_rails.get("opportunity_radar", [])
-    worth_buying_rows = allocated_protected_rails.get("worth_buying_now", [])
-    biggest_discounts_rows = allocated_protected_rails.get("biggest_discounts", [])
+    worth_buying_rows = _released_deal_snapshot_rows(worth_buying_now_rows)
+    biggest_discounts_rows = _released_deal_snapshot_rows(biggest_deals_rows)
+    if not biggest_discounts_rows:
+        biggest_discounts_rows = _released_deal_snapshot_rows(deal_ranked_rows)
     wait_picks = allocated_protected_rails.get("wait_picks", [])
 
     buy_now_candidates = _released_deal_snapshot_rows(_build_decision_picks(canonical_deal_pool, "BUY_NOW"))
@@ -3515,7 +3492,7 @@ def rebuild_dashboard_cache(session: Session) -> None:
     deal_ranked_rows = _compose_unique_snapshot_rows(
         _released_deal_snapshot_rows(deal_ranked_rows),
         _released_deal_snapshot_rows([*canonical_deal_pool, *biggest_discounts_rows]),
-        protected_visible_keys,
+        set(),
         HOMEPAGE_RAIL_LIMIT,
     )
     decision_pool = canonical_deal_pool
@@ -3582,15 +3559,26 @@ def rebuild_dashboard_cache(session: Session) -> None:
         },
         "recommendedDeals": recommended_deals_rows,
         "dealRanked": deal_ranked_rows,
+        "topDealsToday": deal_ranked_rows or biggest_discounts_rows,
         "biggest_discounts": biggest_discounts_rows,
+        "biggestDeals": biggest_discounts_rows,
         "worth_buying_now": worth_buying_rows,
+        "worthBuyingNow": worth_buying_rows,
         "trending_now": trending_now_rows,
+        "trendingDeals": trending_now_rows,
         "new_historical_lows": new_historical_lows_rows,
+        "newHistoricalLows": new_historical_lows_rows,
         "buy_now_picks": buy_now_picks,
+        "buyNowPicks": buy_now_picks,
         "wait_picks": wait_picks,
+        "waitPicks": wait_picks,
         "deal_opportunities": deal_opportunities_rows,
+        "dealOpportunities": deal_opportunities_rows,
         "opportunity_radar": opportunity_radar_rows,
+        "opportunityRadar": opportunity_radar_rows,
         "deal_radar": deal_radar,
+        "dealRadar": deal_radar,
+        "marketRadar": deal_radar,
         "daily_digest": daily_digest,
         "historicalLows": historical_lows_rows,
         "biggestPriceDrops": biggest_price_drops_rows,

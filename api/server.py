@@ -4256,7 +4256,20 @@ def get_dashboard_catalog_seed(
         _, home_payload = _read_dashboard_cache(session)
         fallback_rows: list[dict] = []
         if isinstance(home_payload, dict):
-            for key in ("dealRanked", "worth_buying_now", "biggest_discounts", "trending_now"):
+            home_payload = _augment_dashboard_home_payload(home_payload)
+            for key in (
+                "dealRanked",
+                "topDealsToday",
+                "worth_buying_now",
+                "worthBuyingNow",
+                "biggest_discounts",
+                "biggestDeals",
+                "trending_now",
+                "trendingDeals",
+                "trending",
+                "topReviewed",
+                "topPlayed",
+            ):
                 candidate_rows = home_payload.get(key)
                 if isinstance(candidate_rows, list):
                     fallback_rows.extend(candidate_rows)
@@ -5107,8 +5120,6 @@ def _allocate_protected_dashboard_deal_rails(
         return {
             "deal_opportunities": [],
             "opportunity_radar": [],
-            "worth_buying_now": [],
-            "biggest_discounts": [],
             "wait_picks": [],
         }, set()
 
@@ -5135,27 +5146,6 @@ def _allocate_protected_dashboard_deal_rails(
         ),
         reverse=True,
     )
-    ranked_worth_buying = sorted(
-        eligible_pool,
-        key=lambda row: (
-            safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0)),
-            safe_num(row.get("worth_buying_score"), 0.0),
-            safe_num(row.get("deal_score"), 0.0),
-            safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0)),
-            -_dashboard_sort_game_id(row),
-        ),
-        reverse=True,
-    )
-    ranked_biggest_discounts = sorted(
-        eligible_pool,
-        key=lambda row: (
-            safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0)),
-            safe_num(row.get("deal_score"), 0.0),
-            safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0)),
-            -_dashboard_sort_game_id(row),
-        ),
-        reverse=True,
-    )
     ranked_wait = sorted(
         [row for row in eligible_pool if _is_wait_dashboard_candidate(row)],
         key=lambda row: (
@@ -5173,8 +5163,6 @@ def _allocate_protected_dashboard_deal_rails(
     for rail_key, ranked_rows in (
         ("deal_opportunities", ranked_opportunities),
         ("opportunity_radar", ranked_radar),
-        ("worth_buying_now", ranked_worth_buying),
-        ("biggest_discounts", ranked_biggest_discounts),
         ("wait_picks", ranked_wait),
     ):
         allocated[rail_key] = _compose_unique_dashboard_rows(
@@ -5225,6 +5213,25 @@ def _trim_dashboard_home_payload(payload: dict, mode: str) -> dict:
             "filters",
             "seasonal_summary",
             "upcoming",
+            "dealRanked",
+            "topDealsToday",
+            "worth_buying_now",
+            "worthBuyingNow",
+            "biggest_discounts",
+            "biggestDeals",
+            "trending_now",
+            "trendingDeals",
+            "trending",
+            "new_historical_lows",
+            "historicalLows",
+            "buy_now_picks",
+            "wait_picks",
+            "topReviewed",
+            "topPlayed",
+            "leaderboard",
+            "deal_radar",
+            "dealRadar",
+            "marketRadar",
             "generated_at",
             "_meta",
         }
@@ -5268,8 +5275,10 @@ def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
     )
     deal_opportunities = allocated_rails.get("deal_opportunities", [])
     opportunity_radar = allocated_rails.get("opportunity_radar", [])
-    worth_buying_now = allocated_rails.get("worth_buying_now", [])
-    biggest_discounts = allocated_rails.get("biggest_discounts", [])
+    worth_buying_now = _released_deal_dashboard_rows(worth_buying_now)
+    biggest_discounts = _released_deal_dashboard_rows(biggest_discounts)
+    if not biggest_discounts:
+        biggest_discounts = _released_deal_dashboard_rows(deal_ranked)
     wait_picks = allocated_rails.get("wait_picks", [])
 
     buy_now_picks = _compose_unique_dashboard_rows(
@@ -5281,7 +5290,7 @@ def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
     deal_ranked = _compose_unique_dashboard_rows(
         _released_deal_dashboard_rows(deal_ranked),
         _released_deal_dashboard_rows([*canonical_deal_pool, *biggest_discounts]),
-        protected_visible_keys,
+        set(),
         rail_limit,
     )
 
@@ -5384,7 +5393,7 @@ def get_dashboard_home(request: Request, mode: str | None = None):
             raise HTTPException(status_code=503, detail="Dashboard cache payload has unexpected shape")
 
         if normalized_mode == "critical":
-            payload = dict(cached_payload)
+            payload = _augment_dashboard_home_payload(dict(cached_payload))
             served_cache_key = cache_row.cache_key
             generated_at = cache_row.updated_at.isoformat() if cache_row.updated_at else None
             # If critical cache is missing and we fell back to full home payload,
@@ -5445,7 +5454,7 @@ def get_dashboard_home(request: Request, mode: str | None = None):
             return JSONResponse(content=trimmed)
 
         if normalized_mode == "deferred":
-            payload = dict(cached_payload)
+            payload = _augment_dashboard_home_payload(dict(cached_payload))
             payload["_meta"] = {
                 "cache_key": cache_row.cache_key,
                 "generated_at": cache_row.updated_at.isoformat() if cache_row.updated_at else None,

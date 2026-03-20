@@ -4828,10 +4828,13 @@ input:focus-visible {
                 Number(HOMEPAGE_SECTION_LIMITS?.dealOpportunities || HOMEPAGE_SECTION_LIMITS?.opportunityRadar || 24),
             );
             const protectedFallbackPool = filterProtectedDealRailRows([
+                ...safeArray(state.opportunitiesNow),
+                ...safeArray(state.opportunityRadar),
                 ...safeArray(state.dealRanked),
                 ...safeArray(state.worthBuyingNow),
                 ...safeArray(state.trendingDeals),
                 ...safeArray(state.newHistoricalLows),
+                ...safeArray(state.biggestDiscounts),
             ]);
             const protectedVisibleKeys = new Set();
             state.opportunitiesNow = selectExclusiveRailRows(
@@ -4846,59 +4849,30 @@ input:focus-visible {
                 protectedVisibleKeys,
                 railSectionLimit,
             );
-            state.worthBuyingNow = selectExclusiveRailRows(
-                filterProtectedDealRailRows(state.worthBuyingNow),
-                protectedFallbackPool,
-                protectedVisibleKeys,
-                railSectionLimit,
-            );
-            state.buyNowPicks = selectExclusiveRailRows(
-                filterProtectedDealRailRows(state.buyNowPicks),
-                filterProtectedDealRailRows([
-                    ...safeArray(state.worthBuyingNow),
-                    ...protectedFallbackPool,
-                ]),
-                protectedVisibleKeys,
-                railSectionLimit,
-            );
-            state.biggestDiscounts = selectExclusiveRailRows(
-                filterProtectedDealRailRows(state.biggestDiscounts),
-                filterProtectedDealRailRows([
+
+            if (!state.worthBuyingNow.length) {
+                state.worthBuyingNow = filterProtectedDealRailRows([
                     ...safeArray(state.dealRanked),
-                    ...protectedFallbackPool,
-                ]),
-                protectedVisibleKeys,
-                railSectionLimit,
-            );
-            if (!state.biggestDiscounts.length) {
-                state.biggestDiscounts = safeArray(state.dealRanked).slice(0, railSectionLimit);
-            }
-            state.dealRanked = selectExclusiveRailRows(
-                filterProtectedDealRailRows(state.dealRanked),
-                filterProtectedDealRailRows([
                     ...safeArray(state.biggestDiscounts),
-                    ...protectedFallbackPool,
-                ]),
-                protectedVisibleKeys,
-                railSectionLimit,
-            );
-            state.biggestDeals = state.biggestDiscounts;
-            state.waitPicks = selectExclusiveRailRows(
-                filterProtectedDealRailRows(state.waitPicks),
-                filterProtectedDealRailRows([
-                    ...safeArray(state.waitPicks),
+                    ...safeArray(state.trendingDeals),
+                    ...safeArray(state.newHistoricalLows),
+                ]).slice(0, railSectionLimit);
+            }
+            if (!state.biggestDiscounts.length) {
+                state.biggestDiscounts = filterProtectedDealRailRows([
+                    ...safeArray(state.dealRanked),
+                    ...safeArray(state.worthBuyingNow),
+                    ...safeArray(state.trendingDeals),
+                ]).slice(0, railSectionLimit);
+            }
+            if (!state.dealRanked.length) {
+                state.dealRanked = filterProtectedDealRailRows([
+                    ...safeArray(state.biggestDiscounts),
                     ...safeArray(state.worthBuyingNow),
                     ...safeArray(state.trendingDeals),
                     ...safeArray(state.newHistoricalLows),
-                    ...safeArray(state.dealRanked),
-                    ...safeArray(state.biggestDiscounts),
-                    ...safeArray(state.opportunitiesNow),
-                    ...safeArray(state.opportunityRadar),
-                    ...safeArray(state.buyNowPicks),
-                ]),
-                protectedVisibleKeys,
-                railSectionLimit,
-            );
+                ]).slice(0, railSectionLimit);
+            }
 
             const decisionFallbackPool = filterProtectedDealRailRows([
                 ...safeArray(state.worthBuyingNow),
@@ -4909,6 +4883,25 @@ input:focus-visible {
                 ...safeArray(state.newHistoricalLows),
                 ...safeArray(state.latestPrices),
             ]);
+            const decisionVisibleKeys = new Set(protectedVisibleKeys);
+            state.buyNowPicks = selectExclusiveRailRows(
+                filterProtectedDealRailRows(state.buyNowPicks),
+                filterProtectedDealRailRows([
+                    ...safeArray(state.worthBuyingNow),
+                    ...decisionFallbackPool,
+                ]),
+                decisionVisibleKeys,
+                railSectionLimit,
+            );
+            state.waitPicks = selectExclusiveRailRows(
+                filterProtectedDealRailRows(state.waitPicks),
+                decisionFallbackPool.filter((row) =>
+                    Number(row?.price_vs_low_ratio || 0) >= 1.08
+                    || Number(row?.predicted_next_discount_percent || 0) >= 35
+                ),
+                decisionVisibleKeys,
+                railSectionLimit,
+            );
             if (!state.buyNowPicks.length) {
                 state.buyNowPicks = pickByRecommendation(decisionFallbackPool, "BUY_NOW", railSectionLimit);
                 if (!state.buyNowPicks.length) {
@@ -4926,6 +4919,7 @@ input:focus-visible {
                         .slice(0, railSectionLimit);
                 }
             }
+            state.biggestDeals = state.biggestDiscounts;
             sanitizePersonalizedDealsState();
         }
 
@@ -7240,10 +7234,13 @@ input:focus-visible {
 
         function getFeaturedAllGames() {
             const candidates = uniqueGamesByIdentity([
+                ...safeArray(state.allGames),
                 ...safeArray(state.topPlayed),
                 ...safeArray(state.leaderboard),
                 ...safeArray(state.latestPrices),
                 ...safeArray(state.dealRanked),
+                ...safeArray(state.worthBuyingNow),
+                ...safeArray(state.biggestDiscounts),
             ])
                 .filter((row) => !row?.is_upcoming)
                 .sort((a, b) => {
@@ -7740,7 +7737,13 @@ input:focus-visible {
         }
 
         function computeRecentlyUpdated() {
-            state.recentlyUpdated = [...state.dealRanked]
+            const sourceRows = uniqueGamesByIdentity([
+                ...safeArray(state.dealRanked),
+                ...safeArray(state.biggestDiscounts),
+                ...safeArray(state.worthBuyingNow),
+                ...safeArray(state.buyNowPicks),
+            ]);
+            state.recentlyUpdated = sourceRows
                 .filter((game) => Number.isFinite(parseDealDetectedAt(game)))
                 .map((game) => {
                     const detectedTs = parseDealDetectedAt(game) || 0;
@@ -8480,7 +8483,11 @@ input:focus-visible {
         function renderDealRanked() {
             const sectionItems = state.biggestDiscounts.length
                 ? state.biggestDiscounts
-                : state.dealRanked;
+                : (
+                    state.dealRanked.length
+                        ? state.dealRanked
+                        : state.worthBuyingNow
+                );
             renderPagedCards({
                 container: ui.dealRankedGrid,
                 items: sectionItems,
@@ -8532,10 +8539,6 @@ input:focus-visible {
             };
             addRows(state.opportunitiesNow);
             addRows(state.opportunityRadar);
-            addRows(state.worthBuyingNow);
-            addRows(state.buyNowPicks);
-            addRows(state.biggestDiscounts.length ? state.biggestDiscounts : state.dealRanked);
-            addRows(state.waitPicks);
             return keys;
         }
 
@@ -8575,7 +8578,7 @@ input:focus-visible {
                 ...safeArray(state.newHistoricalLows),
             ]).slice(0, normalizedLimit * 4);
 
-            const ranked = candidatePool
+            const scoredEntries = candidatePool
                 .map((row) => {
                     const game = normalizeGameRow(row);
                     const dealScore = Math.max(0, Number(game.deal_score || 0));
@@ -8595,12 +8598,26 @@ input:focus-visible {
                 })
                 .filter((entry) => {
                     const identity = gameIdentityKey(entry.game);
-                    if (!identity || excludeKeys.has(identity)) return false;
+                    if (!identity) return false;
                     return hasActualDealRailSignal(entry.game);
+                });
+
+            const ranked = scoredEntries
+                .filter((entry) => {
+                    const identity = gameIdentityKey(entry.game);
+                    return !!identity && !excludeKeys.has(identity);
                 })
                 .sort((left, right) => right.rankScore - left.rankScore);
+            if (ranked.length) {
+                return ranked.slice(0, normalizedLimit).map((entry) => entry.game);
+            }
 
-            return ranked.slice(0, normalizedLimit).map((entry) => entry.game);
+            // If protected-rail exclusion would otherwise starve the section,
+            // fall back to ranked deal rows rather than showing an empty rail.
+            return scoredEntries
+                .sort((left, right) => right.rankScore - left.rankScore)
+                .slice(0, normalizedLimit)
+                .map((entry) => entry.game);
         }
 
         function renderPersonalizedDeals() {
@@ -8678,9 +8695,12 @@ input:focus-visible {
         }
 
         function renderWorthBuyingNow() {
+            const sectionItems = state.worthBuyingNow.length
+                ? state.worthBuyingNow
+                : state.dealRanked;
             renderPagedCards({
                 container: ui.worthBuyingGrid,
-                items: state.worthBuyingNow,
+                items: sectionItems,
                 renderer: gameCardHtml,
                 visibleKey: "worthBuyingGrid",
                 toggleButton: null,
@@ -10065,17 +10085,17 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                 return rows;
             };
             const biggestDiscounts = hydrateRowsFromPayload(
-                ["biggest_discounts", "biggestDeals"],
+                ["biggest_discounts", "biggestDeals", "biggest_deals"],
                 safeArray(state.biggestDiscounts).length ? state.biggestDiscounts : state.biggestDeals,
             );
-            const dealRanked = hydrateRowsFromPayload(["dealRanked", "topDealsToday"], state.dealRanked);
-            const recommendedDeals = hydrateRowsFromPayload(["recommendedDeals"], state.recommendedDeals);
-            const topReviewed = hydrateRowsFromPayload(["topReviewed"], state.topReviewed);
-            const topPlayed = hydrateRowsFromPayload(["topPlayed", "mostPlayedDeals"], state.topPlayed);
-            const trendingDeals = hydrateRowsFromPayload(["trendingDeals"], state.trendingDeals);
-            const trending = hydrateRowsFromPayload(["trending", "trending_now"], state.trending);
+            const dealRanked = hydrateRowsFromPayload(["dealRanked", "topDealsToday", "deal_ranked"], state.dealRanked);
+            const recommendedDeals = hydrateRowsFromPayload(["recommendedDeals", "recommended_deals"], state.recommendedDeals);
+            const topReviewed = hydrateRowsFromPayload(["topReviewed", "top_reviewed"], state.topReviewed);
+            const topPlayed = hydrateRowsFromPayload(["topPlayed", "mostPlayedDeals", "top_played"], state.topPlayed);
+            const trendingDeals = hydrateRowsFromPayload(["trendingDeals", "trending_deals"], state.trendingDeals);
+            const trending = hydrateRowsFromPayload(["trending", "trending_now", "trending_deals"], state.trending);
             const leaderboard = hydrateRowsFromPayload(["leaderboard"], state.leaderboard);
-            const historicalLows = hydrateRowsFromPayload(["historicalLows"], state.historicalLows);
+            const historicalLows = hydrateRowsFromPayload(["historicalLows", "historical_lows"], state.historicalLows);
             const upcoming = hydrateRowsFromPayload(["upcoming"], state.upcoming);
             const worthBuyingNow = hydrateRowsFromPayload(["worth_buying_now", "worthBuyingNow"], state.worthBuyingNow);
             const trendingNow = hydrateRowsFromPayload(["trending_now", "trending", "trendingDeals"], state.trendingNow);
@@ -10569,17 +10589,23 @@ try {
         ...safeArray(dashboardData?.releasedGames),
         ...safeArray(dashboardData?.released),
         ...safeArray(dashboardData?.dealRanked),
+        ...safeArray(dashboardData?.topDealsToday),
         ...safeArray(dashboardData?.worthBuyingNow),
         ...safeArray(dashboardData?.worth_buying_now),
         ...safeArray(dashboardData?.biggestDeals),
         ...safeArray(dashboardData?.biggest_discounts),
+        ...safeArray(dashboardData?.biggest_deals),
         ...safeArray(dashboardData?.topReviewed),
+        ...safeArray(dashboardData?.top_reviewed),
         ...safeArray(dashboardData?.trendingDeals),
+        ...safeArray(dashboardData?.trending_deals),
         ...safeArray(dashboardData?.trending_now),
         ...safeArray(dashboardData?.buy_now_picks),
         ...safeArray(dashboardData?.wait_picks),
         ...safeArray(dashboardData?.topPlayed),
+        ...safeArray(dashboardData?.top_played),
         ...safeArray(dashboardData?.historicalLows),
+        ...safeArray(dashboardData?.historical_lows),
         ...safeArray(dashboardData?.new_historical_lows),
         ...safeArray(dashboardData?.upcoming),
     ]);

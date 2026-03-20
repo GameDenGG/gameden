@@ -4261,6 +4261,12 @@ input:focus-visible {
             );
         }
 
+        function isAnonymousOrGuestUserId(userId) {
+            const normalized = String(userId || "").trim().toLowerCase();
+            if (!normalized) return true;
+            return normalized === "anonymous" || normalized === "guest";
+        }
+
         function setNodeText(id, value) {
             const el = document.getElementById(id);
             if (el) {
@@ -4933,7 +4939,12 @@ input:focus-visible {
                 worthBuyingNow: safeArray(state.worthBuyingNow).slice(0, boundedLimit),
                 trendingDeals: safeArray(state.trendingDeals).slice(0, boundedLimit),
                 newHistoricalLows: safeArray(state.newHistoricalLows).slice(0, boundedLimit),
+                buyNowPicks: safeArray(state.buyNowPicks).slice(0, boundedLimit),
+                waitPicks: safeArray(state.waitPicks).slice(0, boundedLimit),
                 upcoming: safeArray(state.upcoming).slice(0, boundedLimit),
+                historicalLows: safeArray(state.historicalLows).slice(0, boundedLimit),
+                topReviewed: safeArray(state.topReviewed).slice(0, boundedLimit),
+                recentlyUpdated: safeArray(state.recentlyUpdated).slice(0, boundedLimit),
                 newDeals: safeArray(state.newDeals).slice(0, boundedLimit),
                 recommendedDeals: safeArray(state.recommendedDeals).slice(0, boundedLimit),
                 dealRadar: safeArray(state.dealRadar).slice(0, boundedLimit),
@@ -4996,7 +5007,12 @@ input:focus-visible {
                 state.worthBuyingNow = uniqueGamesByName(sections.worthBuyingNow || []);
                 state.trendingDeals = uniqueGamesByName(sections.trendingDeals || []);
                 state.newHistoricalLows = uniqueGamesByName(sections.newHistoricalLows || []);
+                state.buyNowPicks = uniqueGamesByName(sections.buyNowPicks || []);
+                state.waitPicks = uniqueGamesByName(sections.waitPicks || []);
                 state.upcoming = uniqueGamesByName(sections.upcoming || []);
+                state.historicalLows = uniqueGamesByName(sections.historicalLows || []);
+                state.topReviewed = uniqueGamesByName(sections.topReviewed || []);
+                state.recentlyUpdated = uniqueGamesByName(sections.recentlyUpdated || []);
                 state.newDeals = uniqueGamesByName(sections.newDeals || []);
                 state.recommendedDeals = uniqueGamesByName(sections.recommendedDeals || []);
                 state.dealRadar = uniqueDealRadarSignals(sections.dealRadar || []);
@@ -10841,25 +10857,33 @@ try {
         }
 
         async function loadPersonalSummary() {
-            const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
-            if (!knownUser) return null;
-            try {
-                const payload = await fetchJson(
-                    `/api/home-personal-summary?user_id=${encodeURIComponent(CURRENT_USER_ID)}`
-                );
-                if (!payload || typeof payload !== "object") return null;
-                const applied = applyPersonalSummaryPayload(payload);
-                state.personalSummaryLoaded = true;
-                if (applied) {
-                    renderWishlist();
-                    renderWatchlist();
-                    renderAlerts();
-                    syncCardActionButtonsFromState();
+            const canLoadPersonalData = !isAnonymousOrGuestUserId(CURRENT_USER_ID);
+            if (!canLoadPersonalData) return null;
+            const inflight = loadPersonalSummary._inflight;
+            if (inflight) return inflight;
+            const task = (async () => {
+                try {
+                    const payload = await fetchJson(
+                        `/api/home-personal-summary?user_id=${encodeURIComponent(CURRENT_USER_ID)}`
+                    );
+                    if (!payload || typeof payload !== "object") return null;
+                    const applied = applyPersonalSummaryPayload(payload);
+                    state.personalSummaryLoaded = true;
+                    if (applied) {
+                        renderWishlist();
+                        renderWatchlist();
+                        renderAlerts();
+                        syncCardActionButtonsFromState();
+                    }
+                    return payload;
+                } catch {
+                    return null;
+                } finally {
+                    loadPersonalSummary._inflight = null;
                 }
-                return payload;
-            } catch {
-                return null;
-            }
+            })();
+            loadPersonalSummary._inflight = task;
+            return task;
         }
 
         async function loadPersonalizedDeals() {
@@ -10962,6 +10986,7 @@ try {
 
         async function loadDeferredHomepageData(dashboardDataPromise, options = {}) {
             const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
+            const canLoadPersonalData = !isAnonymousOrGuestUserId(CURRENT_USER_ID);
             const eagerPersonalLists = options?.eagerPersonalLists === true;
             const eagerPersonalizedDeals = options?.eagerPersonalizedDeals === true;
             const hasWatchlistSeed = safeArray(state.watchlist).length > 0;
@@ -10969,7 +10994,7 @@ try {
             const hasAlertSeed = !!state.personalSummaryLoaded && safeArray(state.alertSignals).length > 0;
             const hasPersonalizedSeed = safeArray(state.personalizedDeals).length > 0;
 
-            const watchlistPromise = knownUser && eagerPersonalLists && !hasWatchlistSeed
+            const watchlistPromise = canLoadPersonalData && eagerPersonalLists && !hasWatchlistSeed
                 ? loadUserWatchlist().catch((error) => {
                     console.warn("Failed to load user watchlist", error);
                     return [];
@@ -10980,7 +11005,7 @@ try {
                 syncCardActionButtonsFromState();
             });
 
-            const wishlistPromise = knownUser && eagerPersonalLists && !hasWishlistSeed
+            const wishlistPromise = canLoadPersonalData && eagerPersonalLists && !hasWishlistSeed
                 ? loadUserWishlist().catch((error) => {
                     console.warn("Failed to load user wishlist", error);
                     return [];
@@ -10991,7 +11016,7 @@ try {
                 syncCardActionButtonsFromState();
             });
 
-            const alertsPromise = knownUser && eagerPersonalLists && !hasAlertSeed
+            const alertsPromise = canLoadPersonalData && eagerPersonalLists && !hasAlertSeed
                 ? loadUserAlertSignals().catch((error) => {
                     console.warn("Failed to load user alerts", error);
                     return [];
@@ -11310,14 +11335,36 @@ try {
             scheduleDashboardSnapshotPersist();
         }
 
+        function renderRestoredNonCriticalSections() {
+            if (!safeArray(state.recentlyUpdated).length) {
+                computeRecentlyUpdated();
+            }
+            renderHistoricalLows();
+            renderTopReviewed();
+            renderUpcoming();
+            renderNewDeals();
+            renderRecommendedDeals();
+            renderRecentlyUpdated();
+            wireSparklineHover();
+            scheduleDashboardSnapshotPersist();
+        }
+
         function renderDeferredHomepageSkeletons() {
             renderSkeleton(ui.seasonalSaleTopGrid, "deal-cards", 4, { cardClass: "game-card" });
             renderSkeleton(ui.seasonalSaleLowerGrid, "deal-cards", 4, { cardClass: "game-card" });
-            renderSkeleton(ui.historicalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
+            if (!safeArray(state.historicalLows).length) {
+                renderSkeleton(ui.historicalLowsGrid, "deal-cards", 6, { cardClass: "game-card" });
+            }
             renderSkeleton(ui.releasedGamesGrid, "deal-cards", 2, { cardClass: "game-card", compact: true });
-            renderSkeleton(ui.topReviewedGrid, "deal-cards", 6, { cardClass: "game-card" });
-            renderSkeleton(ui.upcomingGrid, "deal-cards", 2, { cardClass: "game-card", compact: true });
-            renderSkeleton(ui.recentlyUpdatedList, "mini-list", 3, { itemClass: "mini-item" });
+            if (!safeArray(state.topReviewed).length) {
+                renderSkeleton(ui.topReviewedGrid, "deal-cards", 6, { cardClass: "game-card" });
+            }
+            if (!safeArray(state.upcoming).length) {
+                renderSkeleton(ui.upcomingGrid, "deal-cards", 2, { cardClass: "game-card", compact: true });
+            }
+            if (!safeArray(state.recentlyUpdated).length) {
+                renderSkeleton(ui.recentlyUpdatedList, "mini-list", 3, { itemClass: "mini-item" });
+            }
             renderSkeleton(ui.topPlayedList, "mini-list", 4, { itemClass: "mini-item" });
             renderSkeleton(ui.trendingList, "mini-list", 4, { itemClass: "mini-item" });
             const showAlertsSkeleton = !safeArray(state.alertSignals).length
@@ -11484,7 +11531,7 @@ try {
                 const deferredUserDataPromise = loadDeferredHomepageData(
                     dashboardDataPromise,
                     {
-                        eagerPersonalLists: false,
+                        eagerPersonalLists: !state.personalSummaryLoaded,
                         eagerPersonalizedDeals: false,
                     },
                 );
@@ -12456,6 +12503,11 @@ try {
                 const restored = restoreDashboardSnapshot();
                 if (restored) {
                     renderCriticalHomepageSections();
+                    renderRestoredNonCriticalSections();
+                    renderWishlist();
+                    renderWatchlist();
+                    renderAlerts();
+                    void loadPersonalSummary();
                 }
             });
             wireCatalogLifecycle._wired = true;
@@ -12505,9 +12557,11 @@ try {
                 if (restoredSnapshot) {
                     state.homepageLoad.criticalLoaded = true;
                     renderCriticalHomepageSections();
+                    renderRestoredNonCriticalSections();
                     renderWishlist();
                     renderWatchlist();
                     renderAlerts();
+                    void loadPersonalSummary();
                 }
 
                 setStoredLastVisitTs(Date.now());

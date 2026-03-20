@@ -979,6 +979,13 @@ def _is_anonymous_user_id(value: str | None) -> bool:
     }
 
 
+def _is_guest_user_id(value: str | None) -> bool:
+    normalized = str(value or "").strip().lower()
+    if not normalized:
+        return True
+    return normalized in {"anonymous", "guest"}
+
+
 def _alert_label(alert_type: str | None) -> str:
     label_map = {
         "PRICE_DROP": "Price dropped",
@@ -6434,7 +6441,7 @@ def get_home_personal_summary(
 ):
     started = _start_timer()
     normalized_user_id = normalize_user_id(user_id)
-    if _is_anonymous_user_id(normalized_user_id):
+    if _is_guest_user_id(normalized_user_id):
         return {
             "user_id": normalized_user_id,
             "personalized": False,

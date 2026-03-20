@@ -77,35 +77,9 @@ body {
 }
 
 .brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.brand-logo {
-    display: block;
-    width: auto;
-    height: 34px;
-}
-
-.brand-title {
-    font-size: 18px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--muted);
-}
-
-.sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    border: 0;
-    white-space: nowrap;
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
 }
 
 .actions {
@@ -395,15 +369,7 @@ body {
     }
 
     .brand {
-        gap: 8px;
-    }
-
-    .brand-logo {
-        height: 28px;
-    }
-
-    .brand-title {
-        font-size: 15px;
+        font-size: 20px;
     }
 
     .actions {
@@ -523,11 +489,7 @@ body {
 <body>
 <div class="page">
     <div class="topbar">
-    <div class="brand" aria-label="GameDen.gg Tracked Items">
-        <img class="brand-logo" src="/assets/logo/gameden-logo-static.webp" alt="GameDen logo" loading="lazy" decoding="async">
-        <span class="sr-only">GameDen.gg</span>
-        <span class="brand-title">Tracked Items</span>
-    </div>
+    <div class="brand">GameDen.gg Tracked Items</div>
         <div class="actions">
             <button class="btn" id="refreshBtn" type="button">Refresh</button>
             <a class="btn" id="openWatchlistBtn" href="watchlist.html?tab=watchlist">Open Watchlist</a>

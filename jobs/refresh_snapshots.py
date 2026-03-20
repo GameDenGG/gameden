@@ -275,80 +275,24 @@ def _parse_release_date(text_value: str | None) -> datetime.date | None:
 
 def compute_upcoming_hot_score(
     release_date: datetime.date | None,
-    release_date_text: str | None,
     wishlist_count: int,
     watchlist_count: int,
     review_score: float,
     review_count: float,
-    popularity_score: float,
-    has_artwork: bool,
-    has_genre: bool,
-    has_platform: bool,
 ) -> float:
-    def release_date_quality_score() -> float:
-        text_value = str(release_date_text or "").strip()
-        if not release_date and not text_value:
-            return 0.15
-        if text_value:
-            lowered = text_value.lower()
-            if lowered in {"coming soon", "coming soon!", "to be announced", "tba", "announced"}:
-                return 0.1
-            if lowered.startswith("q") and " " in lowered:
-                return 0.62
-            for fmt in ("%b %d, %Y", "%B %d, %Y", "%d %b, %Y", "%d %B, %Y"):
-                try:
-                    datetime.datetime.strptime(text_value, fmt)
-                    return 1.0
-                except ValueError:
-                    continue
-            for fmt in ("%b %Y", "%B %Y"):
-                try:
-                    datetime.datetime.strptime(text_value, fmt)
-                    return 0.78
-                except ValueError:
-                    continue
-            try:
-                datetime.datetime.strptime(text_value, "%Y")
-                return 0.52
-            except ValueError:
-                pass
-        if release_date:
-            return 0.66
-        return 0.35
-
     now_date = utcnow().date()
 
     release_proximity = 0.0
     if release_date:
         days_out = (release_date - now_date).days
-        if days_out < 0:
-            release_proximity = -8.0
-        elif days_out <= 365:
-            release_proximity = 42.0 * (1.0 / (1.0 + (days_out / 35.0)))
-        else:
-            release_proximity = max(5.0, 42.0 * (1.0 / (1.0 + (days_out / 90.0))))
+        if days_out >= 0:
+            release_proximity = 35.0 * (1.0 / (1.0 + (days_out / 30.0)))
 
-    demand_component = clamp(
-        wishlist_count * 2.2 + watchlist_count * 1.5 + max(0.0, safe_num(popularity_score, 0.0)) * 0.7,
-        0.0,
-        120.0,
-    )
-    review_component = (
-        clamp(review_score, 0.0, 100.0)
-        * clamp(math.log10(max(review_count, 1.0)) / 4.0, 0.0, 1.0)
-        * 0.22
-    )
-    quality_component = release_date_quality_score() * 16.0
-    metadata_component = (4.0 if has_genre else 0.0) + (3.0 if has_platform else 0.0)
-    artwork_component = 14.0 if has_artwork else -24.0
-    total = 16.0 + release_proximity + demand_component + review_component + quality_component + metadata_component + artwork_component
+    demand_component = clamp(wishlist_count * 1.8 + watchlist_count * 1.2, 0.0, 80.0)
+    review_component = clamp(review_score, 0.0, 100.0) * clamp(math.log10(max(review_count, 1.0)) / 4.0, 0.0, 1.0) * 0.2
+    base = 20.0
 
-    if not has_artwork:
-        total *= 0.72
-    if release_date is None and demand_component < 20.0:
-        total -= 8.0
-
-    return round(clamp(total, 0.0, 300.0), 2)
+    return round(clamp(base + release_proximity + demand_component + review_component, 0.0, 250.0), 2)
 
 
 def compute_popularity_score(
@@ -2277,21 +2221,13 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
             watchlist_count=watchlist_count,
             last_clicked_at=interest.last_clicked_at,
         )
-        has_upcoming_artwork = bool(str(game.appid or "").strip())
-        has_genre_metadata = bool(split_csv_field(game.genres))
-        has_platform_metadata = bool(split_csv_field(game.platforms))
         if is_upcoming:
             upcoming_hot_score = compute_upcoming_hot_score(
                 release_date=release_date,
-                release_date_text=game.release_date_text,
                 wishlist_count=wishlist_count,
                 watchlist_count=watchlist_count,
                 review_score=review_score,
                 review_count=review_count,
-                popularity_score=popularity_score,
-                has_artwork=has_upcoming_artwork,
-                has_genre=has_genre_metadata,
-                has_platform=has_platform_metadata,
             )
         recommended_score = compute_recommended_score(
             deal_score=deal_score,
@@ -3399,16 +3335,10 @@ def rebuild_dashboard_cache(session: Session) -> None:
         .limit(HOMEPAGE_RAIL_LIMIT)
         .all()
     )
-    upcoming_artwork_priority = case((GameSnapshot.banner_url.isnot(None), 1), else_=0)
     upcoming = (
         session.query(GameSnapshot)
         .filter(GameSnapshot.is_upcoming.is_(True))
-        .order_by(
-            upcoming_artwork_priority.desc(),
-            GameSnapshot.upcoming_hot_score.desc(),
-            GameSnapshot.release_date.asc(),
-            GameSnapshot.game_id.asc(),
-        )
+        .order_by(GameSnapshot.upcoming_hot_score.desc(), GameSnapshot.release_date.asc(), GameSnapshot.game_id.asc())
         .limit(UPCOMING_LIMIT)
         .all()
     )

@@ -669,6 +669,28 @@ def serialize_upcoming_row(game: Game) -> dict:
     }
 
 
+def serialize_upcoming_snapshot_row(snapshot: GameSnapshot) -> dict:
+    return {
+        "game_id": int(snapshot.game_id),
+        "game_name": snapshot.game_name,
+        "steam_appid": snapshot.steam_appid,
+        "release_date": snapshot.release_date.isoformat() if snapshot.release_date else None,
+        "release_date_text": snapshot.release_date_text,
+        "store_url": snapshot.store_url,
+        "banner_url": snapshot.banner_url or build_steam_banner_url(snapshot.store_url, snapshot.steam_appid),
+        "genres": parse_csv_field(snapshot.genres or ""),
+        "tags": parse_csv_field(snapshot.tags or ""),
+        "platforms": parse_csv_field(snapshot.platforms or ""),
+        "review_score": snapshot.review_score,
+        "review_score_label": snapshot.review_score_label,
+        "review_total_count": snapshot.review_count,
+        "popularity_score": snapshot.popularity_score,
+        "upcoming_hot_score": snapshot.upcoming_hot_score,
+        "is_upcoming": bool(snapshot.is_upcoming),
+        "is_released": int(snapshot.is_released or 0),
+    }
+
+
 def get_latest_price_rows(session):
     rows = session.query(GameSnapshot).all()
     latest_prices = []
@@ -4216,6 +4238,26 @@ def get_upcoming_games(
             cached_rows = _read_cached_section_items(session, "home:upcoming", limit=normalized_limit)
             if cached_rows:
                 return cached_rows
+
+        artwork_priority = case((GameSnapshot.banner_url.isnot(None), 1), else_=0)
+        release_date_priority = case((GameSnapshot.release_date.is_(None), 1), else_=0)
+        snapshot_query = (
+            session.query(GameSnapshot)
+            .filter(GameSnapshot.is_upcoming.is_(True))
+            .order_by(
+                artwork_priority.desc(),
+                GameSnapshot.upcoming_hot_score.desc(),
+                release_date_priority.asc(),
+                GameSnapshot.release_date.asc(),
+                GameSnapshot.game_name.asc(),
+                GameSnapshot.game_id.asc(),
+            )
+        )
+        if not full:
+            snapshot_query = snapshot_query.limit(normalized_limit)
+        snapshot_rows = snapshot_query.all()
+        if snapshot_rows:
+            return [serialize_upcoming_snapshot_row(row) for row in snapshot_rows]
 
         rows = session.query(Game).filter(Game.is_released == 0).all()
 

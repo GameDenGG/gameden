@@ -2501,6 +2501,18 @@ input:focus-visible {
     letter-spacing: 0.03em;
 }
 
+.site-footer-brand-logo {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+}
+
+.site-footer-brand-logo img {
+    display: block;
+    width: auto;
+    height: 32px;
+}
+
 .site-footer-meta {
     margin-top: 4px;
     font-size: 12px;
@@ -3638,7 +3650,6 @@ input:focus-visible {
             <div class="homepage-content-shell">
                 <div class="homepage-body homepage-content-grid dashboard-grid">
                     <main class="homepage-main main-column homepage-main-column" aria-label="Main market intelligence">
-                        <div class="column-zone-label main-zone-label">Main Content</div>
                 <section class="panel panel-seasonal panel-secondary-intel hidden" id="seasonalSaleTopPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -4155,7 +4166,10 @@ input:focus-visible {
         </div>
 
         <footer class="site-footer">
-            <strong id="footerBrand">GameDen.gg</strong>
+            <strong id="footerBrand" class="site-footer-brand-logo" aria-label="GameDen.gg">
+                <img src="/assets/logo/gameden-logo-static.webp" alt="GameDen logo" loading="lazy" decoding="async" />
+                <span class="sr-only">GameDen.gg</span>
+            </strong>
             <div class="site-footer-meta" id="footerSummary">
                 Snapshot-backed Steam intelligence for pricing, momentum, and timing decisions across the full catalog.
             </div>
@@ -4248,9 +4262,20 @@ input:focus-visible {
             }
         }
 
+        function renderFooterBrandLogo() {
+            const el = document.getElementById("footerBrand");
+            if (!el) return;
+            el.classList.add("site-footer-brand-logo");
+            el.setAttribute("aria-label", SITE_BRAND.name);
+            el.innerHTML = `
+                <img src="/assets/logo/gameden-logo-static.webp" alt="GameDen logo" loading="lazy" decoding="async" />
+                <span class="sr-only">${SITE_BRAND.name}</span>
+            `;
+        }
+
         function applySiteBranding() {
             document.title = SITE_BRAND.pageTitle;
-            setNodeText("footerBrand", SITE_BRAND.name);
+            renderFooterBrandLogo();
             setNodeText("footerSummary", SITE_BRAND.footerSummary);
             const searchInput = document.getElementById("searchInput");
             if (searchInput) {
@@ -6119,6 +6144,124 @@ input:focus-visible {
             return `${fallback.slice(0, 19).trimEnd()}...`;
         }
 
+        function isUpcomingCard(game, context = {}) {
+            const viewToken = String(context?.view || "").trim().toLowerCase();
+            if (viewToken === "upcoming") return true;
+            if (game?.is_upcoming === true) return true;
+            const releasedFlag = game?.is_released;
+            if (releasedFlag === 0 || releasedFlag === "0" || releasedFlag === false) return true;
+            const releaseDateMs = Date.parse(String(game?.release_date || ""));
+            return Number.isFinite(releaseDateMs) && releaseDateMs > Date.now();
+        }
+
+        function formatUpcomingReleaseLabel(game) {
+            const releaseDateValue = String(game?.release_date || "").trim();
+            if (releaseDateValue) {
+                const parsed = Date.parse(releaseDateValue);
+                if (Number.isFinite(parsed)) {
+                    return `Releases ${new Date(parsed).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                    })}`;
+                }
+            }
+            const releaseText = String(game?.release_date_text || "").trim();
+            if (releaseText) return `Release ${releaseText}`;
+            return "Release date TBA";
+        }
+
+        function primaryGenreLabel(game) {
+            const genres = safeArray(game?.genres).map((value) => String(value || "").trim()).filter(Boolean);
+            if (genres.length) return genres[0];
+            const tags = safeArray(game?.tags).map((value) => String(value || "").trim()).filter(Boolean);
+            return tags.length ? tags[0] : "";
+        }
+
+        function primaryPlatformLabel(game) {
+            const platforms = safeArray(game?.platforms).map((value) => String(value || "").trim()).filter(Boolean);
+            return platforms.length ? platforms[0] : "";
+        }
+
+        function buildUpcomingMetadataStack(game) {
+            const releaseLabel = formatUpcomingReleaseLabel(game);
+            const genreLabel = primaryGenreLabel(game);
+            const platformLabel = primaryPlatformLabel(game);
+            const reviewScore = Number(game?.review_score);
+            const reviewLabel = String(getReviewLabel(game) || "").trim();
+            const popularity = Number(game?.popularity_score);
+            const upcomingHeat = Number(game?.upcoming_hot_score);
+
+            const primaryChips = ['<span class="meta-chip signal info">Upcoming</span>'];
+            if (Number.isFinite(upcomingHeat) && upcomingHeat > 0) {
+                primaryChips.push(`<span class="meta-chip metric">Heat ${Math.round(upcomingHeat)}</span>`);
+            }
+            if (Number.isFinite(popularity) && popularity > 0) {
+                primaryChips.push(`<span class="meta-chip metric">Interest ${Math.round(popularity)}</span>`);
+            }
+            if (Number.isFinite(reviewScore) && reviewScore > 0) {
+                primaryChips.push(`<span class="meta-chip signal info">${Math.round(reviewScore)}% reviews</span>`);
+            } else if (reviewLabel) {
+                primaryChips.push(`<span class="meta-chip signal info">${escapeHtml(reviewLabel)}</span>`);
+            }
+
+            const contextItems = [`<span class="context-item"><strong>${escapeHtml(releaseLabel)}</strong></span>`];
+            if (genreLabel) {
+                contextItems.push(`<span class="context-item">Genre <strong>${escapeHtml(genreLabel)}</strong></span>`);
+            }
+            if (platformLabel) {
+                contextItems.push(`<span class="context-item">Platform <strong>${escapeHtml(platformLabel)}</strong></span>`);
+            }
+
+            return `
+                <div class="card-meta-stack">
+                    <div class="card-meta-row deal-quality compact-primary">
+                        <div class="card-meta-cluster primary">
+                            ${primaryChips.slice(0, 4).join("")}
+                        </div>
+                    </div>
+                    <div class="card-meta-row context compact">
+                        ${contextItems.join('<span class="context-item">•</span>')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildUpcomingMiniStatsRow(game) {
+            const entries = [];
+            const upcomingHeat = Number(game?.upcoming_hot_score);
+            const popularity = Number(game?.popularity_score);
+            const reviewCount = Number(game?.review_total_count ?? game?.review_count);
+
+            if (Number.isFinite(upcomingHeat) && upcomingHeat > 0) {
+                entries.push({ label: "Heat", value: String(Math.round(upcomingHeat)) });
+            }
+            if (Number.isFinite(popularity) && popularity > 0) {
+                entries.push({ label: "Interest", value: String(Math.round(popularity)) });
+            }
+            if (Number.isFinite(reviewCount) && reviewCount > 0) {
+                entries.push({ label: "Reviews", value: fmtInt(reviewCount) });
+            }
+            if (!entries.length) return "";
+
+            return `
+                <div class="card-mini-stats">
+                    ${entries.slice(0, 2).map((entry) => `
+                        <span class="mini-stat">
+                            <span class="mini-stat-label">${escapeHtml(entry.label)}</span>
+                            <strong class="mini-stat-value">${escapeHtml(entry.value)}</strong>
+                        </span>
+                    `).join("")}
+                </div>
+            `;
+        }
+
+        function buildUpcomingPrimaryReason(game) {
+            const releaseLabel = formatUpcomingReleaseLabel(game);
+            if (releaseLabel) return releaseLabel;
+            return "Upcoming release";
+        }
+
         function buildCardSignalRow(game) {
             const primaryKeys = new Set([
                 "buy_now_pick",
@@ -6211,7 +6354,10 @@ input:focus-visible {
             `;
         }
 
-        function buildCardMetadataStack(game) {
+        function buildCardMetadataStack(game, context = {}) {
+            if (isUpcomingCard(game, context)) {
+                return buildUpcomingMetadataStack(game);
+            }
             return `
                 <div class="card-meta-stack">
                     ${buildCardDealQualityRow(game)}
@@ -6221,7 +6367,10 @@ input:focus-visible {
             `;
         }
 
-        function buildCardMiniStatsRow(game) {
+        function buildCardMiniStatsRow(game, context = {}) {
+            if (isUpcomingCard(game, context)) {
+                return buildUpcomingMiniStatsRow(game);
+            }
             const entries = [];
             const worth = Number(game.worth_buying_score ?? game.buy_score);
             const deal = Number(game.deal_score);
@@ -7056,8 +7205,22 @@ input:focus-visible {
         function gameCardHtml(game, context = {}) {
             const detailHref = buildGameDetailHref(game);
             const gameName = escapeHtml(game.game_name || "Unknown game");
-            const decisionExplainLines = buildDecisionExplainLines(game);
-            const primaryReason = decisionExplainLines.length ? escapeHtml(decisionExplainLines[0]) : "";
+            const upcomingCard = isUpcomingCard(game, context);
+            const decisionExplainLines = upcomingCard ? [] : buildDecisionExplainLines(game);
+            const primaryReason = upcomingCard
+                ? escapeHtml(buildUpcomingPrimaryReason(game))
+                : decisionExplainLines.length
+                    ? escapeHtml(decisionExplainLines[0])
+                    : "";
+            const currentPrice = Number(game.price);
+            const shouldUseTbaPrice = upcomingCard && (!Number.isFinite(currentPrice) || currentPrice <= 0);
+            const currentPriceLabel = shouldUseTbaPrice ? "TBA" : fmtPrice(game.price);
+            const showOriginalPrice = (
+                !upcomingCard
+                && game.original_price != null
+                && game.price != null
+                && game.original_price > game.price
+            );
             const newSignalClass = shouldRenderNewSignalCard(game, context) ? " is-new-signal" : "";
             return `
                 <article class="game-card${newSignalClass}">
@@ -7070,14 +7233,14 @@ input:focus-visible {
                             </h3>
                         </div>
                         <div class="price-stack">
-                            <div class="price-current">${fmtPrice(game.price)}</div>
-                            ${game.original_price != null && game.price != null && game.original_price > game.price ? `<div class="price-original">${fmtPrice(game.original_price)}</div>` : ""}
+                            <div class="price-current">${currentPriceLabel}</div>
+                            ${showOriginalPrice ? `<div class="price-original">${fmtPrice(game.original_price)}</div>` : ""}
                         </div>
                     </div>
                     ${buildActionButtons(game)}
-                    ${buildCardMetadataStack(game)}
+                    ${buildCardMetadataStack(game, context)}
                     ${primaryReason ? `<div class="card-reason-line">${primaryReason}</div>` : ""}
-                    ${buildCardMiniStatsRow(game)}
+                    ${buildCardMiniStatsRow(game, context)}
                 </article>
             `;
         }

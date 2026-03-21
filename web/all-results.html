@@ -236,7 +236,7 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
   const arr = (v) => Array.isArray(v) ? v : (typeof v === "string" ? v.split(",").map((x) => x.trim()).filter(Boolean) : []);
   const review = (g) => String(g?.review_score_label ?? g?.review_label ?? g?.review_summary ?? g?.reviewSummary ?? "").trim();
   const byPath = (obj, path) => String(path || "").split(".").reduce((acc, key) => (acc && typeof acc === "object") ? acc[key] : null, obj);
-  const canonicalIdentifier = (g) => { const gameId = n(g?.game_id, null); if (gameId !== null && gameId > 0) return String(Math.trunc(gameId)); const appId = String(g?.steam_appid ?? g?.appid ?? "").trim(); return /^\d+$/.test(appId) ? appId : ""; };
+  const canonicalIdentifier = (g) => { const gameId = n(g?.game_id, null); return gameId !== null && gameId > 0 ? String(Math.trunc(gameId)) : ""; };
   const keyOf = (g) => { const identifier = canonicalIdentifier(g); const name = String(g?.game_name || "").trim().toLowerCase(); return identifier ? `id:${identifier}` : (name ? `name:${name}` : ""); };
   const unique = (rows) => { const out = []; const seen = new Set(); for (const row of rows || []) { const key = keyOf(row); if (!key || seen.has(key)) continue; seen.add(key); out.push(row); } return out; };
   const detailHref = (g) => { const q = new URLSearchParams(); const identifier = canonicalIdentifier(g); const name = String(g?.game_name || "").trim(); if (name) q.set("game_name", name); if (identifier) { const route = `/game/${identifier}`; const query = q.toString(); return query ? `${route}?${query}` : route; } const query = q.toString(); return query ? `/game?${query}` : "/game"; };

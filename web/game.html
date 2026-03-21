@@ -2398,6 +2398,9 @@ async function loadGame() {
         payload = await fetchJson(`/games/${requestedGameId}`).catch(() => null);
     }
     if (!payload && gameName) {
+        payload = await fetchJson(`/games/resolve/${encodeURIComponent(gameName)}`).catch(() => null);
+    }
+    if (!payload && gameName) {
         payload = await fetchJson(`/games/by-name?game_name=${encodeURIComponent(gameName)}`).catch(() => null);
     }
 
@@ -2539,13 +2542,10 @@ async function loadRelatedGames(gameId) {
                         const name = escapeHtml(row.game_name || "Unknown game");
                         const discount = Number(row.discount_percent || 0);
                         const rowGameId = Number(row.game_id || 0);
-                        const rowAppId = String(row.steam_appid || row.appid || "").trim();
                         const encodedName = encodeURIComponent(row.game_name || "");
                         const detailHref = Number.isFinite(rowGameId) && rowGameId > 0
                             ? `/game/${Math.trunc(rowGameId)}?game_name=${encodedName}`
-                            : (/^\d+$/.test(rowAppId)
-                                ? `/game/${rowAppId}?game_name=${encodedName}`
-                                : `/game?game_name=${encodedName}`);
+                            : `/game?game_name=${encodedName}`;
                         const metric = discount > 0
                             ? `${discount}% off`
                             : `Players ${fmtInt(row.current_players)}`;

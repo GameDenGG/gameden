@@ -5448,16 +5448,13 @@ input:focus-visible {
             const normalized = normalizeGameRow(gameLike);
             const params = new URLSearchParams();
             const canonicalGameId = toPositiveIntOrNull(normalized?.canonical_game_id);
-            const canonicalAppIdRaw = String(normalized?.canonical_steam_appid || normalized?.steam_appid || normalized?.appid || "").trim();
-            const canonicalAppId = /^\d+$/.test(canonicalAppIdRaw) ? canonicalAppIdRaw : "";
-            const routeIdentifier = canonicalGameId !== null ? String(canonicalGameId) : canonicalAppId;
-            if (routeIdentifier) {
+            if (canonicalGameId !== null) {
                 const gameName = String(normalized?.game_name || "").trim();
                 if (gameName) {
                     params.set("game_name", gameName);
                 }
                 const query = params.toString();
-                return query ? `/game/${routeIdentifier}?${query}` : `/game/${routeIdentifier}`;
+                return query ? `/game/${canonicalGameId}?${query}` : `/game/${canonicalGameId}`;
             }
 
             const gameName = String(normalized?.game_name || "").trim();

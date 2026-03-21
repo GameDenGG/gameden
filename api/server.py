@@ -842,6 +842,10 @@ def serialize_price_row(row, game_map=None, historical_insight_map=None):
 
     insight = historical_insight_map.get(row.game_name, {}) if historical_insight_map else {}
 
+    normalized_game_id = int(safe_num(getattr(row, "game_id", None), 0.0))
+    if normalized_game_id <= 0 and game is not None and getattr(game, "id", None) is not None:
+        normalized_game_id = int(safe_num(game.id, 0.0))
+    normalized_game_id = normalized_game_id if normalized_game_id > 0 else None
     appid = game.appid if game and game.appid else extract_appid_from_store_url(row.store_url)
     historical_low = insight.get("historical_low")
     previous_historical_low = insight.get("previous_historical_low")
@@ -851,6 +855,8 @@ def serialize_price_row(row, game_map=None, historical_insight_map=None):
     max_discount = int(insight.get("max_discount", 0) or 0)
 
     return {
+        "id": normalized_game_id,
+        "game_id": normalized_game_id,
         "game_name": row.game_name,
         "price": row.price,
         "original_price": row.original_price,
@@ -910,6 +916,7 @@ def get_latest_price_rows(session):
     for row in rows:
         latest_prices.append(
             SimpleNamespace(
+                game_id=row.game_id,
                 game_name=row.game_name,
                 price=row.latest_price,
                 original_price=row.latest_original_price,
@@ -6022,7 +6029,7 @@ def get_game_price_history_windowed(
         session.close()
 
 
-@app.get("/games/{game_id}")
+@app.get("/games/{game_id:int}")
 def get_game_detail(request: Request, game_id: int):
     viewer_user_id = resolve_request_user_id(request)
     session = ReadSessionLocal()

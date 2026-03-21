@@ -1411,6 +1411,39 @@ function parsePositiveInt(value) {
     return Math.trunc(parsed);
 }
 
+function fallbackGameSlug(value) {
+    return String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
+
+function buildCanonicalGamePath(payload = currentGamePayload, options = {}) {
+    const runtime = window.GameDenSite;
+    if (runtime && typeof runtime.buildGamePath === "function") {
+        return runtime.buildGamePath(
+            {
+                slug: payload?.slug ?? payload?.game_slug,
+                game_id: payload?.game_id ?? payload?.id ?? currentGameId,
+                steam_appid: payload?.steam_appid ?? payload?.appid ?? payload?.steam_app_id,
+                game_name: payload?.game_name ?? payload?.name ?? gameName,
+            },
+            {
+                includeNameQuery: false,
+                allowIdFallback: options.allowIdFallback !== false,
+                allowAppIdFallback: options.allowAppIdFallback !== false,
+            },
+        );
+    }
+
+    const nameSlug = fallbackGameSlug(payload?.slug || payload?.game_slug || payload?.game_name || payload?.name || gameName);
+    if (nameSlug) return `/game/${nameSlug}`;
+    const fallbackId = parsePositiveInt(payload?.game_id ?? payload?.id ?? currentGameId);
+    if (fallbackId !== null) return `/game/${fallbackId}`;
+    return "/game";
+}
+
 const WATCHLIST_STORAGE_KEY = "gameden.user_id";
 const DEFAULT_USER_ID = "legacy-user";
 const gameName = getQueryParam("game_name");
@@ -1808,15 +1841,7 @@ function escapeHtml(value) {
 }
 
 function buildGameShareUrl(payload = currentGamePayload) {
-    const gameId = Number(payload?.game_id ?? payload?.id ?? currentGameId);
-    const normalizedGameId = Number.isFinite(gameId) && gameId > 0 ? Math.trunc(gameId) : null;
-    const path = normalizedGameId !== null ? `/game/${normalizedGameId}` : "/game";
-    const url = new URL(path, window.location.origin);
-    const name = String(payload?.game_name || payload?.name || gameName || "").trim();
-    if (name && normalizedGameId === null) {
-        url.searchParams.set("game_name", name);
-    }
-
+    const url = new URL(buildCanonicalGamePath(payload), window.location.origin);
     return url.toString();
 }
 
@@ -1855,6 +1880,24 @@ function buildShareSummary(payload) {
         : "No active discount";
     const explanation = buildShareExplanationLine(payload);
     return `${priceText} • ${discountText} • ${explanation}`;
+}
+
+function normalizeCanonicalGameRoute(payload) {
+    const canonicalPath = buildCanonicalGamePath(payload);
+    const currentPath = String(window.location.pathname || "").replace(/\/+$/, "") || "/";
+    const targetPath = String(canonicalPath || "/").replace(/\/+$/, "") || "/";
+    const params = new URLSearchParams(window.location.search);
+    params.delete("game_name");
+    params.delete("game_id");
+    const nextSearch = params.toString();
+    const nextUrl = `${targetPath}${nextSearch ? `?${nextSearch}` : ""}`;
+    const currentUrl = `${currentPath}${window.location.search || ""}`;
+    if (nextUrl === currentUrl) return;
+    try {
+        window.history.replaceState({}, "", nextUrl);
+    } catch {
+        // Ignore history normalization errors in restricted browsers.
+    }
 }
 
 function applyGamePageMetadata(payload) {
@@ -2429,6 +2472,7 @@ async function loadGame() {
         game_name: payload.game_name || payload.name || gameName || (Number.isFinite(currentGameId) && currentGameId > 0 ? `Game ${currentGameId}` : "Unknown game"),
     };
     currentGamePayload = payload;
+    normalizeCanonicalGameRoute(payload);
     if (shareDealButton instanceof HTMLButtonElement) {
         shareDealButton.disabled = !(Number.isFinite(currentGameId) && currentGameId > 0);
         shareDealButton.textContent = SHARE_BUTTON_DEFAULT_LABEL;
@@ -2546,11 +2590,7 @@ async function loadRelatedGames(gameId) {
                     ? rows.slice(0, 6).map((row) => {
                         const name = escapeHtml(row.game_name || "Unknown game");
                         const discount = Number(row.discount_percent || 0);
-                        const rowGameId = Number(row.game_id || 0);
-                        const encodedName = encodeURIComponent(row.game_name || "");
-                        const detailHref = Number.isFinite(rowGameId) && rowGameId > 0
-                            ? `/game/${Math.trunc(rowGameId)}?game_name=${encodedName}`
-                            : `/game?game_name=${encodedName}`;
+                        const detailHref = buildCanonicalGamePath(row, { allowIdFallback: true, allowAppIdFallback: true });
                         const metric = discount > 0
                             ? `${discount}% off`
                             : `Players ${fmtInt(row.current_players)}`;

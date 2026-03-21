@@ -740,8 +740,11 @@ def _rank_search_rows(rows: list[dict], normalized_query: str, limit: int) -> li
 
 
 def serialize_game_metadata(game: Optional[Game]) -> dict:
+    game_slug = _canonical_game_slug(game.name if game else None, game.id if game else None)
     return {
         "appid": game.appid if game else None,
+        "slug": game_slug,
+        "game_slug": game_slug,
         "genres": parse_csv_field(game.genres if game else ""),
         "tags": parse_csv_field(game.tags if game else ""),
         "platforms": parse_csv_field(game.platforms if game else ""),
@@ -889,9 +892,12 @@ def serialize_upcoming_row(game: Game) -> dict:
 
 
 def serialize_upcoming_snapshot_row(snapshot: GameSnapshot) -> dict:
+    game_slug = _canonical_game_slug(snapshot.game_name, snapshot.game_id)
     return {
         "game_id": int(snapshot.game_id),
         "game_name": snapshot.game_name,
+        "slug": game_slug,
+        "game_slug": game_slug,
         "steam_appid": snapshot.steam_appid,
         "release_date": snapshot.release_date.isoformat() if snapshot.release_date else None,
         "release_date_text": snapshot.release_date_text,
@@ -1408,6 +1414,8 @@ def build_watchlist_entries_payload(session: Session, user_id: str) -> list[dict
                 "user_id": row.user_id,
                 "game_id": int(row.game_id),
                 "game_name": game_name,
+                "slug": _canonical_game_slug(game_name, row.game_id),
+                "game_slug": _canonical_game_slug(game_name, row.game_id),
                 "steam_appid": snapshot.steam_appid if snapshot else (game.appid if game else None),
                 "banner_url": snapshot.banner_url if snapshot else None,
                 "latest_price": latest_price,
@@ -2557,11 +2565,14 @@ def _serialize_seo_landing_item(snapshot: FeedProjectionRow, slug: str) -> dict:
     explanation_lines = _build_seo_reason_lines(snapshot, slug, limit=2)
     updated_at = _coerce_utc_datetime(snapshot.updated_at) or utc_now()
     buy_score = snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score
+    game_slug = _canonical_game_slug(snapshot.game_name, snapshot.game_id)
 
     return {
         "game_id": int(snapshot.game_id),
         "id": int(snapshot.game_id),
         "game_name": snapshot.game_name,
+        "slug": game_slug,
+        "game_slug": game_slug,
         "steam_appid": snapshot.steam_appid,
         "banner_url": snapshot.banner_url,
         "image_url": snapshot.banner_url,
@@ -3190,6 +3201,32 @@ def _first_non_null(*values):
     return None
 
 
+def _canonical_game_slug(game_name: str | None, fallback_identifier: int | str | None = None) -> str | None:
+    slug = _slugify_game_identifier(game_name)
+    if slug:
+        return slug
+    try:
+        fallback_value = int(safe_num(fallback_identifier, 0.0))
+    except Exception:
+        fallback_value = 0
+    if fallback_value > 0:
+        return str(fallback_value)
+    return None
+
+
+def _canonical_game_detail_path(game_name: str | None, fallback_identifier: int | str | None = None) -> str:
+    slug = _canonical_game_slug(game_name, fallback_identifier=fallback_identifier)
+    if slug:
+        return f"/game/{slug}"
+    try:
+        fallback_value = int(safe_num(fallback_identifier, 0.0))
+    except Exception:
+        fallback_value = 0
+    if fallback_value > 0:
+        return f"/game/{fallback_value}"
+    return "/game"
+
+
 def _build_snapshot_game_detail_payload(
     game: Game,
     snapshot: Optional[GameSnapshot],
@@ -3267,7 +3304,10 @@ def _build_snapshot_game_detail_payload(
         "game_name": snapshot.game_name if snapshot and snapshot.game_name else game.name,
         "steam_appid": steam_appid,
         "steam_app_id": steam_app_id,
-        "slug": None,
+        "slug": _canonical_game_slug(
+            snapshot.game_name if snapshot and snapshot.game_name else game.name,
+            int(game.id),
+        ),
         "store_url": game.store_url,
         "share_card_url": _build_canonical_url(f"/share/deal/{int(game.id)}"),
         "header_image": banner_url,
@@ -3429,6 +3469,12 @@ def _ensure_game_detail_contract(payload: dict) -> dict:
     fallback_name = f"Game {normalized['game_id']}" if normalized["game_id"] > 0 else "Unknown game"
     normalized["game_name"] = normalized.get("game_name") or normalized.get("name") or fallback_name
     normalized["name"] = normalized.get("name") or normalized["game_name"]
+    canonical_slug = _canonical_game_slug(normalized.get("slug") or normalized["game_name"], normalized["game_id"])
+    normalized["slug"] = canonical_slug
+    normalized["game_slug"] = canonical_slug
+    canonical_path = _canonical_game_detail_path(normalized.get("game_name"), normalized["game_id"])
+    normalized["canonical_path"] = canonical_path
+    normalized["canonical_url"] = _build_canonical_url(canonical_path)
     normalized["price"] = _first_non_null(normalized.get("price"), normalized.get("current_price"))
     normalized["current_price"] = _first_non_null(normalized.get("current_price"), normalized.get("price"))
     normalized["historical_low"] = _first_non_null(normalized.get("historical_low"), normalized.get("historical_low_price"))
@@ -3517,7 +3563,7 @@ def build_game_detail_payload(session, game: Game, user_id: str | None = None):
         "id": game.id,
         "steam_app_id": appid or 0,
         "name": game.name,
-        "slug": None,
+        "slug": _canonical_game_slug(game.name, game.id),
         "header_image": banner_url,
         "banner_image": banner_url,
         "short_description": None,
@@ -3608,7 +3654,7 @@ def _collect_sitemap_game_paths(limit: int = SITEMAP_GAME_DETAIL_LIMIT) -> list[
     session = ReadSessionLocal()
     try:
         rows = (
-            session.query(GameSnapshot.game_id)
+            session.query(GameSnapshot.game_id, GameSnapshot.game_name)
             .filter(
                 GameSnapshot.game_id.isnot(None),
                 GameSnapshot.is_released == 1,
@@ -3624,13 +3670,17 @@ def _collect_sitemap_game_paths(limit: int = SITEMAP_GAME_DETAIL_LIMIT) -> list[
             .all()
         )
         paths: list[str] = []
-        seen_ids: set[int] = set()
+        seen_paths: set[str] = set()
         for row in rows:
             game_id = int(safe_num(getattr(row, "game_id", 0), 0.0))
-            if game_id <= 0 or game_id in seen_ids:
+            if game_id <= 0:
                 continue
-            seen_ids.add(game_id)
-            paths.append(f"/game/{game_id}")
+            game_name = str(getattr(row, "game_name", "") or "").strip()
+            path = _canonical_game_detail_path(game_name, fallback_identifier=game_id)
+            if path in seen_paths:
+                continue
+            seen_paths.add(path)
+            paths.append(path)
         return paths
     finally:
         session.close()
@@ -3682,14 +3732,15 @@ def all_results_page():
 
 
 @app.get("/game")
+@app.get("/game/")
 def game_page():
     return FileResponse("web/game.html")
 
 
-@app.get("/game/{game_id}")
-@app.get("/game/{game_id}/")
-def game_page_with_id(game_id: str):
-    if not str(game_id or "").strip():
+@app.get("/game/{identifier}")
+@app.get("/game/{identifier}/")
+def game_page_with_identifier(identifier: str):
+    if not str(identifier or "").strip():
         raise HTTPException(status_code=404, detail="Game page not found")
     return FileResponse("web/game.html")
 
@@ -4548,6 +4599,8 @@ def search_games_fast(
                 "id": row["id"],
                 "game_id": row["id"],
                 "game_name": row["game_name"],
+                "slug": _canonical_game_slug(row["game_name"], row["id"]),
+                "game_slug": _canonical_game_slug(row["game_name"], row["id"]),
                 "developer": row.get("developer"),
                 "publisher": row.get("publisher"),
                 "genres": parse_csv_field(row.get("genres_csv")),
@@ -5274,9 +5327,9 @@ def _read_cached_section_items(session: Session, cache_key: str, *, limit: int |
     if isinstance(payload, dict):
         items = payload.get("items")
         if isinstance(items, list):
-            rows = [row for row in items if isinstance(row, dict)]
+            rows = [_attach_dashboard_row_route_fields(row) for row in items if isinstance(row, dict)]
     elif isinstance(payload, list):
-        rows = [row for row in payload if isinstance(row, dict)]
+        rows = [_attach_dashboard_row_route_fields(row) for row in payload if isinstance(row, dict)]
     if limit is not None:
         return rows[: max(1, int(limit))]
     return rows
@@ -5369,11 +5422,27 @@ def _rebuild_dashboard_cache_on_demand():
         session.close()
 
 
+def _attach_dashboard_row_route_fields(row: dict) -> dict:
+    normalized = dict(row or {})
+    game_id = int(safe_num(normalized.get("game_id") or normalized.get("id"), 0.0))
+    game_name = str(normalized.get("game_name") or normalized.get("name") or "").strip()
+    raw_slug = normalized.get("slug") or normalized.get("game_slug")
+    game_slug = _canonical_game_slug(raw_slug or game_name, fallback_identifier=game_id)
+    if game_slug:
+        normalized["slug"] = game_slug
+        normalized["game_slug"] = game_slug
+    if game_id > 0 and "game_id" not in normalized:
+        normalized["game_id"] = game_id
+    if game_id > 0 and "id" not in normalized:
+        normalized["id"] = game_id
+    return normalized
+
+
 def _dashboard_rows(payload: dict, *keys: str) -> list[dict]:
     for key in keys:
         value = payload.get(key)
         if isinstance(value, list):
-            return [row for row in value if isinstance(row, dict)]
+            return [_attach_dashboard_row_route_fields(row) for row in value if isinstance(row, dict)]
     return []
 
 
@@ -6517,9 +6586,12 @@ def get_related_games(
             return (len(seed_tags & row_tags) * 2) + len(seed_genres & row_genres)
 
         def _serialize_related_row(row: GameSnapshot) -> dict:
+            game_slug = _canonical_game_slug(row.game_name, row.game_id)
             return {
                 "game_id": int(row.game_id),
                 "game_name": row.game_name,
+                "slug": game_slug,
+                "game_slug": game_slug,
                 "steam_appid": row.steam_appid,
                 "banner_url": row.banner_url,
                 "price": row.latest_price,
@@ -7016,6 +7088,8 @@ def get_home_personal_summary(
                 {
                     "game_id": normalized_id,
                     "game_name": resolved_name,
+                    "slug": _canonical_game_slug(resolved_name, normalized_id),
+                    "game_slug": _canonical_game_slug(resolved_name, normalized_id),
                 }
             )
 
@@ -7029,6 +7103,8 @@ def get_home_personal_summary(
                 {
                     "game_id": normalized_id,
                     "game_name": resolved_name,
+                    "slug": _canonical_game_slug(resolved_name, normalized_id),
+                    "game_slug": _canonical_game_slug(resolved_name, normalized_id),
                 }
             )
 
@@ -7042,6 +7118,8 @@ def get_home_personal_summary(
                 {
                     "game_id": game_id,
                     "game_name": game_name,
+                    "slug": _canonical_game_slug(game_name, game_id),
+                    "game_slug": _canonical_game_slug(game_name, game_id),
                     "alert_type": str(alert.alert_type or "").upper(),
                     "alert_created_at": alert.created_at.isoformat() if alert.created_at else None,
                 }
@@ -8536,6 +8614,14 @@ def list_deal_watchlists(request: Request, user_id: str):
                 "user_id": row.user_id,
                 "game_id": int(row.game_id),
                 "game_name": snapshot.game_name if snapshot else (game.name if game else None),
+                "slug": _canonical_game_slug(
+                    snapshot.game_name if snapshot else (game.name if game else None),
+                    row.game_id,
+                ),
+                "game_slug": _canonical_game_slug(
+                    snapshot.game_name if snapshot else (game.name if game else None),
+                    row.game_id,
+                ),
                 "target_price": row.target_price,
                 "target_discount_percent": row.target_discount_percent,
                 "active": bool(row.active),

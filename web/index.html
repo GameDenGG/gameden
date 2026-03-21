@@ -5332,9 +5332,11 @@ input:focus-visible {
 
         function normalizeGameRow(row) {
             if (!row || typeof row !== "object") return row;
-            const canonicalGameId = toPositiveIntOrNull(row.game_id);
+            const canonicalGameId = toPositiveIntOrNull(row.game_id ?? row.id);
             const canonicalSteamAppIdRaw = String(row.steam_appid ?? row.appid ?? "").trim();
             const canonicalSteamAppId = /^\d+$/.test(canonicalSteamAppIdRaw) ? canonicalSteamAppIdRaw : null;
+            const canonicalSlugRaw = String(row.slug ?? row.game_slug ?? "").trim();
+            const canonicalSlug = canonicalSlugRaw || "";
             return {
                 ...row,
                 game_id: row.game_id ?? row.id ?? null,
@@ -5342,6 +5344,7 @@ input:focus-visible {
                 steam_appid: row.steam_appid ?? row.appid ?? null,
                 canonical_game_id: canonicalGameId,
                 canonical_steam_appid: canonicalSteamAppId,
+                canonical_game_slug: canonicalSlug,
                 banner_url: row.banner_url ?? row.image_url ?? row.header_image ?? row.image ?? null,
                 image_url: row.image_url ?? row.banner_url ?? row.header_image ?? row.image ?? null,
                 price: row.price ?? row.latest_price ?? null,
@@ -5432,24 +5435,32 @@ input:focus-visible {
 
         function buildGameDetailHref(gameLike) {
             const normalized = normalizeGameRow(gameLike);
-            const params = new URLSearchParams();
+            const runtime = window.GameDenSite;
+            if (runtime && typeof runtime.buildGamePath === "function") {
+                return runtime.buildGamePath(
+                    {
+                        slug: normalized?.canonical_game_slug || normalized?.slug || normalized?.game_slug,
+                        game_id: normalized?.canonical_game_id ?? normalized?.game_id ?? normalized?.id,
+                        steam_appid: normalized?.canonical_steam_appid ?? normalized?.steam_appid ?? normalized?.appid,
+                        game_name: normalized?.game_name || normalized?.name || "",
+                    },
+                    {
+                        includeNameQuery: false,
+                        allowIdFallback: true,
+                        allowAppIdFallback: true,
+                    },
+                );
+            }
+
+            const fallbackName = String(normalized?.game_name || "").trim();
+            const fallbackSlug = fallbackName
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-+|-+$/g, "");
+            if (fallbackSlug) return `/game/${fallbackSlug}`;
             const canonicalGameId = toPositiveIntOrNull(normalized?.canonical_game_id);
-            if (canonicalGameId !== null) {
-                const gameName = String(normalized?.game_name || "").trim();
-                if (gameName) {
-                    params.set("game_name", gameName);
-                }
-                const query = params.toString();
-                return query ? `/game/${canonicalGameId}?${query}` : `/game/${canonicalGameId}`;
-            }
-
-            const gameName = String(normalized?.game_name || "").trim();
-            if (gameName) {
-                params.set("game_name", gameName);
-            }
-
-            const query = params.toString();
-            return query ? `/game?${query}` : "/game";
+            if (canonicalGameId !== null) return `/game/${canonicalGameId}`;
+            return "/game";
         }
 
         function getRenderableItemKey(item, index = 0) {

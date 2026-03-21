@@ -236,10 +236,33 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
   const arr = (v) => Array.isArray(v) ? v : (typeof v === "string" ? v.split(",").map((x) => x.trim()).filter(Boolean) : []);
   const review = (g) => String(g?.review_score_label ?? g?.review_label ?? g?.review_summary ?? g?.reviewSummary ?? "").trim();
   const byPath = (obj, path) => String(path || "").split(".").reduce((acc, key) => (acc && typeof acc === "object") ? acc[key] : null, obj);
-  const canonicalIdentifier = (g) => { const gameId = n(g?.game_id, null); return gameId !== null && gameId > 0 ? String(Math.trunc(gameId)) : ""; };
-  const keyOf = (g) => { const identifier = canonicalIdentifier(g); const name = String(g?.game_name || "").trim().toLowerCase(); return identifier ? `id:${identifier}` : (name ? `name:${name}` : ""); };
+  const canonicalIdentifier = (g) => { const gameId = n(g?.game_id ?? g?.id, null); return gameId !== null && gameId > 0 ? String(Math.trunc(gameId)) : ""; };
+  const canonicalSlug = (g) => {
+    const explicit = String(g?.slug ?? g?.game_slug ?? "").trim().toLowerCase();
+    if (explicit) return explicit;
+    const fromName = String(g?.game_name ?? g?.name ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return fromName;
+  };
+  const keyOf = (g) => { const identifier = canonicalIdentifier(g); const slug = canonicalSlug(g); const name = String(g?.game_name || "").trim().toLowerCase(); return identifier ? `id:${identifier}` : (slug ? `slug:${slug}` : (name ? `name:${name}` : "")); };
   const unique = (rows) => { const out = []; const seen = new Set(); for (const row of rows || []) { const key = keyOf(row); if (!key || seen.has(key)) continue; seen.add(key); out.push(row); } return out; };
-  const detailHref = (g) => { const q = new URLSearchParams(); const identifier = canonicalIdentifier(g); const name = String(g?.game_name || "").trim(); if (name) q.set("game_name", name); if (identifier) { const route = `/game/${identifier}`; const query = q.toString(); return query ? `${route}?${query}` : route; } const query = q.toString(); return query ? `/game?${query}` : "/game"; };
+  const detailHref = (g) => {
+    const runtime = window.GameDenSite;
+    if (runtime && typeof runtime.buildGamePath === "function") {
+      return runtime.buildGamePath(
+        {
+          slug: canonicalSlug(g),
+          game_id: canonicalIdentifier(g),
+          steam_appid: String(g?.steam_appid ?? g?.appid ?? "").trim(),
+          game_name: String(g?.game_name ?? g?.name ?? "").trim(),
+        },
+        { includeNameQuery: false, allowIdFallback: true, allowAppIdFallback: true },
+      );
+    }
+    const slug = canonicalSlug(g);
+    if (slug) return `/game/${slug}`;
+    const identifier = canonicalIdentifier(g);
+    return identifier ? `/game/${identifier}` : "/game";
+  };
   const setStatus = (msg, err = false) => { if (!msg) { ui.status.classList.add("hidden"); ui.status.classList.remove("error"); ui.status.textContent = ""; return; } ui.status.textContent = msg; ui.status.classList.remove("hidden"); ui.status.classList.toggle("error", !!err); };
   const setCount = (total, shown) => ui.count.textContent = Number.isFinite(total) ? `${Math.round(shown || 0).toLocaleString()} of ${Math.round(total).toLocaleString()}` : "--";
   const hasMore = () => state.page <= state.totalPages;

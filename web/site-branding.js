@@ -325,6 +325,77 @@
     updateMetaTag("link[rel='canonical']", "href", canonicalUrl);
   }
 
+  function toGameSlug(value) {
+    const raw = String(value || "").trim().toLowerCase();
+    if (!raw) return "";
+    const normalized = typeof raw.normalize === "function" ? raw.normalize("NFKD") : raw;
+    const deaccented = normalized.replace(/[\u0300-\u036f]/g, "");
+    const slug = deaccented.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return slug;
+  }
+
+  function _toPositiveIntegerString(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) return "";
+    return String(Math.trunc(parsed));
+  }
+
+  function buildGamePath(gameLike, options = {}) {
+    const source =
+      gameLike && typeof gameLike === "object"
+        ? gameLike
+        : { game_name: String(gameLike || "") };
+    const includeNameQuery = Boolean(options.includeNameQuery);
+    const allowIdFallback = options.allowIdFallback !== false;
+    const allowAppIdFallback = options.allowAppIdFallback !== false;
+
+    const slugCandidates = [
+      source.slug,
+      source.game_slug,
+      source.canonical_game_slug,
+      source.gameSlug,
+      source.game_name,
+      source.name,
+      source.title,
+    ];
+    let slug = "";
+    for (const candidate of slugCandidates) {
+      slug = toGameSlug(candidate);
+      if (slug) break;
+    }
+
+    const idCandidates = [source.canonical_game_id, source.game_id, source.id];
+    let gameId = "";
+    if (allowIdFallback) {
+      for (const candidate of idCandidates) {
+        gameId = _toPositiveIntegerString(candidate);
+        if (gameId) break;
+      }
+    }
+
+    const appIdCandidates = [source.canonical_steam_appid, source.steam_appid, source.appid, source.steam_app_id];
+    let steamAppId = "";
+    if (allowAppIdFallback) {
+      for (const candidate of appIdCandidates) {
+        const token = String(candidate || "").trim();
+        if (/^\d+$/.test(token) && Number(token) > 0) {
+          steamAppId = token;
+          break;
+        }
+      }
+    }
+
+    const identifier = slug || gameId || steamAppId;
+    const path = identifier ? `/game/${encodeURIComponent(identifier)}` : "/game";
+    if (!includeNameQuery || slug) return path;
+
+    const gameName = String(source.game_name || source.name || source.title || "").trim();
+    if (!gameName) return path;
+    const params = new URLSearchParams();
+    params.set("game_name", gameName);
+    return `${path}?${params.toString()}`;
+  }
+
   function _toFiniteNumber(value) {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return null;
@@ -838,6 +909,8 @@
     resolveApiUrl,
     fetchJson,
     applyMetadata,
+    toGameSlug,
+    buildGamePath,
     getDealConfidence,
     markNewSignal,
     resetNewSignalScope,

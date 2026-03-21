@@ -762,10 +762,26 @@ function render(items, alertsByGame = new Map(), tab = TRACKED_TAB_WATCHLIST) {
                     ? `data-remove-wish="${Number(item.game_id || 0)}"`
                     : `data-remove-watch="${Number(item.game_id || 0)}"`;
                 const gameId = Number(item.game_id || 0);
-                const encodedName = encodeURIComponent(item.game_name || "");
-                const gameHref = Number.isFinite(gameId) && gameId > 0
-                    ? `/game/${Math.trunc(gameId)}?game_name=${encodedName}`
-                    : `/game?game_name=${encodedName}`;
+                const runtime = window.GameDenSite;
+                const gameHref = runtime && typeof runtime.buildGamePath === "function"
+                    ? runtime.buildGamePath(
+                        {
+                            slug: item.slug ?? item.game_slug,
+                            game_id: Number.isFinite(gameId) && gameId > 0 ? Math.trunc(gameId) : null,
+                            steam_appid: item.steam_appid ?? item.appid,
+                            game_name: item.game_name || "",
+                        },
+                        { includeNameQuery: false, allowIdFallback: true, allowAppIdFallback: true },
+                    )
+                    : (() => {
+                        const fallbackSlug = String(item.slug ?? item.game_slug ?? item.game_name ?? "")
+                            .trim()
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]+/g, "-")
+                            .replace(/^-+|-+$/g, "");
+                        if (fallbackSlug) return `/game/${fallbackSlug}`;
+                        return Number.isFinite(gameId) && gameId > 0 ? `/game/${Math.trunc(gameId)}` : "/game";
+                    })();
                 return `
                     <article class="card">
                         <a class="thumb" href="${gameHref}"${bannerStyle}></a>

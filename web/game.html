@@ -1526,6 +1526,16 @@ let currentGameId = null;
 let currentGamePayload = null;
 let currentDealTarget = null;
 let shareButtonResetTimer = null;
+let cachedPriceHistoryGameId = null;
+let cachedPriceHistoryPayload = null;
+let priceHistoryInFlight = null;
+let priceHistoryRenderToken = 0;
+const PRICE_HISTORY_RANGE_DAYS = Object.freeze({
+    "30d": 30,
+    "90d": 90,
+    "1y": 365,
+    all: null,
+});
 const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
 
 if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
@@ -2482,6 +2492,70 @@ function applyHeroDecisionState(payload) {
     hero.removeAttribute("data-decision");
 }
 
+function resetPriceHistoryCache(nextGameId = null) {
+    cachedPriceHistoryGameId = Number.isFinite(Number(nextGameId)) && Number(nextGameId) > 0
+        ? Number(nextGameId)
+        : null;
+    cachedPriceHistoryPayload = null;
+    priceHistoryInFlight = null;
+    priceHistoryRenderToken += 1;
+}
+
+async function getPriceHistoryPayload(gameId) {
+    const normalizedGameId = Number(gameId);
+    if (!Number.isFinite(normalizedGameId) || normalizedGameId <= 0) {
+        return { points: [], history: [], events: [], stats: {} };
+    }
+
+    if (cachedPriceHistoryPayload && cachedPriceHistoryGameId === normalizedGameId) {
+        return cachedPriceHistoryPayload;
+    }
+
+    if (
+        priceHistoryInFlight
+        && priceHistoryInFlight.gameId === normalizedGameId
+        && priceHistoryInFlight.promise
+    ) {
+        return priceHistoryInFlight.promise;
+    }
+
+    const requestPromise = fetchJson(`/games/${normalizedGameId}/price-history`)
+        .then((payload) => {
+            cachedPriceHistoryGameId = normalizedGameId;
+            cachedPriceHistoryPayload = payload;
+            return payload;
+        })
+        .finally(() => {
+            if (priceHistoryInFlight && priceHistoryInFlight.gameId === normalizedGameId) {
+                priceHistoryInFlight = null;
+            }
+        });
+
+    priceHistoryInFlight = { gameId: normalizedGameId, promise: requestPromise };
+    return requestPromise;
+}
+
+function filterChartSeriesByRange(entries, range) {
+    const rows = Array.isArray(entries) ? entries : [];
+    const days = PRICE_HISTORY_RANGE_DAYS[range];
+    if (!Number.isFinite(days)) return rows;
+    const cutoffMs = Date.now() - (days * 24 * 60 * 60 * 1000);
+    const filteredRows = rows.filter((entry) => {
+        const ts = Date.parse(entry?.timestamp || "");
+        return Number.isFinite(ts) && ts >= cutoffMs;
+    });
+    return filteredRows.length ? filteredRows : rows;
+}
+
+function buildRangedPriceHistoryPayload(historyPayload, range) {
+    const payload = historyPayload && typeof historyPayload === "object" ? historyPayload : {};
+    return {
+        ...payload,
+        history: filterChartSeriesByRange(payload.history, range),
+        points: filterChartSeriesByRange(payload.points, range),
+    };
+}
+
 async function loadGame() {
     setStoreCta("");
     const contentGrid = document.querySelector(".content-grid");
@@ -2549,7 +2623,11 @@ if (!payload || payload.error) {
         return;
     }
 
+    const previousGameId = currentGameId;
     currentGameId = Number(payload.game_id || payload.id || 0);
+    if (currentGameId !== previousGameId) {
+        resetPriceHistoryCache(currentGameId);
+    }
     currentGamePayload = payload;
     normalizeCanonicalGameRoute(payload);
     if (shareDealButton instanceof HTMLButtonElement) {
@@ -2593,31 +2671,35 @@ if (!payload || payload.error) {
     renderDealExplanation(payload.deal_explanation || {});
     renderDealConfidence(payload);
     renderPrediction(payload);
-    await loadPriceHistory(activeRange).catch((error) => {
-        console.warn("Price history unavailable for game detail", error);
-        renderPriceChart({ points: [], history: [] });
-    });
-
     if (Number.isFinite(currentGameId) && currentGameId > 0) {
         const moduleResults = await Promise.allSettled([
+            loadPriceHistory(activeRange),
             loadPlayerHistory(currentGameId),
             loadRelatedGames(currentGameId),
             syncWatchButton(),
             syncDealTargetAlert(),
         ]);
         if (moduleResults[0].status === "rejected") {
-            console.warn("Player history unavailable for game detail", moduleResults[0].reason);
-            renderPlayerChart({ players: [] });
+            console.warn("Price history unavailable for game detail", moduleResults[0].reason);
+            renderPriceChart({ points: [], history: [] });
         }
         if (moduleResults[1].status === "rejected") {
-            console.warn("Related games unavailable for game detail", moduleResults[1].reason);
+            console.warn("Player history unavailable for game detail", moduleResults[1].reason);
+            renderPlayerChart({ players: [] });
+        }
+        if (moduleResults[2].status === "rejected") {
+            console.warn("Related games unavailable for game detail", moduleResults[2].reason);
             renderRelatedFallback("Related games are temporarily unavailable.");
         }
-        if (moduleResults[3].status === "rejected") {
-            console.warn("Deal target sync unavailable for game detail", moduleResults[3].reason);
+        if (moduleResults[4].status === "rejected") {
+            console.warn("Deal target sync unavailable for game detail", moduleResults[4].reason);
             setTargetAlertStatus("Could not load target alert settings.", "error");
         }
     } else {
+        await loadPriceHistory(activeRange).catch((error) => {
+            console.warn("Price history unavailable for game detail", error);
+            renderPriceChart({ points: [], history: [] });
+        });
         applyDealTargetState(null);
         setTargetAlertStatus("Target alerts require a valid game.", "error");
         renderRelatedFallback("Related discovery requires a valid game id.");
@@ -2633,10 +2715,13 @@ async function loadPriceHistory(range) {
         renderPriceChart({ points: [], history: [] });
         return;
     }
+    const renderToken = ++priceHistoryRenderToken;
     try {
-        const data = await fetchJson(`/games/${currentGameId}/price-history`);
-        renderPriceChart(data);
+        const rawPayload = await getPriceHistoryPayload(currentGameId);
+        if (renderToken !== priceHistoryRenderToken) return;
+        renderPriceChart(buildRangedPriceHistoryPayload(rawPayload, range));
     } catch (error) {
+        if (renderToken !== priceHistoryRenderToken) return;
         console.warn("Failed to load price history", error);
         renderPriceChart({ points: [], history: [] });
     }

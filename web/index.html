@@ -491,6 +491,10 @@ select {
     background: rgba(121, 168, 255, 0.1);
 }
 
+.search-result-item.is-active {
+    background: rgba(121, 168, 255, 0.16);
+}
+
 .search-result-thumb {
     width: 92px;
     height: 44px;
@@ -4687,6 +4691,7 @@ input:focus-visible {
                 loading: false,
                 error: null,
                 query: "",
+                activeIndex: -1,
                 requestId: 0,
                 controller: null,
                 cache: new Map(),
@@ -9847,10 +9852,63 @@ input:focus-visible {
 
         function openSearchResults() {
             ui.searchResultsPop.classList.add("open");
+            if (ui.searchInput) ui.searchInput.setAttribute("aria-expanded", "true");
         }
 
         function closeSearchResults() {
             ui.searchResultsPop.classList.remove("open");
+            state.search.activeIndex = -1;
+            if (ui.searchInput) {
+                ui.searchInput.setAttribute("aria-expanded", "false");
+                ui.searchInput.removeAttribute("aria-activedescendant");
+            }
+        }
+
+        function getVisibleSearchResults() {
+            return safeArray(state.search.results).slice(0, 10);
+        }
+
+        function setSearchActiveIndex(nextIndex, options = {}) {
+            const visibleResults = getVisibleSearchResults();
+            if (!visibleResults.length) {
+                state.search.activeIndex = -1;
+                if (ui.searchInput) ui.searchInput.removeAttribute("aria-activedescendant");
+                return;
+            }
+
+            const normalizedIndex = Number.isFinite(Number(nextIndex))
+                ? Math.max(-1, Math.min(visibleResults.length - 1, Number(nextIndex)))
+                : -1;
+            state.search.activeIndex = normalizedIndex;
+            renderSearchResults();
+
+            if (normalizedIndex < 0) {
+                if (ui.searchInput) ui.searchInput.removeAttribute("aria-activedescendant");
+                return;
+            }
+
+            const activeId = `search-result-option-${normalizedIndex}`;
+            if (ui.searchInput) {
+                ui.searchInput.setAttribute("aria-activedescendant", activeId);
+            }
+            if (options.scrollIntoView) {
+                const node = document.getElementById(activeId);
+                if (node && typeof node.scrollIntoView === "function") {
+                    node.scrollIntoView({ block: "nearest" });
+                }
+            }
+        }
+
+        function navigateToSearchResult(index) {
+            const visibleResults = getVisibleSearchResults();
+            if (!visibleResults.length) return false;
+            const safeIndex = Math.max(0, Math.min(visibleResults.length - 1, Number(index) || 0));
+            const selected = visibleResults[safeIndex];
+            const targetHref = buildGameDetailHref(selected);
+            if (!targetHref) return false;
+            closeSearchResults();
+            window.location.assign(targetHref);
+            return true;
         }
 
         function collectSearchFallbackPool() {
@@ -10008,25 +10066,34 @@ input:focus-visible {
                 state.search.loading = false;
                 state.search.error = null;
                 state.search.query = "";
+                state.search.activeIndex = -1;
                 renderSearchResults();
                 return;
             }
 
             clearSearchRequest();
-            const requestId = Number(state.search.requestId || 0) + 1;
-            const controller = new AbortController();
-
-            state.search.requestId = requestId;
-            state.search.controller = controller;
             state.search.query = trimmed;
             state.search.error = null;
+            state.search.activeIndex = -1;
             const cachedRows = getCachedSearchRows(trimmed);
             const fallbackRows = cachedRows && cachedRows.length ? cachedRows : searchFallbackPool(trimmed, 10);
-            state.search.loading = !cachedRows;
+            const shouldFetchRemote = !cachedRows;
+            state.search.loading = shouldFetchRemote;
             if (fallbackRows.length) {
                 state.search.results = uniqueGamesByName(fallbackRows.map(normalizeGameRow));
+            } else {
+                state.search.results = [];
             }
             renderSearchResults();
+            if (!shouldFetchRemote) {
+                state.search.controller = null;
+                return;
+            }
+
+            const requestId = Number(state.search.requestId || 0) + 1;
+            const controller = new AbortController();
+            state.search.requestId = requestId;
+            state.search.controller = controller;
 
             try {
                 const params = new URLSearchParams();
@@ -10067,7 +10134,7 @@ input:focus-visible {
 
         function renderSearchResults() {
             const query = state.filters.search.trim();
-            const results = state.search.results;
+            const results = safeArray(state.search.results);
 
             if (!query) {
                 closeSearchResults();
@@ -10093,9 +10160,12 @@ input:focus-visible {
                 return;
             }
 
-            const visibleResults = results.slice(0, 10);
+            const visibleResults = getVisibleSearchResults();
+            if (state.search.activeIndex >= visibleResults.length) {
+                state.search.activeIndex = -1;
+            }
 
-ui.searchResultsList.innerHTML = visibleResults.map((game) => {
+ui.searchResultsList.innerHTML = visibleResults.map((game, index) => {
                 const bannerUrl = game.header_image || game.banner_url || (game.steam_appid
                     ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`
                     : null);
@@ -10108,9 +10178,18 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                 const confidenceBadge = buildDealConfidenceBadge(game, {
                     className: "deal-confidence-badge",
                 });
+                const isActive = index === state.search.activeIndex;
+                const resultId = `search-result-option-${index}`;
 
                 return `
-                    <a class="search-result-item" href="${buildGameDetailHref(game)}">
+                    <a
+                        id="${resultId}"
+                        class="search-result-item${isActive ? " is-active" : ""}"
+                        href="${buildGameDetailHref(game)}"
+                        role="option"
+                        aria-selected="${isActive ? "true" : "false"}"
+                        data-search-index="${index}"
+                    >
                         <div class="search-result-thumb">
   ${bannerUrl ? `
     <img
@@ -10134,6 +10213,11 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
             }).join("");
 
             openSearchResults();
+            if (state.search.activeIndex >= 0 && ui.searchInput) {
+                ui.searchInput.setAttribute("aria-activedescendant", `search-result-option-${state.search.activeIndex}`);
+            } else if (ui.searchInput) {
+                ui.searchInput.removeAttribute("aria-activedescendant");
+            }
         }
 
         async function fetchJson(url, options = {}) {
@@ -12537,6 +12621,16 @@ try {
 
         function wireFilters() {
             let searchInputTimer = null;
+            if (ui.searchResultsList) {
+                ui.searchResultsList.setAttribute("role", "listbox");
+                ui.searchResultsList.setAttribute("aria-label", "Search results");
+            }
+            if (ui.searchInput) {
+                ui.searchInput.setAttribute("aria-haspopup", "listbox");
+                ui.searchInput.setAttribute("aria-controls", "searchResultsList");
+                ui.searchInput.setAttribute("aria-expanded", "false");
+                ui.searchInput.setAttribute("autocomplete", "off");
+            }
             const onFilterMutation = () => {
                 scheduleCatalogReloadFromInteraction();
                 void refreshSearchResults();
@@ -12570,7 +12664,51 @@ try {
                 if (event.key === "Escape") {
                     closeSearchResults();
                     ui.searchInput.blur();
+                    return;
                 }
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                    const visibleResults = getVisibleSearchResults();
+                    if (!visibleResults.length) return;
+                    event.preventDefault();
+                    openSearchResults();
+                    const delta = event.key === "ArrowDown" ? 1 : -1;
+                    const baseIndex = Number(state.search.activeIndex);
+                    const normalizedBase = Number.isFinite(baseIndex) ? baseIndex : -1;
+                    const nextIndex = normalizedBase < 0
+                        ? (delta > 0 ? 0 : visibleResults.length - 1)
+                        : (normalizedBase + delta + visibleResults.length) % visibleResults.length;
+                    setSearchActiveIndex(nextIndex, { scrollIntoView: true });
+                    return;
+                }
+                if (event.key === "Enter") {
+                    const query = String(state.filters.search || "").trim();
+                    if (!query) return;
+                    const visibleResults = getVisibleSearchResults();
+                    if (!visibleResults.length) return;
+                    event.preventDefault();
+                    const targetIndex = Number(state.search.activeIndex);
+                    navigateToSearchResult(Number.isFinite(targetIndex) && targetIndex >= 0 ? targetIndex : 0);
+                }
+            });
+
+            ui.searchResultsList.addEventListener("mousemove", (event) => {
+                const target = event.target;
+                if (!(target instanceof Element)) return;
+                const option = target.closest("[data-search-index]");
+                if (!option) return;
+                const nextIndex = Number(option.getAttribute("data-search-index"));
+                if (!Number.isFinite(nextIndex) || nextIndex === state.search.activeIndex) return;
+                setSearchActiveIndex(nextIndex);
+            });
+
+            ui.searchResultsList.addEventListener("focusin", (event) => {
+                const target = event.target;
+                if (!(target instanceof Element)) return;
+                const option = target.closest("[data-search-index]");
+                if (!option) return;
+                const nextIndex = Number(option.getAttribute("data-search-index"));
+                if (!Number.isFinite(nextIndex)) return;
+                setSearchActiveIndex(nextIndex);
             });
 
             ui.minDealInput.addEventListener("input", (event) => {

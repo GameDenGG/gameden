@@ -5337,6 +5337,15 @@ input:focus-visible {
             const canonicalSteamAppId = /^\d+$/.test(canonicalSteamAppIdRaw) ? canonicalSteamAppIdRaw : null;
             const canonicalSlugRaw = String(row.slug ?? row.game_slug ?? "").trim();
             const canonicalSlug = canonicalSlugRaw || "";
+            const normalizedReviewScore = Number(row.review_score ?? row.reviewScore ?? null);
+            const hasReviewScore = Number.isFinite(normalizedReviewScore) && normalizedReviewScore > 0;
+            const normalizedReviewLabel = String(
+                row.review_score_label
+                ?? row.review_label
+                ?? row.review_summary
+                ?? row.reviewSummary
+                ?? "",
+            ).trim() || (hasReviewScore ? `${Math.round(normalizedReviewScore)}% positive` : null);
             return {
                 ...row,
                 game_id: row.game_id ?? row.id ?? null,
@@ -5351,9 +5360,9 @@ input:focus-visible {
                 original_price: row.original_price ?? row.latest_original_price ?? null,
                 discount_percent: row.discount_percent ?? row.latest_discount_percent ?? null,
                 current_players: row.current_players ?? row.avg_player_count ?? null,
-                review_score: row.review_score ?? null,
+                review_score: hasReviewScore ? normalizedReviewScore : (row.review_score ?? null),
                 review_total_count: row.review_total_count ?? row.review_count ?? null,
-                review_score_label: row.review_score_label ?? row.review_label ?? row.review_summary ?? row.reviewSummary ?? null,
+                review_score_label: normalizedReviewLabel,
                 genres: safeArray(row.genres),
                 tags: safeArray(row.tags),
                 platforms: Array.isArray(row.platforms) ? row.platforms : parsePlatformList(row.platforms),
@@ -6085,7 +6094,10 @@ input:focus-visible {
                 ?? game?.reviewSummary
                 ?? "",
             ).trim();
-            return label;
+            if (label) return label;
+            const score = Number(game?.review_score ?? game?.reviewScore ?? null);
+            if (Number.isFinite(score) && score > 0) return `${Math.round(score)}% positive`;
+            return "";
         }
 
         function buildReviewPill(game) {
@@ -9965,7 +9977,7 @@ ui.searchResultsList.innerHTML = visibleResults.map((game) => {
                 });
 
                 return `
-                    <a class="search-result-item" href="${buildGameDetailHref(game)}" data-track-game="${encodeURIComponent(game.game_name || "")}">
+                    <a class="search-result-item" href="${buildGameDetailHref(game)}">
                         <div class="search-result-thumb">
   ${bannerUrl ? `
     <img

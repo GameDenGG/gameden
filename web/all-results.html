@@ -234,7 +234,13 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
   const p = (v) => { const x = n(v, null); if (x === null) return "--"; if (x === 0) return "Free"; return `$${x.toFixed(2)}`; };
   const i = (v) => { const x = n(v, null); return x === null ? "--" : Math.round(x).toLocaleString(); };
   const arr = (v) => Array.isArray(v) ? v : (typeof v === "string" ? v.split(",").map((x) => x.trim()).filter(Boolean) : []);
-  const review = (g) => String(g?.review_score_label ?? g?.review_label ?? g?.review_summary ?? g?.reviewSummary ?? "").trim();
+  const review = (g) => {
+    const label = String(g?.review_score_label ?? g?.review_label ?? g?.review_summary ?? g?.reviewSummary ?? "").trim();
+    if (label) return label;
+    const score = n(g?.review_score ?? g?.reviewScore, null);
+    if (score !== null && score > 0) return `${Math.round(score)}% positive`;
+    return "";
+  };
   const byPath = (obj, path) => String(path || "").split(".").reduce((acc, key) => (acc && typeof acc === "object") ? acc[key] : null, obj);
   const canonicalIdentifier = (g) => { const gameId = n(g?.game_id ?? g?.id, null); return gameId !== null && gameId > 0 ? String(Math.trunc(gameId)) : ""; };
   const canonicalSlug = (g) => {

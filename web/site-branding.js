@@ -68,6 +68,7 @@
   const NEW_SIGNAL_DEFAULT_CAP = 800;
   const newSignalBuckets = new Map();
   const SKELETON_STYLE_ID = "gameden-skeleton-styles";
+  const LOGO_STYLE_ID = "gameden-logo-styles";
   const VIEWER_ID_STORAGE_KEY = "gameden.user_id";
   const VIEWER_ID_HEADER_NAME = "x-gameden-viewer";
   const VIEWER_ID_RE = /^anon_[0-9a-f]{32}$/;
@@ -752,6 +753,51 @@
     document.head.appendChild(styleNode);
   }
 
+  function ensureLogoStyles() {
+    if (typeof document === "undefined" || !document.head) return;
+    if (document.getElementById(LOGO_STYLE_ID)) return;
+
+    const styleNode = document.createElement("style");
+    styleNode.id = LOGO_STYLE_ID;
+    styleNode.textContent = `
+:root {
+  --gd-logo-heading-height: clamp(38px, 3.1vw, 52px);
+  --gd-logo-inline-height: clamp(18px, 1.6vw, 24px);
+  --gd-logo-footer-height: clamp(30px, 2.2vw, 42px);
+}
+.brand-logo {
+  display: block !important;
+  width: auto !important;
+  height: var(--gd-logo-heading-height) !important;
+  max-width: 100%;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.eyebrow-logo {
+  display: block !important;
+  width: auto !important;
+  height: var(--gd-logo-inline-height) !important;
+  max-width: 100%;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.site-footer-brand-logo img {
+  display: block;
+  width: auto;
+  height: var(--gd-logo-footer-height);
+  max-width: 100%;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+@media (max-width: 760px) {
+  .brand-logo {
+    height: clamp(30px, 8vw, 40px) !important;
+  }
+}
+`;
+    document.head.appendChild(styleNode);
+  }
+
   function _skeletonDealCardMarkup(options = {}) {
     const cardClass = _normalizeClassList(options.cardClass);
     const compactClass = options.compact ? "gd-skeleton-compact" : "";
@@ -901,6 +947,8 @@
     markup: getSkeletonMarkup,
     render: renderSkeleton,
   });
+
+  ensureLogoStyles();
 
   window.GameDenSite = Object.freeze({
     config: siteConfig,

@@ -1447,12 +1447,61 @@ function buildCanonicalGamePath(payload = currentGamePayload, options = {}) {
 const WATCHLIST_STORAGE_KEY = "gameden.user_id";
 const DEFAULT_USER_ID = "legacy-user";
 const gameName = getQueryParam("game_name");
-const gameRefFromPath = getPathGameRef();
-const gameIdFromPath = parsePositiveInt(gameRefFromPath);
-const gameIdFromQuery = parsePositiveInt(getQueryParam("game_id"));
-const gameIdParam = gameIdFromQuery !== null
-    ? String(gameIdFromQuery)
-    : (gameIdFromPath !== null ? String(gameIdFromPath) : null);
+
+function getQueryGameIdentifier() {
+    const candidates = [
+        getQueryParam("identifier"),
+        getQueryParam("slug"),
+        getQueryParam("game_id"),
+        getQueryParam("id"),
+        getQueryParam("appid"),
+        getQueryParam("game_name"),
+    ];
+    for (const candidate of candidates) {
+        const normalized = String(candidate || "").trim().replace(/^\/+|\/+$/g, "");
+        if (normalized) return normalized;
+    }
+    return null;
+}
+
+function getInitialGameIdentifier() {
+    const pathIdentifier = String(getPathGameRef() || "").trim().replace(/^\/+|\/+$/g, "");
+    if (pathIdentifier) return pathIdentifier;
+
+    const queryIdentifier = getQueryGameIdentifier();
+    if (queryIdentifier) return queryIdentifier;
+
+    return null;
+}
+
+const initialGameIdentifier = getInitialGameIdentifier();
+function normalizeResolvedGamePayload(payload) {
+    if (!payload || typeof payload !== "object") return null;
+
+    const normalizedId = parsePositiveInt(payload.game_id ?? payload.id);
+    const normalizedAppIdRaw = payload.steam_appid ?? payload.appid ?? payload.steam_app_id;
+    const normalizedAppId = String(normalizedAppIdRaw || "").trim() || null;
+
+    const fallbackName = normalizedId !== null ? `Game ${normalizedId}` : "";
+    const normalizedName = String(payload.game_name ?? payload.name ?? gameName ?? fallbackName).trim();
+    const normalizedSlug = String(
+        payload.slug
+        || payload.game_slug
+        || fallbackGameSlug(normalizedName)
+    ).trim();
+
+    return {
+        ...payload,
+        id: normalizedId,
+        game_id: normalizedId,
+        appid: normalizedAppId,
+        steam_appid: normalizedAppId,
+        name: normalizedName,
+        game_name: normalizedName,
+        slug: normalizedSlug,
+        game_slug: normalizedSlug,
+    };
+}
 const watchButton = document.getElementById("watchButton");
 const shareDealButton = document.getElementById("shareDealButton");
 const storeCtaLink = document.getElementById("storeCtaLink");
@@ -2417,11 +2466,8 @@ async function loadGame() {
     if (discoveryPanel instanceof HTMLElement) {
         discoveryPanel.hidden = false;
     }
-    const pathIdentifier = String(gameRefFromPath || "").trim();
-    const requestedGameId = parsePositiveInt(gameIdParam);
-    const hasValidGameId = requestedGameId !== null;
-    const hasPathIdentifier = Boolean(pathIdentifier);
-    if (!hasPathIdentifier && !hasValidGameId && !gameName) {
+    const requestedIdentifier = String(initialGameIdentifier || "").trim();
+    if (!requestedIdentifier) {
         if (shareDealButton instanceof HTMLButtonElement) {
             shareDealButton.disabled = true;
         }
@@ -2436,19 +2482,8 @@ async function loadGame() {
         return;
     }
 
-    let payload = null;
-    if (hasPathIdentifier) {
-        payload = await fetchJson(`/games/resolve/${encodeURIComponent(pathIdentifier)}`).catch(() => null);
-    }
-    if (!payload && hasValidGameId) {
-        payload = await fetchJson(`/games/${requestedGameId}`).catch(() => null);
-    }
-    if (!payload && gameName) {
-        payload = await fetchJson(`/games/resolve/${encodeURIComponent(gameName)}`).catch(() => null);
-    }
-    if (!payload && gameName) {
-        payload = await fetchJson(`/games/by-name?game_name=${encodeURIComponent(gameName)}`).catch(() => null);
-    }
+    const resolvedPayload = await fetchJson(`/games/resolve/${encodeURIComponent(requestedIdentifier)}`).catch(() => null);
+    const payload = normalizeResolvedGamePayload(resolvedPayload);
 
     if (!payload || payload.error) {
         const message = payload?.error || "Game not found";
@@ -2466,11 +2501,7 @@ async function loadGame() {
         return;
     }
 
-    currentGameId = Number(payload.game_id || payload.id || (hasValidGameId ? requestedGameId : 0));
-    payload = {
-        ...payload,
-        game_name: payload.game_name || payload.name || gameName || (Number.isFinite(currentGameId) && currentGameId > 0 ? `Game ${currentGameId}` : "Unknown game"),
-    };
+    currentGameId = Number(payload.game_id || payload.id || 0);
     currentGamePayload = payload;
     normalizeCanonicalGameRoute(payload);
     if (shareDealButton instanceof HTMLButtonElement) {
@@ -3097,5 +3128,3 @@ void loadGame().catch((error) => {
 </script>
 </body>
 </html>
-
-

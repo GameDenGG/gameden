@@ -4,7 +4,7 @@
   const fallbackConfig = Object.freeze({
     site_name: "GameDen.gg",
     site_url: "https://gameden.gg",
-    site_description: "Discover game deals, analytics, player trends, and price history on GameDen.gg.",
+    site_description: "Find game deals, track price drops, and discover trending titles with snapshot-backed market insights on GameDen.gg.",
     // Explicit API base for production static deployments.
     api_base: "https://gameden.onrender.com",
   });
@@ -769,17 +769,21 @@
   display: block !important;
   width: auto !important;
   height: var(--gd-logo-heading-height) !important;
-  max-width: 100%;
+  max-width: none !important;
+  max-height: none !important;
+  flex: 0 0 auto !important;
   object-fit: contain;
-  flex-shrink: 0;
+  flex-shrink: 0 !important;
 }
 .eyebrow-logo {
   display: block !important;
   width: auto !important;
   height: var(--gd-logo-inline-height) !important;
-  max-width: 100%;
+  max-width: none !important;
+  max-height: none !important;
+  flex: 0 0 auto !important;
   object-fit: contain;
-  flex-shrink: 0;
+  flex-shrink: 0 !important;
 }
 .site-footer-brand-logo img {
   display: block;

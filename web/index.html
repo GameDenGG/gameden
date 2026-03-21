@@ -13,14 +13,14 @@
 <link rel="manifest" href="/site.webmanifest">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GameDen.gg">
-<meta property="og:title" content="GameDen.gg">
+<meta property="og:title" content="GameDen.gg | Game Deals, Price Tracking & Discovery">
 <meta property="og:description" content="Find game deals across multiple stores, track price drops, and discover trending titles with real-time insights on GameDen.gg.">
 <meta property="og:url" content="https://gameden.gg/">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="GameDen.gg">
+<meta name="twitter:title" content="GameDen.gg | Game Deals, Price Tracking & Discovery">
 <meta name="twitter:description" content="Find game deals across multiple stores, track price drops, and discover trending titles with real-time insights on GameDen.gg.">
 <meta name="twitter:url" content="https://gameden.gg/">
-<title>GameDen.gg</title>
+<title>GameDen.gg | Game Deals, Price Tracking & Discovery</title>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -30,6 +30,7 @@
       "@id": "https://gameden.gg/#organization",
       "name": "GameDen.gg",
       "url": "https://gameden.gg/",
+      "description": "Discover game deals, track price drops, and time your next buy with snapshot-backed market insights.",
       "logo": {
         "@type": "ImageObject",
         "url": "https://gameden.gg/assets/logo/gameden-logo-static.webp"
@@ -40,6 +41,8 @@
       "@id": "https://gameden.gg/#website",
       "url": "https://gameden.gg/",
       "name": "GameDen.gg",
+      "description": "Find game deals across stores, monitor price drops, and discover trending titles with market signals from GameDen.gg.",
+      "inLanguage": "en-US",
       "publisher": {
         "@id": "https://gameden.gg/#organization"
       },
@@ -61,11 +64,11 @@
 if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
     window.GameDenSite.applyMetadata({
         path: "/",
-        title: "GameDen.gg",
+        title: "GameDen.gg | Game Deals, Price Tracking & Discovery",
         description: "GameDen.gg helps you find game deals across multiple stores, track price drops, and discover trending games with real-time insights for smarter buying.",
-        ogTitle: "GameDen.gg",
+        ogTitle: "GameDen.gg | Game Deals, Price Tracking & Discovery",
         ogDescription: "Find game deals across multiple stores, track price drops, and discover trending titles with real-time insights on GameDen.gg.",
-        twitterTitle: "GameDen.gg",
+        twitterTitle: "GameDen.gg | Game Deals, Price Tracking & Discovery",
         twitterDescription: "Find game deals across multiple stores, track price drops, and discover trending titles with real-time insights on GameDen.gg."
     });
 }
@@ -4245,9 +4248,9 @@ input:focus-visible {
             name: "GameDen.gg",
             emblem: "GD",
             subtitle: "The Game Market Radar",
-            footerSummary: "Snapshot-backed Steam intelligence for pricing, momentum, and timing decisions across the full catalog.",
+            footerSummary: "Snapshot-backed game intelligence for pricing, momentum, and timing decisions across the catalog.",
             searchPlaceholder: "Search games, genres, or tags...",
-            pageTitle: "GameDen.gg",
+            pageTitle: "GameDen.gg | Game Deals, Price Tracking & Discovery",
         });
 
         const WATCHLIST_STORAGE_KEY = "gameden.user_id";
@@ -4275,6 +4278,7 @@ input:focus-visible {
             "personalizedDealsGrid",
         ]);
         const DASHBOARD_SNAPSHOT_STORAGE_KEY = "gameden.dashboard.snapshot.v1";
+        const TRACKED_SYNC_STORAGE_KEY = "gameden.tracked.sync.v1";
         const DASHBOARD_SNAPSHOT_MAX_AGE_MS = 5 * 60 * 1000;
         const DASHBOARD_RESTORE_CRITICAL_REFRESH_GRACE_MS = 30 * 1000;
         const DASHBOARD_RESTORE_DEFERRED_REFRESH_GRACE_MS = 90 * 1000;
@@ -4743,6 +4747,9 @@ input:focus-visible {
                 sourceSavedAt: 0,
                 filterOptions: null,
             },
+            trackedSync: {
+                lastAppliedTs: 0,
+            },
             visibleCounts: {
                 dealRankedGrid: 6,
                 opportunitiesGrid: 6,
@@ -5153,6 +5160,79 @@ input:focus-visible {
             }
         }
 
+        function parseTrackedSyncPayload(rawValue) {
+            if (!rawValue) return null;
+            try {
+                const parsed = JSON.parse(rawValue);
+                if (!parsed || typeof parsed !== "object") return null;
+                const userId = String(parsed.user_id || "").trim();
+                const action = String(parsed.action || "").trim().toLowerCase();
+                const list = String(parsed.list || "").trim().toLowerCase();
+                const gameId = toPositiveIntOrNull(parsed.game_id);
+                const ts = Number(parsed.ts || 0);
+                if (!userId || !Number.isFinite(ts) || ts <= 0 || !gameId) return null;
+                if (!(action === "add" || action === "remove")) return null;
+                if (!(list === "wishlist" || list === "watchlist")) return null;
+                return {
+                    user_id: userId,
+                    action,
+                    list,
+                    game_id: gameId,
+                    ts,
+                };
+            } catch {
+                return null;
+            }
+        }
+
+        function applyTrackedSyncPayload(syncPayload) {
+            const payload = syncPayload && typeof syncPayload === "object" ? syncPayload : null;
+            if (!payload) return false;
+            const currentUserId = String(CURRENT_USER_ID || "").trim();
+            if (!currentUserId || payload.user_id !== currentUserId) return false;
+            if (payload.ts <= Number(state.trackedSync.lastAppliedTs || 0)) return false;
+            state.trackedSync.lastAppliedTs = payload.ts;
+
+            const listKey = payload.list;
+            const gameId = payload.game_id;
+            const action = payload.action;
+
+            const mutateList = (items) => {
+                const normalizedItems = safeArray(items);
+                if (action === "remove") {
+                    return normalizedItems.filter((entry) => {
+                        const normalized = normalizeGameRow(entry);
+                        const entryGameId = toPositiveIntOrNull(normalized?.game_id ?? normalized?.id);
+                        return entryGameId !== gameId;
+                    });
+                }
+                return normalizedItems;
+            };
+
+            if (listKey === "wishlist") {
+                state.wishlist = mutateList(state.wishlist);
+            } else if (listKey === "watchlist") {
+                state.watchlist = mutateList(state.watchlist);
+            }
+
+            renderWishlist();
+            renderWatchlist();
+            renderPersonalizedDeals();
+            syncCardActionButtonsFromState();
+            scheduleDashboardSnapshotPersist();
+            return true;
+        }
+
+        function syncTrackedStateFromStorage() {
+            try {
+                const raw = localStorage.getItem(TRACKED_SYNC_STORAGE_KEY);
+                const payload = parseTrackedSyncPayload(raw);
+                return applyTrackedSyncPayload(payload);
+            } catch {
+                return false;
+            }
+        }
+
         function renderSkeleton(container, kind, count = 1, options = {}) {
             if (!container) return;
             if (skeletonUi && typeof skeletonUi.render === "function") {
@@ -5351,7 +5431,7 @@ input:focus-visible {
             return {
                 ...row,
                 game_id: row.game_id ?? row.id ?? null,
-                game_name: row.game_name ?? row.name ?? "",
+                game_name: row.game_name ?? row.name ?? row.title ?? "",
                 steam_appid: row.steam_appid ?? row.appid ?? null,
                 canonical_game_id: canonicalGameId,
                 canonical_steam_appid: canonicalSteamAppId,
@@ -8231,10 +8311,55 @@ input:focus-visible {
             }
         }
 
-        function normalizeDailyDigestItem(item) {
+        function buildDailyDigestGameLookupById() {
+            const lookup = new Map();
+            const candidates = uniqueGamesByIdentity([
+                ...safeArray(state.latestPrices),
+                ...safeArray(state.dealRanked),
+                ...safeArray(state.worthBuyingNow),
+                ...safeArray(state.trendingDeals),
+                ...safeArray(state.newHistoricalLows),
+                ...safeArray(state.buyNowPicks),
+                ...safeArray(state.waitPicks),
+                ...safeArray(state.historicalLows),
+                ...safeArray(state.topReviewed),
+                ...safeArray(state.topPlayed),
+                ...safeArray(state.recommendedDeals),
+                ...safeArray(state.dealRadar),
+                ...safeArray(state.alertSignals),
+                ...safeArray(state.opportunitiesNow),
+                ...safeArray(state.opportunityRadar),
+                ...safeArray(state.personalizedDeals),
+            ]);
+            for (const row of candidates) {
+                const normalized = normalizeGameRow(row);
+                const gameId = toPositiveIntOrNull(normalized?.game_id ?? normalized?.id);
+                if (gameId === null || lookup.has(gameId)) continue;
+                lookup.set(gameId, normalized);
+            }
+            return lookup;
+        }
+
+        function normalizeDailyDigestItem(item, lookupByGameId = null) {
             if (!item || typeof item !== "object") return null;
-            const normalized = normalizeGameRow(item);
-            const gameId = Number(normalized.game_id || item.game_id || item.id || 0);
+            const itemGameId = toPositiveIntOrNull(item.game_id ?? item.id);
+            const fallback = itemGameId !== null && lookupByGameId instanceof Map
+                ? lookupByGameId.get(itemGameId) || null
+                : null;
+            const hasExplicitName = String(item.game_name ?? item.name ?? item.title ?? "").trim().length > 0;
+            const source = fallback && !hasExplicitName
+                ? {
+                    ...fallback,
+                    ...item,
+                    game_name: String(fallback.game_name || fallback.name || "").trim(),
+                    name: item.name ?? fallback.name ?? fallback.game_name ?? "",
+                    banner_url: item.banner_url ?? fallback.banner_url ?? fallback.image_url ?? null,
+                    image_url: item.image_url ?? fallback.image_url ?? fallback.banner_url ?? null,
+                    slug: item.slug ?? item.game_slug ?? fallback.slug ?? fallback.game_slug ?? fallback.canonical_game_slug ?? "",
+                }
+                : item;
+            const normalized = normalizeGameRow(source);
+            const gameId = Number(normalized.game_id || item.game_id || item.id || fallback?.game_id || 0);
             if (!Number.isFinite(gameId) || gameId <= 0) return null;
 
             const section = String(item.section || "").trim().toLowerCase();
@@ -8309,7 +8434,10 @@ input:focus-visible {
 
         function collectDailyDigestItems() {
             const digest = state.dailyDigest && typeof state.dailyDigest === "object" ? state.dailyDigest : {};
-            const highlights = safeArray(digest.highlights).map(normalizeDailyDigestItem).filter(Boolean);
+            const digestLookupByGameId = buildDailyDigestGameLookupById();
+            const highlights = safeArray(digest.highlights)
+                .map((item) => normalizeDailyDigestItem(item, digestLookupByGameId))
+                .filter(Boolean);
             if (highlights.length) {
                 highlights.sort((a, b) => {
                     const scoreDiff = Number(b.priority_score || 0) - Number(a.priority_score || 0);
@@ -8333,7 +8461,10 @@ input:focus-visible {
             for (const sectionKey of orderedSectionKeys) {
                 const sectionItems = safeArray(sections[sectionKey]);
                 for (const row of sectionItems) {
-                    const normalized = normalizeDailyDigestItem({ ...row, section: row?.section || sectionKey });
+                    const normalized = normalizeDailyDigestItem(
+                        { ...row, section: row?.section || sectionKey },
+                        digestLookupByGameId,
+                    );
                     if (!normalized) continue;
                     merged.push(normalized);
                     if (merged.length >= 24) break;
@@ -12842,6 +12973,7 @@ try {
             window.addEventListener("pageshow", (event) => {
                 if (!event.persisted) return;
                 const restored = restoreDashboardSnapshot();
+                syncTrackedStateFromStorage();
                 if (restored) {
                     renderCriticalHomepageSections();
                     renderRestoredNonCriticalSections();
@@ -12850,6 +12982,11 @@ try {
                     renderAlerts();
                     void loadPersonalSummary();
                 }
+            });
+            window.addEventListener("storage", (event) => {
+                if (event.key !== TRACKED_SYNC_STORAGE_KEY) return;
+                const payload = parseTrackedSyncPayload(event.newValue || "");
+                applyTrackedSyncPayload(payload);
             });
             wireCatalogLifecycle._wired = true;
         }
@@ -12862,6 +12999,7 @@ try {
                 wireResponsiveHomepageLayout();
                 state.lastVisitTs = getStoredLastVisitTs();
                 const restoredSnapshot = restoreDashboardSnapshot();
+                syncTrackedStateFromStorage();
                 if (!restoredSnapshot) {
                     renderCriticalHomepageSkeletons();
                 }

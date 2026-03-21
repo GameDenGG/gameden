@@ -3470,6 +3470,14 @@ def rebuild_dashboard_cache(session: Session) -> None:
         .limit(24)
         .all()
     )
+    price_drop_snapshots_by_id: dict[int, GameSnapshot] = {}
+    if biggest_price_drop_events:
+        price_drop_game_ids = [int(row.game_id) for row in biggest_price_drop_events if row.game_id is not None]
+        if price_drop_game_ids:
+            price_drop_snapshots_by_id = {
+                int(row.game_id): row
+                for row in session.query(GameSnapshot).filter(GameSnapshot.game_id.in_(price_drop_game_ids)).all()
+            }
     recent_alert_rows = (
         session.query(Alert, GameSnapshot)
         .outerjoin(GameSnapshot, GameSnapshot.game_id == Alert.game_id)
@@ -3580,18 +3588,26 @@ def rebuild_dashboard_cache(session: Session) -> None:
         ])[:24]
     ]
     catalog_seed_rows = [row for row in catalog_seed_rows if row]
-    biggest_price_drops_rows = [
-        {
-            "id": int(row.id),
-            "game_id": int(row.game_id),
-            "event_type": row.event_type,
-            "old_price": row.old_price,
-            "new_price": row.new_price,
-            "discount_percent": row.discount_percent,
-            "created_at": row.created_at.isoformat() if row.created_at else None,
+    biggest_price_drops_rows: list[dict] = []
+    for row in biggest_price_drop_events:
+        game_id = int(row.game_id) if row.game_id is not None else 0
+        if game_id <= 0:
+            continue
+        snapshot = price_drop_snapshots_by_id.get(game_id)
+        payload_row = _snapshot_row_to_dict(snapshot) if snapshot is not None else {
+            "id": game_id,
+            "game_id": game_id,
         }
-        for row in biggest_price_drop_events
-    ]
+        payload_row.update(
+            {
+                "event_type": row.event_type,
+                "old_price": row.old_price,
+                "new_price": row.new_price,
+                "discount_percent": row.discount_percent,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+            }
+        )
+        biggest_price_drops_rows.append(payload_row)
     digest_now = utcnow()
     digest_window_start = digest_now - datetime.timedelta(hours=24)
     digest_limit = min(12, HOMEPAGE_RAIL_LIMIT)

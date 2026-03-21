@@ -10,27 +10,27 @@
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/favicon.png">
 <link rel="manifest" href="/site.webmanifest">
-<meta property="og:type" content="website">
+<meta property="og:type" content="product">
 <meta property="og:site_name" content="GameDen.gg">
-<meta property="og:title" content="GameDen.gg - Game Detail">
+<meta property="og:title" content="Game Deals & Price Tracker | GameDen.gg">
 <meta property="og:description" content="View game-level price history, active discounts, and trend insights to compare deals across stores and buy smarter on GameDen.gg.">
 <meta property="og:url" content="https://gameden.gg/game">
 <meta property="og:image" content="https://gameden.gg/favicon.png">
 <meta property="og:image:alt" content="GameDen.gg deal card preview">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="GameDen.gg - Game Detail">
+<meta name="twitter:title" content="Game Deals & Price Tracker | GameDen.gg">
 <meta name="twitter:description" content="View game-level price history, active discounts, and trend insights to compare deals across stores and buy smarter on GameDen.gg.">
 <meta name="twitter:url" content="https://gameden.gg/game">
 <meta name="twitter:image" content="https://gameden.gg/favicon.png">
-<title>GameDen.gg - Game Detail</title>
+<title>Game Deals & Price Tracker | GameDen.gg</title>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "WebPage",
   "@id": "https://gameden.gg/game#page",
   "url": "https://gameden.gg/game",
-  "name": "GameDen.gg - Game Detail",
-  "description": "Snapshot-backed game deal intelligence, pricing history, and momentum context across stores."
+  "name": "Game Deals & Price Tracker | GameDen.gg",
+  "description": "Track game prices, compare active discounts, and follow momentum signals across stores with snapshot-backed deal intelligence."
 }
 </script>
 <script id="gameStructuredData" type="application/ld+json">
@@ -43,11 +43,11 @@
 if (window.GameDenSite && typeof window.GameDenSite.applyMetadata === "function") {
     window.GameDenSite.applyMetadata({
         path: "/game",
-        title: "GameDen.gg - Game Detail",
+        title: "Game Deals & Price Tracker | GameDen.gg",
         description: "View game-level price history, active discounts, and trend insights to compare deals across stores and make smarter buying decisions on GameDen.gg.",
-        ogTitle: "GameDen.gg - Game Detail",
+        ogTitle: "Game Deals & Price Tracker | GameDen.gg",
         ogDescription: "View game-level price history, active discounts, and trend insights to compare deals across stores and buy smarter on GameDen.gg.",
-        twitterTitle: "GameDen.gg - Game Detail",
+        twitterTitle: "Game Deals & Price Tracker | GameDen.gg",
         twitterDescription: "View game-level price history, active discounts, and trend insights to compare deals across stores and buy smarter on GameDen.gg."
     });
 }
@@ -1970,16 +1970,16 @@ function applyGamePageMetadata(payload) {
     }
 
     const gameTitle = String(payload?.game_name || payload?.name || "Game").trim() || "Game";
-    const description = `${gameTitle}: ${buildShareSummary(payload)}`;
+    const description = `${gameTitle} on GameDen.gg: ${buildShareSummary(payload)}. Track price drops and compare deal timing across stores.`;
     const ogImage = buildShareCardImageUrl(payload?.game_id ?? payload?.id ?? currentGameId);
 
     window.GameDenSite.applyMetadata({
         path: pathWithQuery,
-        title: `${gameTitle} Deal Snapshot | GameDen.gg`,
+        title: `${gameTitle} Price Tracker, Deals & Trends | GameDen.gg`,
         description,
-        ogTitle: `${gameTitle} Deal Snapshot | GameDen.gg`,
+        ogTitle: `${gameTitle} Price Tracker, Deals & Trends | GameDen.gg`,
         ogDescription: description,
-        twitterTitle: `${gameTitle} Deal Snapshot | GameDen.gg`,
+        twitterTitle: `${gameTitle} Price Tracker, Deals & Trends | GameDen.gg`,
         twitterDescription: description,
         ogImage,
         twitterImage: ogImage,
@@ -2004,6 +2004,8 @@ function applyGameStructuredData(payload) {
         : String(payload?.platforms || "").split(",").map((entry) => entry.trim()).filter(Boolean).slice(0, 6);
     const priceValue = Number(payload?.price ?? payload?.current_price);
     const releaseDate = String(payload?.release_date || "").trim();
+    const reviewScore = Number(payload?.review_score ?? payload?.reviewScore);
+    const reviewCount = Number(payload?.review_total_count ?? payload?.review_count ?? payload?.reviewCount);
 
     const schema = {
         "@context": "https://schema.org",
@@ -2043,6 +2045,21 @@ function applyGameStructuredData(payload) {
             "priceCurrency": "USD",
             "price": Number(priceValue).toFixed(2),
             "availability": "https://schema.org/InStock",
+        };
+    }
+
+    if (
+        Number.isFinite(reviewScore)
+        && reviewScore > 0
+        && Number.isFinite(reviewCount)
+        && reviewCount > 0
+    ) {
+        schema.aggregateRating = {
+            "@type": "AggregateRating",
+            "ratingValue": Math.max(0, Math.min(100, reviewScore)),
+            "bestRating": 100,
+            "ratingCount": Math.trunc(reviewCount),
+            "reviewCount": Math.trunc(reviewCount),
         };
     }
 

@@ -564,6 +564,8 @@ body {
 
 <script>
 const WATCHLIST_STORAGE_KEY = "gameden.user_id";
+const DASHBOARD_SNAPSHOT_STORAGE_KEY = "gameden.dashboard.snapshot.v1";
+const TRACKED_SYNC_STORAGE_KEY = "gameden.tracked.sync.v1";
 const TRACKED_TAB_WATCHLIST = "watchlist";
 const TRACKED_TAB_WISHLIST = "wishlist";
 
@@ -636,6 +638,57 @@ function normalizeWatchlistItems(payload) {
 
 function normalizeWishlistItems(payload) {
     return Array.isArray(payload) ? payload : [];
+}
+
+function patchDashboardSnapshotTrackedList(action, list, gameId) {
+    const normalizedAction = String(action || "").trim().toLowerCase();
+    const normalizedList = String(list || "").trim().toLowerCase();
+    const normalizedGameId = Number(gameId);
+    if (!(normalizedAction === "remove" || normalizedAction === "add")) return;
+    if (!(normalizedList === TRACKED_TAB_WATCHLIST || normalizedList === TRACKED_TAB_WISHLIST)) return;
+    if (!Number.isFinite(normalizedGameId) || normalizedGameId <= 0) return;
+    try {
+        const raw = sessionStorage.getItem(DASHBOARD_SNAPSHOT_STORAGE_KEY);
+        if (!raw) return;
+        const snapshot = JSON.parse(raw);
+        if (!snapshot || typeof snapshot !== "object") return;
+        const snapshotUserId = String(snapshot.user_id || "").trim();
+        if (!snapshotUserId || snapshotUserId !== CURRENT_USER_ID) return;
+        const sections = snapshot.sections && typeof snapshot.sections === "object" ? snapshot.sections : {};
+        const current = Array.isArray(sections[normalizedList]) ? sections[normalizedList] : [];
+        if (normalizedAction === "remove") {
+            sections[normalizedList] = current.filter((entry) => {
+                const entryId = Number(entry?.game_id ?? entry?.id ?? 0);
+                return !(Number.isFinite(entryId) && entryId > 0 && entryId === normalizedGameId);
+            });
+        }
+        snapshot.sections = sections;
+        snapshot.saved_at = Date.now();
+        sessionStorage.setItem(DASHBOARD_SNAPSHOT_STORAGE_KEY, JSON.stringify(snapshot));
+    } catch {
+        // Ignore storage sync failures.
+    }
+}
+
+function emitTrackedSync(action, list, gameId) {
+    const normalizedAction = String(action || "").trim().toLowerCase();
+    const normalizedList = String(list || "").trim().toLowerCase();
+    const normalizedGameId = Number(gameId);
+    if (!(normalizedAction === "remove" || normalizedAction === "add")) return;
+    if (!(normalizedList === TRACKED_TAB_WATCHLIST || normalizedList === TRACKED_TAB_WISHLIST)) return;
+    if (!Number.isFinite(normalizedGameId) || normalizedGameId <= 0) return;
+    try {
+        const payload = {
+            action: normalizedAction,
+            list: normalizedList,
+            game_id: Math.trunc(normalizedGameId),
+            user_id: CURRENT_USER_ID,
+            ts: Date.now(),
+        };
+        localStorage.setItem(TRACKED_SYNC_STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+        // Ignore storage sync failures.
+    }
 }
 
 function escapeHtml(value) {
@@ -827,6 +880,8 @@ function render(items, alertsByGame = new Map(), tab = TRACKED_TAB_WATCHLIST) {
             setActionPending(button, true);
             try {
                 await removeWatch(gameId);
+                patchDashboardSnapshotTrackedList("remove", TRACKED_TAB_WATCHLIST, gameId);
+                emitTrackedSync("remove", TRACKED_TAB_WATCHLIST, gameId);
                 await loadWatchlist();
             } catch (error) {
                 console.error(error);
@@ -843,6 +898,8 @@ function render(items, alertsByGame = new Map(), tab = TRACKED_TAB_WATCHLIST) {
             setActionPending(button, true);
             try {
                 await removeWish(gameId);
+                patchDashboardSnapshotTrackedList("remove", TRACKED_TAB_WISHLIST, gameId);
+                emitTrackedSync("remove", TRACKED_TAB_WISHLIST, gameId);
                 await loadWatchlist();
             } catch (error) {
                 console.error(error);

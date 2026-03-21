@@ -1396,12 +1396,17 @@ function getQueryParam(name) {
     return params.get(name);
 }
 
-function getPathGameId() {
+function getPathGameRef() {
     const path = String(window.location.pathname || "").trim().replace(/\/+$/, "");
     const segments = path.split("/").filter(Boolean);
     if (segments.length < 2) return null;
     if (segments[0].toLowerCase() !== "game") return null;
-    const parsed = Number(segments[1]);
+    const candidate = String(segments[1] || "").trim();
+    return candidate || null;
+}
+
+function parsePositiveInt(value) {
+    const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed <= 0) return null;
     return Math.trunc(parsed);
 }
@@ -1409,8 +1414,12 @@ function getPathGameId() {
 const WATCHLIST_STORAGE_KEY = "gameden.user_id";
 const DEFAULT_USER_ID = "legacy-user";
 const gameName = getQueryParam("game_name");
-const gameIdFromPath = getPathGameId();
-const gameIdParam = getQueryParam("game_id") || (Number.isFinite(gameIdFromPath) ? String(gameIdFromPath) : null);
+const gameRefFromPath = getPathGameRef();
+const gameIdFromPath = parsePositiveInt(gameRefFromPath);
+const gameIdFromQuery = parsePositiveInt(getQueryParam("game_id"));
+const gameIdParam = gameIdFromQuery !== null
+    ? String(gameIdFromQuery)
+    : (gameIdFromPath !== null ? String(gameIdFromPath) : null);
 const watchButton = document.getElementById("watchButton");
 const shareDealButton = document.getElementById("shareDealButton");
 const storeCtaLink = document.getElementById("storeCtaLink");
@@ -2364,9 +2373,11 @@ async function loadGame() {
     if (discoveryPanel instanceof HTMLElement) {
         discoveryPanel.hidden = false;
     }
-    const requestedGameId = Number(gameIdParam);
-    const hasValidGameId = Number.isFinite(requestedGameId) && requestedGameId > 0;
-    if (!hasValidGameId && !gameName) {
+    const pathIdentifier = String(gameRefFromPath || "").trim();
+    const requestedGameId = parsePositiveInt(gameIdParam);
+    const hasValidGameId = requestedGameId !== null;
+    const hasPathIdentifier = Boolean(pathIdentifier);
+    if (!hasPathIdentifier && !hasValidGameId && !gameName) {
         if (shareDealButton instanceof HTMLButtonElement) {
             shareDealButton.disabled = true;
         }
@@ -2375,12 +2386,15 @@ async function loadGame() {
         }
         clearLoadingChrome();
         document.getElementById("gameTitle").innerText = "Missing game identifier";
-        document.querySelector(".content-grid").innerHTML = `<div class="error">game_id path segment or game_id/game_name query is required.</div>`;
+        document.querySelector(".content-grid").innerHTML = `<div class="error">A game path identifier, game_id query, or game_name query is required.</div>`;
         return;
     }
 
     let payload = null;
-    if (hasValidGameId) {
+    if (hasPathIdentifier) {
+        payload = await fetchJson(`/games/resolve/${encodeURIComponent(pathIdentifier)}`).catch(() => null);
+    }
+    if (!payload && hasValidGameId) {
         payload = await fetchJson(`/games/${requestedGameId}`).catch(() => null);
     }
     if (!payload && gameName) {

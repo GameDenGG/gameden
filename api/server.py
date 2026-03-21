@@ -549,8 +549,20 @@ def _build_platform_filter_predicate(platform_value: str):
 
 
 def _normalize_search_text(value: str | None) -> str:
-    collapsed = re.sub(r"\s+", " ", str(value or "").strip().lower())
+    lowered = str(value or "").strip().lower()
+    normalized = re.sub(r"[^a-z0-9]+", " ", lowered)
+    collapsed = re.sub(r"\s+", " ", normalized).strip()
     return collapsed
+
+
+def _search_tokens(value: str | None, max_tokens: int = 6) -> list[str]:
+    normalized = _normalize_search_text(value)
+    if not normalized:
+        return []
+    tokens = [token for token in normalized.split(" ") if token]
+    if not tokens:
+        return []
+    return tokens[: max(1, int(max_tokens))]
 
 
 def _build_catalog_search_predicate(search_text: str, include_similarity: bool):
@@ -568,6 +580,10 @@ def _build_catalog_search_predicate(search_text: str, include_similarity: bool):
         func.coalesce(GameSnapshot.genres, "").ilike(pattern),
         func.coalesce(GameSnapshot.tags, "").ilike(pattern),
     ]
+    for token in _search_tokens(trimmed):
+        if len(token) < 2:
+            continue
+        filters.append(func.lower(Game.name).like(f"%{token}%"))
 
     normalized_search = _normalize_search_text(trimmed)
     if include_similarity and normalized_search:
@@ -606,6 +622,121 @@ def safe_num(value, default: float = 0.0) -> float:
         return numeric
     except Exception:
         return default
+
+
+def _compact_search_text(value: str | None) -> str:
+    return _normalize_search_text(value).replace(" ", "")
+
+
+def _search_token_hit_count(text: str, tokens: list[str]) -> int:
+    if not text or not tokens:
+        return 0
+    return sum(1 for token in tokens if token in text)
+
+
+def _score_search_candidate_row(row: dict, normalized_query: str, query_tokens: list[str]) -> tuple[float, int, int, float, float, str]:
+    name = _normalize_search_text(row.get("game_name"))
+    developer = _normalize_search_text(row.get("developer"))
+    publisher = _normalize_search_text(row.get("publisher"))
+    genres = _normalize_search_text(row.get("genres_csv"))
+    tags = _normalize_search_text(row.get("tags_csv"))
+
+    compact_query = _compact_search_text(normalized_query)
+    compact_name = _compact_search_text(name)
+
+    score = 0.0
+    exact_rank = 3
+    if normalized_query:
+        if name == normalized_query:
+            score += 1900.0
+            exact_rank = 0
+        elif name.startswith(normalized_query):
+            score += 1400.0
+            exact_rank = 1
+        elif normalized_query in name:
+            score += 980.0
+            exact_rank = 2
+
+    if compact_query:
+        if compact_name == compact_query:
+            score += 1200.0
+            exact_rank = min(exact_rank, 1)
+        elif compact_query in compact_name:
+            score += 480.0
+        elif compact_name and compact_name in compact_query:
+            score += 360.0
+
+    name_hits = _search_token_hit_count(name, query_tokens)
+    name_hits = max(name_hits, _search_token_hit_count(compact_name, query_tokens))
+    developer_hits = _search_token_hit_count(developer, query_tokens)
+    publisher_hits = _search_token_hit_count(publisher, query_tokens)
+    genre_hits = _search_token_hit_count(genres, query_tokens)
+    tag_hits = _search_token_hit_count(tags, query_tokens)
+    metadata_hits = developer_hits + publisher_hits + genre_hits + tag_hits
+
+    if name_hits > 0:
+        score += float(name_hits) * 220.0
+        if name_hits >= len(query_tokens):
+            score += 520.0
+    score += float(developer_hits) * 70.0
+    score += float(publisher_hits) * 60.0
+    score += float(genre_hits) * 30.0
+    score += float(tag_hits) * 26.0
+
+    if name_hits == 0 and metadata_hits > 0:
+        score -= 280.0
+
+    similarity_score = max(0.0, min(safe_num(row.get("sim"), 0.0), 1.0))
+    popularity_score = max(0.0, min(safe_num(row.get("popularity_score"), 0.0), 100.0))
+    deal_score = max(0.0, min(safe_num(row.get("deal_score"), 0.0), 100.0))
+
+    score += similarity_score * 260.0
+    score += popularity_score * 0.85
+    score += deal_score * 0.35
+
+    return (
+        score,
+        exact_rank,
+        name_hits,
+        popularity_score,
+        deal_score,
+        name,
+    )
+
+
+def _rank_search_rows(rows: list[dict], normalized_query: str, limit: int) -> list[dict]:
+    normalized_limit = max(1, int(limit))
+    query_tokens = _search_tokens(normalized_query)
+    if not rows:
+        return []
+
+    scored_rows = []
+    for row in rows:
+        score_tuple = _score_search_candidate_row(row, normalized_query, query_tokens)
+        scored_rows.append((score_tuple, row))
+
+    scored_rows.sort(
+        key=lambda entry: (
+            -entry[0][0],
+            entry[0][1],
+            -entry[0][2],
+            -entry[0][3],
+            -entry[0][4],
+            entry[0][5],
+        )
+    )
+
+    ranked = []
+    seen_ids: set[int] = set()
+    for _, row in scored_rows:
+        game_id = int(safe_num(row.get("id"), 0.0))
+        if game_id <= 0 or game_id in seen_ids:
+            continue
+        seen_ids.add(game_id)
+        ranked.append(row)
+        if len(ranked) >= normalized_limit:
+            break
+    return ranked
 
 
 def serialize_game_metadata(game: Optional[Game]) -> dict:
@@ -3549,8 +3680,9 @@ def game_page():
 
 
 @app.get("/game/{game_id}")
-def game_page_with_id(game_id: int):
-    if int(safe_num(game_id, 0.0)) <= 0:
+@app.get("/game/{game_id}/")
+def game_page_with_id(game_id: str):
+    if not str(game_id or "").strip():
         raise HTTPException(status_code=404, detail="Game page not found")
     return FileResponse("web/game.html")
 
@@ -4236,6 +4368,11 @@ def search_games_fast(
 
         normalized_query = _normalize_search_text(query_text)
         normalized_limit = max(1, min(int(limit), 20))
+        query_tokens = _search_tokens(normalized_query)
+        tokenized_query = "%".join(query_tokens) if len(query_tokens) > 1 else ""
+        candidate_limit = min(30, max(12, normalized_limit * 2))
+        if len(normalized_query) <= 2:
+            candidate_limit = min(24, max(10, normalized_limit * 2))
         rows = []
 
         if len(normalized_query) <= 2:
@@ -4254,6 +4391,7 @@ def search_games_fast(
                         s.latest_price,
                         s.latest_discount_percent,
                         s.deal_score,
+                        COALESCE(s.popularity_score, 0) AS popularity_score,
                         COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
                         s.worth_buying_score,
                         COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
@@ -4261,12 +4399,14 @@ def search_games_fast(
                         COALESCE(s.review_count, g.review_total_count) AS review_total_count,
                         s.deal_heat_reason,
                         s.release_date,
-                        s.is_upcoming
+                        s.is_upcoming,
+                        0.0 AS sim
                     FROM games g
                     LEFT JOIN game_snapshots s ON s.game_id = g.id
                     WHERE
                         lower(g.name) LIKE (:normalized_q || '%')
                         OR lower(g.name) LIKE ('%' || :normalized_q || '%')
+                        OR (:tokenized_q <> '' AND lower(g.name) LIKE ('%' || :tokenized_q || '%'))
                     ORDER BY
                         CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
                         CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
@@ -4279,7 +4419,8 @@ def search_games_fast(
                 ),
                 {
                     "normalized_q": normalized_query,
-                    "limit": normalized_limit,
+                    "tokenized_q": tokenized_query,
+                    "limit": candidate_limit,
                 },
             ).mappings().all()
 
@@ -4300,6 +4441,7 @@ def search_games_fast(
                             s.latest_price,
                             s.latest_discount_percent,
                             s.deal_score,
+                            COALESCE(s.popularity_score, 0) AS popularity_score,
                             COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
                             s.worth_buying_score,
                             COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
@@ -4313,6 +4455,7 @@ def search_games_fast(
                         LEFT JOIN game_snapshots s ON s.game_id = g.id
                         WHERE
                             g.name ILIKE ('%' || :q || '%')
+                            OR (:tokenized_q <> '' AND lower(g.name) LIKE ('%' || :tokenized_q || '%'))
                             OR COALESCE(g.developer, '') ILIKE ('%' || :q || '%')
                             OR COALESCE(g.publisher, '') ILIKE ('%' || :q || '%')
                             OR COALESCE(s.genres, COALESCE(g.genres, '')) ILIKE ('%' || :q || '%')
@@ -4333,8 +4476,9 @@ def search_games_fast(
                     {
                         "q": query_text,
                         "normalized_q": normalized_query,
+                        "tokenized_q": tokenized_query,
                         "sim_threshold": SEARCH_SIMILARITY_THRESHOLD,
-                        "limit": normalized_limit,
+                        "limit": candidate_limit,
                     },
                 ).mappings().all()
             except Exception:
@@ -4353,6 +4497,7 @@ def search_games_fast(
                             s.latest_price,
                             s.latest_discount_percent,
                             s.deal_score,
+                            COALESCE(s.popularity_score, 0) AS popularity_score,
                             COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
                             s.worth_buying_score,
                             COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
@@ -4360,11 +4505,13 @@ def search_games_fast(
                             COALESCE(s.review_count, g.review_total_count) AS review_total_count,
                             s.deal_heat_reason,
                             s.release_date,
-                            s.is_upcoming
+                            s.is_upcoming,
+                            0.0 AS sim
                         FROM games g
                         LEFT JOIN game_snapshots s ON s.game_id = g.id
                         WHERE
                             g.name ILIKE ('%' || :q || '%')
+                            OR (:tokenized_q <> '' AND lower(g.name) LIKE ('%' || :tokenized_q || '%'))
                             OR COALESCE(g.developer, '') ILIKE ('%' || :q || '%')
                             OR COALESCE(g.publisher, '') ILIKE ('%' || :q || '%')
                             OR COALESCE(s.genres, COALESCE(g.genres, '')) ILIKE ('%' || :q || '%')
@@ -4380,11 +4527,18 @@ def search_games_fast(
                         LIMIT :limit
                         """
                     ),
-                    {"q": query_text, "normalized_q": normalized_query, "limit": normalized_limit},
+                    {
+                        "q": query_text,
+                        "normalized_q": normalized_query,
+                        "tokenized_q": tokenized_query,
+                        "limit": candidate_limit,
+                    },
                 ).mappings().all()
 
+        ranked_rows = _rank_search_rows(rows, normalized_query, normalized_limit)
         return [
             {
+                "id": row["id"],
                 "game_id": row["id"],
                 "game_name": row["game_name"],
                 "developer": row.get("developer"),
@@ -4394,7 +4548,9 @@ def search_games_fast(
                 "steam_appid": row["steam_appid"],
                 "banner_url": row["image_url"],
                 "image_url": row["image_url"],
+                "price": row["latest_price"],
                 "latest_price": row["latest_price"],
+                "discount_percent": row["latest_discount_percent"],
                 "latest_discount_percent": row["latest_discount_percent"],
                 "deal_score": row["deal_score"],
                 "buy_score": row.get("buy_score") if row.get("buy_score") is not None else row["worth_buying_score"],
@@ -4406,7 +4562,7 @@ def search_games_fast(
                 "release_date": row["release_date"].isoformat() if row["release_date"] else None,
                 "is_upcoming": bool(row["is_upcoming"]) if row["is_upcoming"] is not None else False,
             }
-            for row in rows
+            for row in ranked_rows
         ]
     finally:
         session.close()
@@ -5874,17 +6030,107 @@ def get_game_detail(request: Request, game_id: int):
         game = session.query(Game).filter(Game.id == game_id).first()
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
-        snapshot = session.query(GameSnapshot).filter(GameSnapshot.game_id == game_id).first()
-        latest = session.query(LatestGamePrice).filter(LatestGamePrice.game_id == game_id).first()
-        if snapshot is not None or latest is not None:
-            payload = _build_snapshot_game_detail_payload(game, snapshot, latest)
-        else:
-            payload = build_game_detail_payload(session, game, user_id=viewer_user_id)
-            payload["share_card_url"] = _build_canonical_url(f"/share/deal/{int(game_id)}")
-        payload["watchlisted"] = _is_game_watchlisted_for_user(session, int(game_id), viewer_user_id)
-        return _ensure_game_detail_contract(payload)
+        return _build_game_detail_response_payload(session, game, viewer_user_id)
     finally:
         session.close()
+
+
+def _build_game_detail_response_payload(session: Session, game: Game, viewer_user_id: str) -> dict:
+    game_id = int(game.id)
+    snapshot = session.query(GameSnapshot).filter(GameSnapshot.game_id == game_id).first()
+    latest = session.query(LatestGamePrice).filter(LatestGamePrice.game_id == game_id).first()
+    if snapshot is not None or latest is not None:
+        payload = _build_snapshot_game_detail_payload(game, snapshot, latest)
+    else:
+        payload = build_game_detail_payload(session, game, user_id=viewer_user_id)
+        payload["share_card_url"] = _build_canonical_url(f"/share/deal/{game_id}")
+    payload["watchlisted"] = _is_game_watchlisted_for_user(session, game_id, viewer_user_id)
+    return _ensure_game_detail_contract(payload)
+
+
+def _slugify_game_identifier(value: str | None) -> str:
+    lowered = str(value or "").strip().lower()
+    if not lowered:
+        return ""
+    slug = re.sub(r"[^a-z0-9]+", "-", lowered)
+    return slug.strip("-")
+
+
+def _resolve_game_by_identifier(session: Session, identifier: str | None) -> Game | None:
+    raw_identifier = str(identifier or "").strip().strip("/")
+    if not raw_identifier:
+        return None
+
+    if raw_identifier.isdigit():
+        numeric_id = int(raw_identifier)
+        if numeric_id > 0:
+            by_id = session.query(Game).filter(Game.id == numeric_id).first()
+            if by_id is not None:
+                return by_id
+            by_appid = session.query(Game).filter(Game.appid == str(numeric_id)).first()
+            if by_appid is not None:
+                return by_appid
+        return None
+
+    lowered_identifier = raw_identifier.lower()
+    exact_name = session.query(Game).filter(func.lower(Game.name) == lowered_identifier).first()
+    if exact_name is not None:
+        return exact_name
+
+    spaced_identifier = re.sub(r"[-_]+", " ", lowered_identifier).strip()
+    if spaced_identifier:
+        spaced_name = session.query(Game).filter(func.lower(Game.name) == spaced_identifier).first()
+        if spaced_name is not None:
+            return spaced_name
+
+    slug_identifier = _slugify_game_identifier(raw_identifier)
+    if not slug_identifier:
+        return None
+
+    if session.bind and session.bind.dialect.name == "postgresql":
+        try:
+            slug_name = (
+                session.query(Game)
+                .filter(
+                    func.regexp_replace(
+                        func.lower(Game.name),
+                        r"[^a-z0-9]+",
+                        "-",
+                        "g",
+                    ) == slug_identifier
+                )
+                .first()
+            )
+            if slug_name is not None:
+                return slug_name
+        except Exception:
+            pass
+
+    pivot_token = (spaced_identifier.split(" ")[0] if spaced_identifier else slug_identifier.split("-")[0]).strip()
+    if not pivot_token:
+        return None
+    candidates = session.query(Game).filter(Game.name.ilike(f"%{pivot_token}%")).limit(250).all()
+    for candidate in candidates:
+        if _slugify_game_identifier(candidate.name) == slug_identifier:
+            return candidate
+    return None
+
+
+@app.get("/games/resolve/{identifier}")
+@json_etag()
+@ttl_cache(ttl_seconds=60, endpoint_key="/games/resolve/{identifier}")
+def resolve_game_detail(request: Request, identifier: str):
+    started = _start_timer()
+    viewer_user_id = resolve_request_user_id(request)
+    session = ReadSessionLocal()
+    try:
+        game = _resolve_game_by_identifier(session, identifier)
+        if game is None:
+            raise HTTPException(status_code=404, detail="Game not found")
+        return _build_game_detail_response_payload(session, game, viewer_user_id)
+    finally:
+        session.close()
+        _log_timing("/games/resolve/{identifier}", started)
 
 
 @app.get("/games/by-name")
@@ -5903,15 +6149,7 @@ def get_game_by_name(request: Request, game_name: str):
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
-        snapshot = session.query(GameSnapshot).filter(GameSnapshot.game_id == game.id).first()
-        latest = session.query(LatestGamePrice).filter(LatestGamePrice.game_id == game.id).first()
-        if snapshot is not None or latest is not None:
-            payload = _build_snapshot_game_detail_payload(game, snapshot, latest)
-        else:
-            payload = build_game_detail_payload(session, game, user_id=viewer_user_id)
-            payload["share_card_url"] = _build_canonical_url(f"/share/deal/{int(game.id)}")
-        payload["watchlisted"] = _is_game_watchlisted_for_user(session, int(game.id), viewer_user_id)
-        return _ensure_game_detail_contract(payload)
+        return _build_game_detail_response_payload(session, game, viewer_user_id)
     finally:
         session.close()
         _log_timing("/games/by-name", started)

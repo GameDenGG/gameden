@@ -9729,11 +9729,19 @@ input:focus-visible {
         }
 
         function searchFallbackPool(query, limit = 20) {
-            const normalizedQuery = String(query || "").trim().toLowerCase();
+            const normalizeSearchValue = (value) => String(value || "")
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, " ")
+                .trim()
+                .replace(/\s+/g, " ");
+
+            const toCompact = (value) => normalizeSearchValue(value).replace(/\s+/g, "");
+            const normalizedQuery = normalizeSearchValue(query);
             if (!normalizedQuery) return [];
 
             const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean);
             if (!queryTokens.length) return [];
+            const compactQuery = toCompact(normalizedQuery);
 
             const scored = [];
             const pool = collectSearchFallbackPool();
@@ -9742,32 +9750,53 @@ input:focus-visible {
                 const gameName = String(game.game_name || "").trim();
                 if (!gameName) continue;
 
-                const name = gameName.toLowerCase();
-                const developer = String(game.developer || "").trim().toLowerCase();
-                const publisher = String(game.publisher || "").trim().toLowerCase();
-                const genres = safeArray(game.genres).map((value) => String(value || "").toLowerCase()).join(" ");
-                const tags = safeArray(game.tags).map((value) => String(value || "").toLowerCase()).join(" ");
-                const searchable = `${name} ${developer} ${publisher} ${genres} ${tags}`.trim();
-                if (!searchable || !queryTokens.every((token) => searchable.includes(token))) continue;
+                const name = normalizeSearchValue(gameName);
+                const compactName = toCompact(name);
+                const developer = normalizeSearchValue(game.developer);
+                const publisher = normalizeSearchValue(game.publisher);
+                const genres = normalizeSearchValue(safeArray(game.genres).join(" "));
+                const tags = normalizeSearchValue(safeArray(game.tags).join(" "));
+
+                const compactTokenHits = queryTokens.filter((token) => compactName.includes(token)).length;
+                const nameTokenHits = Math.max(
+                    queryTokens.filter((token) => name.includes(token)).length,
+                    compactTokenHits,
+                );
+                const metadataTokenHits = queryTokens.filter(
+                    (token) => developer.includes(token) || publisher.includes(token) || genres.includes(token) || tags.includes(token),
+                ).length;
+                const hasNamePhrase = name.includes(normalizedQuery);
+                const hasMetadataPhrase = developer.includes(normalizedQuery)
+                    || publisher.includes(normalizedQuery)
+                    || genres.includes(normalizedQuery)
+                    || tags.includes(normalizedQuery);
+
+                if (!hasNamePhrase && nameTokenHits === 0 && !hasMetadataPhrase && metadataTokenHits === 0) continue;
 
                 let score = 0;
-                if (name === normalizedQuery) score += 300;
-                else if (name.startsWith(normalizedQuery)) score += 240;
-                else if (name.includes(normalizedQuery)) score += 180;
+                if (name === normalizedQuery) score += 1900;
+                else if (name.startsWith(normalizedQuery)) score += 1400;
+                else if (hasNamePhrase) score += 980;
 
-                if (genres.includes(normalizedQuery)) score += 150;
-                if (tags.includes(normalizedQuery)) score += 150;
-                if (developer.includes(normalizedQuery) || publisher.includes(normalizedQuery)) score += 120;
+                if (compactQuery && compactName === compactQuery) score += 1100;
+                else if (compactQuery && compactName.includes(compactQuery)) score += 420;
+                else if (compactQuery && compactName && compactQuery.includes(compactName)) score += 320;
+
+                score += nameTokenHits * 220;
+                if (nameTokenHits >= queryTokens.length) score += 520;
+
+                score += metadataTokenHits * 42;
+                if (nameTokenHits === 0 && metadataTokenHits > 0) score -= 260;
 
                 const dealScore = Number(game.deal_score);
-                if (Number.isFinite(dealScore)) score += Math.max(0, Math.min(100, dealScore));
+                if (Number.isFinite(dealScore)) score += Math.max(0, Math.min(100, dealScore)) * 0.35;
 
                 const discount = Number(game.discount_percent);
-                if (Number.isFinite(discount)) score += Math.max(0, Math.min(65, discount));
+                if (Number.isFinite(discount)) score += Math.max(0, Math.min(100, discount)) * 0.12;
 
                 const players = Number(game.current_players);
                 if (Number.isFinite(players) && players > 0) {
-                    score += Math.min(26, Math.log10(players + 1) * 8);
+                    score += Math.min(22, Math.log10(players + 1) * 6);
                 }
 
                 scored.push({ score, game });

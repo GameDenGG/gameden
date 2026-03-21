@@ -5346,11 +5346,16 @@ input:focus-visible {
 
         function normalizeGameRow(row) {
             if (!row || typeof row !== "object") return row;
+            const canonicalGameId = toPositiveIntOrNull(row.game_id);
+            const canonicalSteamAppIdRaw = String(row.steam_appid ?? row.appid ?? "").trim();
+            const canonicalSteamAppId = /^\d+$/.test(canonicalSteamAppIdRaw) ? canonicalSteamAppIdRaw : null;
             return {
                 ...row,
                 game_id: row.game_id ?? row.id ?? null,
                 game_name: row.game_name ?? row.name ?? "",
                 steam_appid: row.steam_appid ?? row.appid ?? null,
+                canonical_game_id: canonicalGameId,
+                canonical_steam_appid: canonicalSteamAppId,
                 banner_url: row.banner_url ?? row.image_url ?? row.header_image ?? row.image ?? null,
                 image_url: row.image_url ?? row.banner_url ?? row.header_image ?? row.image ?? null,
                 price: row.price ?? row.latest_price ?? null,
@@ -5441,16 +5446,18 @@ input:focus-visible {
 
         function buildGameDetailHref(gameLike) {
             const normalized = normalizeGameRow(gameLike);
-            const gameId = Number(normalized?.game_id);
             const params = new URLSearchParams();
-            if (Number.isFinite(gameId) && gameId > 0) {
-                const normalizedId = String(Math.trunc(gameId));
+            const canonicalGameId = toPositiveIntOrNull(normalized?.canonical_game_id);
+            const canonicalAppIdRaw = String(normalized?.canonical_steam_appid || normalized?.steam_appid || normalized?.appid || "").trim();
+            const canonicalAppId = /^\d+$/.test(canonicalAppIdRaw) ? canonicalAppIdRaw : "";
+            const routeIdentifier = canonicalGameId !== null ? String(canonicalGameId) : canonicalAppId;
+            if (routeIdentifier) {
                 const gameName = String(normalized?.game_name || "").trim();
                 if (gameName) {
                     params.set("game_name", gameName);
                 }
                 const query = params.toString();
-                return query ? `/game/${normalizedId}?${query}` : `/game/${normalizedId}`;
+                return query ? `/game/${routeIdentifier}?${query}` : `/game/${routeIdentifier}`;
             }
 
             const gameName = String(normalized?.game_name || "").trim();
@@ -5657,9 +5664,9 @@ input:focus-visible {
 
         function gameIdentityKey(row) {
             const normalized = normalizeGameRow(row);
-            const gameId = Number(normalized?.game_id);
-            if (Number.isFinite(gameId) && gameId > 0) return `id:${gameId}`;
-            const appId = String(normalized?.steam_appid || "").trim();
+            const canonicalGameId = toPositiveIntOrNull(normalized?.canonical_game_id);
+            if (canonicalGameId !== null) return `id:${canonicalGameId}`;
+            const appId = String(normalized?.canonical_steam_appid || normalized?.steam_appid || "").trim();
             if (appId) return `appid:${appId}`;
             const name = String(normalized?.game_name || "").trim().toLowerCase();
             return name ? `name:${name}` : "";
@@ -6800,9 +6807,9 @@ input:focus-visible {
         }
 
         function buildActionButtons(game) {
-            const resolvedGameId = Number(game.game_id ?? game.id);
-            const gameIdAttr = Number.isFinite(resolvedGameId) && resolvedGameId > 0 ? ` data-game-id="${resolvedGameId}"` : "";
-            const wishlistActive = isInWishlist(game.game_name, Number.isFinite(resolvedGameId) && resolvedGameId > 0 ? resolvedGameId : null);
+            const resolvedGameId = toPositiveIntOrNull(game?.canonical_game_id ?? game?.game_id);
+            const gameIdAttr = resolvedGameId !== null ? ` data-game-id="${resolvedGameId}"` : "";
+            const wishlistActive = isInWishlist(game.game_name, resolvedGameId !== null ? resolvedGameId : null);
             const watchlistActive = isInWatchlist(game);
 
             return `

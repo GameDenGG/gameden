@@ -1808,7 +1808,7 @@ function escapeHtml(value) {
 }
 
 function buildGameShareUrl(payload = currentGamePayload) {
-    const gameId = Number(payload?.id ?? payload?.game_id ?? currentGameId);
+    const gameId = Number(payload?.game_id ?? payload?.id ?? currentGameId);
     const normalizedGameId = Number.isFinite(gameId) && gameId > 0 ? Math.trunc(gameId) : null;
     const path = normalizedGameId !== null ? `/game/${normalizedGameId}` : "/game";
     const url = new URL(path, window.location.origin);
@@ -1873,7 +1873,7 @@ function applyGamePageMetadata(payload) {
 
     const gameTitle = String(payload?.game_name || payload?.name || "Game").trim() || "Game";
     const description = `${gameTitle}: ${buildShareSummary(payload)}`;
-    const ogImage = buildShareCardImageUrl(payload?.id ?? payload?.game_id ?? currentGameId);
+    const ogImage = buildShareCardImageUrl(payload?.game_id ?? payload?.id ?? currentGameId);
 
     window.GameDenSite.applyMetadata({
         path: pathWithQuery,
@@ -2020,7 +2020,7 @@ async function handleShareDeal() {
     if (shareDealButton.disabled || shareDealButton.classList.contains("is-pending")) return;
 
     const payload = currentGamePayload || {};
-    const gameId = Number(payload?.id ?? payload?.game_id ?? currentGameId);
+    const gameId = Number(payload?.game_id ?? payload?.id ?? currentGameId);
     if (!Number.isFinite(gameId) || gameId <= 0) return;
 
     const shareUrl = buildGameShareUrl(payload);
@@ -2415,7 +2415,7 @@ async function loadGame() {
         return;
     }
 
-    currentGameId = Number(payload.id || payload.game_id || (hasValidGameId ? requestedGameId : 0));
+    currentGameId = Number(payload.game_id || payload.id || (hasValidGameId ? requestedGameId : 0));
     payload = {
         ...payload,
         game_name: payload.game_name || payload.name || gameName || (Number.isFinite(currentGameId) && currentGameId > 0 ? `Game ${currentGameId}` : "Unknown game"),
@@ -2538,11 +2538,14 @@ async function loadRelatedGames(gameId) {
                     ? rows.slice(0, 6).map((row) => {
                         const name = escapeHtml(row.game_name || "Unknown game");
                         const discount = Number(row.discount_percent || 0);
-                        const rowGameId = Number(row.game_id || row.id || 0);
+                        const rowGameId = Number(row.game_id || 0);
+                        const rowAppId = String(row.steam_appid || row.appid || "").trim();
                         const encodedName = encodeURIComponent(row.game_name || "");
                         const detailHref = Number.isFinite(rowGameId) && rowGameId > 0
                             ? `/game/${Math.trunc(rowGameId)}?game_name=${encodedName}`
-                            : `/game?game_name=${encodedName}`;
+                            : (/^\d+$/.test(rowAppId)
+                                ? `/game/${rowAppId}?game_name=${encodedName}`
+                                : `/game?game_name=${encodedName}`);
                         const metric = discount > 0
                             ? `${discount}% off`
                             : `Players ${fmtInt(row.current_players)}`;

@@ -94,10 +94,12 @@ body {
     gap: 10px;
 }
 
-.brand-logo {
-    display: block;
-    width: auto;
-    height: 34px;
+.brand-text {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    color: var(--text);
 }
 
 .brand-title {
@@ -410,8 +412,8 @@ body {
         gap: 8px;
     }
 
-    .brand-logo {
-        height: 28px;
+    .brand-text {
+        font-size: 21px;
     }
 
     .brand-title {
@@ -536,8 +538,7 @@ body {
 <div class="page">
     <div class="topbar">
     <div class="brand" aria-label="GameDen.gg Tracked Items">
-        <img class="brand-logo" src="/assets/logo/gameden-logo-static.webp" alt="GameDen logo" loading="lazy" decoding="async">
-        <span class="sr-only">GameDen.gg</span>
+        <span class="brand-text">GameDen.gg</span>
         <span class="brand-title">Tracked Items</span>
     </div>
         <div class="actions">

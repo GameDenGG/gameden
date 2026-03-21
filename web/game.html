@@ -1478,7 +1478,11 @@ const initialGameIdentifier = getInitialGameIdentifier();
 function normalizeResolvedGamePayload(payload) {
     if (!payload || typeof payload !== "object") return null;
 
-    const normalizedId = parsePositiveInt(payload.game_id ?? payload.id);
+    const normalizedId =
+    parsePositiveInt(payload.game_id)
+    ?? parsePositiveInt(payload.id)
+    ?? parsePositiveInt(payload.appid)
+    ?? parsePositiveInt(payload.steam_appid);
     const normalizedAppIdRaw = payload.steam_appid ?? payload.appid ?? payload.steam_app_id;
     const normalizedAppId = String(normalizedAppIdRaw || "").trim() || null;
 
@@ -2482,11 +2486,36 @@ async function loadGame() {
         return;
     }
 
-    const resolvedPayload = await fetchJson(`/games/resolve/${encodeURIComponent(requestedIdentifier)}`).catch(() => null);
-    const payload = normalizeResolvedGamePayload(resolvedPayload);
+    let resolvedPayload;
+try {
+    resolvedPayload = await fetchJson(`/games/resolve/${encodeURIComponent(requestedIdentifier)}`);
+} catch (error) {
+    console.error("Game resolve failed", {
+        requestedIdentifier,
+        error,
+    });
 
-    if (!payload || payload.error) {
-        const message = payload?.error || "Game not found";
+    const status = error?.status ?? error?.response?.status ?? null;
+    const message = status === 404 ? "Game not found" : "Failed to load game";
+
+    if (shareDealButton instanceof HTMLButtonElement) {
+        shareDealButton.disabled = true;
+    }
+    if (discoveryPanel instanceof HTMLElement) {
+        discoveryPanel.hidden = true;
+    }
+    clearLoadingChrome();
+    document.getElementById("gameTitle").innerText = message;
+    if (contentGrid instanceof HTMLElement) {
+        contentGrid.innerHTML = `<div class="error">${message}</div>`;
+    }
+    return;
+}
+
+const payload = normalizeResolvedGamePayload(resolvedPayload);
+
+if (!payload || payload.error) {
+    const message = payload?.error || "Game not found";
         if (shareDealButton instanceof HTMLButtonElement) {
             shareDealButton.disabled = true;
         }

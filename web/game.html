@@ -2369,6 +2369,7 @@ function applyHeroDecisionState(payload) {
 
 async function loadGame() {
     setStoreCta("");
+    const contentGrid = document.querySelector(".content-grid");
     const discoveryPanel = document.querySelector(".discovery-panel");
     if (discoveryPanel instanceof HTMLElement) {
         discoveryPanel.hidden = false;
@@ -2386,7 +2387,9 @@ async function loadGame() {
         }
         clearLoadingChrome();
         document.getElementById("gameTitle").innerText = "Missing game identifier";
-        document.querySelector(".content-grid").innerHTML = `<div class="error">A game path identifier, game_id query, or game_name query is required.</div>`;
+        if (contentGrid instanceof HTMLElement) {
+            contentGrid.innerHTML = `<div class="error">A game path identifier, game_id query, or game_name query is required.</div>`;
+        }
         return;
     }
 
@@ -2414,7 +2417,9 @@ async function loadGame() {
         }
         clearLoadingChrome();
         document.getElementById("gameTitle").innerText = message;
-        document.querySelector(".content-grid").innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+        if (contentGrid instanceof HTMLElement) {
+            contentGrid.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+        }
         return;
     }
 

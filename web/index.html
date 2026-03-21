@@ -1068,12 +1068,12 @@ input:focus-visible {
 }
 
 #recommendedForYouPanel .panel-head {
-    flex-wrap: wrap;
-    align-items: center;
+    flex-wrap: nowrap;
+    align-items: flex-start;
 }
 
 #recommendedForYouPanel .panel-head .panel-title-wrap {
-    flex: 1 1 220px;
+    flex: 1 1 0;
 }
 
 #recommendedForYouPanel .panel-head .row-nav {
@@ -3268,20 +3268,6 @@ input:focus-visible {
         justify-self: end;
         align-self: start;
         margin: 0;
-    }
-    #recommendedForYouPanel .panel-head {
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: start;
-    }
-    #recommendedForYouPanel .panel-head .panel-title-wrap {
-        min-width: 0;
-    }
-    #recommendedForYouPanel .panel-head .row-nav {
-        grid-column: 2;
-        grid-row: 1;
-        margin-left: 0;
-        justify-self: end;
-        align-self: start;
     }
     #recommendedForYouPanel .panel-body {
         padding-top: 0;
@@ -9043,10 +9029,6 @@ input:focus-visible {
             });
         }
 
-        function shouldShowSeasonalAtTop(saleEvent) {
-            return true;
-        }
-
         function updateSeasonalRowNavVisibility(position) {
             const isTop = position === "top";
             const panel = isTop ? ui.seasonalSaleTopPanel : ui.seasonalSaleLowerPanel;
@@ -9148,8 +9130,7 @@ input:focus-visible {
         }
 
         function renderSeasonalSale() {
-            const saleEvent = state.seasonalSale.sale_event;
-            const showTop = shouldShowSeasonalAtTop(saleEvent);
+            const showTop = true;
 
             ui.seasonalSaleTopPanel.classList.toggle("hidden", !showTop);
             ui.seasonalSaleLowerPanel.classList.toggle("hidden", showTop);

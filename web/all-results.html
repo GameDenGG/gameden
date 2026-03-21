@@ -499,7 +499,7 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
         state.rows = unique(rows); state.total = state.rows.length; state.totalPages = 1; render(state.rows, false); setCount(state.total, state.rows.length); if (!state.rows.length) setStatus(defaultEmptyMessage());
         return;
       }
-      const payload = await fetchJson("/dashboard/home"); const rows = Array.isArray(byPath(payload, DASHBOARD_VIEWS[state.view]?.key)) ? byPath(payload, DASHBOARD_VIEWS[state.view]?.key) : []; state.rows = unique(rows); state.total = state.rows.length; state.totalPages = 1; render(state.rows, false); setCount(state.total, state.rows.length); if (!state.rows.length) setStatus("No items are available for this section yet.");
+      const payload = await fetchJson("/dashboard/home"); const homeRows = byPath(payload, DASHBOARD_VIEWS[state.view]?.key); const rows = Array.isArray(homeRows) ? homeRows : []; state.rows = unique(rows); state.total = state.rows.length; state.totalPages = 1; render(state.rows, false); setCount(state.total, state.rows.length); if (!state.rows.length) setStatus("No items are available for this section yet.");
     }
     catch { ui.grid.innerHTML = ""; setStatus(state.seoSlug ? "Failed to load this discovery page." : "Failed to load this discovery section.", true); }
     finally { state.loading = false; updateMore(); }

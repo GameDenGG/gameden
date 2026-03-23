@@ -203,10 +203,11 @@
     const priorUserId = readStoredUserId();
     const result = await client.auth.signUp({ email, password });
     if (result.error) throw result.error;
-    const identity = await syncIdentityFromSession();
-    if (identity.loggedIn && isAnonUserId(priorUserId)) {
+    const hasAuthSession = !!(result && result.data && result.data.session && result.data.session.user && result.data.session.user.id);
+    if (hasAuthSession && isAnonUserId(priorUserId)) {
       await mergeGuestLists(priorUserId);
     }
+    const identity = await syncIdentityFromSession({ forceEvent: true });
     clearDashboardSnapshot();
     dispatchAccountEvent("signup_success", {
       previous_user_id: priorUserId || null,
@@ -228,10 +229,11 @@
     const priorUserId = readStoredUserId();
     const result = await client.auth.signInWithPassword({ email, password });
     if (result.error) throw result.error;
-    const identity = await syncIdentityFromSession();
-    if (identity.loggedIn && isAnonUserId(priorUserId)) {
+    const hasAuthSession = !!(result && result.data && result.data.session && result.data.session.user && result.data.session.user.id);
+    if (hasAuthSession && isAnonUserId(priorUserId)) {
       await mergeGuestLists(priorUserId);
     }
+    const identity = await syncIdentityFromSession({ forceEvent: true });
     clearDashboardSnapshot();
     dispatchAccountEvent("login_success", {
       previous_user_id: priorUserId || null,

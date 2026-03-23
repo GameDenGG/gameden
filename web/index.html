@@ -10631,16 +10631,29 @@ input:focus-visible {
             }
         }
 
-        function navigateToSearchResult(index) {
-            const visibleResults = getVisibleSearchResults();
-            if (!visibleResults.length) return false;
-            const safeIndex = Math.max(0, Math.min(visibleResults.length - 1, Number(index) || 0));
-            const selected = visibleResults[safeIndex];
-            const targetHref = resolveSearchResultHref(selected);
+        function navigateToSearchHref(rawHref) {
+            const targetHref = String(rawHref || "").trim();
             if (!targetHref) return false;
             closeSearchResults();
             window.location.assign(targetHref);
             return true;
+        }
+
+        function getRenderedSearchResultHref(index) {
+            const safeIndex = Math.max(0, Number(index) || 0);
+            const node = document.getElementById(`search-result-option-${safeIndex}`);
+            if (!(node instanceof HTMLAnchorElement)) return "";
+            return String(node.getAttribute("href") || node.href || "").trim();
+        }
+
+        function navigateToSearchResult(index) {
+            const visibleResults = getVisibleSearchResults();
+            if (!visibleResults.length) return false;
+            const safeIndex = Math.max(0, Math.min(visibleResults.length - 1, Number(index) || 0));
+            const renderedHref = getRenderedSearchResultHref(safeIndex);
+            if (renderedHref) return navigateToSearchHref(renderedHref);
+            const selected = visibleResults[safeIndex];
+            return navigateToSearchHref(resolveSearchResultHref(selected));
         }
 
         function collectSearchFallbackPool() {
@@ -13602,8 +13615,29 @@ try {
                 }
                 const nextIndex = Number(option.getAttribute("data-search-index"));
                 if (!Number.isFinite(nextIndex)) return;
+                const rowHref = String(option.getAttribute("href") || "").trim();
+                if (!rowHref) return;
                 event.preventDefault();
-                navigateToSearchResult(nextIndex);
+                setSearchActiveIndex(nextIndex);
+                navigateToSearchHref(rowHref);
+            });
+
+            ui.searchResultsList.addEventListener("keydown", (event) => {
+                const key = String(event.key || "");
+                const isActivationKey = key === "Enter" || key === " " || key === "Spacebar";
+                if (!isActivationKey) return;
+                const target = event.target;
+                if (!(target instanceof Element)) return;
+                const option = target.closest("a[data-search-index]");
+                if (!option) return;
+                const nextIndex = Number(option.getAttribute("data-search-index"));
+                if (Number.isFinite(nextIndex)) {
+                    setSearchActiveIndex(nextIndex);
+                }
+                const rowHref = String(option.getAttribute("href") || "").trim();
+                if (!rowHref) return;
+                event.preventDefault();
+                navigateToSearchHref(rowHref);
             });
 
             ui.searchResultsList.addEventListener("mousemove", (event) => {

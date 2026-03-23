@@ -28,9 +28,10 @@ class SearchRelevanceContractTests(unittest.TestCase):
         self.assertIn("CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END", self.text)
         self.assertIn("CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END", self.text)
         self.assertIn("sim DESC", self.text)
-        self.assertIn("COALESCE(s.deal_score, 0) DESC", self.text)
+        self.assertIn("popularity_score * 22.0", self.text)
+        self.assertNotIn("COALESCE(s.deal_score, 0) DESC", self.text)
+        self.assertNotIn("lexical_score += deal_score", self.text)
 
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -1469,6 +1469,12 @@ function getQueryGameIdentifier() {
 }
 
 function getInitialGameIdentifier() {
+    const explicitNumericQueryId =
+        parsePositiveInt(getQueryParam("game_id"))
+        ?? parsePositiveInt(getQueryParam("id"))
+        ?? parsePositiveInt(getQueryParam("appid"));
+    if (explicitNumericQueryId !== null) return String(explicitNumericQueryId);
+
     const pathIdentifier = String(getPathGameRef() || "").trim().replace(/^\/+|\/+$/g, "");
     if (pathIdentifier) return pathIdentifier;
 

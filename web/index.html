@@ -4528,6 +4528,7 @@ input:focus-visible {
         const HERO_LOGO_FALLBACK_TIMEOUT_MS = 8000;
         const HERO_LOGO_FADE_DURATION_MS = 340;
         const SEARCH_INPUT_DEBOUNCE_MS = 150;
+        const SEARCH_MIN_QUERY_CHARS = 2;
         const SEARCH_CACHE_TTL_MS = 60 * 1000;
         const SEARCH_CATALOG_RELOAD_DEBOUNCE_MS = 450;
         const HOMEPAGE_SECTION_LIMITS = Object.freeze({
@@ -6026,6 +6027,10 @@ input:focus-visible {
             const canonicalSteamAppId = /^\d+$/.test(canonicalSteamAppIdRaw) ? canonicalSteamAppIdRaw : null;
             const canonicalSlugRaw = String(row.slug ?? row.game_slug ?? "").trim();
             const canonicalSlug = canonicalSlugRaw || "";
+            const canonicalPathRaw = String(row.canonical_path ?? "").trim();
+            const canonicalPath = canonicalPathRaw || null;
+            const canonicalUrlRaw = String(row.canonical_url ?? "").trim();
+            const canonicalUrl = canonicalUrlRaw || null;
             const normalizedReviewScore = Number(row.review_score ?? row.reviewScore ?? null);
             const hasReviewScore = Number.isFinite(normalizedReviewScore) && normalizedReviewScore > 0;
             const normalizedReviewLabel = String(
@@ -6043,6 +6048,8 @@ input:focus-visible {
                 canonical_game_id: canonicalGameId,
                 canonical_steam_appid: canonicalSteamAppId,
                 canonical_game_slug: canonicalSlug,
+                canonical_path: canonicalPath,
+                canonical_url: canonicalUrl,
                 banner_url: row.banner_url ?? row.image_url ?? row.header_image ?? row.image ?? null,
                 image_url: row.image_url ?? row.banner_url ?? row.header_image ?? row.image ?? null,
                 price: row.price ?? row.latest_price ?? null,
@@ -6131,11 +6138,42 @@ input:focus-visible {
             return selected;
         }
 
+        function appendGameIdQueryFallback(path, normalizedGame) {
+            const rawPath = String(path || "").trim();
+            if (!rawPath) return "/game";
+            const gameId = toPositiveIntOrNull(
+                normalizedGame?.canonical_game_id
+                ?? normalizedGame?.game_id
+                ?? normalizedGame?.id,
+            );
+            if (gameId === null) return rawPath;
+            try {
+                const parsed = new URL(rawPath, window.location.origin);
+                if (!parsed.pathname.startsWith("/game/")) {
+                    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+                }
+                if (!parsed.searchParams.has("game_id")) {
+                    const params = parsed.searchParams;
+                    params.set("game_id", String(gameId));
+                }
+                return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+            } catch {
+                if (!rawPath.startsWith("/game/")) return rawPath;
+                const joiner = rawPath.includes("?") ? "&" : "?";
+                return `${rawPath}${joiner}game_id=${encodeURIComponent(String(gameId))}`;
+            }
+        }
+
         function buildGameDetailHref(gameLike) {
             const normalized = normalizeGameRow(gameLike);
+            const canonicalPath = String(normalized?.canonical_path || "").trim();
+            if (canonicalPath) {
+                return appendGameIdQueryFallback(canonicalPath, normalized);
+            }
+
             const runtime = window.GameDenSite;
             if (runtime && typeof runtime.buildGamePath === "function") {
-                return runtime.buildGamePath(
+                const runtimePath = runtime.buildGamePath(
                     {
                         slug: normalized?.canonical_game_slug || normalized?.slug || normalized?.game_slug,
                         game_id: normalized?.canonical_game_id ?? normalized?.game_id ?? normalized?.id,
@@ -6148,6 +6186,7 @@ input:focus-visible {
                         allowAppIdFallback: true,
                     },
                 );
+                return appendGameIdQueryFallback(runtimePath, normalized);
             }
 
             const fallbackName = String(normalized?.game_name || "").trim();
@@ -6155,9 +6194,9 @@ input:focus-visible {
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, "-")
                 .replace(/^-+|-+$/g, "");
-            if (fallbackSlug) return `/game/${fallbackSlug}`;
+            if (fallbackSlug) return appendGameIdQueryFallback(`/game/${fallbackSlug}`, normalized);
             const canonicalGameId = toPositiveIntOrNull(normalized?.canonical_game_id);
-            if (canonicalGameId !== null) return `/game/${canonicalGameId}`;
+            if (canonicalGameId !== null) return appendGameIdQueryFallback(`/game/${canonicalGameId}`, normalized);
             return "/game";
         }
 
@@ -10750,12 +10789,12 @@ input:focus-visible {
 
         async function refreshSearchResults() {
             const trimmed = String(state.filters.search || "").trim();
-            if (!trimmed) {
+            if (!trimmed || trimmed.length < SEARCH_MIN_QUERY_CHARS) {
                 clearSearchRequest();
                 state.search.results = [];
                 state.search.loading = false;
                 state.search.error = null;
-                state.search.query = "";
+                state.search.query = trimmed;
                 state.search.activeIndex = -1;
                 renderSearchResults();
                 return;
@@ -10766,19 +10805,16 @@ input:focus-visible {
             state.search.error = null;
             state.search.activeIndex = -1;
             const cachedRows = getCachedSearchRows(trimmed);
-            const fallbackRows = cachedRows && cachedRows.length ? cachedRows : searchFallbackPool(trimmed, 10);
-            const shouldFetchRemote = !cachedRows;
-            state.search.loading = shouldFetchRemote;
-            if (fallbackRows.length) {
-                state.search.results = uniqueGamesByName(fallbackRows.map(normalizeGameRow));
-            } else {
-                state.search.results = [];
-            }
-            renderSearchResults();
-            if (!shouldFetchRemote) {
+            if (cachedRows && cachedRows.length) {
+                state.search.results = uniqueGamesByName(cachedRows.map(normalizeGameRow));
+                state.search.loading = false;
+                renderSearchResults();
                 state.search.controller = null;
                 return;
             }
+            state.search.results = [];
+            state.search.loading = true;
+            renderSearchResults();
 
             const requestId = Number(state.search.requestId || 0) + 1;
             const controller = new AbortController();
@@ -10812,11 +10848,9 @@ input:focus-visible {
                 );
                 if (!isCurrent) return;
 
-                const errorFallbackRows = searchFallbackPool(trimmed, 20);
-                const hasFallback = errorFallbackRows.length > 0;
                 state.search.loading = false;
-                state.search.results = errorFallbackRows;
-                state.search.error = hasFallback ? null : resolveSearchErrorMessage(error);
+                state.search.results = [];
+                state.search.error = resolveSearchErrorMessage(error);
                 state.search.controller = null;
                 renderSearchResults();
             }
@@ -10826,7 +10860,7 @@ input:focus-visible {
             const query = state.filters.search.trim();
             const results = safeArray(state.search.results);
 
-            if (!query) {
+            if (!query || query.length < SEARCH_MIN_QUERY_CHARS) {
                 closeSearchResults();
                 ui.searchResultsList.innerHTML = "";
                 return;
@@ -13409,9 +13443,23 @@ try {
 
             ui.searchInput.addEventListener("input", (event) => {
                 const value = event.target.value;
+                state.filters.search = String(value || "").trim();
+                state.search.activeIndex = -1;
+                state.search.error = null;
+                if (!state.filters.search || state.filters.search.length < SEARCH_MIN_QUERY_CHARS) {
+                    clearSearchRequest();
+                    state.search.results = [];
+                    state.search.loading = false;
+                    state.search.query = String(state.filters.search || "");
+                    renderSearchResults();
+                } else {
+                    state.search.query = String(state.filters.search || "");
+                    state.search.results = [];
+                    state.search.loading = true;
+                    renderSearchResults();
+                }
                 if (searchInputTimer) clearTimeout(searchInputTimer);
                 searchInputTimer = setTimeout(() => {
-                    state.filters.search = value.trim().toLowerCase();
                     onSearchMutation();
                 }, SEARCH_INPUT_DEBOUNCE_MS);
             });

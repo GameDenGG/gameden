@@ -742,7 +742,21 @@ def _search_token_hit_count(text: str, tokens: list[str]) -> int:
     return sum(1 for token in tokens if token in text)
 
 
-def _score_search_candidate_row(row: dict, normalized_query: str, query_tokens: list[str]) -> tuple[float, int, int, float, float, str]:
+def _search_token_prefix_hit_count(name_tokens: list[str], tokens: list[str]) -> int:
+    if not name_tokens or not tokens:
+        return 0
+    hit_count = 0
+    for token in tokens:
+        if token and any(name_token.startswith(token) for name_token in name_tokens):
+            hit_count += 1
+    return hit_count
+
+
+def _score_search_candidate_row(
+    row: dict,
+    normalized_query: str,
+    query_tokens: list[str],
+) -> tuple[int, float, int, int, float, float, float, str]:
     name = _normalize_search_text(row.get("game_name"))
     developer = _normalize_search_text(row.get("developer"))
     publisher = _normalize_search_text(row.get("publisher"))
@@ -752,27 +766,10 @@ def _score_search_candidate_row(row: dict, normalized_query: str, query_tokens: 
     compact_query = _compact_search_text(normalized_query)
     compact_name = _compact_search_text(name)
 
-    score = 0.0
-    exact_rank = 3
-    if normalized_query:
-        if name == normalized_query:
-            score += 1900.0
-            exact_rank = 0
-        elif name.startswith(normalized_query):
-            score += 1400.0
-            exact_rank = 1
-        elif normalized_query in name:
-            score += 980.0
-            exact_rank = 2
-
-    if compact_query:
-        if compact_name == compact_query:
-            score += 1200.0
-            exact_rank = min(exact_rank, 1)
-        elif compact_query in compact_name:
-            score += 480.0
-        elif compact_name and compact_name in compact_query:
-            score += 360.0
+    name_tokens = [token for token in name.split(" ") if token]
+    token_prefix_hits = _search_token_prefix_hit_count(name_tokens, query_tokens)
+    required_prefix_hits = len([token for token in query_tokens if token])
+    strong_token_prefix = required_prefix_hits > 0 and token_prefix_hits >= required_prefix_hits
 
     name_hits = _search_token_hit_count(name, query_tokens)
     name_hits = max(name_hits, _search_token_hit_count(compact_name, query_tokens))
@@ -782,32 +779,56 @@ def _score_search_candidate_row(row: dict, normalized_query: str, query_tokens: 
     tag_hits = _search_token_hit_count(tags, query_tokens)
     metadata_hits = developer_hits + publisher_hits + genre_hits + tag_hits
 
-    if name_hits > 0:
-        score += float(name_hits) * 220.0
-        if name_hits >= len(query_tokens):
-            score += 520.0
-    score += float(developer_hits) * 70.0
-    score += float(publisher_hits) * 60.0
-    score += float(genre_hits) * 30.0
-    score += float(tag_hits) * 26.0
-
-    if name_hits == 0 and metadata_hits > 0:
-        score -= 280.0
-
     similarity_score = max(0.0, min(safe_num(row.get("sim"), 0.0), 1.0))
     popularity_score = max(0.0, min(safe_num(row.get("popularity_score"), 0.0), 100.0))
     deal_score = max(0.0, min(safe_num(row.get("deal_score"), 0.0), 100.0))
 
-    score += similarity_score * 260.0
-    score += popularity_score * 0.85
-    score += deal_score * 0.35
+    lexical_tier = 6
+    if normalized_query:
+        if name == normalized_query or (compact_query and compact_name == compact_query):
+            lexical_tier = 0
+        elif name.startswith(normalized_query) or (compact_query and compact_name.startswith(compact_query)):
+            lexical_tier = 1
+        elif strong_token_prefix:
+            lexical_tier = 2
+        elif normalized_query in name or (compact_query and compact_query in compact_name):
+            lexical_tier = 3
+        elif name_hits > 0 or similarity_score >= max(SEARCH_SIMILARITY_THRESHOLD, 0.2):
+            lexical_tier = 4
+        elif metadata_hits > 0:
+            lexical_tier = 5
+
+    tier_base_score = {
+        0: 7000.0,
+        1: 6200.0,
+        2: 5400.0,
+        3: 4600.0,
+        4: 3600.0,
+        5: 1500.0,
+        6: 0.0,
+    }
+    lexical_score = tier_base_score.get(lexical_tier, 0.0)
+    lexical_score += float(name_hits) * 220.0
+    lexical_score += float(token_prefix_hits) * 180.0
+    if strong_token_prefix:
+        lexical_score += 300.0
+    lexical_score += similarity_score * 140.0
+    lexical_score += float(developer_hits) * 22.0
+    lexical_score += float(publisher_hits) * 18.0
+    lexical_score += float(genre_hits) * 8.0
+    lexical_score += float(tag_hits) * 8.0
+    lexical_score += deal_score * 0.1
+    if lexical_tier >= 5:
+        lexical_score -= 320.0
 
     return (
-        score,
-        exact_rank,
+        lexical_tier,
+        lexical_score,
+        token_prefix_hits,
         name_hits,
         popularity_score,
         deal_score,
+        similarity_score,
         name,
     )
 
@@ -825,12 +846,14 @@ def _rank_search_rows(rows: list[dict], normalized_query: str, limit: int) -> li
 
     scored_rows.sort(
         key=lambda entry: (
-            -entry[0][0],
-            entry[0][1],
+            entry[0][0],
+            -entry[0][1],
             -entry[0][2],
             -entry[0][3],
+            -entry[0][6],
             -entry[0][4],
-            entry[0][5],
+            -entry[0][5],
+            entry[0][7],
         )
     )
 
@@ -4713,6 +4736,8 @@ def search_games_fast(
                 "game_name": row["game_name"],
                 "slug": _canonical_game_slug(row["game_name"], row["id"]),
                 "game_slug": _canonical_game_slug(row["game_name"], row["id"]),
+                "canonical_path": _canonical_game_detail_path(row["game_name"], row["id"]),
+                "canonical_url": _build_canonical_url(_canonical_game_detail_path(row["game_name"], row["id"])),
                 "developer": row.get("developer"),
                 "publisher": row.get("publisher"),
                 "genres": parse_csv_field(row.get("genres_csv")),

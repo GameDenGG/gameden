@@ -4977,10 +4977,13 @@ input:focus-visible {
                 loading: false,
                 error: null,
                 query: "",
+                queryKey: "",
                 activeIndex: -1,
                 requestId: 0,
                 controller: null,
                 cache: new Map(),
+                lastRequestedQueryKey: "",
+                lastAppliedQueryKey: "",
             },
             catalog: {
                 loading: false,
@@ -10752,6 +10755,14 @@ input:focus-visible {
             return "Search failed. Please try again.";
         }
 
+        function normalizeSearchQueryKey(query) {
+            return String(query || "")
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, " ")
+                .trim()
+                .replace(/\s+/g, " ");
+        }
+
         function getSearchCacheMap() {
             if (!(state.search.cache instanceof Map)) {
                 state.search.cache = new Map();
@@ -10760,7 +10771,7 @@ input:focus-visible {
         }
 
         function getCachedSearchRows(query) {
-            const key = String(query || "").trim().toLowerCase();
+            const key = normalizeSearchQueryKey(query);
             if (!key) return null;
             const cache = getSearchCacheMap();
             const entry = cache.get(key);
@@ -10774,7 +10785,7 @@ input:focus-visible {
         }
 
         function setCachedSearchRows(query, rows) {
-            const key = String(query || "").trim().toLowerCase();
+            const key = normalizeSearchQueryKey(query);
             if (!key) return;
             const cache = getSearchCacheMap();
             cache.set(key, {
@@ -10787,32 +10798,66 @@ input:focus-visible {
             }
         }
 
-        async function refreshSearchResults() {
+        async function refreshSearchResults(options = {}) {
+            const force = options.force === true;
             const trimmed = String(state.filters.search || "").trim();
-            if (!trimmed || trimmed.length < SEARCH_MIN_QUERY_CHARS) {
+            const queryKey = normalizeSearchQueryKey(trimmed);
+            state.search.query = trimmed;
+            state.search.queryKey = queryKey;
+
+            if (!trimmed) {
                 clearSearchRequest();
                 state.search.results = [];
                 state.search.loading = false;
                 state.search.error = null;
-                state.search.query = trimmed;
+                state.search.query = "";
+                state.search.queryKey = "";
+                state.search.lastRequestedQueryKey = "";
+                state.search.lastAppliedQueryKey = "";
                 state.search.activeIndex = -1;
                 renderSearchResults();
                 return;
             }
 
-            clearSearchRequest();
-            state.search.query = trimmed;
-            state.search.error = null;
-            state.search.activeIndex = -1;
-            const cachedRows = getCachedSearchRows(trimmed);
-            if (cachedRows && cachedRows.length) {
-                state.search.results = uniqueGamesByName(cachedRows.map(normalizeGameRow));
+            if (queryKey.length < SEARCH_MIN_QUERY_CHARS) {
+                clearSearchRequest();
                 state.search.loading = false;
+                state.search.error = null;
+                state.search.activeIndex = -1;
                 renderSearchResults();
-                state.search.controller = null;
                 return;
             }
-            state.search.results = [];
+
+            state.search.error = null;
+            state.search.activeIndex = -1;
+            if (!force && state.search.loading && state.search.lastRequestedQueryKey === queryKey) {
+                renderSearchResults();
+                return;
+            }
+            if (
+                !force
+                && !state.search.loading
+                && state.search.lastAppliedQueryKey === queryKey
+                && !state.search.error
+            ) {
+                renderSearchResults();
+                return;
+            }
+
+            const cachedRows = getCachedSearchRows(queryKey);
+            if (!force && cachedRows && cachedRows.length) {
+                clearSearchRequest();
+                state.search.results = uniqueGamesByName(cachedRows.map(normalizeGameRow));
+                state.search.loading = false;
+                state.search.error = null;
+                renderSearchResults();
+                state.search.controller = null;
+                state.search.lastRequestedQueryKey = queryKey;
+                state.search.lastAppliedQueryKey = queryKey;
+                return;
+            }
+
+            clearSearchRequest();
             state.search.loading = true;
             renderSearchResults();
 
@@ -10820,6 +10865,7 @@ input:focus-visible {
             const controller = new AbortController();
             state.search.requestId = requestId;
             state.search.controller = controller;
+            state.search.lastRequestedQueryKey = queryKey;
 
             try {
                 const params = new URLSearchParams();
@@ -10834,11 +10880,12 @@ input:focus-visible {
                 if (!isCurrent) return;
 
                 const remoteRows = uniqueGamesByName(safeArray(payload?.items ?? payload).map(normalizeGameRow));
-                setCachedSearchRows(trimmed, remoteRows);
+                setCachedSearchRows(queryKey, remoteRows);
                 state.search.results = remoteRows;
                 state.search.loading = false;
                 state.search.error = null;
                 state.search.controller = null;
+                state.search.lastAppliedQueryKey = queryKey;
                 renderSearchResults();
             } catch (error) {
                 if (isAbortLikeError(error)) return;
@@ -10849,9 +10896,12 @@ input:focus-visible {
                 if (!isCurrent) return;
 
                 state.search.loading = false;
-                state.search.results = [];
-                state.search.error = resolveSearchErrorMessage(error);
                 state.search.controller = null;
+                if (!safeArray(state.search.results).length) {
+                    state.search.error = resolveSearchErrorMessage(error);
+                } else {
+                    state.search.error = null;
+                }
                 renderSearchResults();
             }
         }
@@ -10860,9 +10910,15 @@ input:focus-visible {
             const query = state.filters.search.trim();
             const results = safeArray(state.search.results);
 
-            if (!query || query.length < SEARCH_MIN_QUERY_CHARS) {
+            if (!query) {
                 closeSearchResults();
                 ui.searchResultsList.innerHTML = "";
+                return;
+            }
+
+            if (query.length < SEARCH_MIN_QUERY_CHARS && !results.length) {
+                ui.searchResultsList.innerHTML = `<div class="search-result-empty">Type at least ${SEARCH_MIN_QUERY_CHARS} characters.</div>`;
+                openSearchResults();
                 return;
             }
 
@@ -10872,7 +10928,7 @@ input:focus-visible {
                 return;
             }
 
-            if (state.search.error) {
+            if (state.search.error && !results.length) {
                 ui.searchResultsList.innerHTML = `<div class="search-result-empty">${escapeHtml(state.search.error)}</div>`;
                 openSearchResults();
                 return;
@@ -13444,18 +13500,27 @@ try {
             ui.searchInput.addEventListener("input", (event) => {
                 const value = event.target.value;
                 state.filters.search = String(value || "").trim();
+                const queryKey = normalizeSearchQueryKey(state.filters.search);
                 state.search.activeIndex = -1;
                 state.search.error = null;
-                if (!state.filters.search || state.filters.search.length < SEARCH_MIN_QUERY_CHARS) {
+                state.search.query = state.filters.search;
+                state.search.queryKey = queryKey;
+                if (!state.filters.search) {
                     clearSearchRequest();
                     state.search.results = [];
                     state.search.loading = false;
-                    state.search.query = String(state.filters.search || "");
+                    state.search.query = "";
+                    state.search.queryKey = "";
+                    state.search.lastRequestedQueryKey = "";
+                    state.search.lastAppliedQueryKey = "";
                     renderSearchResults();
                 } else {
-                    state.search.query = String(state.filters.search || "");
-                    state.search.results = [];
-                    state.search.loading = true;
+                    if (queryKey.length < SEARCH_MIN_QUERY_CHARS) {
+                        clearSearchRequest();
+                        state.search.loading = false;
+                    } else if (safeArray(state.search.results).length) {
+                        state.search.loading = false;
+                    }
                     renderSearchResults();
                 }
                 if (searchInputTimer) clearTimeout(searchInputTimer);
@@ -13465,9 +13530,18 @@ try {
             });
 
             ui.searchInput.addEventListener("focus", () => {
-                if (String(state.filters.search || "").trim()) {
-                    void refreshSearchResults();
+                const query = String(state.filters.search || "").trim();
+                if (!query) return;
+                if (safeArray(state.search.results).length) {
+                    renderSearchResults();
+                    return;
                 }
+                const queryKey = normalizeSearchQueryKey(query);
+                if (!queryKey || state.search.lastRequestedQueryKey === queryKey || state.search.lastAppliedQueryKey === queryKey) {
+                    renderSearchResults();
+                    return;
+                }
+                void refreshSearchResults();
             });
 
             ui.searchInput.addEventListener("keydown", (event) => {

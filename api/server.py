@@ -4560,12 +4560,13 @@ def search_games_fast(
             return []
 
         normalized_query = _normalize_search_text(query_text)
+        compact_normalized_query = normalized_query.replace(" ", "")
         normalized_limit = max(1, min(int(limit), 20))
         query_tokens = _search_tokens(normalized_query)
         tokenized_query = "%".join(query_tokens) if len(query_tokens) > 1 else ""
-        candidate_limit = min(30, max(12, normalized_limit * 2))
+        candidate_limit = min(120, max(40, normalized_limit * 8))
         if len(normalized_query) <= 2:
-            candidate_limit = min(24, max(10, normalized_limit * 2))
+            candidate_limit = min(80, max(24, normalized_limit * 6))
         rows = []
 
         if len(normalized_query) <= 2:
@@ -4599,19 +4600,25 @@ def search_games_fast(
                     WHERE
                         lower(g.name) LIKE (:normalized_q || '%')
                         OR lower(g.name) LIKE ('%' || :normalized_q || '%')
+                        OR (
+                            :normalized_q_compact <> ''
+                            AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE ('%' || :normalized_q_compact || '%')
+                        )
                         OR (:tokenized_q <> '' AND lower(g.name) LIKE ('%' || :tokenized_q || '%'))
                     ORDER BY
                         CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
                         CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
-                        COALESCE(s.popularity_score, 0) DESC,
-                        COALESCE(s.upcoming_hot_score, 0) DESC,
+                        CASE WHEN lower(g.name) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
+                        length(g.name) ASC,
                         COALESCE(s.deal_score, 0) DESC,
+                        COALESCE(s.popularity_score, 0) DESC,
                         g.name ASC
                     LIMIT :limit
                     """
                 ),
                 {
                     "normalized_q": normalized_query,
+                    "normalized_q_compact": compact_normalized_query,
                     "tokenized_q": tokenized_query,
                     "limit": candidate_limit,
                 },
@@ -4649,6 +4656,10 @@ def search_games_fast(
                         WHERE
                             g.name ILIKE ('%' || :q || '%')
                             OR (:tokenized_q <> '' AND lower(g.name) LIKE ('%' || :tokenized_q || '%'))
+                            OR (
+                                :normalized_q_compact <> ''
+                                AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE ('%' || :normalized_q_compact || '%')
+                            )
                             OR COALESCE(g.developer, '') ILIKE ('%' || :q || '%')
                             OR COALESCE(g.publisher, '') ILIKE ('%' || :q || '%')
                             OR COALESCE(s.genres, COALESCE(g.genres, '')) ILIKE ('%' || :q || '%')
@@ -4667,13 +4678,14 @@ def search_games_fast(
                         """
                     ),
                     {
-                        "q": query_text,
-                        "normalized_q": normalized_query,
-                        "tokenized_q": tokenized_query,
-                        "sim_threshold": SEARCH_SIMILARITY_THRESHOLD,
-                        "limit": candidate_limit,
-                    },
-                ).mappings().all()
+                            "q": query_text,
+                            "normalized_q": normalized_query,
+                            "normalized_q_compact": compact_normalized_query,
+                            "tokenized_q": tokenized_query,
+                            "sim_threshold": SEARCH_SIMILARITY_THRESHOLD,
+                            "limit": candidate_limit,
+                        },
+                    ).mappings().all()
             except Exception:
                 rows = session.execute(
                     text(
@@ -4705,6 +4717,10 @@ def search_games_fast(
                         WHERE
                             g.name ILIKE ('%' || :q || '%')
                             OR (:tokenized_q <> '' AND lower(g.name) LIKE ('%' || :tokenized_q || '%'))
+                            OR (
+                                :normalized_q_compact <> ''
+                                AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE ('%' || :normalized_q_compact || '%')
+                            )
                             OR COALESCE(g.developer, '') ILIKE ('%' || :q || '%')
                             OR COALESCE(g.publisher, '') ILIKE ('%' || :q || '%')
                             OR COALESCE(s.genres, COALESCE(g.genres, '')) ILIKE ('%' || :q || '%')
@@ -4723,6 +4739,7 @@ def search_games_fast(
                     {
                         "q": query_text,
                         "normalized_q": normalized_query,
+                        "normalized_q_compact": compact_normalized_query,
                         "tokenized_q": tokenized_query,
                         "limit": candidate_limit,
                     },

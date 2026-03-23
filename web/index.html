@@ -3534,13 +3534,53 @@ input:focus-visible {
     }
 }
 
+.account-panel-dock {
+    display: flex;
+    justify-content: center;
+    margin-top: 4px;
+}
+
+#accountPanel {
+    width: min(100%, 980px);
+}
+
+.account-panel-headline {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.account-panel-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    border: 1px solid rgba(121, 168, 255, 0.42);
+    background: linear-gradient(165deg, rgba(121, 168, 255, 0.2), rgba(121, 168, 255, 0.07));
+    color: #d8e9ff;
+    flex-shrink: 0;
+}
+
+.account-panel-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
 .account-panel-body {
     display: grid;
-    gap: 10px;
+    gap: 8px;
+}
+
+.account-logged-out {
+    display: grid;
+    gap: 8px;
 }
 
 .account-inputs {
     display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
 }
 
@@ -3551,6 +3591,7 @@ input:focus-visible {
     background: rgba(255, 255, 255, 0.04);
     color: var(--text);
     padding: 8px 10px;
+    min-height: 36px;
 }
 
 .account-actions {
@@ -3560,24 +3601,27 @@ input:focus-visible {
 }
 
 .account-actions .panel-action {
-    min-height: 36px;
+    min-height: 34px;
+    padding: 7px 12px;
 }
 
 .account-meta {
-    display: grid;
-    gap: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .account-pill {
     display: inline-flex;
     align-items: center;
     width: fit-content;
-    padding: 5px 9px;
+    padding: 4px 8px;
     border-radius: 999px;
     border: 1px solid rgba(121, 168, 255, 0.45);
     background: rgba(121, 168, 255, 0.16);
     color: #e9f2ff;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -3590,8 +3634,8 @@ input:focus-visible {
 }
 
 .account-status {
-    min-height: 18px;
-    font-size: 12px;
+    min-height: 16px;
+    font-size: 11px;
     color: var(--muted);
 }
 
@@ -3601,6 +3645,23 @@ input:focus-visible {
 
 .account-status[data-tone="error"] {
     color: #ffd2d8;
+}
+
+.tracked-preview-toggle-wrap {
+    margin-top: 8px;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.tracked-preview-toggle-wrap .show-all-btn {
+    min-height: 30px;
+    padding: 5px 10px;
+}
+
+@media (max-width: 900px) {
+    .account-inputs {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 </head>
@@ -3772,6 +3833,47 @@ input:focus-visible {
                     <button class="home-jump-chip" type="button" data-home-jump-group="Your Radar" data-home-jump-target="recommendedForYouPanel">Your Radar</button>
                     <button class="home-jump-chip" type="button" data-home-jump-group="Market Intelligence" data-home-jump-target="moreIntelSection">Market Intelligence</button>
                 </nav>
+
+                <div class="account-panel-dock">
+                    <section class="panel panel-personal" id="accountPanel">
+                        <div class="panel-head">
+                            <div class="panel-title-wrap account-panel-headline">
+                                <span class="account-panel-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M20 21a8 8 0 0 0-16 0"></path>
+                                        <circle cx="12" cy="8" r="4"></circle>
+                                    </svg>
+                                </span>
+                                <div>
+                                    <h2 class="panel-title">Account</h2>
+                                    <div class="panel-subtitle">Sync your wishlist, watchlist, and deal alerts across devices.</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="panel-body account-panel-body">
+                            <div class="account-logged-out" id="accountLoggedOut">
+                                <div class="account-inputs">
+                                    <input id="accountEmailInput" type="email" placeholder="Email" autocomplete="email">
+                                    <input id="accountPasswordInput" type="password" placeholder="Password" autocomplete="current-password">
+                                </div>
+                                <div class="account-actions">
+                                    <button class="panel-action" id="accountSignupBtn" type="button">Create Account</button>
+                                    <button class="panel-action" id="accountLoginBtn" type="button">Log In</button>
+                                </div>
+                            </div>
+                            <div class="account-logged-in hidden" id="accountLoggedIn">
+                                <div class="account-meta">
+                                    <div class="account-pill" id="accountIdentityPill">Signed in</div>
+                                    <div class="account-email" id="accountEmailText"></div>
+                                </div>
+                                <div class="account-actions">
+                                    <button class="panel-action" id="accountLogoutBtn" type="button">Log Out</button>
+                                </div>
+                            </div>
+                            <div class="account-status" id="accountStatusText"></div>
+                        </div>
+                    </section>
+                </div>
             </div>
 
             <div class="homepage-content-shell">
@@ -4104,36 +4206,6 @@ input:focus-visible {
                         Alerts
                     </button>
                 </div>
-                <section class="panel panel-personal" id="accountPanel">
-                    <div class="panel-head">
-                        <div class="panel-title-wrap">
-                            <h2 class="panel-title">Account</h2>
-                            <div class="panel-subtitle">Sync your wishlist, watchlist, and deal alerts across devices.</div>
-                        </div>
-                    </div>
-                    <div class="panel-body account-panel-body">
-                        <div class="account-logged-out" id="accountLoggedOut">
-                            <div class="account-inputs">
-                                <input id="accountEmailInput" type="email" placeholder="Email" autocomplete="email">
-                                <input id="accountPasswordInput" type="password" placeholder="Password" autocomplete="current-password">
-                            </div>
-                            <div class="account-actions">
-                                <button class="panel-action" id="accountSignupBtn" type="button">Create Account</button>
-                                <button class="panel-action" id="accountLoginBtn" type="button">Log In</button>
-                            </div>
-                        </div>
-                        <div class="account-logged-in hidden" id="accountLoggedIn">
-                            <div class="account-meta">
-                                <div class="account-pill" id="accountIdentityPill">Signed in</div>
-                                <div class="account-email" id="accountEmailText"></div>
-                            </div>
-                            <div class="account-actions">
-                                <button class="panel-action" id="accountLogoutBtn" type="button">Log Out</button>
-                            </div>
-                        </div>
-                        <div class="account-status" id="accountStatusText"></div>
-                    </div>
-                </section>
                 <section class="panel panel-personalized hidden" id="recommendedForYouPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -4163,6 +4235,12 @@ input:focus-visible {
                     </div>
                     <div class="panel-body">
                         <div id="wishlistList" class="mini-list"></div>
+                        <div class="tracked-preview-toggle-wrap">
+                            <button class="show-all-btn hidden" id="wishlistToggleBtn" type="button" aria-expanded="false" aria-controls="wishlistList">
+                                View All
+                                <span class="dropdown-arrow">⇊</span>
+                            </button>
+                        </div>
                     </div>
                 </section>
 
@@ -4176,6 +4254,12 @@ input:focus-visible {
                     </div>
                     <div class="panel-body">
                         <div id="watchlistList" class="mini-list"></div>
+                        <div class="tracked-preview-toggle-wrap">
+                            <button class="show-all-btn hidden" id="watchlistToggleBtn" type="button" aria-expanded="false" aria-controls="watchlistList">
+                                View All
+                                <span class="dropdown-arrow">⇊</span>
+                            </button>
+                        </div>
                     </div>
                 </section>
 
@@ -4877,6 +4961,10 @@ input:focus-visible {
             authSync: {
                 lastAppliedTs: 0,
             },
+            trackedPreview: {
+                wishlistExpanded: false,
+                watchlistExpanded: false,
+            },
             visibleCounts: {
                 dealRankedGrid: 6,
                 opportunitiesGrid: 6,
@@ -4952,6 +5040,8 @@ input:focus-visible {
             watchlistPanel: document.getElementById("watchlistPanel"),
             wishlistList: document.getElementById("wishlistList"),
             watchlistList: document.getElementById("watchlistList"),
+            wishlistToggleBtn: document.getElementById("wishlistToggleBtn"),
+            watchlistToggleBtn: document.getElementById("watchlistToggleBtn"),
             discoveryTabsShell: document.getElementById("discoveryTabsShell"),
             discoveryTabsList: document.getElementById("discoveryTabsList"),
             discoveryTabsBody: document.getElementById("discoveryTabsBody"),
@@ -5616,6 +5706,25 @@ input:focus-visible {
                 await refreshDashboardIdentityState();
                 setAccountStatus("Use your account to sync tracked items across devices.");
             })();
+        }
+
+        function wireTrackedPreviewToggles() {
+            if (wireTrackedPreviewToggles._wired) return;
+            wireTrackedPreviewToggles._wired = true;
+
+            if (ui.wishlistToggleBtn instanceof HTMLButtonElement) {
+                ui.wishlistToggleBtn.addEventListener("click", () => {
+                    state.trackedPreview.wishlistExpanded = !state.trackedPreview.wishlistExpanded;
+                    renderWishlist();
+                });
+            }
+
+            if (ui.watchlistToggleBtn instanceof HTMLButtonElement) {
+                ui.watchlistToggleBtn.addEventListener("click", () => {
+                    state.trackedPreview.watchlistExpanded = !state.trackedPreview.watchlistExpanded;
+                    renderWatchlist();
+                });
+            }
         }
 
         function renderSkeleton(container, kind, count = 1, options = {}) {
@@ -9238,48 +9347,130 @@ input:focus-visible {
             panelNode.setAttribute("aria-hidden", isVisible ? "false" : "true");
         }
 
+        function setTrackedPreviewToggleState(button, listType, totalCount, expanded) {
+            if (!(button instanceof HTMLButtonElement)) return;
+            const normalizedType = listType === "watchlist" ? "watchlist" : "wishlist";
+            const clampedTotal = Math.max(0, Number(totalCount) || 0);
+            const hasOverflow = clampedTotal > 3;
+            button.classList.toggle("hidden", !hasOverflow);
+            if (!hasOverflow) {
+                button.setAttribute("aria-expanded", "false");
+                return;
+            }
+            const shouldExpand = !!expanded;
+            const remaining = Math.max(0, clampedTotal - 3);
+            const label = shouldExpand
+                ? "Show Less"
+                : `View All (${clampedTotal})`;
+            const arrow = shouldExpand ? "⇈" : "⇊";
+            button.innerHTML = `${label} <span class="dropdown-arrow">${arrow}</span>`;
+            button.setAttribute("aria-expanded", shouldExpand ? "true" : "false");
+            button.setAttribute("aria-label", shouldExpand
+                ? `Collapse ${normalizedType} preview`
+                : `Expand ${normalizedType} preview with ${remaining} more items`);
+        }
+
+        function getTrackedPreviewRows(items, expanded) {
+            const rows = safeArray(items);
+            if (!rows.length) return [];
+            if (expanded || rows.length <= 3) return rows;
+            return rows.slice(0, 3);
+        }
+
         function renderWishlist() {
             const wishlistItems = safeArray(state.wishlist);
             const wishlistLoading = !!state.personalListStatus?.wishlistLoading;
             const wishlistError = !!state.personalListStatus?.wishlistError;
+            const hasOverflow = wishlistItems.length > 3;
+            if (!hasOverflow) {
+                state.trackedPreview.wishlistExpanded = false;
+            }
             setPanelVisibility(ui.wishlistPanel, wishlistItems.length > 0 || wishlistLoading || wishlistError);
             if (wishlistLoading) {
                 renderSkeleton(ui.wishlistList, "mini-list", 3, { itemClass: "mini-item" });
+                setTrackedPreviewToggleState(
+                    ui.wishlistToggleBtn,
+                    "wishlist",
+                    wishlistItems.length,
+                    state.trackedPreview.wishlistExpanded,
+                );
                 return;
             }
             if (wishlistError) {
                 renderError(ui.wishlistList, "Failed to load wishlist.");
+                setTrackedPreviewToggleState(
+                    ui.wishlistToggleBtn,
+                    "wishlist",
+                    wishlistItems.length,
+                    state.trackedPreview.wishlistExpanded,
+                );
                 return;
             }
             if (!wishlistItems.length) {
                 ui.wishlistList.innerHTML = "";
+                setTrackedPreviewToggleState(
+                    ui.wishlistToggleBtn,
+                    "wishlist",
+                    0,
+                    false,
+                );
                 return;
             }
-            ui.wishlistList.innerHTML = wishlistItems.map((item) => {
+            const previewRows = getTrackedPreviewRows(wishlistItems, !!state.trackedPreview.wishlistExpanded);
+            ui.wishlistList.innerHTML = previewRows.map((item) => {
                 const latest = state.latestPrices.find((game) => game.game_name === item.game_name);
                 const sub = latest ? `${fmtPrice(latest.price)} • score ${fmtInt(latest.deal_score)}` : "Tracked item";
                 return miniItemHtml(item.game_name, sub, "Wishlisted");
             }).join("");
+            setTrackedPreviewToggleState(
+                ui.wishlistToggleBtn,
+                "wishlist",
+                wishlistItems.length,
+                state.trackedPreview.wishlistExpanded,
+            );
         }
 
         function renderWatchlist() {
             const watchlistItems = safeArray(state.watchlist);
             const watchlistLoading = !!state.personalListStatus?.watchlistLoading;
             const watchlistError = !!state.personalListStatus?.watchlistError;
+            const hasOverflow = watchlistItems.length > 3;
+            if (!hasOverflow) {
+                state.trackedPreview.watchlistExpanded = false;
+            }
             setPanelVisibility(ui.watchlistPanel, watchlistItems.length > 0 || watchlistLoading || watchlistError);
             if (watchlistLoading) {
                 renderSkeleton(ui.watchlistList, "mini-list", 3, { itemClass: "mini-item" });
+                setTrackedPreviewToggleState(
+                    ui.watchlistToggleBtn,
+                    "watchlist",
+                    watchlistItems.length,
+                    state.trackedPreview.watchlistExpanded,
+                );
                 return;
             }
             if (watchlistError) {
                 renderError(ui.watchlistList, "Failed to load watchlist.");
+                setTrackedPreviewToggleState(
+                    ui.watchlistToggleBtn,
+                    "watchlist",
+                    watchlistItems.length,
+                    state.trackedPreview.watchlistExpanded,
+                );
                 return;
             }
             if (!watchlistItems.length) {
                 ui.watchlistList.innerHTML = "";
+                setTrackedPreviewToggleState(
+                    ui.watchlistToggleBtn,
+                    "watchlist",
+                    0,
+                    false,
+                );
                 return;
             }
-            ui.watchlistList.innerHTML = watchlistItems.map((item) => {
+            const previewRows = getTrackedPreviewRows(watchlistItems, !!state.trackedPreview.watchlistExpanded);
+            ui.watchlistList.innerHTML = previewRows.map((item) => {
                 const normalized = normalizeGameRow(item);
                 const latest = state.latestPrices.find((game) => {
                     const normalizedGame = normalizeGameRow(game);
@@ -9295,6 +9486,12 @@ input:focus-visible {
                 const sub = `${discount > 0 ? `${discount}% off` : "No sale"} • ${fmtPrice(price)}`;
                 return miniItemHtml(normalized.game_name, sub, signal);
             }).join("");
+            setTrackedPreviewToggleState(
+                ui.watchlistToggleBtn,
+                "watchlist",
+                watchlistItems.length,
+                state.trackedPreview.watchlistExpanded,
+            );
         }
 
         function renderDealRanked() {
@@ -13629,6 +13826,7 @@ try {
                 wireCardActionButtons();
                 wireCatalogLifecycle();
                 wireAccountPanel();
+                wireTrackedPreviewToggles();
                 scheduleNonCriticalHomepageWireup();
 
                 ui.includeFreeCheckbox.checked = state.filters.includeFree;

@@ -3534,29 +3534,46 @@ input:focus-visible {
     }
 }
 
-.account-panel-dock {
-    display: flex;
-    justify-content: center;
-    margin-top: 4px;
+.home-jump-account-slot {
+    margin-left: auto;
+    flex: 0 0 auto;
+    min-width: min(100%, 360px);
 }
 
-#accountPanel {
-    width: min(100%, 980px);
+.account-utility-card {
+    width: clamp(260px, 31vw, 360px);
+    border-radius: 16px;
+    border: 1px solid rgba(121, 168, 255, 0.28);
+    background: linear-gradient(170deg, rgba(14, 25, 44, 0.92), rgba(8, 16, 31, 0.92));
+    box-shadow: 0 12px 28px rgba(2, 7, 20, 0.28);
+    overflow: hidden;
 }
 
-.account-panel-headline {
+.account-utility-toggle {
+    width: 100%;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 10px;
+    min-height: 40px;
+    padding: 8px 10px;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.account-utility-toggle:focus-visible {
+    outline: 2px solid rgba(103, 234, 255, 0.78);
+    outline-offset: -2px;
 }
 
 .account-panel-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 10px;
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
     border: 1px solid rgba(121, 168, 255, 0.42);
     background: linear-gradient(165deg, rgba(121, 168, 255, 0.2), rgba(121, 168, 255, 0.07));
     color: #d8e9ff;
@@ -3564,13 +3581,65 @@ input:focus-visible {
 }
 
 .account-panel-icon svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
+}
+
+.account-utility-summary {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.account-utility-title {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: #ecf4ff;
+}
+
+.account-inline-status {
+    font-size: 11px;
+    color: var(--muted-2);
+    overflow-wrap: anywhere;
+}
+
+.account-utility-chevron {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--muted);
+    transition: transform 0.2s ease;
+}
+
+.account-utility-card.is-expanded .account-utility-chevron {
+    transform: rotate(180deg);
+}
+
+.account-utility-body {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.24s ease, opacity 0.2s ease;
+    border-top: 1px solid rgba(121, 168, 255, 0.16);
+}
+
+.account-utility-card.is-expanded .account-utility-body {
+    max-height: 220px;
+    opacity: 1;
+}
+
+.no-js .account-utility-body {
+    max-height: none;
+    opacity: 1;
 }
 
 .account-panel-body {
     display: grid;
     gap: 8px;
+    padding: 10px;
 }
 
 .account-logged-out {
@@ -3659,6 +3728,19 @@ input:focus-visible {
 }
 
 @media (max-width: 900px) {
+    .home-jump-nav {
+        flex-wrap: wrap;
+        overflow: visible;
+    }
+    .home-jump-account-slot {
+        margin-left: 0;
+        width: 100%;
+        min-width: 0;
+        flex: 1 0 100%;
+    }
+    .account-utility-card {
+        width: 100%;
+    }
     .account-inputs {
         grid-template-columns: 1fr;
     }
@@ -3832,48 +3914,48 @@ input:focus-visible {
                     <button class="home-jump-chip" type="button" data-home-jump-group="Discover" data-home-jump-target="discoveryTabsShell">Discover</button>
                     <button class="home-jump-chip" type="button" data-home-jump-group="Your Radar" data-home-jump-target="recommendedForYouPanel">Your Radar</button>
                     <button class="home-jump-chip" type="button" data-home-jump-group="Market Intelligence" data-home-jump-target="moreIntelSection">Market Intelligence</button>
-                </nav>
-
-                <div class="account-panel-dock">
-                    <section class="panel panel-personal" id="accountPanel">
-                        <div class="panel-head">
-                            <div class="panel-title-wrap account-panel-headline">
+                    <div class="home-jump-account-slot">
+                        <section class="account-utility-card" id="accountPanel">
+                            <button class="account-utility-toggle" id="accountToggleBtn" type="button" aria-expanded="false" aria-controls="accountPanelBody">
                                 <span class="account-panel-icon" aria-hidden="true">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M20 21a8 8 0 0 0-16 0"></path>
                                         <circle cx="12" cy="8" r="4"></circle>
                                     </svg>
                                 </span>
-                                <div>
-                                    <h2 class="panel-title">Account</h2>
-                                    <div class="panel-subtitle">Sync your wishlist, watchlist, and deal alerts across devices.</div>
+                                <span class="account-utility-summary">
+                                    <span class="account-utility-title">Account</span>
+                                    <span class="account-inline-status" id="accountInlineStatus">Sign in to sync tracked items</span>
+                                </span>
+                                <span class="account-utility-chevron" aria-hidden="true">⌄</span>
+                            </button>
+                            <div class="account-utility-body" id="accountPanelBody">
+                                <div class="account-panel-body">
+                                    <div class="account-logged-out" id="accountLoggedOut">
+                                        <div class="account-inputs">
+                                            <input id="accountEmailInput" type="email" placeholder="Email" autocomplete="email">
+                                            <input id="accountPasswordInput" type="password" placeholder="Password" autocomplete="current-password">
+                                        </div>
+                                        <div class="account-actions">
+                                            <button class="panel-action" id="accountSignupBtn" type="button">Create Account</button>
+                                            <button class="panel-action" id="accountLoginBtn" type="button">Log In</button>
+                                        </div>
+                                    </div>
+                                    <div class="account-logged-in hidden" id="accountLoggedIn">
+                                        <div class="account-meta">
+                                            <div class="account-pill" id="accountIdentityPill">Signed in</div>
+                                            <div class="account-email" id="accountEmailText"></div>
+                                        </div>
+                                        <div class="account-actions">
+                                            <button class="panel-action" id="accountLogoutBtn" type="button">Log Out</button>
+                                        </div>
+                                    </div>
+                                    <div class="account-status" id="accountStatusText"></div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="panel-body account-panel-body">
-                            <div class="account-logged-out" id="accountLoggedOut">
-                                <div class="account-inputs">
-                                    <input id="accountEmailInput" type="email" placeholder="Email" autocomplete="email">
-                                    <input id="accountPasswordInput" type="password" placeholder="Password" autocomplete="current-password">
-                                </div>
-                                <div class="account-actions">
-                                    <button class="panel-action" id="accountSignupBtn" type="button">Create Account</button>
-                                    <button class="panel-action" id="accountLoginBtn" type="button">Log In</button>
-                                </div>
-                            </div>
-                            <div class="account-logged-in hidden" id="accountLoggedIn">
-                                <div class="account-meta">
-                                    <div class="account-pill" id="accountIdentityPill">Signed in</div>
-                                    <div class="account-email" id="accountEmailText"></div>
-                                </div>
-                                <div class="account-actions">
-                                    <button class="panel-action" id="accountLogoutBtn" type="button">Log Out</button>
-                                </div>
-                            </div>
-                            <div class="account-status" id="accountStatusText"></div>
-                        </div>
-                    </section>
-                </div>
+                        </section>
+                    </div>
+                </nav>
             </div>
 
             <div class="homepage-content-shell">
@@ -4961,6 +5043,7 @@ input:focus-visible {
             authSync: {
                 lastAppliedTs: 0,
             },
+            accountPanelExpanded: false,
             trackedPreview: {
                 wishlistExpanded: false,
                 watchlistExpanded: false,
@@ -5030,6 +5113,9 @@ input:focus-visible {
             accountStatusText: document.getElementById("accountStatusText"),
             accountIdentityPill: document.getElementById("accountIdentityPill"),
             accountEmailText: document.getElementById("accountEmailText"),
+            accountInlineStatus: document.getElementById("accountInlineStatus"),
+            accountToggleBtn: document.getElementById("accountToggleBtn"),
+            accountPanelBody: document.getElementById("accountPanelBody"),
             moreIntelSection: document.getElementById("moreIntelSection"),
             moreIntelBody: document.getElementById("moreIntelBody"),
             moreIntelToggleBtn: document.getElementById("moreIntelToggleBtn"),
@@ -5554,6 +5640,17 @@ input:focus-visible {
             }
         }
 
+        function setAccountPanelExpanded(expanded) {
+            const nextExpanded = !!expanded;
+            state.accountPanelExpanded = nextExpanded;
+            if (ui.accountPanel) {
+                ui.accountPanel.classList.toggle("is-expanded", nextExpanded);
+            }
+            if (ui.accountToggleBtn instanceof HTMLButtonElement) {
+                ui.accountToggleBtn.setAttribute("aria-expanded", nextExpanded ? "true" : "false");
+            }
+        }
+
         async function refreshDashboardIdentityState(options = {}) {
             const opts = options && typeof options === "object" ? options : {};
             const account = window.GameDenAccount;
@@ -5587,6 +5684,11 @@ input:focus-visible {
             if (ui.accountLoggedIn) ui.accountLoggedIn.classList.toggle("hidden", !loggedIn);
             if (ui.accountIdentityPill) {
                 ui.accountIdentityPill.textContent = loggedIn ? "Signed In" : "Guest Mode";
+            }
+            if (ui.accountInlineStatus) {
+                ui.accountInlineStatus.textContent = loggedIn
+                    ? `Logged in as: ${maskEmail(statePayload?.user?.email || "")}`
+                    : "Sign in to sync tracked items";
             }
             if (ui.accountEmailText) {
                 ui.accountEmailText.textContent = loggedIn
@@ -5632,6 +5734,13 @@ input:focus-visible {
             const signupBtn = ui.accountSignupBtn;
             const loginBtn = ui.accountLoginBtn;
             const logoutBtn = ui.accountLogoutBtn;
+            const toggleBtn = ui.accountToggleBtn;
+
+            if (toggleBtn instanceof HTMLButtonElement) {
+                toggleBtn.addEventListener("click", () => {
+                    setAccountPanelExpanded(!state.accountPanelExpanded);
+                });
+            }
 
             const runAccountAction = async (button, action) => {
                 if (!(button instanceof HTMLButtonElement)) return;
@@ -5639,6 +5748,9 @@ input:focus-visible {
                 try {
                     await action();
                     await refreshDashboardIdentityState();
+                    if (ui.accountLoggedIn && !ui.accountLoggedIn.classList.contains("hidden")) {
+                        setAccountPanelExpanded(false);
+                    }
                 } catch (error) {
                     setAccountStatus(error instanceof Error ? error.message : "Account action failed.", "error");
                 } finally {
@@ -5704,6 +5816,7 @@ input:focus-visible {
                     }
                 }
                 await refreshDashboardIdentityState();
+                setAccountPanelExpanded(false);
                 setAccountStatus("Use your account to sync tracked items across devices.");
             })();
         }

@@ -4439,6 +4439,21 @@ input:focus-visible {
             return normalized === "anonymous" || normalized === "guest";
         }
 
+        function isAuthenticatedAccountUserId(userId) {
+            return String(userId || "").trim().toLowerCase().startsWith("acct_");
+        }
+
+        async function ensureAuthRuntimeForUser(userId) {
+            if (!isAuthenticatedAccountUserId(userId)) return;
+            if (typeof window.getGameDenAuthRuntime === "function") {
+                try {
+                    await window.getGameDenAuthRuntime();
+                } catch {
+                    // Continue with best effort and existing state.
+                }
+            }
+        }
+
         function setNodeText(id, value) {
             const el = document.getElementById(id);
             if (el) {
@@ -4775,6 +4790,8 @@ input:focus-visible {
                 watchlistLoading: false,
                 wishlistError: null,
                 watchlistError: null,
+                wishlistRequestId: 0,
+                watchlistRequestId: 0,
             },
             personalizedStatus: {
                 enabled: false,
@@ -11760,16 +11777,25 @@ try {
 
         function applyPersonalSummaryPayload(payload) {
             if (!payload || typeof payload !== "object") return false;
+            const payloadUserId = String(payload?.user_id || "").trim();
+            const currentUserId = String(CURRENT_USER_ID || "").trim();
+            if (payloadUserId && currentUserId && payloadUserId !== currentUserId) {
+                return false;
+            }
             const wishlistItems = uniqueGamesByName(payload?.wishlist || []);
             const watchlistItems = uniqueGamesByName(payload?.watchlist || []);
             const alertItems = uniqueAlertSignals(payload?.alerts || []);
             let applied = false;
 
-            if (wishlistItems.length && !safeArray(state.wishlist).length) {
+            const previousWishlist = JSON.stringify(uniqueGamesByIdentity(safeArray(state.wishlist)));
+            const nextWishlist = JSON.stringify(uniqueGamesByIdentity(wishlistItems));
+            if (previousWishlist !== nextWishlist) {
                 state.wishlist = wishlistItems;
                 applied = true;
             }
-            if (watchlistItems.length && !safeArray(state.watchlist).length) {
+            const previousWatchlist = JSON.stringify(uniqueGamesByIdentity(safeArray(state.watchlist)));
+            const nextWatchlist = JSON.stringify(uniqueGamesByIdentity(watchlistItems));
+            if (previousWatchlist !== nextWatchlist) {
                 state.watchlist = watchlistItems;
                 applied = true;
             }
@@ -11792,16 +11818,21 @@ try {
         }
 
         async function loadPersonalSummary() {
-            const canLoadPersonalData = !isAnonymousOrGuestUserId(CURRENT_USER_ID);
+            const requestedUserId = String(CURRENT_USER_ID || "").trim();
+            const canLoadPersonalData = !isAnonymousOrGuestUserId(requestedUserId);
             if (!canLoadPersonalData) return null;
             const inflight = loadPersonalSummary._inflight;
-            if (inflight) return inflight;
+            if (inflight && loadPersonalSummary._inflightUserId === requestedUserId) return inflight;
             const task = (async () => {
                 try {
+                    await ensureAuthRuntimeForUser(requestedUserId);
                     const payload = await fetchJson(
-                        `/api/home-personal-summary?user_id=${encodeURIComponent(CURRENT_USER_ID)}`
+                        `/api/home-personal-summary?user_id=${encodeURIComponent(requestedUserId)}`
                     );
                     if (!payload || typeof payload !== "object") return null;
+                    if (String(CURRENT_USER_ID || "").trim() !== requestedUserId) {
+                        return null;
+                    }
                     const applied = applyPersonalSummaryPayload(payload);
                     state.personalSummaryLoaded = true;
                     if (applied) {
@@ -11814,15 +11845,20 @@ try {
                 } catch {
                     return null;
                 } finally {
-                    loadPersonalSummary._inflight = null;
+                    if (loadPersonalSummary._inflight === task) {
+                        loadPersonalSummary._inflight = null;
+                        loadPersonalSummary._inflightUserId = "";
+                    }
                 }
             })();
             loadPersonalSummary._inflight = task;
+            loadPersonalSummary._inflightUserId = requestedUserId;
             return task;
         }
 
         async function loadPersonalizedDeals() {
-            const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
+            const requestedUserId = String(CURRENT_USER_ID || "").trim();
+            const knownUser = !isDefaultOrAnonymousUserId(requestedUserId);
             state.personalizedStatus.enabled = true;
             state.personalizedStatus.error = null;
             state.personalizedStatus.personalized = false;
@@ -11830,9 +11866,13 @@ try {
 
             state.personalizedStatus.loading = true;
             try {
+                await ensureAuthRuntimeForUser(requestedUserId);
                 const payload = await fetchJson(
-                    `/api/personalized-deals?user_id=${encodeURIComponent(CURRENT_USER_ID)}&limit=${HOMEPAGE_SECTION_LIMITS.personalizedDeals}&summary=1`,
+                    `/api/personalized-deals?user_id=${encodeURIComponent(requestedUserId)}&limit=${HOMEPAGE_SECTION_LIMITS.personalizedDeals}&summary=1`,
                 );
+                if (String(CURRENT_USER_ID || "").trim() !== requestedUserId) {
+                    return safeArray(state.personalizedDeals);
+                }
                 const items = uniqueGamesByName(payload?.items || payload || []);
                 const personalized = !!payload?.personalized && knownUser;
                 state.personalizedDeals = items;
@@ -11852,34 +11892,62 @@ try {
         }
 
         async function loadUserWatchlist() {
+            const requestedUserId = String(CURRENT_USER_ID || "").trim();
+            const requestId = Number(state.personalListStatus.watchlistRequestId || 0) + 1;
+            state.personalListStatus.watchlistRequestId = requestId;
             state.personalListStatus.watchlistLoading = true;
             state.personalListStatus.watchlistError = null;
             try {
-                const payload = await fetchJson(`/api/watchlist?user_id=${encodeURIComponent(CURRENT_USER_ID)}`);
+                await ensureAuthRuntimeForUser(requestedUserId);
+                const payload = await fetchJson(`/api/watchlist?user_id=${encodeURIComponent(requestedUserId)}`);
+                if (
+                    requestId !== Number(state.personalListStatus.watchlistRequestId || 0)
+                    || String(CURRENT_USER_ID || "").trim() !== requestedUserId
+                ) {
+                    return safeArray(state.watchlist);
+                }
                 const items = safeArray(payload?.items || payload).map(normalizeGameRow);
                 state.watchlist = items;
                 return items;
             } catch (error) {
+                if (requestId !== Number(state.personalListStatus.watchlistRequestId || 0)) {
+                    return safeArray(state.watchlist);
+                }
                 if (!safeArray(state.watchlist).length) {
                     state.watchlist = [];
                 }
                 state.personalListStatus.watchlistError = error;
                 throw error;
             } finally {
-                state.personalListStatus.watchlistLoading = false;
+                if (requestId === Number(state.personalListStatus.watchlistRequestId || 0)) {
+                    state.personalListStatus.watchlistLoading = false;
+                }
             }
         }
 
         async function loadUserWishlist() {
+            const requestedUserId = String(CURRENT_USER_ID || "").trim();
+            const requestId = Number(state.personalListStatus.wishlistRequestId || 0) + 1;
+            state.personalListStatus.wishlistRequestId = requestId;
             state.personalListStatus.wishlistLoading = true;
             state.personalListStatus.wishlistError = null;
             try {
-                const payload = await fetchJson(`/wishlist/${encodeURIComponent(CURRENT_USER_ID)}`);
+                await ensureAuthRuntimeForUser(requestedUserId);
+                const payload = await fetchJson(`/wishlist/${encodeURIComponent(requestedUserId)}`);
+                if (
+                    requestId !== Number(state.personalListStatus.wishlistRequestId || 0)
+                    || String(CURRENT_USER_ID || "").trim() !== requestedUserId
+                ) {
+                    return safeArray(state.wishlist);
+                }
                 const items = safeArray(payload?.items || payload).map(normalizeGameRow);
                 state.wishlist = items;
                 return items;
             } catch (error) {
-                if (Number(error?.status) === 404 && isDefaultOrAnonymousUserId(CURRENT_USER_ID)) {
+                if (requestId !== Number(state.personalListStatus.wishlistRequestId || 0)) {
+                    return safeArray(state.wishlist);
+                }
+                if (Number(error?.status) === 404 && isDefaultOrAnonymousUserId(requestedUserId)) {
                     state.wishlist = [];
                     state.personalListStatus.wishlistError = null;
                     return [];
@@ -11890,12 +11958,19 @@ try {
                 state.personalListStatus.wishlistError = error;
                 throw error;
             } finally {
-                state.personalListStatus.wishlistLoading = false;
+                if (requestId === Number(state.personalListStatus.wishlistRequestId || 0)) {
+                    state.personalListStatus.wishlistLoading = false;
+                }
             }
         }
 
         async function loadUserAlertSignals() {
-            const payload = await fetchJson(`/api/alerts?user_id=${encodeURIComponent(CURRENT_USER_ID)}&limit=${HOMEPAGE_SECTION_LIMITS.alertSignals}`);
+            const requestedUserId = String(CURRENT_USER_ID || "").trim();
+            await ensureAuthRuntimeForUser(requestedUserId);
+            const payload = await fetchJson(`/api/alerts?user_id=${encodeURIComponent(requestedUserId)}&limit=${HOMEPAGE_SECTION_LIMITS.alertSignals}`);
+            if (String(CURRENT_USER_ID || "").trim() !== requestedUserId) {
+                return safeArray(state.alertSignals);
+            }
             const items = safeArray(payload?.items || payload)
                 .map((row) => {
                     const normalized = normalizeGameRow(row);
@@ -12498,6 +12573,11 @@ try {
         }
 
         async function toggleWishlist(gameOrName, gameId = null) {
+            const requestedUserId = String(CURRENT_USER_ID || "").trim();
+            await ensureAuthRuntimeForUser(requestedUserId);
+            if (String(CURRENT_USER_ID || "").trim() !== requestedUserId) {
+                return;
+            }
             const target = normalizeWishlistTarget(gameOrName, gameId);
             if (target.game_id === null && target.game_name) {
                 const fallback = uniqueGamesByName([
@@ -12541,7 +12621,7 @@ try {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        user_id: CURRENT_USER_ID,
+                        user_id: requestedUserId,
                         game_id: target.game_id,
                     }),
                 });
@@ -12551,7 +12631,7 @@ try {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        user_id: CURRENT_USER_ID,
+                        user_id: requestedUserId,
                         game_id: target.game_id,
                     }),
                 });
@@ -12566,6 +12646,11 @@ try {
         }
 
         async function toggleWatchlist(gameOrName, gameId = null) {
+            const requestedUserId = String(CURRENT_USER_ID || "").trim();
+            await ensureAuthRuntimeForUser(requestedUserId);
+            if (String(CURRENT_USER_ID || "").trim() !== requestedUserId) {
+                return;
+            }
             const target = normalizeWatchTarget(gameOrName, gameId);
             if (target.game_id === null && target.game_name) {
                 const fallback = uniqueGamesByName([
@@ -12589,7 +12674,7 @@ try {
             const currentlyWatching = isInWatchlist(target.game_name, target.game_id);
             if (currentlyWatching) {
                 await fetchJson(
-                    `/api/watchlist/${encodeURIComponent(target.game_id)}?user_id=${encodeURIComponent(CURRENT_USER_ID)}`,
+                    `/api/watchlist/${encodeURIComponent(target.game_id)}?user_id=${encodeURIComponent(requestedUserId)}`,
                     { method: "DELETE" },
                 );
                 emitTrackedSync("remove", "watchlist", target.game_id);
@@ -12606,7 +12691,7 @@ try {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        user_id: CURRENT_USER_ID,
+                        user_id: requestedUserId,
                         game_id: target.game_id,
                     }),
                 });

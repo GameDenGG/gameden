@@ -1709,6 +1709,18 @@ async function refreshCurrentUserIdFromAccountState() {
     }
 }
 
+async function ensureAuthRuntimeForCurrentUser() {
+    const userId = String(CURRENT_USER_ID || "").trim().toLowerCase();
+    if (!userId.startsWith("acct_")) return;
+    if (typeof window.getGameDenAuthRuntime === "function") {
+        try {
+            await window.getGameDenAuthRuntime();
+        } catch {
+            // Continue with best effort.
+        }
+    }
+}
+
 function parseOptionalNumberInput(inputEl, { integer = false } = {}) {
     if (!(inputEl instanceof HTMLInputElement)) return null;
     const raw = String(inputEl.value || "").trim();
@@ -3169,6 +3181,7 @@ function renderPlayerChart(historyPayload) {
 }
 
 async function fetchUserWatchlist() {
+    await ensureAuthRuntimeForCurrentUser();
     const payload = await fetchJson(`/api/watchlist?user_id=${encodeURIComponent(CURRENT_USER_ID)}`);
     return Array.isArray(payload?.items) ? payload.items : [];
 }
@@ -3215,6 +3228,7 @@ async function syncWatchButton() {
 async function toggleWatch() {
     if (!watchButton || !Number.isFinite(currentGameId) || currentGameId <= 0) return;
     if (watchButton.disabled || watchButton.classList.contains("is-pending")) return;
+    await ensureAuthRuntimeForCurrentUser();
     const wasActive = watchButton.classList.contains("active");
     const nextActive = !wasActive;
     setWatchButtonState(nextActive);

@@ -65,6 +65,18 @@ async function refreshCurrentUserIdFromAccountState() {
   }
 }
 
+async function ensureAuthRuntimeForCurrentUser() {
+  const userId = String(CURRENT_USER_ID || "").trim().toLowerCase();
+  if (!userId.startsWith("acct_")) return;
+  if (typeof window.getGameDenAuthRuntime === "function") {
+    try {
+      await window.getGameDenAuthRuntime();
+    } catch {
+      // Continue with best effort.
+    }
+  }
+}
+
 if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
   skeletonUi.ensureStyles();
 }
@@ -249,6 +261,7 @@ async function syncTargetAlert() {
     setTargetAlertStatus("Target alerts require a valid game.", "error");
     return;
   }
+  await ensureAuthRuntimeForCurrentUser();
   const rows = await fetchJson(`/deal-watchlists/${encodeURIComponent(CURRENT_USER_ID)}`).catch(() => []);
   const row = Array.isArray(rows)
     ? rows.find((item) => Number(item?.game_id) === Number(gameId) && item?.active !== false)
@@ -298,6 +311,7 @@ async function saveTargetAlert() {
   const { targetPrice, targetDiscountPercent } = readTargetAlertForm();
   setTargetAlertPending(true);
   try {
+    await ensureAuthRuntimeForCurrentUser();
     const row = await fetchJson("/deal-watchlists/add", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -320,6 +334,7 @@ async function clearTargetAlert() {
   if (!Number.isFinite(Number(gameId)) || Number(gameId) <= 0) return;
   setTargetAlertPending(true);
   try {
+    await ensureAuthRuntimeForCurrentUser();
     await fetchJson("/deal-watchlists/remove", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

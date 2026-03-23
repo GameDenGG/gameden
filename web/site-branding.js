@@ -295,25 +295,19 @@
   async function _requestJson(url, requestUrl, options = {}) {
     const requestOptions = { ...options };
     const headers = new Headers(requestOptions.headers || {});
-    const priorViewerId = getViewerId();
-    const priorGuestViewerId = _normalizeAnonymousViewerId(priorViewerId) || _readLastGuestViewerId();
+    const storedViewerId = _readStoredViewerId();
+    const priorViewerId = storedViewerId || getViewerId();
+    const priorGuestViewerId = _normalizeAnonymousViewerId(priorViewerId) || _readLastGuestViewerId() || _newViewerId();
     const authIdentity = await _resolveAuthenticatedIdentity();
     const hasAuthenticatedSession = !!authIdentity.authUserId;
-    const viewerId = hasAuthenticatedSession
-      ? authIdentity.authUserId
-      : priorViewerId;
+    const requestViewerId = _normalizeAnonymousViewerId(priorViewerId) || priorGuestViewerId;
 
     if (hasAuthenticatedSession && priorGuestViewerId) {
       _persistLastGuestViewerId(priorGuestViewerId);
     }
-    if (hasAuthenticatedSession && viewerId) {
-      _persistViewerId(viewerId);
-    } else if (!hasAuthenticatedSession && _normalizeAuthenticatedViewerId(priorViewerId)) {
-      _persistViewerId(_newViewerId());
-    }
 
-    if (viewerId && !headers.has(VIEWER_ID_HEADER_NAME)) {
-      headers.set(VIEWER_ID_HEADER_NAME, viewerId);
+    if (requestViewerId && !headers.has(VIEWER_ID_HEADER_NAME)) {
+      headers.set(VIEWER_ID_HEADER_NAME, requestViewerId);
     }
     if (hasAuthenticatedSession && authIdentity.authUserId && !headers.has(AUTH_USER_HEADER_NAME)) {
       headers.set(AUTH_USER_HEADER_NAME, authIdentity.authUserId);
@@ -338,8 +332,16 @@
     }
 
     const responseViewerId = _normalizeAnonymousViewerId(response.headers.get("x-gameden-viewer"));
-    if (responseViewerId && !hasAuthenticatedSession) {
-      _persistViewerId(responseViewerId);
+    if (responseViewerId) {
+      if (hasAuthenticatedSession) {
+        _persistLastGuestViewerId(responseViewerId);
+      } else if (_normalizeAuthenticatedViewerId(storedViewerId || priorViewerId)) {
+        // Do not let transient unauthenticated requests overwrite the
+        // authenticated identity persisted by account-state.js.
+        _persistLastGuestViewerId(responseViewerId);
+      } else {
+        _persistViewerId(responseViewerId);
+      }
     }
 
     if (response.status === 204) return null;

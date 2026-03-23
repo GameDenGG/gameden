@@ -614,6 +614,7 @@ const wishTabBtn = document.getElementById("wishTabBtn");
 const openWatchlistBtn = document.getElementById("openWatchlistBtn");
 const openWishlistBtn = document.getElementById("openWishlistBtn");
 const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
+let loadWatchlistRequestId = 0;
 
 if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
     skeletonUi.ensureStyles();
@@ -773,6 +774,18 @@ async function fetchJson(url, options = {}) {
     return runtime.fetchJson(url, options);
 }
 
+async function ensureAuthRuntimeForCurrentUser() {
+    const userId = String(CURRENT_USER_ID || "").trim().toLowerCase();
+    if (!userId.startsWith("acct_")) return;
+    if (typeof window.getGameDenAuthRuntime === "function") {
+        try {
+            await window.getGameDenAuthRuntime();
+        } catch {
+            // Continue with best effort.
+        }
+    }
+}
+
 function setActionPending(button, isPending) {
     if (!(button instanceof HTMLElement)) return;
     const pending = !!isPending;
@@ -800,17 +813,23 @@ function pulseActionSuccess(button) {
 }
 
 async function removeWatch(gameId) {
-    await fetchJson(`/api/watchlist/${encodeURIComponent(gameId)}?user_id=${encodeURIComponent(CURRENT_USER_ID)}`, {
+    const requestedUserId = String(CURRENT_USER_ID || "").trim();
+    await ensureAuthRuntimeForCurrentUser();
+    if (String(CURRENT_USER_ID || "").trim() !== requestedUserId) return;
+    await fetchJson(`/api/watchlist/${encodeURIComponent(gameId)}?user_id=${encodeURIComponent(requestedUserId)}`, {
         method: "DELETE",
     });
 }
 
 async function removeWish(gameId) {
+    const requestedUserId = String(CURRENT_USER_ID || "").trim();
+    await ensureAuthRuntimeForCurrentUser();
+    if (String(CURRENT_USER_ID || "").trim() !== requestedUserId) return;
     await fetchJson("/wishlist/remove", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-            user_id: CURRENT_USER_ID,
+            user_id: requestedUserId,
             game_id: gameId,
         }),
     });
@@ -948,15 +967,22 @@ function render(items, alertsByGame = new Map(), tab = TRACKED_TAB_WATCHLIST) {
 }
 
 async function loadWatchlist() {
+    const requestId = loadWatchlistRequestId + 1;
+    loadWatchlistRequestId = requestId;
+    const requestedUserId = String(CURRENT_USER_ID || "").trim();
     contentEl.setAttribute("aria-busy", "true");
-    document.getElementById("userScope").textContent = CURRENT_USER_ID;
+    document.getElementById("userScope").textContent = requestedUserId;
     renderWatchlistSkeleton();
     try {
+        await ensureAuthRuntimeForCurrentUser();
         const [watchlistPayload, wishlistPayload, alertsPayload] = await Promise.all([
-            fetchJson(`/api/watchlist?user_id=${encodeURIComponent(CURRENT_USER_ID)}`),
-            fetchJson(`/wishlist/${encodeURIComponent(CURRENT_USER_ID)}`),
-            fetchJson(`/api/alerts?user_id=${encodeURIComponent(CURRENT_USER_ID)}&limit=120`).catch(() => ({ items: [] })),
+            fetchJson(`/api/watchlist?user_id=${encodeURIComponent(requestedUserId)}`),
+            fetchJson(`/wishlist/${encodeURIComponent(requestedUserId)}`),
+            fetchJson(`/api/alerts?user_id=${encodeURIComponent(requestedUserId)}&limit=120`).catch(() => ({ items: [] })),
         ]);
+        if (requestId !== loadWatchlistRequestId || String(CURRENT_USER_ID || "").trim() !== requestedUserId) {
+            return false;
+        }
         const watchlistItems = normalizeWatchlistItems(watchlistPayload);
         const wishlistItems = normalizeWishlistItems(wishlistPayload);
         const items = ACTIVE_TAB === TRACKED_TAB_WISHLIST ? wishlistItems : watchlistItems;

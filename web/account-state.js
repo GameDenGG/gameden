@@ -101,7 +101,7 @@
           // Ignore storage failures.
         }
       }
-    } else if (isAuthenticatedUserId(previousUserId)) {
+    } else if (isAuthenticatedUserId(previousUserId) && opts.allowDemoteToGuest === true) {
       nextUserId = "";
       if (runtime && typeof runtime.setViewerId === "function") {
         nextUserId = runtime.setViewerId(createAnonUserId()) || "";
@@ -146,11 +146,34 @@
     if (!runtime || typeof runtime.fetchJson !== "function") {
       throw new Error("Runtime fetch helper is unavailable.");
     }
-    const payload = await runtime.fetchJson("/api/account/merge-guest-lists", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ guest_user_id: guestId, clear_guest_data: true }),
-    });
+    if (typeof window.getGameDenAuthRuntime === "function") {
+      try {
+        await window.getGameDenAuthRuntime();
+      } catch (_error) {
+        // Continue with best effort.
+      }
+    }
+
+    let payload = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        payload = await runtime.fetchJson("/api/account/merge-guest-lists", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ guest_user_id: guestId, clear_guest_data: true }),
+        });
+        break;
+      } catch (error) {
+        const status = Number(error && error.status ? error.status : 0);
+        const retryable = status === 401 || status === 403;
+        if (!retryable || attempt >= 1) {
+          throw error;
+        }
+        await readSessionState();
+        await new Promise((resolve) => setTimeout(resolve, 160));
+      }
+    }
+
     dispatchAccountEvent("merge_completed", {
       guest_user_id: guestId,
       user_id: payload && payload.user_id ? payload.user_id : null,
@@ -230,7 +253,7 @@
     const priorUserId = readStoredUserId();
     const result = await client.auth.signOut();
     if (result.error) throw result.error;
-    const identity = await syncIdentityFromSession();
+    const identity = await syncIdentityFromSession({ allowDemoteToGuest: true });
     clearDashboardSnapshot();
     dispatchAccountEvent("logout_success", {
       previous_user_id: priorUserId || null,
@@ -260,8 +283,10 @@
   });
 
   if (window.GameDenAuthState && typeof window.GameDenAuthState.subscribe === "function") {
-    window.GameDenAuthState.subscribe(function onAuthState() {
-      void syncIdentityFromSession();
+    window.GameDenAuthState.subscribe(function onAuthState(payload) {
+      const eventName = String(payload && payload.event ? payload.event : "").trim().toUpperCase();
+      const allowDemoteToGuest = eventName === "SIGNED_OUT";
+      void syncIdentityFromSession({ allowDemoteToGuest });
     }, { emitCurrent: true });
   } else {
     void syncIdentityFromSession();

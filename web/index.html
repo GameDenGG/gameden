@@ -10636,7 +10636,7 @@ input:focus-visible {
             if (!visibleResults.length) return false;
             const safeIndex = Math.max(0, Math.min(visibleResults.length - 1, Number(index) || 0));
             const selected = visibleResults[safeIndex];
-            const targetHref = buildGameDetailHref(selected);
+            const targetHref = resolveSearchResultHref(selected);
             if (!targetHref) return false;
             closeSearchResults();
             window.location.assign(targetHref);
@@ -10741,6 +10741,23 @@ input:focus-visible {
             return scored.slice(0, Math.max(1, Number(limit) || 20)).map((entry) => entry.game);
         }
 
+        function resolveSearchResultHref(row) {
+            const normalized = normalizeGameRow(row);
+            const precomputed = String(normalized?.search_href || "").trim();
+            if (precomputed) return precomputed;
+            return String(buildGameDetailHref(normalized) || "").trim();
+        }
+
+        function normalizeSearchResultRows(rows) {
+            return uniqueGamesByIdentity(safeArray(rows).map((row) => {
+                const normalized = normalizeGameRow(row);
+                return {
+                    ...normalized,
+                    search_href: resolveSearchResultHref(normalized),
+                };
+            }));
+        }
+
         function resolveSearchErrorMessage(error) {
             const status = Number(error && error.status);
             if (status === 429) {
@@ -10781,7 +10798,7 @@ input:focus-visible {
                 cache.delete(key);
                 return null;
             }
-            return safeArray(entry.rows).map(normalizeGameRow);
+            return normalizeSearchResultRows(entry.rows);
         }
 
         function setCachedSearchRows(query, rows) {
@@ -10790,7 +10807,7 @@ input:focus-visible {
             const cache = getSearchCacheMap();
             cache.set(key, {
                 cachedAt: Date.now(),
-                rows: uniqueGamesByName(safeArray(rows).map(normalizeGameRow)),
+                rows: normalizeSearchResultRows(rows),
             });
             if (cache.size > 80) {
                 const oldestKey = cache.keys().next().value;
@@ -10847,7 +10864,7 @@ input:focus-visible {
             const cachedRows = getCachedSearchRows(queryKey);
             if (!force && cachedRows && cachedRows.length) {
                 clearSearchRequest();
-                state.search.results = uniqueGamesByName(cachedRows.map(normalizeGameRow));
+                state.search.results = normalizeSearchResultRows(cachedRows);
                 state.search.loading = false;
                 state.search.error = null;
                 renderSearchResults();
@@ -10879,7 +10896,7 @@ input:focus-visible {
                 );
                 if (!isCurrent) return;
 
-                const remoteRows = uniqueGamesByName(safeArray(payload?.items ?? payload).map(normalizeGameRow));
+                const remoteRows = normalizeSearchResultRows(payload?.items ?? payload);
                 setCachedSearchRows(queryKey, remoteRows);
                 state.search.results = remoteRows;
                 state.search.loading = false;
@@ -10965,7 +10982,7 @@ ui.searchResultsList.innerHTML = visibleResults.map((game, index) => {
                     <a
                         id="${resultId}"
                         class="search-result-item${isActive ? " is-active" : ""}"
-                        href="${buildGameDetailHref(game)}"
+                        href="${escapeHtml(resolveSearchResultHref(game))}"
                         role="option"
                         aria-selected="${isActive ? "true" : "false"}"
                         data-search-index="${index}"
@@ -13573,6 +13590,20 @@ try {
                     const targetIndex = Number(state.search.activeIndex);
                     navigateToSearchResult(Number.isFinite(targetIndex) && targetIndex >= 0 ? targetIndex : 0);
                 }
+            });
+
+            ui.searchResultsList.addEventListener("click", (event) => {
+                const target = event.target;
+                if (!(target instanceof Element)) return;
+                const option = target.closest("a[data-search-index]");
+                if (!option) return;
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                    return;
+                }
+                const nextIndex = Number(option.getAttribute("data-search-index"));
+                if (!Number.isFinite(nextIndex)) return;
+                event.preventDefault();
+                navigateToSearchResult(nextIndex);
             });
 
             ui.searchResultsList.addEventListener("mousemove", (event) => {

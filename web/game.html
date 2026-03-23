@@ -1447,6 +1447,8 @@ function buildCanonicalGamePath(payload = currentGamePayload, options = {}) {
 }
 
 const WATCHLIST_STORAGE_KEY = "gameden.user_id";
+const TRACKED_SYNC_STORAGE_KEY = "gameden.tracked.sync.v1";
+const AUTH_SYNC_STORAGE_KEY = "gameden.auth.sync.v1";
 const DEFAULT_USER_ID = "legacy-user";
 const gameName = getQueryParam("game_name");
 
@@ -1665,7 +1667,47 @@ function getCurrentUserId() {
     }
 }
 
-const CURRENT_USER_ID = getCurrentUserId();
+let CURRENT_USER_ID = getCurrentUserId();
+
+function emitTrackedSync(action, list, gameId) {
+    const normalizedAction = String(action || "").trim().toLowerCase();
+    const normalizedList = String(list || "").trim().toLowerCase();
+    const normalizedGameId = Number(gameId);
+    if (!(normalizedAction === "add" || normalizedAction === "remove")) return;
+    if (!(normalizedList === "wishlist" || normalizedList === "watchlist")) return;
+    if (!Number.isFinite(normalizedGameId) || normalizedGameId <= 0) return;
+    try {
+        localStorage.setItem(
+            TRACKED_SYNC_STORAGE_KEY,
+            JSON.stringify({
+                action: normalizedAction,
+                list: normalizedList,
+                game_id: Math.trunc(normalizedGameId),
+                user_id: String(CURRENT_USER_ID || "").trim(),
+                ts: Date.now(),
+            }),
+        );
+    } catch {
+        // Ignore storage sync failures.
+    }
+}
+
+async function refreshCurrentUserIdFromAccountState() {
+    if (window.GameDenAccount && typeof window.GameDenAccount.syncIdentityFromSession === "function") {
+        try {
+            await window.GameDenAccount.syncIdentityFromSession();
+        } catch {
+            // Continue with best-effort viewer id.
+        }
+    }
+    const runtime = window.GameDenSite;
+    const nextUserId = runtime && typeof runtime.getViewerId === "function"
+        ? String(runtime.getViewerId() || "").trim()
+        : getCurrentUserId();
+    if (nextUserId) {
+        CURRENT_USER_ID = nextUserId;
+    }
+}
 
 function parseOptionalNumberInput(inputEl, { integer = false } = {}) {
     if (!(inputEl instanceof HTMLInputElement)) return null;
@@ -3183,6 +3225,7 @@ async function toggleWatch() {
             await fetchJson(`/api/watchlist/${encodeURIComponent(currentGameId)}?user_id=${encodeURIComponent(CURRENT_USER_ID)}`, {
                 method: "DELETE",
             });
+            emitTrackedSync("remove", "watchlist", currentGameId);
         } else {
             await fetchJson("/api/watchlist", {
                 method: "POST",
@@ -3192,6 +3235,7 @@ async function toggleWatch() {
                     game_id: currentGameId,
                 }),
             });
+            emitTrackedSync("add", "watchlist", currentGameId);
         }
         mutationApplied = true;
         await syncWatchButton();
@@ -3245,6 +3289,23 @@ clearTargetAlertButton?.addEventListener("click", () => {
             setTargetAlertStatus(error instanceof Error ? error.message : "Failed to save target alert.", "error");
         });
     });
+});
+
+if (typeof window.getGameDenAuthRuntime === "function") {
+    window.getGameDenAuthRuntime()
+        .catch(() => null)
+        .finally(() => {
+            void refreshCurrentUserIdFromAccountState().then(() => syncWatchButton()).catch(() => {});
+        });
+}
+
+window.addEventListener("storage", (event) => {
+    if (event.key !== AUTH_SYNC_STORAGE_KEY) return;
+    void refreshCurrentUserIdFromAccountState().then(() => syncWatchButton()).catch(() => {});
+});
+
+window.addEventListener("gameden:account-sync", () => {
+    void refreshCurrentUserIdFromAccountState().then(() => syncWatchButton()).catch(() => {});
 });
 
 setTargetAlertStatus("Set a target price or discount.");

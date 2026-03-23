@@ -567,6 +567,7 @@ body {
 const WATCHLIST_STORAGE_KEY = "gameden.user_id";
 const DASHBOARD_SNAPSHOT_STORAGE_KEY = "gameden.dashboard.snapshot.v1";
 const TRACKED_SYNC_STORAGE_KEY = "gameden.tracked.sync.v1";
+const AUTH_SYNC_STORAGE_KEY = "gameden.auth.sync.v1";
 const TRACKED_TAB_WATCHLIST = "watchlist";
 const TRACKED_TAB_WISHLIST = "wishlist";
 
@@ -602,7 +603,7 @@ function getCurrentUserId() {
     }
 }
 
-const CURRENT_USER_ID = getCurrentUserId();
+let CURRENT_USER_ID = getCurrentUserId();
 const urlParams = new URLSearchParams(window.location.search || "");
 const ACTIVE_TAB = String(urlParams.get("tab") || TRACKED_TAB_WATCHLIST).trim().toLowerCase() === TRACKED_TAB_WISHLIST
     ? TRACKED_TAB_WISHLIST
@@ -690,6 +691,42 @@ function emitTrackedSync(action, list, gameId) {
     } catch {
         // Ignore storage sync failures.
     }
+}
+
+function parseAccountSyncPayload(rawValue) {
+    if (!rawValue) return null;
+    try {
+        const parsed = JSON.parse(rawValue);
+        if (!parsed || typeof parsed !== "object") return null;
+        const ts = Number(parsed.ts || 0);
+        if (!Number.isFinite(ts) || ts <= 0) return null;
+        return {
+            ts,
+            user_id: String(parsed.user_id || "").trim(),
+            previous_user_id: String(parsed.previous_user_id || "").trim(),
+            type: String(parsed.type || "").trim().toLowerCase(),
+        };
+    } catch {
+        return null;
+    }
+}
+
+async function refreshIdentityAndReload() {
+    const runtime = window.GameDenSite;
+    const previousUserId = String(CURRENT_USER_ID || "").trim();
+    if (window.GameDenAccount && typeof window.GameDenAccount.syncIdentityFromSession === "function") {
+        try {
+            await window.GameDenAccount.syncIdentityFromSession();
+        } catch {
+            // Continue with best-effort fallback.
+        }
+    }
+    const nextUserId = runtime && typeof runtime.getViewerId === "function"
+        ? String(runtime.getViewerId() || "").trim()
+        : getCurrentUserId();
+    if (!nextUserId || nextUserId === previousUserId) return false;
+    CURRENT_USER_ID = nextUserId;
+    return true;
 }
 
 function escapeHtml(value) {
@@ -948,7 +985,40 @@ document.getElementById("refreshBtn").addEventListener("click", async () => {
 });
 
 syncTabUi();
-void loadWatchlist();
+if (typeof window.getGameDenAuthRuntime === "function") {
+    window.getGameDenAuthRuntime()
+        .catch(() => null)
+        .finally(() => {
+            void refreshIdentityAndReload()
+                .catch(() => false)
+                .finally(() => {
+                    void loadWatchlist();
+                });
+        });
+} else {
+    void loadWatchlist();
+}
+
+window.addEventListener("storage", (event) => {
+    if (event.key === AUTH_SYNC_STORAGE_KEY) {
+        const payload = parseAccountSyncPayload(event.newValue || "");
+        if (payload) {
+            void refreshIdentityAndReload().then((changed) => {
+                if (changed) {
+                    void loadWatchlist();
+                }
+            }).catch(() => {});
+        }
+    }
+});
+
+window.addEventListener("gameden:account-sync", () => {
+    void refreshIdentityAndReload().then((changed) => {
+        if (changed) {
+            void loadWatchlist();
+        }
+    }).catch(() => {});
+});
 </script>
 </body>
 </html>

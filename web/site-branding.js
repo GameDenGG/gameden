@@ -70,8 +70,11 @@
   const SKELETON_STYLE_ID = "gameden-skeleton-styles";
   const LOGO_STYLE_ID = "gameden-logo-styles";
   const VIEWER_ID_STORAGE_KEY = "gameden.user_id";
+  const LAST_GUEST_VIEWER_ID_STORAGE_KEY = "gameden.last_guest_user_id";
   const VIEWER_ID_HEADER_NAME = "x-gameden-viewer";
+  const AUTH_USER_HEADER_NAME = "x-gameden-auth-user";
   const VIEWER_ID_RE = /^anon_[0-9a-f]{32}$/;
+  const AUTHENTICATED_VIEWER_ID_RE = /^acct_[0-9a-f-]{20,64}$/;
   const LEGACY_VIEWER_IDS = new Set(["legacy-user", "anonymous", "guest"]);
 
   function warnOnce(key, message) {
@@ -92,25 +95,38 @@
     return `anon_${fallback.padEnd(32, "0")}`;
   }
 
-  function _normalizeViewerId(value) {
+  function _normalizeAnonymousViewerId(value) {
     const normalized = String(value || "").trim().toLowerCase();
     if (!normalized) return "";
     if (VIEWER_ID_RE.test(normalized)) return normalized;
     return "";
   }
 
+  function _normalizeAuthenticatedViewerId(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (!normalized) return "";
+    if (AUTHENTICATED_VIEWER_ID_RE.test(normalized)) return normalized;
+    return "";
+  }
+
+  function _normalizeKnownViewerId(value) {
+    const authenticated = _normalizeAuthenticatedViewerId(value);
+    if (authenticated) return authenticated;
+    return _normalizeAnonymousViewerId(value);
+  }
+
   function _readStoredViewerId() {
     try {
       const stored = String(window.localStorage.getItem(VIEWER_ID_STORAGE_KEY) || "").trim().toLowerCase();
       if (!stored || LEGACY_VIEWER_IDS.has(stored)) return "";
-      return _normalizeViewerId(stored);
+      return _normalizeKnownViewerId(stored);
     } catch (_error) {
       return "";
     }
   }
 
   function _persistViewerId(value) {
-    const normalized = _normalizeViewerId(value);
+    const normalized = _normalizeKnownViewerId(value);
     if (!normalized) return "";
     try {
       window.localStorage.setItem(VIEWER_ID_STORAGE_KEY, normalized);
@@ -124,6 +140,46 @@
     const stored = _readStoredViewerId();
     if (stored) return stored;
     return _persistViewerId(_newViewerId());
+  }
+
+  function _readLastGuestViewerId() {
+    try {
+      return _normalizeAnonymousViewerId(window.localStorage.getItem(LAST_GUEST_VIEWER_ID_STORAGE_KEY));
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function _persistLastGuestViewerId(value) {
+    const normalized = _normalizeAnonymousViewerId(value);
+    if (!normalized) return "";
+    try {
+      window.localStorage.setItem(LAST_GUEST_VIEWER_ID_STORAGE_KEY, normalized);
+    } catch (_error) {
+      // Ignore storage failures.
+    }
+    return normalized;
+  }
+
+  async function _resolveAuthenticatedIdentity() {
+    const authHelper = window.GameDenAuthSession;
+    if (!authHelper || typeof authHelper.getSession !== "function") {
+      return { authUserId: "", accessToken: "" };
+    }
+    try {
+      const sessionResult = await authHelper.getSession();
+      const session = sessionResult && sessionResult.session ? sessionResult.session : null;
+      const userId = session && session.user && session.user.id
+        ? String(session.user.id || "").trim().toLowerCase()
+        : "";
+      const authUserId = userId ? _normalizeAuthenticatedViewerId(`acct_${userId}`) : "";
+      const accessToken = session && session.access_token
+        ? String(session.access_token || "").trim()
+        : "";
+      return { authUserId, accessToken };
+    } catch (_error) {
+      return { authUserId: "", accessToken: "" };
+    }
   }
 
   function normalizeSiteUrl(rawValue) {
@@ -239,9 +295,31 @@
   async function _requestJson(url, requestUrl, options = {}) {
     const requestOptions = { ...options };
     const headers = new Headers(requestOptions.headers || {});
-    const viewerId = getViewerId();
+    const priorViewerId = getViewerId();
+    const priorGuestViewerId = _normalizeAnonymousViewerId(priorViewerId) || _readLastGuestViewerId();
+    const authIdentity = await _resolveAuthenticatedIdentity();
+    const hasAuthenticatedSession = !!authIdentity.authUserId;
+    const viewerId = hasAuthenticatedSession
+      ? authIdentity.authUserId
+      : priorViewerId;
+
+    if (hasAuthenticatedSession && priorGuestViewerId) {
+      _persistLastGuestViewerId(priorGuestViewerId);
+    }
+    if (hasAuthenticatedSession && viewerId) {
+      _persistViewerId(viewerId);
+    } else if (!hasAuthenticatedSession && _normalizeAuthenticatedViewerId(priorViewerId)) {
+      _persistViewerId(_newViewerId());
+    }
+
     if (viewerId && !headers.has(VIEWER_ID_HEADER_NAME)) {
       headers.set(VIEWER_ID_HEADER_NAME, viewerId);
+    }
+    if (hasAuthenticatedSession && authIdentity.authUserId && !headers.has(AUTH_USER_HEADER_NAME)) {
+      headers.set(AUTH_USER_HEADER_NAME, authIdentity.authUserId);
+    }
+    if (hasAuthenticatedSession && authIdentity.accessToken && !headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${authIdentity.accessToken}`);
     }
     requestOptions.headers = headers;
     if (requestOptions.credentials === undefined) {
@@ -259,8 +337,8 @@
       throw error;
     }
 
-    const responseViewerId = _normalizeViewerId(response.headers.get("x-gameden-viewer"));
-    if (responseViewerId) {
+    const responseViewerId = _normalizeAnonymousViewerId(response.headers.get("x-gameden-viewer"));
+    if (responseViewerId && !hasAuthenticatedSession) {
       _persistViewerId(responseViewerId);
     }
 
@@ -958,6 +1036,9 @@
     config: siteConfig,
     absoluteUrl,
     getViewerId,
+    getLastGuestViewerId: _readLastGuestViewerId,
+    setViewerId: _persistViewerId,
+    setLastGuestViewerId: _persistLastGuestViewerId,
     resolveApiUrl,
     fetchJson,
     applyMetadata,

@@ -1,4 +1,4 @@
-﻿﻿<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" class="no-js">
 <head>
 <meta charset="UTF-8">
@@ -3533,6 +3533,75 @@ input:focus-visible {
         font-size: 11px;
     }
 }
+
+.account-panel-body {
+    display: grid;
+    gap: 10px;
+}
+
+.account-inputs {
+    display: grid;
+    gap: 8px;
+}
+
+.account-inputs input {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    padding: 8px 10px;
+}
+
+.account-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.account-actions .panel-action {
+    min-height: 36px;
+}
+
+.account-meta {
+    display: grid;
+    gap: 6px;
+}
+
+.account-pill {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 5px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(121, 168, 255, 0.45);
+    background: rgba(121, 168, 255, 0.16);
+    color: #e9f2ff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.account-email {
+    font-size: 12px;
+    color: var(--muted-2);
+    overflow-wrap: anywhere;
+}
+
+.account-status {
+    min-height: 18px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.account-status[data-tone="success"] {
+    color: #bafadf;
+}
+
+.account-status[data-tone="error"] {
+    color: #ffd2d8;
+}
 </style>
 </head>
 <body class="theme-dark">
@@ -4035,6 +4104,36 @@ input:focus-visible {
                         Alerts
                     </button>
                 </div>
+                <section class="panel panel-personal" id="accountPanel">
+                    <div class="panel-head">
+                        <div class="panel-title-wrap">
+                            <h2 class="panel-title">Account</h2>
+                            <div class="panel-subtitle">Sync your wishlist, watchlist, and deal alerts across devices.</div>
+                        </div>
+                    </div>
+                    <div class="panel-body account-panel-body">
+                        <div class="account-logged-out" id="accountLoggedOut">
+                            <div class="account-inputs">
+                                <input id="accountEmailInput" type="email" placeholder="Email" autocomplete="email">
+                                <input id="accountPasswordInput" type="password" placeholder="Password" autocomplete="current-password">
+                            </div>
+                            <div class="account-actions">
+                                <button class="panel-action" id="accountSignupBtn" type="button">Create Account</button>
+                                <button class="panel-action" id="accountLoginBtn" type="button">Log In</button>
+                            </div>
+                        </div>
+                        <div class="account-logged-in hidden" id="accountLoggedIn">
+                            <div class="account-meta">
+                                <div class="account-pill" id="accountIdentityPill">Signed in</div>
+                                <div class="account-email" id="accountEmailText"></div>
+                            </div>
+                            <div class="account-actions">
+                                <button class="panel-action" id="accountLogoutBtn" type="button">Log Out</button>
+                            </div>
+                        </div>
+                        <div class="account-status" id="accountStatusText"></div>
+                    </div>
+                </section>
                 <section class="panel panel-personalized hidden" id="recommendedForYouPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -4283,6 +4382,7 @@ input:focus-visible {
         ]);
         const DASHBOARD_SNAPSHOT_STORAGE_KEY = "gameden.dashboard.snapshot.v1";
         const TRACKED_SYNC_STORAGE_KEY = "gameden.tracked.sync.v1";
+        const AUTH_SYNC_STORAGE_KEY = "gameden.auth.sync.v1";
         const DASHBOARD_SNAPSHOT_MAX_AGE_MS = 5 * 60 * 1000;
         const DASHBOARD_RESTORE_CRITICAL_REFRESH_GRACE_MS = 30 * 1000;
         const DASHBOARD_RESTORE_DEFERRED_REFRESH_GRACE_MS = 90 * 1000;
@@ -4319,11 +4419,12 @@ input:focus-visible {
             }
         }
 
-        const CURRENT_USER_ID = getCurrentUserId();
+        let CURRENT_USER_ID = getCurrentUserId();
 
         function isDefaultOrAnonymousUserId(userId) {
             const normalized = String(userId || "").trim().toLowerCase();
             if (!normalized) return true;
+            if (normalized.startsWith("anon_")) return true;
             return (
                 normalized === String(DEFAULT_USER_ID).toLowerCase()
                 || normalized === "anonymous"
@@ -4334,6 +4435,7 @@ input:focus-visible {
         function isAnonymousOrGuestUserId(userId) {
             const normalized = String(userId || "").trim().toLowerCase();
             if (!normalized) return true;
+            if (normalized.startsWith("anon_")) return true;
             return normalized === "anonymous" || normalized === "guest";
         }
 
@@ -4755,6 +4857,9 @@ input:focus-visible {
             trackedSync: {
                 lastAppliedTs: 0,
             },
+            authSync: {
+                lastAppliedTs: 0,
+            },
             visibleCounts: {
                 dealRankedGrid: 6,
                 opportunitiesGrid: 6,
@@ -4809,6 +4914,17 @@ input:focus-visible {
             dealRadarFeed: document.getElementById("dealRadarFeed"),
             dealRadarMoreBtn: document.getElementById("dealRadarMoreBtn"),
             leaderboardList: document.getElementById("leaderboardList"),
+            accountPanel: document.getElementById("accountPanel"),
+            accountLoggedOut: document.getElementById("accountLoggedOut"),
+            accountLoggedIn: document.getElementById("accountLoggedIn"),
+            accountEmailInput: document.getElementById("accountEmailInput"),
+            accountPasswordInput: document.getElementById("accountPasswordInput"),
+            accountSignupBtn: document.getElementById("accountSignupBtn"),
+            accountLoginBtn: document.getElementById("accountLoginBtn"),
+            accountLogoutBtn: document.getElementById("accountLogoutBtn"),
+            accountStatusText: document.getElementById("accountStatusText"),
+            accountIdentityPill: document.getElementById("accountIdentityPill"),
+            accountEmailText: document.getElementById("accountEmailText"),
             moreIntelSection: document.getElementById("moreIntelSection"),
             moreIntelBody: document.getElementById("moreIntelBody"),
             moreIntelToggleBtn: document.getElementById("moreIntelToggleBtn"),
@@ -5190,6 +5306,29 @@ input:focus-visible {
             }
         }
 
+        function emitTrackedSync(action, list, gameId) {
+            const normalizedAction = String(action || "").trim().toLowerCase();
+            const normalizedList = String(list || "").trim().toLowerCase();
+            const normalizedGameId = toPositiveIntOrNull(gameId);
+            if (!(normalizedAction === "add" || normalizedAction === "remove")) return;
+            if (!(normalizedList === "wishlist" || normalizedList === "watchlist")) return;
+            if (!normalizedGameId) return;
+            try {
+                localStorage.setItem(
+                    TRACKED_SYNC_STORAGE_KEY,
+                    JSON.stringify({
+                        action: normalizedAction,
+                        list: normalizedList,
+                        game_id: normalizedGameId,
+                        user_id: String(CURRENT_USER_ID || "").trim(),
+                        ts: Date.now(),
+                    }),
+                );
+            } catch {
+                // Ignore storage failures.
+            }
+        }
+
         function applyTrackedSyncPayload(syncPayload) {
             const payload = syncPayload && typeof syncPayload === "object" ? syncPayload : null;
             if (!payload) return false;
@@ -5211,6 +5350,9 @@ input:focus-visible {
                         return entryGameId !== gameId;
                     });
                 }
+                if (action === "add") {
+                    return normalizedItems;
+                }
                 return normalizedItems;
             };
 
@@ -5224,6 +5366,21 @@ input:focus-visible {
             renderWatchlist();
             renderPersonalizedDeals();
             syncCardActionButtonsFromState();
+            if (action === "add") {
+                if (listKey === "wishlist") {
+                    void loadUserWishlist().then(() => {
+                        renderWishlist();
+                        renderPersonalizedDeals();
+                        syncCardActionButtonsFromState();
+                    }).catch(() => {});
+                } else if (listKey === "watchlist") {
+                    void loadUserWatchlist().then(() => {
+                        renderWatchlist();
+                        renderPersonalizedDeals();
+                        syncCardActionButtonsFromState();
+                    }).catch(() => {});
+                }
+            }
             scheduleDashboardSnapshotPersist();
             return true;
         }
@@ -5236,6 +5393,207 @@ input:focus-visible {
             } catch {
                 return false;
             }
+        }
+
+        function parseAccountSyncPayload(rawValue) {
+            if (!rawValue) return null;
+            try {
+                const parsed = JSON.parse(rawValue);
+                if (!parsed || typeof parsed !== "object") return null;
+                const ts = Number(parsed.ts || 0);
+                if (!Number.isFinite(ts) || ts <= 0) return null;
+                return {
+                    ts,
+                    type: String(parsed.type || "").trim().toLowerCase(),
+                    user_id: String(parsed.user_id || "").trim(),
+                    previous_user_id: String(parsed.previous_user_id || "").trim(),
+                    logged_in: !!parsed.logged_in,
+                };
+            } catch {
+                return null;
+            }
+        }
+
+        function setAccountStatus(message, tone = "muted") {
+            const node = ui.accountStatusText;
+            if (!node) return;
+            node.textContent = String(message || "").trim();
+            if (!message || tone === "muted") {
+                node.removeAttribute("data-tone");
+                return;
+            }
+            node.setAttribute("data-tone", tone);
+        }
+
+        function maskEmail(value) {
+            const email = String(value || "").trim();
+            const parts = email.split("@");
+            if (parts.length !== 2) return email;
+            const left = parts[0];
+            if (!left) return email;
+            if (left.length <= 2) return `${left.slice(0, 1)}*@${parts[1]}`;
+            return `${left.slice(0, 1)}***${left.slice(-1)}@${parts[1]}`;
+        }
+
+        function setAccountButtonPending(button, pending) {
+            if (!(button instanceof HTMLButtonElement)) return;
+            const isPending = !!pending;
+            button.disabled = isPending;
+            button.classList.toggle("is-pending", isPending);
+            if (isPending) {
+                button.setAttribute("aria-busy", "true");
+            } else {
+                button.removeAttribute("aria-busy");
+            }
+        }
+
+        async function refreshDashboardIdentityState(options = {}) {
+            const opts = options && typeof options === "object" ? options : {};
+            const account = window.GameDenAccount;
+            const authSession = window.GameDenAuthSession;
+            if (!account || !authSession) {
+                return false;
+            }
+            const previousUserId = String(CURRENT_USER_ID || "").trim();
+            const synced = await account.syncIdentityFromSession({ forceEvent: !!opts.forceEvent });
+            const nextUserId = String(synced?.userId || "").trim();
+            if (nextUserId) {
+                CURRENT_USER_ID = nextUserId;
+            }
+            if (previousUserId && nextUserId && previousUserId !== nextUserId) {
+                try {
+                    sessionStorage.removeItem(DASHBOARD_SNAPSHOT_STORAGE_KEY);
+                } catch {
+                    // Ignore storage failures.
+                }
+                state.wishlist = [];
+                state.watchlist = [];
+                state.alertSignals = [];
+                state.personalSummaryLoaded = false;
+                state.personalizedDeals = [];
+                state.personalizedStatus.personalized = false;
+            }
+
+            const statePayload = await authSession.getState();
+            const loggedIn = !!statePayload?.loggedIn;
+            if (ui.accountLoggedOut) ui.accountLoggedOut.classList.toggle("hidden", loggedIn);
+            if (ui.accountLoggedIn) ui.accountLoggedIn.classList.toggle("hidden", !loggedIn);
+            if (ui.accountIdentityPill) {
+                ui.accountIdentityPill.textContent = loggedIn ? "Signed In" : "Guest Mode";
+            }
+            if (ui.accountEmailText) {
+                ui.accountEmailText.textContent = loggedIn
+                    ? `Account: ${maskEmail(statePayload?.user?.email || "")}`
+                    : "Browse freely, then sign in to sync tracked items across devices.";
+            }
+
+            if (previousUserId && nextUserId && previousUserId !== nextUserId) {
+                void loadPersonalSummary();
+                void loadUserWishlist().then(() => {
+                    renderWishlist();
+                    renderPersonalizedDeals();
+                    syncCardActionButtonsFromState();
+                }).catch(() => {});
+                void loadUserWatchlist().then(() => {
+                    renderWatchlist();
+                    renderPersonalizedDeals();
+                    syncCardActionButtonsFromState();
+                }).catch(() => {});
+            }
+            scheduleDashboardSnapshotPersist();
+            return true;
+        }
+
+        function applyAccountSyncPayload(syncPayload) {
+            const payload = syncPayload && typeof syncPayload === "object" ? syncPayload : null;
+            if (!payload) return false;
+            if (payload.ts <= Number(state.authSync.lastAppliedTs || 0)) return false;
+            state.authSync.lastAppliedTs = payload.ts;
+            void refreshDashboardIdentityState();
+            return true;
+        }
+
+        function wireAccountPanel() {
+            if (wireAccountPanel._wired) return;
+            wireAccountPanel._wired = true;
+
+            const signupBtn = ui.accountSignupBtn;
+            const loginBtn = ui.accountLoginBtn;
+            const logoutBtn = ui.accountLogoutBtn;
+
+            const runAccountAction = async (button, action) => {
+                if (!(button instanceof HTMLButtonElement)) return;
+                setAccountButtonPending(button, true);
+                try {
+                    await action();
+                    await refreshDashboardIdentityState();
+                } catch (error) {
+                    setAccountStatus(error instanceof Error ? error.message : "Account action failed.", "error");
+                } finally {
+                    setAccountButtonPending(button, false);
+                }
+            };
+
+            if (signupBtn) {
+                signupBtn.addEventListener("click", () => {
+                    void runAccountAction(signupBtn, async () => {
+                        const email = String(ui.accountEmailInput?.value || "").trim();
+                        const password = String(ui.accountPasswordInput?.value || "");
+                        if (!email || !password) throw new Error("Email and password are required.");
+                        if (!window.GameDenAccount || typeof window.GameDenAccount.signUp !== "function") {
+                            throw new Error("Account runtime is not available yet.");
+                        }
+                        const result = await window.GameDenAccount.signUp(email, password);
+                        const requiresEmailConfirmation = !result?.result?.data?.session;
+                        setAccountStatus(
+                            requiresEmailConfirmation
+                                ? "Account created. Confirm your email, then log in."
+                                : "Account created and synced.",
+                            "success",
+                        );
+                    });
+                });
+            }
+
+            if (loginBtn) {
+                loginBtn.addEventListener("click", () => {
+                    void runAccountAction(loginBtn, async () => {
+                        const email = String(ui.accountEmailInput?.value || "").trim();
+                        const password = String(ui.accountPasswordInput?.value || "");
+                        if (!email || !password) throw new Error("Email and password are required.");
+                        if (!window.GameDenAccount || typeof window.GameDenAccount.signIn !== "function") {
+                            throw new Error("Account runtime is not available yet.");
+                        }
+                        await window.GameDenAccount.signIn(email, password);
+                        setAccountStatus("Logged in and synced.", "success");
+                    });
+                });
+            }
+
+            if (logoutBtn) {
+                logoutBtn.addEventListener("click", () => {
+                    void runAccountAction(logoutBtn, async () => {
+                        if (!window.GameDenAccount || typeof window.GameDenAccount.signOut !== "function") {
+                            throw new Error("Account runtime is not available yet.");
+                        }
+                        await window.GameDenAccount.signOut();
+                        setAccountStatus("Logged out. Guest mode restored.", "success");
+                    });
+                });
+            }
+
+            void (async () => {
+                if (typeof window.getGameDenAuthRuntime === "function") {
+                    try {
+                        await window.getGameDenAuthRuntime();
+                    } catch {
+                        setAccountStatus("Auth services failed to load.", "error");
+                        return;
+                    }
+                }
+                await refreshDashboardIdentityState();
+                setAccountStatus("Use your account to sync tracked items across devices.");
+            })();
         }
 
         function renderSkeleton(container, kind, count = 1, options = {}) {
@@ -12187,6 +12545,7 @@ try {
                         game_id: target.game_id,
                     }),
                 });
+                emitTrackedSync("remove", "wishlist", target.game_id);
             } else {
                 await fetchJson("/wishlist/add", {
                     method: "POST",
@@ -12196,6 +12555,7 @@ try {
                         game_id: target.game_id,
                     }),
                 });
+                emitTrackedSync("add", "wishlist", target.game_id);
             }
             await loadUserWishlist();
             renderWishlist();
@@ -12232,6 +12592,7 @@ try {
                     `/api/watchlist/${encodeURIComponent(target.game_id)}?user_id=${encodeURIComponent(CURRENT_USER_ID)}`,
                     { method: "DELETE" },
                 );
+                emitTrackedSync("remove", "watchlist", target.game_id);
                 state.watchlist = state.watchlist.filter((item) => {
                     const normalized = normalizeGameRow(item);
                     const itemGameId = Number(normalized.game_id);
@@ -12261,6 +12622,7 @@ try {
                 } else {
                     await loadUserWatchlist();
                 }
+                emitTrackedSync("add", "watchlist", target.game_id);
             }
 
             renderWishlist();
@@ -13122,9 +13484,19 @@ try {
                 }
             });
             window.addEventListener("storage", (event) => {
-                if (event.key !== TRACKED_SYNC_STORAGE_KEY) return;
-                const payload = parseTrackedSyncPayload(event.newValue || "");
-                applyTrackedSyncPayload(payload);
+                if (event.key === TRACKED_SYNC_STORAGE_KEY) {
+                    const payload = parseTrackedSyncPayload(event.newValue || "");
+                    applyTrackedSyncPayload(payload);
+                    return;
+                }
+                if (event.key === AUTH_SYNC_STORAGE_KEY) {
+                    const payload = parseAccountSyncPayload(event.newValue || "");
+                    applyAccountSyncPayload(payload);
+                }
+            });
+            window.addEventListener("gameden:account-sync", (event) => {
+                const payload = event && event.detail ? event.detail : null;
+                applyAccountSyncPayload(payload);
             });
             wireCatalogLifecycle._wired = true;
         }
@@ -13166,6 +13538,7 @@ try {
                 wireSectionReveal();
                 wireCardActionButtons();
                 wireCatalogLifecycle();
+                wireAccountPanel();
                 scheduleNonCriticalHomepageWireup();
 
                 ui.includeFreeCheckbox.checked = state.filters.includeFree;

@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 import json
 import math
 import mimetypes
@@ -16,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr
+import requests
 from sqlalchemy import and_, case, func, or_, text
 from sqlalchemy.exc import IntegrityError
 
@@ -40,6 +42,9 @@ from config import (
     SITE_HOST,
     SITE_NAME,
     SITE_URL,
+    SUPABASE_ANON_KEY,
+    SUPABASE_AUTH_VERIFY_TIMEOUT_SECONDS,
+    SUPABASE_URL,
     validate_settings,
 )
 from database import ReadSessionLocal, direct_engine
@@ -229,6 +234,16 @@ VIEWER_ID_COOKIE_NAME = "gameden_viewer_id"
 VIEWER_ID_HEADER_NAME = "x-gameden-viewer"
 VIEWER_ID_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
 ANONYMOUS_USER_ID_RE = re.compile(r"^anon_[0-9a-f]{32}$")
+AUTHENTICATED_USER_ID_RE = re.compile(r"^acct_[0-9a-f\-]{20,64}$")
+AUTHENTICATED_USER_HEADER_NAME = "x-gameden-auth-user"
+AUTHORIZATION_HEADER_NAME = "authorization"
+SUPABASE_AUTH_USER_ENDPOINT = (
+    f"{SUPABASE_URL.rstrip('/')}/auth/v1/user"
+    if SUPABASE_URL and SUPABASE_ANON_KEY
+    else ""
+)
+SUPABASE_AUTH_CACHE_TTL_SECONDS = 60
+_supabase_auth_cache: dict[str, tuple[str | None, float]] = {}
 SITEMAP_STATIC_PATHS = (
     "/",
     "/all-results",
@@ -410,6 +425,68 @@ def _set_viewer_cookie(response: Response, viewer_id: str) -> None:
     )
 
 
+def _normalize_authenticated_user_id(value: str | None) -> str | None:
+    normalized = str(value or "").strip().lower()
+    if not normalized:
+        return None
+    if AUTHENTICATED_USER_ID_RE.fullmatch(normalized):
+        return normalized
+    return None
+
+
+def _account_user_id_from_supabase_user(raw_user_id: str | None) -> str | None:
+    token = str(raw_user_id or "").strip().lower()
+    if not token or not re.fullmatch(r"[0-9a-f\-]{20,64}", token):
+        return None
+    return f"acct_{token}"
+
+
+def _parse_bearer_token(header_value: str | None) -> str:
+    raw = str(header_value or "").strip()
+    if not raw:
+        return ""
+    parts = raw.split(" ", 1)
+    if len(parts) != 2:
+        return ""
+    if parts[0].lower() != "bearer":
+        return ""
+    return parts[1].strip()
+
+
+def _cache_key_for_access_token(access_token: str) -> str:
+    return hashlib.sha256(access_token.encode("utf-8")).hexdigest()
+
+
+def _resolve_supabase_authenticated_user_id(access_token: str) -> str | None:
+    if not access_token or not SUPABASE_AUTH_USER_ENDPOINT:
+        return None
+
+    now_ts = time.time()
+    cache_key = _cache_key_for_access_token(access_token)
+    cached = _supabase_auth_cache.get(cache_key)
+    if cached and cached[1] > now_ts:
+        return cached[0]
+
+    resolved_user_id: str | None = None
+    try:
+        response = requests.get(
+            SUPABASE_AUTH_USER_ENDPOINT,
+            headers={
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": f"Bearer {access_token}",
+            },
+            timeout=SUPABASE_AUTH_VERIFY_TIMEOUT_SECONDS,
+        )
+        if response.status_code == 200:
+            payload = response.json() if response.content else {}
+            resolved_user_id = _account_user_id_from_supabase_user(payload.get("id"))
+    except Exception:
+        resolved_user_id = None
+
+    _supabase_auth_cache[cache_key] = (resolved_user_id, now_ts + SUPABASE_AUTH_CACHE_TTL_SECONDS)
+    return resolved_user_id
+
+
 def resolve_request_user_id(request: Request, candidate: str | None = None) -> str:
     authenticated_user_id = str(getattr(request.state, "authenticated_user_id", "") or "").strip()
     if authenticated_user_id and not _is_anonymous_user_id(authenticated_user_id):
@@ -428,6 +505,32 @@ def resolve_request_user_id(request: Request, candidate: str | None = None) -> s
         return viewer_id
 
     return viewer_id
+
+
+@app.middleware("http")
+async def authenticated_identity_middleware(request: Request, call_next):
+    authenticated_user_id = ""
+
+    bearer_token = _parse_bearer_token(request.headers.get(AUTHORIZATION_HEADER_NAME))
+    hinted_user_id = _normalize_authenticated_user_id(request.headers.get(AUTHENTICATED_USER_HEADER_NAME))
+    if bearer_token:
+        resolved = _resolve_supabase_authenticated_user_id(bearer_token)
+        if resolved:
+            if hinted_user_id and hinted_user_id != resolved:
+                authenticated_user_id = ""
+            else:
+                authenticated_user_id = resolved
+        elif hinted_user_id and not SUPABASE_AUTH_USER_ENDPOINT:
+            # Fallback for environments where Supabase verification config
+            # has not yet been injected into the API runtime.
+            authenticated_user_id = hinted_user_id
+
+    request.state.authenticated_user_id = authenticated_user_id
+
+    response = await call_next(request)
+    if authenticated_user_id:
+        response.headers.setdefault("X-GameDen-Auth-User", authenticated_user_id)
+    return response
 
 
 @app.middleware("http")
@@ -460,6 +563,11 @@ class WishlistMutationRequest(BaseModel):
 class WatchlistMutationRequest(BaseModel):
     user_id: str
     game_id: int
+
+
+class MergeGuestListsRequest(BaseModel):
+    guest_user_id: str
+    clear_guest_data: bool = True
 
 
 class AlertReadRequest(BaseModel):
@@ -1232,6 +1340,8 @@ def _is_anonymous_user_id(value: str | None) -> bool:
     normalized = str(value or "").strip().lower()
     if not normalized:
         return True
+    if ANONYMOUS_USER_ID_RE.fullmatch(normalized):
+        return True
     return normalized in {
         str(DEFAULT_USER_ID or "").strip().lower(),
         "anonymous",
@@ -1242,6 +1352,8 @@ def _is_anonymous_user_id(value: str | None) -> bool:
 def _is_guest_user_id(value: str | None) -> bool:
     normalized = str(value or "").strip().lower()
     if not normalized:
+        return True
+    if ANONYMOUS_USER_ID_RE.fullmatch(normalized):
         return True
     return normalized in {"anonymous", "guest"}
 
@@ -7011,9 +7123,12 @@ def list_watchlist_alert_feed(
 @app.get("/api/viewer")
 def get_viewer_identity(request: Request):
     viewer_id = resolve_request_user_id(request)
+    authenticated_user_id = str(getattr(request.state, "authenticated_user_id", "") or "").strip()
     return {
         "user_id": viewer_id,
         "anonymous": bool(_normalize_anonymous_user_id(viewer_id)),
+        "authenticated": bool(authenticated_user_id and not _is_anonymous_user_id(authenticated_user_id)),
+        "authenticated_user_id": authenticated_user_id or None,
     }
 
 
@@ -8511,6 +8626,132 @@ def list_user_wishlist(request: Request, user_id: str):
             }
             for item, game, snapshot in rows
         ]
+    finally:
+        session.close()
+
+
+@app.post("/api/account/merge-guest-lists")
+def merge_guest_lists(payload: MergeGuestListsRequest, request: Request):
+    authenticated_user_id = str(getattr(request.state, "authenticated_user_id", "") or "").strip()
+    if _is_anonymous_user_id(authenticated_user_id):
+        raise HTTPException(status_code=401, detail="Authenticated session required.")
+
+    guest_user_id = _normalize_anonymous_user_id(payload.guest_user_id)
+    if not guest_user_id:
+        raise HTTPException(status_code=400, detail="guest_user_id must be an anonymous viewer id.")
+    if guest_user_id == authenticated_user_id:
+        return {
+            "ok": True,
+            "user_id": authenticated_user_id,
+            "guest_user_id": guest_user_id,
+            "merged_wishlist_count": 0,
+            "merged_watchlist_count": 0,
+        }
+
+    session = Session()
+    try:
+        guest_wishlist_rows = (
+            session.query(WishlistItem.game_id, WishlistItem.game_name)
+            .filter(WishlistItem.user_id == guest_user_id)
+            .all()
+        )
+        guest_watchlist_rows = (
+            session.query(Watchlist.game_id)
+            .filter(Watchlist.user_id == guest_user_id)
+            .all()
+        )
+        auth_wishlist_game_ids = {
+            int(game_id)
+            for game_id, in (
+                session.query(WishlistItem.game_id)
+                .filter(WishlistItem.user_id == authenticated_user_id)
+                .all()
+            )
+            if game_id is not None
+        }
+        auth_watchlist_game_ids = {
+            int(game_id)
+            for game_id, in (
+                session.query(Watchlist.game_id)
+                .filter(Watchlist.user_id == authenticated_user_id)
+                .all()
+            )
+            if game_id is not None
+        }
+
+        merged_wishlist_count = 0
+        merged_watchlist_count = 0
+
+        for game_id, game_name in guest_wishlist_rows:
+            if game_id is None:
+                continue
+            normalized_game_id = int(game_id)
+            if normalized_game_id in auth_wishlist_game_ids:
+                continue
+            session.add(
+                WishlistItem(
+                    user_id=authenticated_user_id,
+                    game_id=normalized_game_id,
+                    game_name=game_name,
+                )
+            )
+            auth_wishlist_game_ids.add(normalized_game_id)
+            merged_wishlist_count += 1
+
+        for game_id, in guest_watchlist_rows:
+            if game_id is None:
+                continue
+            normalized_game_id = int(game_id)
+            if normalized_game_id in auth_watchlist_game_ids:
+                continue
+            session.add(
+                Watchlist(
+                    user_id=authenticated_user_id,
+                    game_id=normalized_game_id,
+                )
+            )
+            auth_watchlist_game_ids.add(normalized_game_id)
+            merged_watchlist_count += 1
+
+        if payload.clear_guest_data:
+            session.query(WishlistItem).filter(WishlistItem.user_id == guest_user_id).delete(synchronize_session=False)
+            session.query(Watchlist).filter(Watchlist.user_id == guest_user_id).delete(synchronize_session=False)
+
+        session.commit()
+
+        wishlist_rows = (
+            session.query(WishlistItem, Game, GameSnapshot)
+            .outerjoin(Game, Game.id == WishlistItem.game_id)
+            .outerjoin(GameSnapshot, GameSnapshot.game_id == WishlistItem.game_id)
+            .filter(WishlistItem.user_id == authenticated_user_id)
+            .order_by(WishlistItem.created_at.desc())
+            .all()
+        )
+        wishlist_items = [
+            {
+                "id": int(item.id),
+                "user_id": item.user_id,
+                "game_id": int(item.game_id),
+                "game_name": item.game_name or (game.name if game else None),
+                "steam_appid": snapshot.steam_appid if snapshot else (game.appid if game else None),
+                "banner_url": snapshot.banner_url if snapshot else None,
+                "latest_price": snapshot.latest_price if snapshot else None,
+                "latest_discount_percent": snapshot.latest_discount_percent if snapshot else None,
+                "created_at": item.created_at.isoformat() if item.created_at else None,
+            }
+            for item, game, snapshot in wishlist_rows
+        ]
+        watchlist_items = build_watchlist_entries_payload(session, authenticated_user_id)
+
+        return {
+            "ok": True,
+            "user_id": authenticated_user_id,
+            "guest_user_id": guest_user_id,
+            "merged_wishlist_count": merged_wishlist_count,
+            "merged_watchlist_count": merged_watchlist_count,
+            "wishlist": wishlist_items,
+            "watchlist": watchlist_items,
+        }
     finally:
         session.close()
 

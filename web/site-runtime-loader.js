@@ -65,6 +65,15 @@
     });
   }
 
+  async function loadOptionalAuthBundle() {
+    await loadScriptSequentially(`/runtime-config.js${suffix}`);
+    await loadScriptSequentially("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2");
+    await loadScriptSequentially(`/supabase-client.js${suffix}`);
+    await loadScriptSequentially(`/auth-session.js${suffix}`);
+    await loadScriptSequentially(`/auth-state-listener.js${suffix}`);
+    await loadScriptSequentially(`/account-state.js${suffix}`);
+  }
+
   const suffix = getAssetQuerySuffix();
   const runtimeReady = (async function initRuntime() {
     if (isRuntimeReady()) return window.GameDenSite;
@@ -79,8 +88,12 @@
   })();
 
   window.__GAMEDEN_RUNTIME_READY__ = runtimeReady;
+  window.__GAMEDEN_AUTH_READY__ = runtimeReady.then(() => loadOptionalAuthBundle());
   window.getGameDenRuntime = function getGameDenRuntime() {
     return runtimeReady;
+  };
+  window.getGameDenAuthRuntime = function getGameDenAuthRuntime() {
+    return window.__GAMEDEN_AUTH_READY__;
   };
 
   runtimeReady
@@ -93,4 +106,16 @@
         console.error("[GameDenSite] runtime initialization failed", error);
       }
     });
+
+  window.__GAMEDEN_AUTH_READY__
+    .then(() => {
+      document.dispatchEvent(new CustomEvent("gameden:auth-ready"));
+    })
+    .catch((error) => {
+      document.dispatchEvent(new CustomEvent("gameden:auth-error", { detail: error }));
+      if (typeof console !== "undefined" && typeof console.warn === "function") {
+        console.warn("[GameDenSite] optional auth bundle failed to initialize", error);
+      }
+    });
+
 })();

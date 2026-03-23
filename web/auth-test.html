@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>GameDen Auth Test</title>
+<script src="/site-runtime-loader.js?v=20260316-1"></script>
+<style>
+  body {
+    margin: 0;
+    font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+    background: #071226;
+    color: #eef5ff;
+  }
+
+  .page {
+    width: min(900px, 100% - 32px);
+    margin: 24px auto 40px;
+  }
+
+  .panel {
+    background: rgba(9, 20, 38, 0.95);
+    border: 1px solid rgba(130, 173, 247, 0.35);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    margin: 0 0 8px;
+    font-size: 28px;
+  }
+
+  p {
+    margin: 0;
+    color: #bcd0f2;
+  }
+
+  .row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  input {
+    min-width: 240px;
+    flex: 1 1 280px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(130, 173, 247, 0.4);
+    color: #eef5ff;
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+
+  button {
+    background: rgba(121, 168, 255, 0.2);
+    border: 1px solid rgba(130, 173, 247, 0.45);
+    color: #eef5ff;
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", monospace;
+    color: #d8e6ff;
+  }
+
+  .hint {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #9bb5df;
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <section class="panel">
+    <h1>Auth Foundation Test</h1>
+    <p>Use this page to verify signup, login, logout, and session restore wiring.</p>
+    <p class="hint">Config source: <code>window.GAMEDEN_CONFIG.supabase</code>. Frontend key must be anon/publishable.</p>
+  </section>
+
+  <section class="panel">
+    <strong>Credentials</strong>
+    <div class="row">
+      <input id="emailInput" type="email" placeholder="Email">
+      <input id="passwordInput" type="password" placeholder="Password">
+    </div>
+    <div class="row">
+      <button id="signupBtn" type="button">Sign Up</button>
+      <button id="signinBtn" type="button">Sign In</button>
+      <button id="signoutBtn" type="button">Sign Out</button>
+      <button id="refreshSessionBtn" type="button">Refresh Session</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <strong>Session State</strong>
+    <pre id="sessionState">Loading...</pre>
+  </section>
+
+  <section class="panel">
+    <strong>Auth Events</strong>
+    <pre id="eventLog">Waiting for auth events...</pre>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  const eventLogEl = document.getElementById("eventLog");
+  const sessionStateEl = document.getElementById("sessionState");
+  const emailInput = document.getElementById("emailInput");
+  const passwordInput = document.getElementById("passwordInput");
+  const signupBtn = document.getElementById("signupBtn");
+  const signinBtn = document.getElementById("signinBtn");
+  const signoutBtn = document.getElementById("signoutBtn");
+  const refreshSessionBtn = document.getElementById("refreshSessionBtn");
+
+  const maxEvents = 20;
+  const events = [];
+
+  function getClient() {
+    if (!window.GameDenSupabaseClient || typeof window.GameDenSupabaseClient.getClient !== "function") {
+      throw new Error("GameDenSupabaseClient missing. Ensure /supabase-client.js is loaded.");
+    }
+    const client = window.GameDenSupabaseClient.getClient();
+    if (!client) {
+      const error = window.GameDenSupabaseClient.getError && window.GameDenSupabaseClient.getError();
+      throw error || new Error("Supabase client unavailable.");
+    }
+    return client;
+  }
+
+  function maskEmail(value) {
+    const email = String(value || "").trim();
+    const parts = email.split("@");
+    if (parts.length !== 2) return email;
+    const left = parts[0];
+    if (!left) return email;
+    if (left.length === 1) return `*@${parts[1]}`;
+    return `${left.slice(0, 1)}***${left.slice(-1)}@${parts[1]}`;
+  }
+
+  function addEvent(message) {
+    events.unshift(`${new Date().toISOString()}  ${message}`);
+    if (events.length > maxEvents) {
+      events.length = maxEvents;
+    }
+    eventLogEl.textContent = events.join("\n");
+  }
+
+  async function renderSessionState() {
+    if (!window.GameDenAuthSession || typeof window.GameDenAuthSession.getState !== "function") {
+      sessionStateEl.textContent = "Auth session helper is not loaded.";
+      return;
+    }
+    const state = await window.GameDenAuthSession.getState();
+    const user = state && state.user ? state.user : null;
+    const session = state && state.session ? state.session : null;
+    sessionStateEl.textContent = JSON.stringify({
+      loggedIn: !!(state && state.loggedIn),
+      user_id: user ? user.id : null,
+      email: user ? maskEmail(user.email) : null,
+      session_expires_at: session ? session.expires_at : null,
+      error: state && state.error ? state.error.message : null,
+      client_init_count:
+        window.GameDenSupabaseClient && typeof window.GameDenSupabaseClient.getInitCount === "function"
+          ? window.GameDenSupabaseClient.getInitCount()
+          : null,
+    }, null, 2);
+  }
+
+  function readCredentials() {
+    return {
+      email: String(emailInput.value || "").trim(),
+      password: String(passwordInput.value || ""),
+    };
+  }
+
+  function withPending(button, isPending) {
+    if (!(button instanceof HTMLButtonElement)) return;
+    button.disabled = !!isPending;
+    button.textContent = isPending ? `${button.dataset.baseLabel}...` : button.dataset.baseLabel;
+  }
+
+  async function runAuthAction(button, action) {
+    withPending(button, true);
+    try {
+      await action();
+      await renderSessionState();
+    } catch (error) {
+      addEvent(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
+      await renderSessionState();
+    } finally {
+      withPending(button, false);
+    }
+  }
+
+  signupBtn.dataset.baseLabel = signupBtn.textContent;
+  signinBtn.dataset.baseLabel = signinBtn.textContent;
+  signoutBtn.dataset.baseLabel = signoutBtn.textContent;
+  refreshSessionBtn.dataset.baseLabel = refreshSessionBtn.textContent;
+
+  signupBtn.addEventListener("click", function onSignup() {
+    void runAuthAction(signupBtn, async function signup() {
+      const creds = readCredentials();
+      if (!creds.email || !creds.password) {
+        throw new Error("Email and password are required.");
+      }
+      const client = getClient();
+      const result = await client.auth.signUp({
+        email: creds.email,
+        password: creds.password,
+      });
+      if (result.error) {
+        throw result.error;
+      }
+      const needsEmailConfirmation = !result.data.session;
+      addEvent(needsEmailConfirmation
+        ? `SIGNUP ok for ${maskEmail(creds.email)} (email confirmation required by project settings)`
+        : `SIGNUP ok for ${maskEmail(creds.email)}`);
+    });
+  });
+
+  signinBtn.addEventListener("click", function onSignin() {
+    void runAuthAction(signinBtn, async function signin() {
+      const creds = readCredentials();
+      if (!creds.email || !creds.password) {
+        throw new Error("Email and password are required.");
+      }
+      const client = getClient();
+      const result = await client.auth.signInWithPassword({
+        email: creds.email,
+        password: creds.password,
+      });
+      if (result.error) {
+        throw result.error;
+      }
+      addEvent(`SIGNIN ok for ${maskEmail(creds.email)}`);
+    });
+  });
+
+  signoutBtn.addEventListener("click", function onSignout() {
+    void runAuthAction(signoutBtn, async function signout() {
+      const client = getClient();
+      const result = await client.auth.signOut();
+      if (result.error) {
+        throw result.error;
+      }
+      addEvent("SIGNOUT ok");
+    });
+  });
+
+  refreshSessionBtn.addEventListener("click", function onRefreshSession() {
+    void runAuthAction(refreshSessionBtn, async function refreshSession() {
+      await renderSessionState();
+      addEvent("Session refreshed from helper.");
+    });
+  });
+
+  (async function initAuthHarness() {
+    try {
+      if (typeof window.getGameDenAuthRuntime === "function") {
+        await window.getGameDenAuthRuntime();
+      }
+    } catch (error) {
+      addEvent(`ERROR: auth bundle failed to initialize (${error instanceof Error ? error.message : String(error)})`);
+    }
+
+    if (window.GameDenAuthState && typeof window.GameDenAuthState.subscribe === "function") {
+      window.GameDenAuthState.subscribe(function onAuthStateChange(payload) {
+        const eventName = payload && payload.event ? payload.event : "UNKNOWN";
+        const userId = payload && payload.user ? payload.user.id : null;
+        addEvent(`AUTH_EVENT ${eventName}${userId ? ` user=${userId}` : ""}`);
+        void renderSessionState();
+      });
+    } else {
+      addEvent("Auth state listener utility was not available.");
+    }
+
+    await renderSessionState();
+  })();
+})();
+</script>
+</body>
+</html>

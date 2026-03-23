@@ -157,6 +157,14 @@ STEAM_USER_AGENT = os.getenv("STEAM_USER_AGENT", "Mozilla/5.0")
 
 DEBUG = get_bool(os.getenv("DEBUG"), True)
 
+# Supabase Auth verification settings (backend).
+SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").strip()
+SUPABASE_ANON_KEY = (os.getenv("SUPABASE_ANON_KEY") or "").strip()
+SUPABASE_AUTH_VERIFY_TIMEOUT_SECONDS = max(
+    1.0,
+    get_float(os.getenv("SUPABASE_AUTH_VERIFY_TIMEOUT_SECONDS"), 3.0),
+)
+
 SQLALCHEMY_ENGINE_OPTIONS = {
     "pool_pre_ping": True,
     "pool_recycle": 1800,

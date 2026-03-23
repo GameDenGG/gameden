@@ -2,6 +2,7 @@ const API_BASE = "/games";
 const params = new URLSearchParams(window.location.search);
 const gameId = params.get("game_id");
 const WATCHLIST_STORAGE_KEY = "gameden.user_id";
+const AUTH_SYNC_STORAGE_KEY = "gameden.auth.sync.v1";
 const DEFAULT_USER_ID = "legacy-user";
 
 let priceChart;
@@ -45,7 +46,24 @@ function getCurrentUserId() {
   }
 }
 
-const CURRENT_USER_ID = getCurrentUserId();
+let CURRENT_USER_ID = getCurrentUserId();
+
+async function refreshCurrentUserIdFromAccountState() {
+  if (window.GameDenAccount && typeof window.GameDenAccount.syncIdentityFromSession === "function") {
+    try {
+      await window.GameDenAccount.syncIdentityFromSession();
+    } catch {
+      // Continue with best-effort viewer id.
+    }
+  }
+  const runtime = window.GameDenSite;
+  const nextUserId = runtime && typeof runtime.getViewerId === "function"
+    ? String(runtime.getViewerId() || "").trim()
+    : getCurrentUserId();
+  if (nextUserId) {
+    CURRENT_USER_ID = nextUserId;
+  }
+}
 
 if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
   skeletonUi.ensureStyles();
@@ -840,5 +858,22 @@ async function init() {
     setTargetAlertStatus("Failed to load target alert settings.", "error");
   }
 }
+
+if (typeof window.getGameDenAuthRuntime === "function") {
+  window.getGameDenAuthRuntime()
+    .catch(() => null)
+    .finally(() => {
+      void refreshCurrentUserIdFromAccountState().then(() => syncTargetAlert()).catch(() => {});
+    });
+}
+
+window.addEventListener("storage", (event) => {
+  if (event.key !== AUTH_SYNC_STORAGE_KEY) return;
+  void refreshCurrentUserIdFromAccountState().then(() => syncTargetAlert()).catch(() => {});
+});
+
+window.addEventListener("gameden:account-sync", () => {
+  void refreshCurrentUserIdFromAccountState().then(() => syncTargetAlert()).catch(() => {});
+});
 
 init();

@@ -4527,7 +4527,7 @@ input:focus-visible {
         const HERO_LOGO_SESSION_KEY = "gameden.hero_logo_intro_played";
         const HERO_LOGO_FALLBACK_TIMEOUT_MS = 8000;
         const HERO_LOGO_FADE_DURATION_MS = 340;
-        const SEARCH_INPUT_DEBOUNCE_MS = 150;
+        const SEARCH_INPUT_DEBOUNCE_MS = 110;
         const SEARCH_MIN_QUERY_CHARS = 2;
         const SEARCH_CACHE_TTL_MS = 60 * 1000;
         const SEARCH_CATALOG_RELOAD_DEBOUNCE_MS = 450;
@@ -10639,17 +10639,28 @@ input:focus-visible {
             return true;
         }
 
-        function getRenderedSearchResultHref(index) {
+        function getRenderedSearchResultNode(index) {
             const safeIndex = Math.max(0, Number(index) || 0);
             const node = document.getElementById(`search-result-option-${safeIndex}`);
+            if (!(node instanceof HTMLAnchorElement)) return null;
+            return node;
+        }
+
+        function getRenderedSearchResultHref(index) {
+            const node = getRenderedSearchResultNode(index);
             if (!(node instanceof HTMLAnchorElement)) return "";
-            return String(node.getAttribute("href") || node.href || "").trim();
+            return String(node.getAttribute("href") || "").trim();
         }
 
         function navigateToSearchResult(index) {
             const visibleResults = getVisibleSearchResults();
             if (!visibleResults.length) return false;
             const safeIndex = Math.max(0, Math.min(visibleResults.length - 1, Number(index) || 0));
+            const renderedNode = getRenderedSearchResultNode(safeIndex);
+            if (renderedNode) {
+                renderedNode.click();
+                return true;
+            }
             const renderedHref = getRenderedSearchResultHref(safeIndex);
             if (renderedHref) return navigateToSearchHref(renderedHref);
             const selected = visibleResults[safeIndex];
@@ -10732,11 +10743,10 @@ input:focus-visible {
                 score += metadataTokenHits * 42;
                 if (nameTokenHits === 0 && metadataTokenHits > 0) score -= 260;
 
-                const dealScore = Number(game.deal_score);
-                if (Number.isFinite(dealScore)) score += Math.max(0, Math.min(100, dealScore)) * 0.35;
-
-                const discount = Number(game.discount_percent);
-                if (Number.isFinite(discount)) score += Math.max(0, Math.min(100, discount)) * 0.12;
+                const popularityScore = Number(game.popularity_score);
+                if (Number.isFinite(popularityScore) && (hasNamePhrase || nameTokenHits > 0)) {
+                    score += Math.max(0, Math.min(100, popularityScore)) * 2.2;
+                }
 
                 const players = Number(game.current_players);
                 if (Number.isFinite(players) && players > 0) {
@@ -13615,17 +13625,14 @@ try {
                 }
                 const nextIndex = Number(option.getAttribute("data-search-index"));
                 if (!Number.isFinite(nextIndex)) return;
-                const rowHref = String(option.getAttribute("href") || "").trim();
-                if (!rowHref) return;
-                event.preventDefault();
                 setSearchActiveIndex(nextIndex);
-                navigateToSearchHref(rowHref);
             });
 
             ui.searchResultsList.addEventListener("keydown", (event) => {
                 const key = String(event.key || "");
-                const isActivationKey = key === "Enter" || key === " " || key === "Spacebar";
-                if (!isActivationKey) return;
+                const isEnter = key === "Enter";
+                const isSpace = key === " " || key === "Spacebar";
+                if (!isEnter && !isSpace) return;
                 const target = event.target;
                 if (!(target instanceof Element)) return;
                 const option = target.closest("a[data-search-index]");
@@ -13634,10 +13641,10 @@ try {
                 if (Number.isFinite(nextIndex)) {
                     setSearchActiveIndex(nextIndex);
                 }
-                const rowHref = String(option.getAttribute("href") || "").trim();
-                if (!rowHref) return;
-                event.preventDefault();
-                navigateToSearchHref(rowHref);
+                if (isSpace) {
+                    event.preventDefault();
+                    option.click();
+                }
             });
 
             ui.searchResultsList.addEventListener("mousemove", (event) => {

@@ -5504,7 +5504,10 @@ input:focus-visible {
                     : "Browse freely, then sign in to sync tracked items across devices.";
             }
 
-            if (previousUserId && nextUserId && previousUserId !== nextUserId) {
+            const identityChanged = !!(previousUserId && nextUserId && previousUserId !== nextUserId);
+            const shouldForceTrackedReload = !!opts.forceTrackedReload
+                && !isAnonymousOrGuestUserId(nextUserId || CURRENT_USER_ID);
+            if (identityChanged || shouldForceTrackedReload) {
                 void loadPersonalSummary();
                 void loadUserWishlist().then(() => {
                     renderWishlist();
@@ -5526,7 +5529,9 @@ input:focus-visible {
             if (!payload) return false;
             if (payload.ts <= Number(state.authSync.lastAppliedTs || 0)) return false;
             state.authSync.lastAppliedTs = payload.ts;
-            void refreshDashboardIdentityState();
+            const eventType = String(payload.type || "").trim().toLowerCase();
+            const forceTrackedReload = eventType === "merge_completed";
+            void refreshDashboardIdentityState({ forceTrackedReload });
             return true;
         }
 

@@ -10639,6 +10639,25 @@ input:focus-visible {
             return true;
         }
 
+        function updateSearchActiveIndexStateOnly(nextIndex) {
+            const visibleResults = getVisibleSearchResults();
+            if (!visibleResults.length) {
+                state.search.activeIndex = -1;
+                if (ui.searchInput) ui.searchInput.removeAttribute("aria-activedescendant");
+                return;
+            }
+            const normalizedIndex = Number.isFinite(Number(nextIndex))
+                ? Math.max(-1, Math.min(visibleResults.length - 1, Number(nextIndex)))
+                : -1;
+            state.search.activeIndex = normalizedIndex;
+            if (!ui.searchInput) return;
+            if (normalizedIndex < 0) {
+                ui.searchInput.removeAttribute("aria-activedescendant");
+                return;
+            }
+            ui.searchInput.setAttribute("aria-activedescendant", `search-result-option-${normalizedIndex}`);
+        }
+
         function getRenderedSearchResultNode(index) {
             const safeIndex = Math.max(0, Number(index) || 0);
             const node = document.getElementById(`search-result-option-${safeIndex}`);
@@ -10656,11 +10675,6 @@ input:focus-visible {
             const visibleResults = getVisibleSearchResults();
             if (!visibleResults.length) return false;
             const safeIndex = Math.max(0, Math.min(visibleResults.length - 1, Number(index) || 0));
-            const renderedNode = getRenderedSearchResultNode(safeIndex);
-            if (renderedNode) {
-                renderedNode.click();
-                return true;
-            }
             const renderedHref = getRenderedSearchResultHref(safeIndex);
             if (renderedHref) return navigateToSearchHref(renderedHref);
             const selected = visibleResults[safeIndex];
@@ -13625,7 +13639,11 @@ try {
                 }
                 const nextIndex = Number(option.getAttribute("data-search-index"));
                 if (!Number.isFinite(nextIndex)) return;
-                setSearchActiveIndex(nextIndex);
+                const rowHref = String(option.getAttribute("href") || option.href || "").trim();
+                if (!rowHref) return;
+                event.preventDefault();
+                updateSearchActiveIndexStateOnly(nextIndex);
+                navigateToSearchHref(rowHref);
             });
 
             ui.searchResultsList.addEventListener("keydown", (event) => {
@@ -13639,11 +13657,13 @@ try {
                 if (!option) return;
                 const nextIndex = Number(option.getAttribute("data-search-index"));
                 if (Number.isFinite(nextIndex)) {
-                    setSearchActiveIndex(nextIndex);
+                    updateSearchActiveIndexStateOnly(nextIndex);
                 }
-                if (isSpace) {
+                const rowHref = String(option.getAttribute("href") || option.href || "").trim();
+                if (!rowHref) return;
+                if (isSpace || isEnter) {
                     event.preventDefault();
-                    option.click();
+                    navigateToSearchHref(rowHref);
                 }
             });
 

@@ -30,9 +30,11 @@ class SearchRelevanceContractTests(unittest.TestCase):
         self.assertIn("CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END", self.text)
         self.assertIn("CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END", self.text)
         self.assertIn("sim DESC", self.text)
-        self.assertIn("popularity_score * 22.0", self.text)
         self.assertNotIn("COALESCE(s.deal_score, 0) DESC", self.text)
         self.assertNotIn("lexical_score += deal_score", self.text)
+        self.assertIn("activity_tiebreak = popularity_score", self.text)
+        self.assertIn("if lexical_tier <= 4:", self.text)
+        self.assertIn("math.log10(current_players + 1.0)", self.text)
 
     def test_home_search_dropdown_uses_search_endpoint(self) -> None:
         self.assertIn("function refreshSearchResults(options = {})", self.web_text)
@@ -40,11 +42,11 @@ class SearchRelevanceContractTests(unittest.TestCase):
         self.assertNotIn("fetchJson(`/games/search?", self.web_text)
 
     def test_home_search_dropdown_rows_use_anchor_navigation(self) -> None:
-        self.assertIn("function getRenderedSearchResultNode(index)", self.web_text)
-        self.assertIn("renderedNode.click();", self.web_text)
+        self.assertIn("function updateSearchActiveIndexStateOnly(nextIndex)", self.web_text)
+        self.assertIn("const rowHref = String(option.getAttribute(\"href\") || option.href || \"\").trim();", self.web_text)
         self.assertIn("target.closest(\"a[data-search-index]\")", self.web_text)
-        self.assertIn("option.click();", self.web_text)
-        self.assertNotIn("navigateToSearchHref(rowHref);", self.web_text)
+        self.assertIn("navigateToSearchHref(rowHref);", self.web_text)
+        self.assertNotIn("renderedNode.click();", self.web_text)
 
     def test_frontend_search_fallback_does_not_use_deal_score(self) -> None:
         start = self.web_text.index("function searchFallbackPool(query, limit = 20)")

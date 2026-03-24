@@ -781,6 +781,8 @@ def _score_search_candidate_row(
 
     similarity_score = max(0.0, min(safe_num(row.get("sim"), 0.0), 1.0))
     popularity_score = max(0.0, min(safe_num(row.get("popularity_score"), 0.0), 100.0))
+    current_players = max(0.0, safe_num(row.get("current_players"), 0.0))
+    review_total_count = max(0.0, safe_num(row.get("review_total_count"), 0.0))
 
     exact_name_match = normalized_query and name == normalized_query
     normalized_exact_name_match = bool(
@@ -835,23 +837,27 @@ def _score_search_candidate_row(
     lexical_score += float(token_prefix_hits) * 220.0
     if strong_token_prefix:
         lexical_score += 260.0
-    lexical_score += similarity_score * 130.0
-    lexical_score += float(developer_hits) * 22.0
-    lexical_score += float(publisher_hits) * 18.0
-    lexical_score += float(genre_hits) * 8.0
-    lexical_score += float(tag_hits) * 8.0
-    if lexical_tier <= 4:
-        # Popularity should materially help only when lexical relevance is already strong.
-        lexical_score += popularity_score * 22.0
+    if lexical_tier >= 4:
+        lexical_score += similarity_score * 130.0
+    if lexical_tier >= 4:
+        lexical_score += float(developer_hits) * 22.0
+        lexical_score += float(publisher_hits) * 18.0
+        lexical_score += float(genre_hits) * 8.0
+        lexical_score += float(tag_hits) * 8.0
     if lexical_tier >= 5:
         lexical_score -= 320.0
 
-    popularity_tiebreak = popularity_score if lexical_tier <= 4 else 0.0
+    activity_tiebreak = 0.0
+    if lexical_tier <= 4:
+        # Apply popularity/activity only as a tie-breaker among already relevant title matches.
+        activity_tiebreak = popularity_score
+        activity_tiebreak += math.log10(current_players + 1.0) * 12.0
+        activity_tiebreak += math.log10(review_total_count + 1.0) * 7.0
 
     return (
         lexical_tier,
         lexical_score,
-        popularity_tiebreak,
+        activity_tiebreak,
         token_prefix_hits,
         name_hits,
         similarity_score,
@@ -4589,9 +4595,9 @@ def search_games_fast(
         normalized_limit = max(1, min(int(limit), 20))
         query_tokens = _search_tokens(normalized_query)
         tokenized_query = "%".join(query_tokens) if len(query_tokens) > 1 else ""
-        fast_candidate_limit = min(80, max(18, normalized_limit * 4))
+        fast_candidate_limit = min(96, max(30, normalized_limit * 8))
         if len(normalized_query) <= 2:
-            fast_candidate_limit = min(64, max(16, normalized_limit * 4))
+            fast_candidate_limit = min(72, max(24, normalized_limit * 6))
 
         rows = session.execute(
             text(
@@ -4609,6 +4615,7 @@ def search_games_fast(
                     s.latest_discount_percent,
                     s.deal_score,
                     COALESCE(s.popularity_score, 0) AS popularity_score,
+                    COALESCE(s.current_players, 0) AS current_players,
                     COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
                     s.worth_buying_score,
                     COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
@@ -4647,7 +4654,6 @@ def search_games_fast(
                         THEN 0
                         ELSE 1
                     END,
-                    COALESCE(s.popularity_score, 0) DESC,
                     length(g.name) ASC,
                     g.name ASC
                 LIMIT :limit
@@ -4667,7 +4673,7 @@ def search_games_fast(
         )
         if should_run_broad_pass:
             remaining_slots = max(1, normalized_limit - len(rows))
-            candidate_limit = min(120, max(32, remaining_slots * 10))
+            candidate_limit = min(96, max(28, remaining_slots * 8))
             if len(normalized_query) <= 2:
                 candidate_limit = min(72, max(24, remaining_slots * 8))
             try:
@@ -4687,6 +4693,7 @@ def search_games_fast(
                             s.latest_discount_percent,
                             s.deal_score,
                             COALESCE(s.popularity_score, 0) AS popularity_score,
+                            COALESCE(s.current_players, 0) AS current_players,
                             COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
                             s.worth_buying_score,
                             COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
@@ -4717,7 +4724,6 @@ def search_games_fast(
                             CASE WHEN lower(COALESCE(s.genres, COALESCE(g.genres, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
                             CASE WHEN lower(COALESCE(s.tags, COALESCE(g.tags, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
                             CASE WHEN lower(g.name) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
-                            COALESCE(s.popularity_score, 0) DESC,
                             g.name ASC
                         LIMIT :limit
                         """
@@ -4748,6 +4754,7 @@ def search_games_fast(
                             s.latest_discount_percent,
                             s.deal_score,
                             COALESCE(s.popularity_score, 0) AS popularity_score,
+                            COALESCE(s.current_players, 0) AS current_players,
                             COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
                             s.worth_buying_score,
                             COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
@@ -4776,7 +4783,6 @@ def search_games_fast(
                             CASE WHEN lower(COALESCE(s.genres, COALESCE(g.genres, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
                             CASE WHEN lower(COALESCE(s.tags, COALESCE(g.tags, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
                             CASE WHEN lower(g.name) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
-                            COALESCE(s.popularity_score, 0) DESC,
                             g.name ASC
                         LIMIT :limit
                         """
@@ -4814,6 +4820,8 @@ def search_games_fast(
                 "discount_percent": row["latest_discount_percent"],
                 "latest_discount_percent": row["latest_discount_percent"],
                 "deal_score": row["deal_score"],
+                "popularity_score": row.get("popularity_score"),
+                "current_players": row.get("current_players"),
                 "buy_score": row.get("buy_score") if row.get("buy_score") is not None else row["worth_buying_score"],
                 "worth_buying_score": row["worth_buying_score"],
                 "review_score": row.get("review_score"),

@@ -865,6 +865,24 @@ a {
     white-space: nowrap;
 }
 
+.player-coverage-label[data-confidence="high"] {
+    border-color: rgba(92, 228, 169, 0.48);
+    background: rgba(92, 228, 169, 0.18);
+    color: #bdf9df;
+}
+
+.player-coverage-label[data-confidence="moderate"] {
+    border-color: rgba(111, 232, 255, 0.46);
+    background: rgba(111, 232, 255, 0.16);
+    color: #ddf7ff;
+}
+
+.player-coverage-label[data-confidence="low"] {
+    border-color: rgba(255, 199, 122, 0.42);
+    background: rgba(255, 199, 122, 0.14);
+    color: #ffe4be;
+}
+
 .chart-wrap {
     padding: 12px;
     border-radius: 18px;
@@ -1510,7 +1528,7 @@ a {
                             <div class="player-trend-summary" id="playerTrendSummary">Player trend summary will appear once history loads.</div>
                             <div class="player-trend-detail" id="playerTrendDetail"></div>
                         </div>
-                        <div class="player-coverage-label" id="playerCoverageLabel">Tracking window pending</div>
+                        <div class="player-coverage-label" id="playerCoverageLabel" data-confidence="low">Low confidence — limited data</div>
                     </div>
                     <div class="chart-wrap">
                         <canvas id="playerChart" height="120"></canvas>
@@ -2618,13 +2636,23 @@ function normalizeReasonSnippet(value) {
 }
 
 const PLAYER_INTEREST_STATE_LABELS = Object.freeze({
-    stable_evergreen: "Stable evergreen player base",
-    declining: "Declining interest over last 90 days",
-    resurging: "Resurging player activity",
+    stable_evergreen: "Consistent long-term engagement",
+    declining: "Player activity declining",
+    resurging: "Recent surge in players",
+    one_off_spike: "Recent surge in players",
+    launch_hype_dropoff: "Interest fading after peak",
+    stable: "Stable player base",
+    mixed: "Mixed player signals",
+});
+
+const PLAYER_INTEREST_HEADLINES = Object.freeze({
+    stable_evergreen: "Strong, stable player base",
+    declining: "Declining interest — momentum is weakening",
+    resurging: "Growing player activity",
     one_off_spike: "Recent spike — likely temporary",
-    launch_hype_dropoff: "Launch hype dropoff",
-    stable: "Stable player trend",
-    mixed: "Mixed player trend signals",
+    launch_hype_dropoff: "Interest fading after launch peak",
+    stable: "Stable player base",
+    mixed: "Player trend is mixed right now",
 });
 
 function getRankingExplanations(payload) {
@@ -2666,19 +2694,10 @@ function getPlayerSignalInsights(payload) {
 
 function formatPlayerHistoryConfidence(insights) {
     const confidence = Number(insights?.confidence);
-    const coverageDays = Number(insights?.coverageDays);
-    if (!Number.isFinite(confidence)) {
-        return "Confidence pending (history still building)";
-    }
-    const tier = confidence >= 0.75 ? "High confidence" : confidence >= 0.45 ? "Moderate confidence" : "Low confidence";
-    const years = Number.isFinite(coverageDays) && coverageDays > 0 ? (coverageDays / 365) : 0;
-    if (years >= 1) {
-        return `${tier} (${years.toFixed(1)} years of player history)`;
-    }
-    if (Number.isFinite(coverageDays) && coverageDays > 0) {
-        return `${tier} (${Math.round(coverageDays)} days of player history)`;
-    }
-    return `${tier} (limited player history)`;
+    if (!Number.isFinite(confidence)) return "Low confidence — limited data";
+    if (confidence >= 0.75) return "High confidence — long-term data";
+    if (confidence >= 0.45) return "Moderate confidence";
+    return "Low confidence — limited data";
 }
 
 function buildPlayerTrendComparisonText(insights) {
@@ -3328,18 +3347,16 @@ function findMajorPlayerSpike(points) {
 }
 
 function computePlayerTrendInsights(filteredPoints, allPoints, range) {
-    const rangeLabel = PLAYER_HISTORY_RANGE_LABELS[range] || "selected window";
     const backendInsights = getPlayerSignalInsights(currentGamePayload);
     const backendState = String(backendInsights?.state || "").trim().toLowerCase();
-    const backendStateLabel = String(backendInsights?.stateLabel || "").trim();
-    const backendComparison = buildPlayerTrendComparisonText(backendInsights);
+    const backendHeadline = PLAYER_INTEREST_HEADLINES[backendState] || PLAYER_INTEREST_HEADLINES.mixed;
     const backendConfidence = formatPlayerHistoryConfidence(backendInsights);
     if (!filteredPoints.length || !allPoints.length) {
         return {
             trend: "flat",
-            summary: "Player trend summary unavailable.",
+            summary: "Player trend unavailable",
             detail: "",
-            coverage: "Tracking window pending",
+            coverage: "Low confidence — limited data",
             peakIndex: null,
             spike: null,
         };
@@ -3355,12 +3372,6 @@ function computePlayerTrendInsights(filteredPoints, allPoints, range) {
         ? ((latest.players - first.players) / first.players) * 100
         : 0;
     const trend = trendPct >= 2.5 ? "up" : trendPct <= -2.5 ? "down" : "flat";
-    const trendPrefix = trend === "up"
-        ? "Player activity trending upward"
-        : trend === "down"
-            ? "Player activity trending downward"
-            : "Player activity stable";
-    const trendDeltaText = Number.isFinite(trendPct) ? ` (${trendPct >= 0 ? "+" : ""}${trendPct.toFixed(1)}%)` : "";
     const trendFromState = (
         backendState === "declining" || backendState === "launch_hype_dropoff"
             ? "down"
@@ -3380,34 +3391,30 @@ function computePlayerTrendInsights(filteredPoints, allPoints, range) {
             : `Up ${fromPeakPct.toFixed(1)}% above earlier range peak`)
         : "Peak comparison unavailable";
 
-    const detailPieces = [];
-    if (backendComparison) {
-        detailPieces.push(backendComparison);
-    }
-    detailPieces.push(`${fromPeakText} (${fmtInt(peakPoint.players)} on ${formatPlayerDate(peakPoint.timestamp)})`);
-    if (spike) {
-        detailPieces.push(`Major spike +${fmtInt(spike.delta)} on ${formatPlayerDate(spike.timestamp)}`);
-    }
-
     const earliestAll = allPoints[0];
     const latestAll = allPoints[allPoints.length - 1];
     const totalDays = Math.max(0, (latestAll.ts - earliestAll.ts) / (24 * 60 * 60 * 1000));
-    const yearsLabel = totalDays >= 365
-        ? `${(totalDays / 365).toFixed(1)}y history`
-        : `${Math.max(1, Math.round(totalDays))}d history`;
-    const coverage = `Tracking since ${formatPlayerDate(earliestAll.timestamp)} • ${yearsLabel}`;
-    const summary = backendStateLabel && backendState !== "mixed"
-        ? `${backendStateLabel} (${rangeLabel} view).`
-        : `${trendPrefix} over last ${rangeLabel}${trendDeltaText}.`;
-    if (backendConfidence) {
-        detailPieces.push(backendConfidence);
+    const coverageSince = `Tracking since ${formatPlayerDate(earliestAll.timestamp)}`;
+    const detailCandidates = [];
+    if (backendState === "declining" || backendState === "launch_hype_dropoff") {
+        detailCandidates.push(fromPeakText);
+    } else if (backendState === "one_off_spike" && spike) {
+        detailCandidates.push(`Spike detected on ${formatPlayerDate(spike.timestamp)}`);
+    } else if (backendState === "resurging") {
+        const mediumPct = formatTrendPercent(backendInsights?.mediumTerm);
+        if (mediumPct) detailCandidates.push(`Up ${mediumPct.replace("+", "")} over the last 30 days`);
+    } else if (backendState === "stable_evergreen" || backendState === "stable") {
+        detailCandidates.push("Recent and long-term activity are holding steady");
+    } else if (Number.isFinite(trendPct) && Math.abs(trendPct) >= 5) {
+        detailCandidates.push(`${trendPct >= 0 ? "Up" : "Down"} ${Math.abs(trendPct).toFixed(1)}% in this view`);
     }
+    detailCandidates.push(coverageSince);
 
     return {
         trend: trendFromState,
-        summary,
-        detail: detailPieces.join(" • "),
-        coverage,
+        summary: backendHeadline,
+        detail: detailCandidates.filter(Boolean).slice(0, 2).join(" • "),
+        coverage: backendConfidence,
         peakIndex: peakIndex >= 0 ? peakIndex : null,
         spike,
     };
@@ -3418,7 +3425,7 @@ function renderPlayerTrendInsights(insights) {
     const detailEl = document.getElementById("playerTrendDetail");
     const coverageEl = document.getElementById("playerCoverageLabel");
     if (summaryEl) {
-        summaryEl.textContent = insights?.summary || "Player trend summary unavailable.";
+        summaryEl.textContent = insights?.summary || "Player trend unavailable";
         if (insights?.trend) {
             summaryEl.setAttribute("data-trend", insights.trend);
         } else {
@@ -3429,7 +3436,16 @@ function renderPlayerTrendInsights(insights) {
         detailEl.textContent = insights?.detail || "";
     }
     if (coverageEl) {
-        coverageEl.textContent = insights?.coverage || "Tracking window pending";
+        coverageEl.textContent = insights?.coverage || "Low confidence — limited data";
+        const confidenceText = String(coverageEl.textContent || "").toLowerCase();
+        coverageEl.setAttribute(
+            "data-confidence",
+            confidenceText.startsWith("high confidence")
+                ? "high"
+                : confidenceText.startsWith("moderate confidence")
+                    ? "moderate"
+                    : "low",
+        );
     }
 }
 

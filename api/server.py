@@ -783,6 +783,8 @@ def _score_search_candidate_row(
     popularity_score = max(0.0, min(safe_num(row.get("popularity_score"), 0.0), 100.0))
     current_players = max(0.0, safe_num(row.get("current_players"), 0.0))
     review_total_count = max(0.0, safe_num(row.get("review_total_count"), 0.0))
+    upcoming_hot_score = max(0.0, safe_num(row.get("upcoming_hot_score"), 0.0))
+    is_upcoming = bool(row.get("is_upcoming"))
 
     exact_name_match = normalized_query and name == normalized_query
     normalized_exact_name_match = bool(
@@ -851,8 +853,13 @@ def _score_search_candidate_row(
     if lexical_tier <= 4:
         # Apply popularity/activity only as a tie-breaker among already relevant title matches.
         activity_tiebreak = popularity_score
-        activity_tiebreak += math.log10(current_players + 1.0) * 12.0
-        activity_tiebreak += math.log10(review_total_count + 1.0) * 7.0
+        if is_upcoming:
+            # Upcoming titles do not have a live player baseline yet; use upcoming interest.
+            activity_tiebreak += math.log10(upcoming_hot_score + 1.0) * 16.0
+            activity_tiebreak += math.log10(review_total_count + 1.0) * 4.0
+        else:
+            activity_tiebreak += math.log10(current_players + 1.0) * 12.0
+            activity_tiebreak += math.log10(review_total_count + 1.0) * 7.0
 
     return (
         lexical_tier,
@@ -4616,6 +4623,7 @@ def search_games_fast(
                     s.deal_score,
                     COALESCE(s.popularity_score, 0) AS popularity_score,
                     COALESCE(s.current_players, 0) AS current_players,
+                    COALESCE(s.upcoming_hot_score, 0) AS upcoming_hot_score,
                     COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
                     s.worth_buying_score,
                     COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
@@ -4667,10 +4675,7 @@ def search_games_fast(
             },
         ).mappings().all()
 
-        should_run_broad_pass = (
-            len(rows) < normalized_limit
-            and len(rows) < max(4, normalized_limit // 2)
-        )
+        should_run_broad_pass = len(rows) < min(2, normalized_limit)
         if should_run_broad_pass:
             remaining_slots = max(1, normalized_limit - len(rows))
             candidate_limit = min(96, max(28, remaining_slots * 8))
@@ -4694,6 +4699,7 @@ def search_games_fast(
                             s.deal_score,
                             COALESCE(s.popularity_score, 0) AS popularity_score,
                             COALESCE(s.current_players, 0) AS current_players,
+                            COALESCE(s.upcoming_hot_score, 0) AS upcoming_hot_score,
                             COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
                             s.worth_buying_score,
                             COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
@@ -4755,6 +4761,7 @@ def search_games_fast(
                             s.deal_score,
                             COALESCE(s.popularity_score, 0) AS popularity_score,
                             COALESCE(s.current_players, 0) AS current_players,
+                            COALESCE(s.upcoming_hot_score, 0) AS upcoming_hot_score,
                             COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
                             s.worth_buying_score,
                             COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
@@ -4822,6 +4829,7 @@ def search_games_fast(
                 "deal_score": row["deal_score"],
                 "popularity_score": row.get("popularity_score"),
                 "current_players": row.get("current_players"),
+                "upcoming_hot_score": row.get("upcoming_hot_score"),
                 "buy_score": row.get("buy_score") if row.get("buy_score") is not None else row["worth_buying_score"],
                 "worth_buying_score": row["worth_buying_score"],
                 "review_score": row.get("review_score"),

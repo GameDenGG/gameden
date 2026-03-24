@@ -35,6 +35,8 @@ class SearchRelevanceContractTests(unittest.TestCase):
         self.assertIn("activity_tiebreak = popularity_score", self.text)
         self.assertIn("if lexical_tier <= 4:", self.text)
         self.assertIn("math.log10(current_players + 1.0)", self.text)
+        self.assertIn("math.log10(upcoming_hot_score + 1.0)", self.text)
+        self.assertIn("should_run_broad_pass = len(rows) < min(2, normalized_limit)", self.text)
 
     def test_home_search_dropdown_uses_search_endpoint(self) -> None:
         self.assertIn("function refreshSearchResults(options = {})", self.web_text)
@@ -43,8 +45,9 @@ class SearchRelevanceContractTests(unittest.TestCase):
 
     def test_home_search_dropdown_rows_use_anchor_navigation(self) -> None:
         self.assertIn("function updateSearchActiveIndexStateOnly(nextIndex)", self.web_text)
+        self.assertIn("function findSearchResultOptionFromEvent(event)", self.web_text)
         self.assertIn("const rowHref = String(option.getAttribute(\"href\") || option.href || \"\").trim();", self.web_text)
-        self.assertIn("target.closest(\"a[data-search-index]\")", self.web_text)
+        self.assertIn("const option = findSearchResultOptionFromEvent(event);", self.web_text)
         self.assertIn("navigateToSearchHref(rowHref);", self.web_text)
         self.assertNotIn("renderedNode.click();", self.web_text)
 

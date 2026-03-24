@@ -4530,6 +4530,8 @@ input:focus-visible {
         const SEARCH_INPUT_DEBOUNCE_MS = 110;
         const SEARCH_MIN_QUERY_CHARS = 2;
         const SEARCH_CACHE_TTL_MS = 60 * 1000;
+        const SEARCH_INITIAL_VISIBLE_RESULTS = 3;
+        const SEARCH_MAX_VISIBLE_RESULTS = 10;
         const SEARCH_CATALOG_RELOAD_DEBOUNCE_MS = 450;
         const HOMEPAGE_SECTION_LIMITS = Object.freeze({
             marketRadar: 24,
@@ -4979,6 +4981,8 @@ input:focus-visible {
                 query: "",
                 queryKey: "",
                 activeIndex: -1,
+                renderLimit: SEARCH_MAX_VISIBLE_RESULTS,
+                stagedRenderFrame: null,
                 requestId: 0,
                 controller: null,
                 cache: new Map(),
@@ -10597,29 +10601,45 @@ input:focus-visible {
         }
 
         function getVisibleSearchResults() {
-            return safeArray(state.search.results).slice(0, 10);
+            const results = safeArray(state.search.results);
+            if (!results.length) return [];
+            const configuredLimit = Number(state.search.renderLimit);
+            const maxVisible = Math.max(1, SEARCH_MAX_VISIBLE_RESULTS);
+            const visibleLimit = Number.isFinite(configuredLimit) && configuredLimit > 0
+                ? Math.min(maxVisible, Math.max(1, Math.floor(configuredLimit)))
+                : maxVisible;
+            return results.slice(0, visibleLimit);
         }
 
-        function setSearchActiveIndex(nextIndex, options = {}) {
+        function syncSearchActiveOptionDom(options = {}) {
             const visibleResults = getVisibleSearchResults();
             if (!visibleResults.length) {
                 state.search.activeIndex = -1;
                 if (ui.searchInput) ui.searchInput.removeAttribute("aria-activedescendant");
                 return;
             }
-
-            const normalizedIndex = Number.isFinite(Number(nextIndex))
-                ? Math.max(-1, Math.min(visibleResults.length - 1, Number(nextIndex)))
+            const activeIndex = Number(state.search.activeIndex);
+            const normalizedActiveIndex = Number.isFinite(activeIndex)
+                ? Math.max(-1, Math.min(visibleResults.length - 1, activeIndex))
                 : -1;
-            state.search.activeIndex = normalizedIndex;
-            renderSearchResults();
+            state.search.activeIndex = normalizedActiveIndex;
 
-            if (normalizedIndex < 0) {
+            const optionNodes = ui.searchResultsList
+                ? Array.from(ui.searchResultsList.querySelectorAll("a[data-search-index]"))
+                : [];
+            optionNodes.forEach((node) => {
+                const nodeIndex = Number(node.getAttribute("data-search-index"));
+                const isActive = Number.isFinite(nodeIndex) && nodeIndex === normalizedActiveIndex;
+                node.classList.toggle("is-active", isActive);
+                node.setAttribute("aria-selected", isActive ? "true" : "false");
+            });
+
+            if (normalizedActiveIndex < 0) {
                 if (ui.searchInput) ui.searchInput.removeAttribute("aria-activedescendant");
                 return;
             }
 
-            const activeId = `search-result-option-${normalizedIndex}`;
+            const activeId = `search-result-option-${normalizedActiveIndex}`;
             if (ui.searchInput) {
                 ui.searchInput.setAttribute("aria-activedescendant", activeId);
             }
@@ -10631,15 +10651,7 @@ input:focus-visible {
             }
         }
 
-        function navigateToSearchHref(rawHref) {
-            const targetHref = String(rawHref || "").trim();
-            if (!targetHref) return false;
-            closeSearchResults();
-            window.location.assign(targetHref);
-            return true;
-        }
-
-        function updateSearchActiveIndexStateOnly(nextIndex) {
+        function setSearchActiveIndex(nextIndex, options = {}) {
             const visibleResults = getVisibleSearchResults();
             if (!visibleResults.length) {
                 state.search.activeIndex = -1;
@@ -10650,12 +10662,42 @@ input:focus-visible {
                 ? Math.max(-1, Math.min(visibleResults.length - 1, Number(nextIndex)))
                 : -1;
             state.search.activeIndex = normalizedIndex;
-            if (!ui.searchInput) return;
-            if (normalizedIndex < 0) {
-                ui.searchInput.removeAttribute("aria-activedescendant");
-                return;
+            syncSearchActiveOptionDom(options);
+        }
+
+        function navigateToSearchHref(rawHref) {
+            const targetHref = String(rawHref || "").trim();
+            if (!targetHref) return false;
+            closeSearchResults();
+            window.location.assign(targetHref);
+            return true;
+        }
+
+        function updateSearchActiveIndexStateOnly(nextIndex) {
+            setSearchActiveIndex(nextIndex);
+        }
+
+        function findSearchResultOptionFromEvent(event) {
+            if (!event) return null;
+            if (typeof event.composedPath === "function") {
+                const path = event.composedPath();
+                for (const node of path) {
+                    if (node === ui.searchResultsList) break;
+                    if (node instanceof HTMLAnchorElement && node.matches("a[data-search-index]")) {
+                        return node;
+                    }
+                }
             }
-            ui.searchInput.setAttribute("aria-activedescendant", `search-result-option-${normalizedIndex}`);
+            const target = event.target;
+            if (target instanceof Element) {
+                const option = target.closest("a[data-search-index]");
+                if (option instanceof HTMLAnchorElement) return option;
+            }
+            if (target instanceof Node && target.parentElement) {
+                const option = target.parentElement.closest("a[data-search-index]");
+                if (option instanceof HTMLAnchorElement) return option;
+            }
+            return null;
         }
 
         function getRenderedSearchResultNode(index) {
@@ -10861,6 +10903,7 @@ input:focus-visible {
 
             if (!trimmed) {
                 clearSearchRequest();
+                clearSearchStagedRenderFrame();
                 state.search.results = [];
                 state.search.loading = false;
                 state.search.error = null;
@@ -10869,15 +10912,18 @@ input:focus-visible {
                 state.search.lastRequestedQueryKey = "";
                 state.search.lastAppliedQueryKey = "";
                 state.search.activeIndex = -1;
+                state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
                 renderSearchResults();
                 return;
             }
 
             if (queryKey.length < SEARCH_MIN_QUERY_CHARS) {
                 clearSearchRequest();
+                clearSearchStagedRenderFrame();
                 state.search.loading = false;
                 state.search.error = null;
                 state.search.activeIndex = -1;
+                state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
                 renderSearchResults();
                 return;
             }
@@ -10901,9 +10947,11 @@ input:focus-visible {
             const cachedRows = getCachedSearchRows(queryKey);
             if (!force && cachedRows && cachedRows.length) {
                 clearSearchRequest();
+                clearSearchStagedRenderFrame();
                 state.search.results = normalizeSearchResultRows(cachedRows);
                 state.search.loading = false;
                 state.search.error = null;
+                state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
                 renderSearchResults();
                 state.search.controller = null;
                 state.search.lastRequestedQueryKey = queryKey;
@@ -10912,6 +10960,7 @@ input:focus-visible {
             }
 
             clearSearchRequest();
+            clearSearchStagedRenderFrame();
             state.search.loading = true;
             renderSearchResults();
 
@@ -10940,7 +10989,14 @@ input:focus-visible {
                 state.search.error = null;
                 state.search.controller = null;
                 state.search.lastAppliedQueryKey = queryKey;
+                state.search.renderLimit = Math.max(
+                    1,
+                    Math.min(SEARCH_INITIAL_VISIBLE_RESULTS, SEARCH_MAX_VISIBLE_RESULTS, remoteRows.length || 1),
+                );
                 renderSearchResults();
+                if (remoteRows.length > state.search.renderLimit) {
+                    scheduleSearchFullRender(queryKey, requestId);
+                }
             } catch (error) {
                 if (isAbortLikeError(error)) return;
                 const isCurrent = (
@@ -11047,11 +11103,7 @@ ui.searchResultsList.innerHTML = visibleResults.map((game, index) => {
             }).join("");
 
             openSearchResults();
-            if (state.search.activeIndex >= 0 && ui.searchInput) {
-                ui.searchInput.setAttribute("aria-activedescendant", `search-result-option-${state.search.activeIndex}`);
-            } else if (ui.searchInput) {
-                ui.searchInput.removeAttribute("aria-activedescendant");
-            }
+            syncSearchActiveOptionDom();
         }
 
         async function fetchJson(url, options = {}) {
@@ -11127,6 +11179,25 @@ ui.searchResultsList.innerHTML = visibleResults.map((game, index) => {
                 state.search.controller.abort();
                 state.search.controller = null;
             }
+        }
+
+        function clearSearchStagedRenderFrame() {
+            if (state.search.stagedRenderFrame === null || state.search.stagedRenderFrame === undefined) return;
+            cancelAnimationFrame(state.search.stagedRenderFrame);
+            state.search.stagedRenderFrame = null;
+        }
+
+        function scheduleSearchFullRender(queryKey, requestId) {
+            clearSearchStagedRenderFrame();
+            state.search.stagedRenderFrame = requestAnimationFrame(() => {
+                state.search.stagedRenderFrame = null;
+                if (state.search.queryKey !== queryKey) return;
+                if (Number(state.search.requestId) !== Number(requestId)) return;
+                const currentResults = safeArray(state.search.results);
+                if (!currentResults.length) return;
+                state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
+                renderSearchResults();
+            });
         }
 
         function abortCatalogInFlightControllers() {
@@ -13561,16 +13632,19 @@ try {
                 state.search.queryKey = queryKey;
                 if (!state.filters.search) {
                     clearSearchRequest();
+                    clearSearchStagedRenderFrame();
                     state.search.results = [];
                     state.search.loading = false;
                     state.search.query = "";
                     state.search.queryKey = "";
                     state.search.lastRequestedQueryKey = "";
                     state.search.lastAppliedQueryKey = "";
+                    state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
                     renderSearchResults();
                 } else {
                     if (queryKey.length < SEARCH_MIN_QUERY_CHARS) {
                         clearSearchRequest();
+                        clearSearchStagedRenderFrame();
                         state.search.loading = false;
                     } else if (safeArray(state.search.results).length) {
                         state.search.loading = false;
@@ -13630,9 +13704,7 @@ try {
             });
 
             ui.searchResultsList.addEventListener("click", (event) => {
-                const target = event.target;
-                if (!(target instanceof Element)) return;
-                const option = target.closest("a[data-search-index]");
+                const option = findSearchResultOptionFromEvent(event);
                 if (!option) return;
                 if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
                     return;
@@ -13651,9 +13723,7 @@ try {
                 const isEnter = key === "Enter";
                 const isSpace = key === " " || key === "Spacebar";
                 if (!isEnter && !isSpace) return;
-                const target = event.target;
-                if (!(target instanceof Element)) return;
-                const option = target.closest("a[data-search-index]");
+                const option = findSearchResultOptionFromEvent(event);
                 if (!option) return;
                 const nextIndex = Number(option.getAttribute("data-search-index"));
                 if (Number.isFinite(nextIndex)) {
@@ -13668,9 +13738,7 @@ try {
             });
 
             ui.searchResultsList.addEventListener("mousemove", (event) => {
-                const target = event.target;
-                if (!(target instanceof Element)) return;
-                const option = target.closest("[data-search-index]");
+                const option = findSearchResultOptionFromEvent(event);
                 if (!option) return;
                 const nextIndex = Number(option.getAttribute("data-search-index"));
                 if (!Number.isFinite(nextIndex) || nextIndex === state.search.activeIndex) return;
@@ -13678,9 +13746,7 @@ try {
             });
 
             ui.searchResultsList.addEventListener("focusin", (event) => {
-                const target = event.target;
-                if (!(target instanceof Element)) return;
-                const option = target.closest("[data-search-index]");
+                const option = findSearchResultOptionFromEvent(event);
                 if (!option) return;
                 const nextIndex = Number(option.getAttribute("data-search-index"));
                 if (!Number.isFinite(nextIndex)) return;

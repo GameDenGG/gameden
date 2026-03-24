@@ -813,6 +813,12 @@ a {
     border-color: var(--good);
 }
 
+.player-range-btn.active {
+    background: var(--good);
+    color: #052e16;
+    border-color: var(--good);
+}
+
 .player-insight-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -3194,10 +3200,42 @@ function filterChartSeriesByRange(entries, range) {
     if (!Number.isFinite(days)) return rows;
     const cutoffMs = Date.now() - (days * 24 * 60 * 60 * 1000);
     const filteredRows = rows.filter((entry) => {
-        const ts = Date.parse(entry?.timestamp || "");
+        const ts = parseHistoryTimestamp(entry?.timestamp);
         return Number.isFinite(ts) && ts >= cutoffMs;
     });
     return filteredRows.length ? filteredRows : rows;
+}
+
+function parseHistoryTimestamp(value) {
+    if (value === null || value === undefined) return NaN;
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value >= 1_000_000_000_000 ? value : value * 1000;
+    }
+    const text = String(value).trim();
+    if (!text) return NaN;
+    if (/^\d+$/.test(text)) {
+        const numeric = Number(text);
+        if (!Number.isFinite(numeric)) return NaN;
+        return numeric >= 1_000_000_000_000 ? numeric : numeric * 1000;
+    }
+    return Date.parse(text);
+}
+
+function filterPlayerHistorySeriesByRange(entries, range) {
+    const rows = Array.isArray(entries) ? entries : [];
+    const days = PLAYER_HISTORY_RANGE_DAYS[range];
+    if (!Number.isFinite(days)) return rows;
+    const normalized = rows
+        .map((entry) => ({ entry, ts: parseHistoryTimestamp(entry?.timestamp) }))
+        .filter((row) => Number.isFinite(row.ts))
+        .sort((a, b) => a.ts - b.ts);
+    if (!normalized.length) return rows;
+    const latestTs = normalized[normalized.length - 1].ts;
+    const cutoffMs = latestTs - (days * 24 * 60 * 60 * 1000);
+    const filtered = normalized
+        .filter((row) => row.ts >= cutoffMs)
+        .map((row) => row.entry);
+    return filtered.length ? filtered : normalized.map((row) => row.entry);
 }
 
 function buildRangedPriceHistoryPayload(historyPayload, range) {
@@ -3214,7 +3252,7 @@ function normalizePlayerHistoryPoints(entries) {
     return rows
         .map((entry) => {
             const timestamp = String(entry?.timestamp || "").trim();
-            const ts = Date.parse(timestamp);
+            const ts = parseHistoryTimestamp(timestamp);
             const players = Number(entry?.players);
             if (!timestamp || !Number.isFinite(ts) || !Number.isFinite(players)) return null;
             return { timestamp, ts, players };
@@ -3252,7 +3290,7 @@ function buildRangedPlayerHistoryPayload(historyPayload, range) {
     const payload = historyPayload && typeof historyPayload === "object" ? historyPayload : {};
     return {
         ...payload,
-        players: filterChartSeriesByRange(payload.players, range),
+        players: filterPlayerHistorySeriesByRange(payload.players, range),
     };
 }
 
@@ -3300,13 +3338,13 @@ async function getPlayerHistoryPayload(gameId) {
 }
 
 function formatPlayerDate(timestamp) {
-    const ts = Date.parse(String(timestamp || ""));
+    const ts = parseHistoryTimestamp(timestamp);
     if (!Number.isFinite(ts)) return "—";
     return new Date(ts).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
 function formatPlayerTickLabel(timestamp, range) {
-    const ts = Date.parse(String(timestamp || ""));
+    const ts = parseHistoryTimestamp(timestamp);
     if (!Number.isFinite(ts)) return "";
     const date = new Date(ts);
     if (range === "7d") {

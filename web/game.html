@@ -813,6 +813,58 @@ a {
     border-color: var(--good);
 }
 
+.player-insight-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: start;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(154, 182, 255, 0.18);
+    background: linear-gradient(180deg, rgba(18, 34, 60, 0.84), rgba(12, 22, 41, 0.88));
+}
+
+.player-trend-copy {
+    min-width: 0;
+}
+
+.player-trend-summary {
+    font-size: 13px;
+    font-weight: 800;
+    color: #dce8ff;
+    line-height: 1.4;
+}
+
+.player-trend-summary[data-trend="up"] {
+    color: #72f0bf;
+}
+
+.player-trend-summary[data-trend="down"] {
+    color: #f9c77d;
+}
+
+.player-trend-detail {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #b7c8eb;
+    line-height: 1.4;
+}
+
+.player-coverage-label {
+    align-self: start;
+    justify-self: end;
+    border-radius: 999px;
+    border: 1px solid rgba(154, 182, 255, 0.28);
+    background: rgba(16, 34, 60, 0.78);
+    padding: 6px 10px;
+    color: #d7e6ff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
 .chart-wrap {
     padding: 12px;
     border-radius: 18px;
@@ -1236,6 +1288,16 @@ a {
         min-height: 206px;
     }
 
+    .player-insight-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 9px 10px;
+    }
+
+    .player-coverage-label {
+        justify-self: start;
+    }
+
     .chart-wrap canvas {
         height: 170px !important;
     }
@@ -1412,10 +1474,10 @@ a {
                 </div>
                 <div class="panel-body">
                     <div class="range-row">
-                        <button class="range-btn" data-range="30d" type="button">30D</button>
-                        <button class="range-btn active" data-range="90d" type="button">90D</button>
-                        <button class="range-btn" data-range="1y" type="button">1Y</button>
-                        <button class="range-btn" data-range="all" type="button">ALL</button>
+                        <button class="range-btn price-range-btn" data-range="30d" type="button">30D</button>
+                        <button class="range-btn price-range-btn active" data-range="90d" type="button">90D</button>
+                        <button class="range-btn price-range-btn" data-range="1y" type="button">1Y</button>
+                        <button class="range-btn price-range-btn" data-range="all" type="button">ALL</button>
                     </div>
                     <div class="chart-wrap">
                         <canvas id="priceChart" height="120"></canvas>
@@ -1430,6 +1492,20 @@ a {
                     <div class="panel-subtitle" id="playerHistorySubtitle">Live player movement over time using snapshot-linked activity history.</div>
                 </div>
                 <div class="panel-body">
+                    <div class="range-row player-range-row" role="group" aria-label="Player history time range">
+                        <button class="range-btn player-range-btn" data-player-range="7d" type="button">7D</button>
+                        <button class="range-btn player-range-btn" data-player-range="30d" type="button">30D</button>
+                        <button class="range-btn player-range-btn active" data-player-range="3m" type="button">3M</button>
+                        <button class="range-btn player-range-btn" data-player-range="1y" type="button">1Y</button>
+                        <button class="range-btn player-range-btn" data-player-range="all" type="button">ALL</button>
+                    </div>
+                    <div class="player-insight-row">
+                        <div class="player-trend-copy">
+                            <div class="player-trend-summary" id="playerTrendSummary">Player trend summary will appear once history loads.</div>
+                            <div class="player-trend-detail" id="playerTrendDetail"></div>
+                        </div>
+                        <div class="player-coverage-label" id="playerCoverageLabel">Tracking window pending</div>
+                    </div>
                     <div class="chart-wrap">
                         <canvas id="playerChart" height="120"></canvas>
                         <div class="chart-empty-state" id="playerChartEmpty" hidden>Player history is not available yet for this game.</div>
@@ -1628,7 +1704,8 @@ const HIGH_VALUE_DISCOUNT_THRESHOLD = 60;
 const SHARE_BUTTON_DEFAULT_LABEL = "Share Deal";
 let priceChart = null;
 let playerChart = null;
-let activeRange = "90d";
+let activePriceRange = "90d";
+let activePlayerRange = "3m";
 let currentGameId = null;
 let currentGamePayload = null;
 let currentGameContext = null;
@@ -1638,11 +1715,29 @@ let cachedPriceHistoryGameId = null;
 let cachedPriceHistoryPayload = null;
 let priceHistoryInFlight = null;
 let priceHistoryRenderToken = 0;
+let cachedPlayerHistoryGameId = null;
+let cachedPlayerHistoryPayload = null;
+let playerHistoryInFlight = null;
+let playerHistoryRenderToken = 0;
 const PRICE_HISTORY_RANGE_DAYS = Object.freeze({
     "30d": 30,
     "90d": 90,
     "1y": 365,
     all: null,
+});
+const PLAYER_HISTORY_RANGE_DAYS = Object.freeze({
+    "7d": 7,
+    "30d": 30,
+    "3m": 90,
+    "1y": 365,
+    all: null,
+});
+const PLAYER_HISTORY_RANGE_LABELS = Object.freeze({
+    "7d": "7 days",
+    "30d": "30 days",
+    "3m": "3 months",
+    "1y": "1 year",
+    all: "all available history",
 });
 const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
 
@@ -2968,6 +3063,227 @@ function buildRangedPriceHistoryPayload(historyPayload, range) {
     };
 }
 
+function normalizePlayerHistoryPoints(entries) {
+    const rows = Array.isArray(entries) ? entries : [];
+    return rows
+        .map((entry) => {
+            const timestamp = String(entry?.timestamp || "").trim();
+            const ts = Date.parse(timestamp);
+            const players = Number(entry?.players);
+            if (!timestamp || !Number.isFinite(ts) || !Number.isFinite(players)) return null;
+            return { timestamp, ts, players };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.ts - b.ts);
+}
+
+function normalizePlayerRange(range) {
+    const normalized = String(range || "").trim().toLowerCase();
+    return Object.prototype.hasOwnProperty.call(PLAYER_HISTORY_RANGE_DAYS, normalized)
+        ? normalized
+        : null;
+}
+
+function setPlayerRangeButtons(range) {
+    document.querySelectorAll(".player-range-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.playerRange === range);
+    });
+}
+
+function pickDefaultPlayerRange(historyPayload) {
+    const points = normalizePlayerHistoryPoints(historyPayload?.players);
+    if (points.length < 2) return "30d";
+    const earliest = points[0].ts;
+    const latest = points[points.length - 1].ts;
+    const spanDays = Math.max(0, (latest - earliest) / (24 * 60 * 60 * 1000));
+    if (spanDays >= 120) return "3m";
+    if (spanDays >= 35) return "30d";
+    if (spanDays >= 8) return "7d";
+    return "all";
+}
+
+function buildRangedPlayerHistoryPayload(historyPayload, range) {
+    const payload = historyPayload && typeof historyPayload === "object" ? historyPayload : {};
+    return {
+        ...payload,
+        players: filterChartSeriesByRange(payload.players, range),
+    };
+}
+
+function resetPlayerHistoryCache(nextGameId = null) {
+    cachedPlayerHistoryGameId = Number.isFinite(Number(nextGameId)) && Number(nextGameId) > 0
+        ? Number(nextGameId)
+        : null;
+    cachedPlayerHistoryPayload = null;
+    playerHistoryInFlight = null;
+    playerHistoryRenderToken += 1;
+}
+
+async function getPlayerHistoryPayload(gameId) {
+    const normalizedGameId = Number(gameId);
+    if (!Number.isFinite(normalizedGameId) || normalizedGameId <= 0) {
+        return { players: [], stats: {} };
+    }
+
+    if (cachedPlayerHistoryPayload && cachedPlayerHistoryGameId === normalizedGameId) {
+        return cachedPlayerHistoryPayload;
+    }
+
+    if (
+        playerHistoryInFlight
+        && playerHistoryInFlight.gameId === normalizedGameId
+        && playerHistoryInFlight.promise
+    ) {
+        return playerHistoryInFlight.promise;
+    }
+
+    const requestPromise = fetchJson(`/games/${normalizedGameId}/player-history`)
+        .then((payload) => {
+            cachedPlayerHistoryGameId = normalizedGameId;
+            cachedPlayerHistoryPayload = payload;
+            return payload;
+        })
+        .finally(() => {
+            if (playerHistoryInFlight && playerHistoryInFlight.gameId === normalizedGameId) {
+                playerHistoryInFlight = null;
+            }
+        });
+
+    playerHistoryInFlight = { gameId: normalizedGameId, promise: requestPromise };
+    return requestPromise;
+}
+
+function formatPlayerDate(timestamp) {
+    const ts = Date.parse(String(timestamp || ""));
+    if (!Number.isFinite(ts)) return "—";
+    return new Date(ts).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function formatPlayerTickLabel(timestamp, range) {
+    const ts = Date.parse(String(timestamp || ""));
+    if (!Number.isFinite(ts)) return "";
+    const date = new Date(ts);
+    if (range === "7d") {
+        return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    }
+    if (range === "30d" || range === "3m") {
+        return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    }
+    if (range === "1y") {
+        return date.toLocaleDateString(undefined, { year: "2-digit", month: "short" });
+    }
+    return date.toLocaleDateString(undefined, { year: "numeric", month: "short" });
+}
+
+function findMajorPlayerSpike(points) {
+    if (!Array.isArray(points) || points.length < 3) return null;
+    let best = null;
+    let peakPlayers = 0;
+    points.forEach((point) => {
+        if (point.players > peakPlayers) peakPlayers = point.players;
+    });
+    const minimumAbsoluteJump = Math.max(250, peakPlayers * 0.04);
+
+    for (let index = 1; index < points.length; index += 1) {
+        const previous = points[index - 1];
+        const current = points[index];
+        if (!previous || !current || previous.players <= 0) continue;
+        const delta = current.players - previous.players;
+        if (delta <= 0) continue;
+        const ratio = delta / previous.players;
+        if (delta < minimumAbsoluteJump && ratio < 0.18) continue;
+        if (!best || delta > best.delta || (delta === best.delta && ratio > best.ratio)) {
+            best = { index, delta, ratio, timestamp: current.timestamp };
+        }
+    }
+
+    return best;
+}
+
+function computePlayerTrendInsights(filteredPoints, allPoints, range) {
+    const rangeLabel = PLAYER_HISTORY_RANGE_LABELS[range] || "selected window";
+    if (!filteredPoints.length || !allPoints.length) {
+        return {
+            trend: "flat",
+            summary: "Player trend summary unavailable.",
+            detail: "",
+            coverage: "Tracking window pending",
+            peakIndex: null,
+            spike: null,
+        };
+    }
+
+    const first = filteredPoints[0];
+    const latest = filteredPoints[filteredPoints.length - 1];
+    const peakPoint = filteredPoints.reduce((best, point) => (point.players > best.players ? point : best), filteredPoints[0]);
+    const peakIndex = filteredPoints.findIndex((point) => point.ts === peakPoint.ts);
+    const spike = findMajorPlayerSpike(filteredPoints);
+
+    const trendPct = first.players > 0
+        ? ((latest.players - first.players) / first.players) * 100
+        : 0;
+    const trend = trendPct >= 2.5 ? "up" : trendPct <= -2.5 ? "down" : "flat";
+    const trendPrefix = trend === "up"
+        ? "Player activity trending upward"
+        : trend === "down"
+            ? "Player activity trending downward"
+            : "Player activity stable";
+    const trendDeltaText = Number.isFinite(trendPct) ? ` (${trendPct >= 0 ? "+" : ""}${trendPct.toFixed(1)}%)` : "";
+
+    const fromPeakPct = peakPoint.players > 0
+        ? ((latest.players - peakPoint.players) / peakPoint.players) * 100
+        : 0;
+    const fromPeakText = Number.isFinite(fromPeakPct)
+        ? (fromPeakPct <= 0
+            ? `Down ${Math.abs(fromPeakPct).toFixed(1)}% from range peak`
+            : `Up ${fromPeakPct.toFixed(1)}% above earlier range peak`)
+        : "Peak comparison unavailable";
+
+    const detailPieces = [
+        `${fromPeakText} (${fmtInt(peakPoint.players)} on ${formatPlayerDate(peakPoint.timestamp)})`,
+    ];
+    if (spike) {
+        detailPieces.push(`Major spike +${fmtInt(spike.delta)} on ${formatPlayerDate(spike.timestamp)}`);
+    }
+
+    const earliestAll = allPoints[0];
+    const latestAll = allPoints[allPoints.length - 1];
+    const totalDays = Math.max(0, (latestAll.ts - earliestAll.ts) / (24 * 60 * 60 * 1000));
+    const yearsLabel = totalDays >= 365
+        ? `${(totalDays / 365).toFixed(1)}y history`
+        : `${Math.max(1, Math.round(totalDays))}d history`;
+    const coverage = `Tracking since ${formatPlayerDate(earliestAll.timestamp)} • ${yearsLabel}`;
+
+    return {
+        trend,
+        summary: `${trendPrefix} over last ${rangeLabel}${trendDeltaText}.`,
+        detail: detailPieces.join(" • "),
+        coverage,
+        peakIndex: peakIndex >= 0 ? peakIndex : null,
+        spike,
+    };
+}
+
+function renderPlayerTrendInsights(insights) {
+    const summaryEl = document.getElementById("playerTrendSummary");
+    const detailEl = document.getElementById("playerTrendDetail");
+    const coverageEl = document.getElementById("playerCoverageLabel");
+    if (summaryEl) {
+        summaryEl.textContent = insights?.summary || "Player trend summary unavailable.";
+        if (insights?.trend) {
+            summaryEl.setAttribute("data-trend", insights.trend);
+        } else {
+            summaryEl.removeAttribute("data-trend");
+        }
+    }
+    if (detailEl) {
+        detailEl.textContent = insights?.detail || "";
+    }
+    if (coverageEl) {
+        coverageEl.textContent = insights?.coverage || "Tracking window pending";
+    }
+}
+
 async function loadGame() {
     setStoreCta("");
     const contentGrid = document.querySelector(".content-grid");
@@ -3039,6 +3355,7 @@ if (!payload || payload.error) {
     currentGameId = Number(payload.game_id || payload.id || 0);
     if (currentGameId !== previousGameId) {
         resetPriceHistoryCache(currentGameId);
+        resetPlayerHistoryCache(currentGameId);
     }
     currentGamePayload = payload;
     currentGameContext = resolveGameContext(payload);
@@ -3087,7 +3404,7 @@ if (!payload || payload.error) {
     if (Number.isFinite(currentGameId) && currentGameId > 0) {
         const moduleTasks = [];
         if (currentGameContext?.isPaidReleased) {
-            moduleTasks.push({ key: "price", promise: loadPriceHistory(activeRange) });
+            moduleTasks.push({ key: "price", promise: loadPriceHistory(activePriceRange) });
         } else {
             renderPriceChart({ points: [], history: [] });
             moduleTasks.push({ key: "price", promise: Promise.resolve() });
@@ -3129,7 +3446,7 @@ if (!payload || payload.error) {
             }
         });
     } else {
-        await loadPriceHistory(activeRange).catch((error) => {
+        await loadPriceHistory(activePriceRange).catch((error) => {
             console.warn("Price history unavailable for game detail", error);
             renderPriceChart({ points: [], history: [] });
         });
@@ -3140,8 +3457,8 @@ if (!payload || payload.error) {
 }
 
 async function loadPriceHistory(range) {
-    activeRange = range;
-    document.querySelectorAll(".range-btn").forEach((btn) => {
+    activePriceRange = range;
+    document.querySelectorAll(".price-range-btn").forEach((btn) => {
         btn.classList.toggle("active", btn.dataset.range === range);
     });
     if (currentGameContext && !currentGameContext.isPaidReleased) {
@@ -3164,14 +3481,29 @@ async function loadPriceHistory(range) {
     }
 }
 
-async function loadPlayerHistory(gameId) {
+async function loadPlayerHistory(gameId, range = null) {
     const playerHistoryPanel = document.getElementById("playerHistoryPanel");
     if (playerHistoryPanel && playerHistoryPanel.hidden) {
         renderPlayerChart({ players: [] });
         return;
     }
-    const payload = await fetchJson(`/games/${gameId}/player-history`).catch(() => ({ players: [], stats: {} }));
-    renderPlayerChart(payload);
+    const normalizedGameId = Number(gameId);
+    if (!Number.isFinite(normalizedGameId) || normalizedGameId <= 0) {
+        renderPlayerChart({ players: [] });
+        return;
+    }
+    const requestedRange = normalizePlayerRange(range);
+    const renderToken = ++playerHistoryRenderToken;
+    const rawPayload = await getPlayerHistoryPayload(normalizedGameId).catch(() => ({ players: [], stats: {} }));
+    if (renderToken !== playerHistoryRenderToken) return;
+    const resolvedRange = requestedRange || pickDefaultPlayerRange(rawPayload);
+    activePlayerRange = resolvedRange;
+    setPlayerRangeButtons(activePlayerRange);
+    const rangedPayload = buildRangedPlayerHistoryPayload(rawPayload, activePlayerRange);
+    renderPlayerChart(rangedPayload, {
+        range: activePlayerRange,
+        fullPlayers: rawPayload?.players,
+    });
 }
 
 async function loadRelatedGames(gameId) {
@@ -3518,7 +3850,7 @@ function renderPriceChart(historyPayload) {
     });
 }
 
-function renderPlayerChart(historyPayload) {
+function renderPlayerChart(historyPayload, options = {}) {
     const canvas = document.getElementById("playerChart");
     if (!(canvas instanceof HTMLCanvasElement)) return;
     const ctx = canvas.getContext("2d");
@@ -3528,14 +3860,13 @@ function renderPlayerChart(historyPayload) {
         playerWrap.classList.remove("gd-skeleton-surface");
     }
     setChartEmptyState("playerChartEmpty", "");
-    const points = Array.isArray(historyPayload?.players) ? historyPayload.players : [];
-    const normalizedPoints = points
-        .map((entry) => ({
-            timestamp: entry?.timestamp,
-            players: Number(entry?.players),
-        }))
-        .filter((entry) => entry.timestamp && Number.isFinite(Date.parse(entry.timestamp)) && Number.isFinite(entry.players));
-    if (!normalizedPoints.length) {
+    const range = normalizePlayerRange(options?.range) || activePlayerRange;
+    const filteredPoints = normalizePlayerHistoryPoints(historyPayload?.players);
+    const fullPoints = normalizePlayerHistoryPoints(options?.fullPlayers ?? historyPayload?.players);
+    const trendInsights = computePlayerTrendInsights(filteredPoints, fullPoints, range);
+    renderPlayerTrendInsights(trendInsights);
+
+    if (!filteredPoints.length) {
         if (playerChart) {
             playerChart.destroy();
             playerChart = null;
@@ -3543,55 +3874,205 @@ function renderPlayerChart(historyPayload) {
         setChartEmptyState("playerChartEmpty", "Player history is not available yet for this game.");
         return;
     }
-    const labels = normalizedPoints.map((entry) => new Date(entry.timestamp).toLocaleDateString());
-    const playerValues = normalizedPoints.map((entry) => entry.players);
 
-    if (playerChart) playerChart.destroy();
+    const labels = filteredPoints.map((entry) => entry.timestamp);
+    const playerValues = filteredPoints.map((entry) => entry.players);
+    const latestIndex = filteredPoints.length - 1;
+    const peakIndex = Number.isInteger(trendInsights.peakIndex) ? trendInsights.peakIndex : null;
+    const spikeIndex = Number.isInteger(trendInsights?.spike?.index) ? trendInsights.spike.index : null;
 
-    playerChart = new Chart(ctx, {
-        type: "line",
-        data: {
-            labels,
-            datasets: [
-                {
-                    label: "Live players",
-                    data: playerValues,
-                    borderWidth: 2,
-                    tension: 0.25,
-                    pointRadius: 1.2,
-                    borderColor: "#67eaff",
-                    backgroundColor: "rgba(103, 234, 255, 0.18)",
-                },
-            ],
+    const palette = trendInsights.trend === "up"
+        ? {
+            line: "#72f0bf",
+            peak: "#b7ffd9",
+            spike: "#ffe08a",
+            latest: "#5ce4a9",
+            fillTop: "rgba(114, 240, 191, 0.34)",
+            fillBottom: "rgba(114, 240, 191, 0.02)",
+        }
+        : trendInsights.trend === "down"
+            ? {
+                line: "#f6b86d",
+                peak: "#ffd7a3",
+                spike: "#ffd7a3",
+                latest: "#f6b86d",
+                fillTop: "rgba(246, 184, 109, 0.30)",
+                fillBottom: "rgba(246, 184, 109, 0.02)",
+            }
+            : {
+                line: "#67eaff",
+                peak: "#9beeff",
+                spike: "#ffd7a3",
+                latest: "#67eaff",
+                fillTop: "rgba(103, 234, 255, 0.30)",
+                fillBottom: "rgba(103, 234, 255, 0.02)",
+            };
+
+    const playerSignalPlugin = {
+        id: "playerSignalPlugin",
+        afterDatasetsDraw(chart) {
+            const meta = chart.getDatasetMeta(0);
+            if (!meta || !Array.isArray(meta.data) || !meta.data.length) return;
+            const drawCallout = (index, text, color) => {
+                if (!Number.isInteger(index) || index < 0 || index >= meta.data.length) return;
+                const point = meta.data[index];
+                if (!point) return;
+                const x = point.x;
+                const y = point.y;
+                const label = String(text || "").trim();
+                if (!label) return;
+                chart.ctx.save();
+                chart.ctx.font = "11px Inter, system-ui, sans-serif";
+                chart.ctx.textBaseline = "middle";
+                const textWidth = chart.ctx.measureText(label).width;
+                const boxWidth = textWidth + 12;
+                const boxHeight = 18;
+                const xPos = Math.min(chart.chartArea.right - boxWidth - 4, Math.max(chart.chartArea.left + 4, x + 8));
+                const yPos = Math.max(chart.chartArea.top + 4, y - boxHeight - 8);
+                chart.ctx.fillStyle = "rgba(7, 17, 31, 0.86)";
+                chart.ctx.strokeStyle = color;
+                chart.ctx.lineWidth = 1;
+                chart.ctx.beginPath();
+                if (typeof chart.ctx.roundRect === "function") {
+                    chart.ctx.roundRect(xPos, yPos, boxWidth, boxHeight, 7);
+                    chart.ctx.fill();
+                    chart.ctx.stroke();
+                } else {
+                    chart.ctx.fillRect(xPos, yPos, boxWidth, boxHeight);
+                    chart.ctx.strokeRect(xPos, yPos, boxWidth, boxHeight);
+                }
+                chart.ctx.fillStyle = color;
+                chart.ctx.fillText(label, xPos + 6, yPos + (boxHeight / 2));
+                chart.ctx.restore();
+            };
+
+            drawCallout(peakIndex, "Peak", palette.peak);
+            if (spikeIndex !== null && spikeIndex !== peakIndex) {
+                drawCallout(spikeIndex, "Spike", palette.spike);
+            }
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { labels: { color: "#e5e7eb" } },
-                tooltip: {
-                    callbacks: {
-                        label(item) {
-                            return `Players: ${fmtInt(item.parsed.y)}`;
-                        },
+    };
+
+    const nextData = {
+        labels,
+        datasets: [
+            {
+                label: "Concurrent players",
+                data: playerValues,
+                borderWidth: 2.4,
+                tension: 0.32,
+                fill: true,
+                borderColor: palette.line,
+                backgroundColor(context) {
+                    const chart = context.chart;
+                    const area = chart.chartArea;
+                    if (!area) return palette.fillTop;
+                    const gradient = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+                    gradient.addColorStop(0, palette.fillTop);
+                    gradient.addColorStop(1, palette.fillBottom);
+                    return gradient;
+                },
+                pointRadius(context) {
+                    const index = context.dataIndex;
+                    if (index === latestIndex) return 3.5;
+                    if (index === peakIndex) return 4.4;
+                    if (index === spikeIndex) return 3.6;
+                    return 0;
+                },
+                pointHoverRadius(context) {
+                    const index = context.dataIndex;
+                    if (index === peakIndex || index === spikeIndex || index === latestIndex) return 6;
+                    return 4;
+                },
+                pointBackgroundColor(context) {
+                    const index = context.dataIndex;
+                    if (index === peakIndex) return palette.peak;
+                    if (index === spikeIndex) return palette.spike;
+                    if (index === latestIndex) return palette.latest;
+                    return palette.line;
+                },
+                pointBorderColor: "rgba(8, 18, 34, 0.9)",
+                pointBorderWidth(context) {
+                    const index = context.dataIndex;
+                    return (index === peakIndex || index === spikeIndex || index === latestIndex) ? 1.4 : 0;
+                },
+            },
+        ],
+    };
+    const nextOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+            legend: { labels: { color: "#e5e7eb" } },
+            tooltip: {
+                callbacks: {
+                    title(items) {
+                        const idx = items[0].dataIndex;
+                        return formatPlayerDate(filteredPoints[idx]?.timestamp);
+                    },
+                    label(item) {
+                        return `Players: ${fmtInt(item.parsed.y)}`;
+                    },
+                    afterBody(items) {
+                        const idx = items[0].dataIndex;
+                        if (idx === peakIndex) return ["Range peak point"];
+                        if (idx === spikeIndex && trendInsights?.spike) {
+                            return [`Spike jump: +${fmtInt(trendInsights.spike.delta)}`];
+                        }
+                        return [];
                     },
                 },
             },
-            scales: {
-                x: {
-                    ticks: { color: "#94a3b8", maxTicksLimit: 8 },
-                    grid: { color: "rgba(148,163,184,0.12)" },
-                },
-                y: {
-                    ticks: {
-                        color: "#94a3b8",
-                        callback: (value) => fmtInt(value),
+        },
+        scales: {
+            x: {
+                ticks: {
+                    color: "#9db4d6",
+                    maxTicksLimit: range === "all" ? 10 : 8,
+                    callback(value, index) {
+                        return formatPlayerTickLabel(labels[index], range);
                     },
-                    grid: { color: "rgba(148,163,184,0.12)" },
                 },
+                title: {
+                    display: true,
+                    text: "Time progression",
+                    color: "#b7c8eb",
+                    font: { size: 11, weight: "700" },
+                },
+                grid: { color: "rgba(148,163,184,0.12)" },
+            },
+            y: {
+                ticks: {
+                    color: "#9db4d6",
+                    callback: (value) => fmtInt(value),
+                },
+                title: {
+                    display: true,
+                    text: "Concurrent players",
+                    color: "#b7c8eb",
+                    font: { size: 11, weight: "700" },
+                },
+                grid: { color: "rgba(148,163,184,0.12)" },
             },
         },
-    });
+    };
+
+    if (!playerChart) {
+        playerChart = new Chart(ctx, {
+            type: "line",
+            data: nextData,
+            options: nextOptions,
+            plugins: [playerSignalPlugin],
+        });
+        return;
+    }
+
+    playerChart.data.labels = nextData.labels;
+    playerChart.data.datasets = nextData.datasets;
+    playerChart.options = nextOptions;
+    playerChart.config.plugins = [playerSignalPlugin];
+    playerChart.update("none");
 }
 
 async function fetchUserWatchlist() {
@@ -3678,10 +4159,20 @@ async function toggleWatch() {
     }
 }
 
-function wireRangeButtons() {
-    document.querySelectorAll(".range-btn").forEach((btn) => {
+function wirePriceRangeButtons() {
+    document.querySelectorAll(".price-range-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
             void loadPriceHistory(btn.dataset.range);
+        });
+    });
+}
+
+function wirePlayerRangeButtons() {
+    document.querySelectorAll(".player-range-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            if (!Number.isFinite(currentGameId) || currentGameId <= 0) return;
+            const nextRange = normalizePlayerRange(btn.dataset.playerRange) || activePlayerRange;
+            void loadPlayerHistory(currentGameId, nextRange);
         });
     });
 }
@@ -3738,7 +4229,8 @@ window.addEventListener("gameden:account-sync", () => {
 
 setTargetAlertStatus("Set a target price or discount.");
 renderGameLoadingSkeletons();
-wireRangeButtons();
+wirePriceRangeButtons();
+wirePlayerRangeButtons();
 void loadGame().catch((error) => {
     console.error(error);
     if (shareDealButton instanceof HTMLButtonElement) {

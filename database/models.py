@@ -26,6 +26,8 @@ class GamePrice(Base):
     discount_percent = Column(Integer, nullable=True)
     current_players = Column(Integer, nullable=True)
     store_url = Column(String)
+    source = Column(String, nullable=True)
+    is_backfill = Column(Boolean, nullable=False, default=False)
     recorded_at = Column(DateTime(timezone=True), default=_utc_now, nullable=False)
 
     # Backward-compatible alias for older code paths.
@@ -392,6 +394,8 @@ class GamePlayerHistory(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     game_id = Column(BigInteger, ForeignKey("games.id"), nullable=False, index=True)
     current_players = Column(Integer, nullable=True)
+    source = Column(String, nullable=True)
+    is_backfill = Column(Boolean, nullable=False, default=False)
     recorded_at = Column(DateTime(timezone=True), nullable=False, default=_utc_now)
 
 
@@ -421,6 +425,7 @@ class DealWatchlist(Base):
 
 Index("ix_game_prices_game_name_recorded_at", GamePrice.game_name, GamePrice.recorded_at)
 Index("ix_game_prices_game_id_recorded_at", GamePrice.game_id, GamePrice.recorded_at)
+Index("ix_game_prices_game_recorded_source", GamePrice.game_id, GamePrice.recorded_at, GamePrice.source)
 Index("ix_game_prices_recorded_at", GamePrice.recorded_at)
 Index("ix_game_latest_prices_game_id", GameLatestPrice.game_id)
 Index("ix_game_latest_prices_game_name", GameLatestPrice.game_name)
@@ -452,6 +457,7 @@ Index("idx_user_alerts_created", UserAlert.created_at.desc())
 Index("idx_player_history_game", GamePlayerHistory.game_id)
 Index("idx_player_history_time", GamePlayerHistory.recorded_at.desc())
 Index("ix_player_history_game_recorded_desc", GamePlayerHistory.game_id, GamePlayerHistory.recorded_at.desc())
+Index("ix_player_history_game_recorded_source", GamePlayerHistory.game_id, GamePlayerHistory.recorded_at, GamePlayerHistory.source)
 Index("ix_dirty_games_next_attempt_updated", DirtyGame.next_attempt_at, DirtyGame.updated_at)
 Index("ix_game_snapshots_historical_low_hit_ts", GameSnapshot.historical_low_hit, GameSnapshot.historical_low_timestamp.desc())
 Index(

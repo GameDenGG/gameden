@@ -155,8 +155,10 @@ a {
     min-height: 350px;
     background:
         linear-gradient(180deg, rgba(96,165,250,0.16), rgba(96,165,250,0.05));
-    background-size: cover;
-    background-position: center;
+    background-size: contain;
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-color: rgba(6, 12, 24, 0.72);
     border-right: 1px solid rgba(154,182,255,0.12);
 }
 
@@ -193,6 +195,29 @@ a {
     font-size: 13px;
     line-height: 1.45;
     max-width: 720px;
+}
+
+.hero-context-card {
+    margin-top: 12px;
+    border: 1px solid rgba(154, 182, 255, 0.22);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(11, 22, 41, 0.78), rgba(9, 18, 34, 0.78));
+    padding: 10px 12px;
+}
+
+.hero-context-title {
+    color: #cfe2ff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.hero-context-text {
+    margin-top: 6px;
+    color: #e5efff;
+    font-size: 13px;
+    line-height: 1.45;
 }
 
 .hero-explain-list {
@@ -1245,6 +1270,10 @@ a {
                     <div class="hero-title">
                         <h1 id="gameTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></h1>
                         <div class="hero-sub" id="gameSub"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></div>
+                        <div class="hero-context-card gd-skeleton-surface" id="gameContextCard">
+                            <div class="hero-context-title" id="gameContextTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></div>
+                            <div class="hero-context-text" id="gameContextText"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></div>
+                        </div>
                         <ul class="hero-explain-list is-skeleton" id="heroExplainList" aria-live="polite">
                             <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></li>
                             <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></li>
@@ -1257,23 +1286,23 @@ a {
 
                 <div class="stats-grid hero-stats-grid">
                     <div class="stat-card stat-card-primary">
-                        <div class="stat-label">Current Price</div>
+                        <div class="stat-label" id="heroStatLabelPrimary">Current Price</div>
                         <div class="stat-value" id="currentPrice">--</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Historical Low</div>
+                        <div class="stat-label" id="heroStatLabelLow">Historical Low</div>
                         <div class="stat-value" id="historicalLow">--</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Discount</div>
+                        <div class="stat-label" id="heroStatLabelDiscount">Discount</div>
                         <div class="stat-value" id="currentDiscount">--</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Deal Score</div>
+                        <div class="stat-label" id="heroStatLabelScore">Deal Score</div>
                         <div class="stat-value" id="dealScore">--</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Live Players</div>
+                        <div class="stat-label" id="heroStatLabelPlayers">Live Players</div>
                         <div class="stat-value" id="playerCount">--</div>
                     </div>
                 </div>
@@ -1284,8 +1313,8 @@ a {
                     <button class="hero-watch-btn hero-share-btn" id="shareDealButton" type="button" disabled>Share Deal</button>
                 </div>
 
-                <section class="target-alert-card" aria-label="Price target alerts">
-                    <div class="target-alert-title">Price Target Alert</div>
+                <section class="target-alert-card" id="targetAlertCard" aria-label="Price target alerts">
+                    <div class="target-alert-title" id="targetAlertTitle">Price Target Alert</div>
                     <label class="target-alert-row">
                         <span class="target-alert-label">Below $</span>
                         <input class="target-alert-input" id="targetPriceInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="19.99">
@@ -1306,10 +1335,10 @@ a {
 
     <section class="content-grid">
         <div class="left-column">
-            <section class="panel">
+            <section class="panel" id="priceHistoryPanel">
                 <div class="panel-head">
-                    <h2 class="panel-title">Interactive Price History</h2>
-                    <div class="panel-subtitle">Track price movement, sale windows, and historical lows over time.</div>
+                    <h2 class="panel-title" id="priceHistoryTitle">Interactive Price History</h2>
+                    <div class="panel-subtitle" id="priceHistorySubtitle">Track price movement, sale windows, and historical lows over time.</div>
                 </div>
                 <div class="panel-body">
                     <div class="range-row">
@@ -1325,10 +1354,10 @@ a {
                 </div>
             </section>
 
-            <section class="panel">
+            <section class="panel" id="playerHistoryPanel">
                 <div class="panel-head">
-                    <h2 class="panel-title">Player Activity History</h2>
-                    <div class="panel-subtitle">Live player movement over time using snapshot-linked activity history.</div>
+                    <h2 class="panel-title" id="playerHistoryTitle">Player Activity History</h2>
+                    <div class="panel-subtitle" id="playerHistorySubtitle">Live player movement over time using snapshot-linked activity history.</div>
                 </div>
                 <div class="panel-body">
                     <div class="chart-wrap">
@@ -1338,10 +1367,10 @@ a {
                 </div>
             </section>
 
-            <section class="panel">
+            <section class="panel" id="dealExplanationPanel">
                 <div class="panel-head">
                     <h2 class="panel-title">Deal Explanation</h2>
-                    <div class="panel-subtitle">How the platform is scoring this deal.</div>
+                    <div class="panel-subtitle" id="dealExplanationSubtitle">How the platform is scoring this deal.</div>
                 </div>
                 <div class="panel-body">
                     <div class="breakdown" id="dealExplanation"></div>
@@ -1350,10 +1379,10 @@ a {
         </div>
 
         <div class="right-column">
-            <section class="panel decision-panel">
+            <section class="panel decision-panel" id="decisionPanel">
                 <div class="panel-head">
-                    <h2 class="panel-title">Buy Recommendation + Next Sale</h2>
-                    <div class="panel-subtitle">Decision signal first: should you buy now or wait for better timing?</div>
+                    <h2 class="panel-title" id="decisionPanelTitle">Buy Recommendation + Next Sale</h2>
+                    <div class="panel-subtitle" id="decisionPanelSubtitle">Decision signal first: should you buy now or wait for better timing?</div>
                 </div>
                 <div class="panel-body decision-stack">
                     <section class="decision-group" id="dealConfidencePanel" hidden>
@@ -1369,10 +1398,10 @@ a {
                 </div>
             </section>
 
-            <section class="panel">
+            <section class="panel" id="marketSnapshotPanel">
                 <div class="panel-head">
                     <h2 class="panel-title">Market Snapshot</h2>
-                    <div class="panel-subtitle">Current state and metadata for this game.</div>
+                    <div class="panel-subtitle" id="marketSnapshotSubtitle">Current state and metadata for this game.</div>
                 </div>
                 <div class="panel-body">
                     <div class="info-list" id="marketInfo"></div>
@@ -1532,6 +1561,7 @@ let playerChart = null;
 let activeRange = "90d";
 let currentGameId = null;
 let currentGamePayload = null;
+let currentGameContext = null;
 let currentDealTarget = null;
 let shareButtonResetTimer = null;
 let cachedPriceHistoryGameId = null;
@@ -1592,6 +1622,10 @@ function clearLoadingChrome() {
     if (heroBanner) {
         heroBanner.classList.remove("gd-skeleton-surface");
     }
+    const contextCard = document.getElementById("gameContextCard");
+    if (contextCard) {
+        contextCard.classList.remove("gd-skeleton-surface");
+    }
     document.querySelectorAll(".chart-wrap").forEach((wrap) => {
         wrap.classList.remove("gd-skeleton-surface");
     });
@@ -1607,6 +1641,8 @@ function renderGameLoadingSkeletons() {
     setInlineSkeleton("currentDiscount", "gd-skeleton-w-40");
     setInlineSkeleton("dealScore", "gd-skeleton-w-40");
     setInlineSkeleton("playerCount", "gd-skeleton-w-40");
+    setInlineSkeleton("gameContextTitle", "gd-skeleton-w-48");
+    setInlineSkeleton("gameContextText", "gd-skeleton-w-72");
 
     const explainList = document.getElementById("heroExplainList");
     if (explainList) {
@@ -1621,6 +1657,10 @@ function renderGameLoadingSkeletons() {
     const heroBanner = document.getElementById("heroBanner");
     if (heroBanner) {
         heroBanner.classList.add("gd-skeleton-surface");
+    }
+    const contextCard = document.getElementById("gameContextCard");
+    if (contextCard) {
+        contextCard.classList.add("gd-skeleton-surface");
     }
 
     document.querySelectorAll(".chart-wrap").forEach((wrap) => {
@@ -2279,6 +2319,70 @@ function getReviewLabel(payload) {
         || "Review label unavailable";
 }
 
+function resolveGameContext(payload) {
+    const numericPrice = Number(payload?.price ?? payload?.current_price);
+    const numericOriginalPrice = Number(payload?.original_price ?? payload?.latest_original_price);
+    const numericDiscount = Number(payload?.discount_percent ?? payload?.latest_discount_percent);
+    const numericPlayers = Number(payload?.current_players);
+    const numericPopularity = Number(payload?.popularity_score);
+    const isUpcoming = Boolean(payload?.is_upcoming);
+    const releasedFlag = payload?.is_released;
+    const isReleasedFlag = releasedFlag === 1 || String(releasedFlag) === "1" || releasedFlag === true;
+    const isUnreleasedFlag = releasedFlag === 0 || String(releasedFlag) === "0";
+    const releaseDateValue = String(payload?.release_date || "").trim();
+    const releaseDateMs = releaseDateValue ? Date.parse(releaseDateValue) : NaN;
+    const hasFutureReleaseDate = Number.isFinite(releaseDateMs) && releaseDateMs > Date.now();
+    const isUnreleased = isUpcoming || isUnreleasedFlag || (hasFutureReleaseDate && !isReleasedFlag);
+    const isFree = !isUnreleased && Number.isFinite(numericPrice) && numericPrice <= 0;
+    const isPaidReleased = !isUnreleased && !isFree;
+    const hasMeaningfulPriceMetrics = isPaidReleased && Number.isFinite(numericPrice) && numericPrice > 0;
+    const hasMeaningfulDiscount = hasMeaningfulPriceMetrics && Number.isFinite(numericDiscount) && numericDiscount > 0;
+    const hasPlayerData = Number.isFinite(numericPlayers) && numericPlayers > 0;
+    const hasPopularityData = Number.isFinite(numericPopularity) && numericPopularity > 0;
+    return {
+        mode: isUnreleased ? "unreleased" : (isFree ? "free" : "paid"),
+        isUnreleased,
+        isFree,
+        isPaidReleased,
+        hasMeaningfulPriceMetrics,
+        hasMeaningfulDiscount,
+        hasPlayerData,
+        hasPopularityData,
+        numericPrice,
+        numericOriginalPrice,
+        numericDiscount,
+        numericPlayers,
+        releaseDateValue,
+    };
+}
+
+function buildGameContextSummary(payload, context) {
+    const reviewLabel = getReviewLabel(payload);
+    if (context.mode === "unreleased") {
+        const releaseText = String(payload?.release_date_text || payload?.release_date || "Release date TBD").trim();
+        return {
+            title: "Launch Tracking",
+            text: `Unreleased title. ${releaseText}. Add to Watch to track launch pricing and first-sale timing.`,
+            heroSub: `${reviewLabel} • ${releaseText}`,
+        };
+    }
+    if (context.mode === "free") {
+        const players = context.hasPlayerData ? `${fmtInt(context.numericPlayers)} playing now` : "Player count pending";
+        return {
+            title: "Free-to-Play Snapshot",
+            text: `No purchase required. Focus on engagement and momentum: ${players}.`,
+            heroSub: `${reviewLabel} • Free to play`,
+        };
+    }
+    const discountText = context.hasMeaningfulDiscount ? `${Math.round(context.numericDiscount)}% off` : "No active discount";
+    const priceText = context.hasMeaningfulPriceMetrics ? fmtPrice(context.numericPrice) : "Price unavailable";
+    return {
+        title: "Deal Snapshot",
+        text: `${priceText} right now • ${discountText}. Check recommendation and history before buying.`,
+        heroSub: `${reviewLabel} • ${payload?.release_date_text || payload?.release_date || "Released"}`,
+    };
+}
+
 function normalizeReasonSnippet(value) {
     const raw = String(value || "")
         .replace(/\s+/g, " ")
@@ -2431,8 +2535,31 @@ function pushUniqueExplanationLine(lines, line) {
     lines.push(normalized);
 }
 
-function buildHeroExplanationLines(payload) {
+function buildHeroExplanationLines(payload, context = currentGameContext) {
     const lines = [];
+    if (context?.mode === "unreleased") {
+        const releaseText = String(payload?.release_date_text || payload?.release_date || "").trim();
+        if (releaseText) pushUniqueExplanationLine(lines, `Launch window: ${releaseText}`);
+        const upcomingHot = Number(payload?.upcoming_hot_score);
+        if (Number.isFinite(upcomingHot) && upcomingHot > 0) {
+            pushUniqueExplanationLine(lines, `Launch interest score: ${Math.round(upcomingHot)}/100`);
+        }
+        pushUniqueExplanationLine(lines, "Add to Watch to track launch pricing and first-sale movement.");
+        return lines.slice(0, 3);
+    }
+    if (context?.mode === "free") {
+        const trendReason = normalizeReasonSnippet(payload?.trend_reason_summary ?? payload?.momentum?.reason);
+        const players = Number(payload?.current_players);
+        const reviewLabel = getReviewLabel(payload);
+        pushUniqueExplanationLine(lines, `Sentiment: ${reviewLabel}`);
+        if (Number.isFinite(players) && players > 0) {
+            pushUniqueExplanationLine(lines, `${fmtInt(players)} players active now`);
+        }
+        if (trendReason) pushUniqueExplanationLine(lines, trendReason);
+        if (!lines.length) pushUniqueExplanationLine(lines, "Focus on engagement and momentum for free titles.");
+        return lines.slice(0, 3);
+    }
+
     const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
     const buyReason = normalizeReasonSnippet(payload?.buy_reason);
     const predictedReason = normalizeReasonSnippet(payload?.predicted_sale_reason ?? payload?.next_sale_prediction?.reason);
@@ -2497,11 +2624,11 @@ function buildHeroExplanationLines(payload) {
     return lines.slice(0, 3);
 }
 
-function renderHeroExplanation(payload) {
+function renderHeroExplanation(payload, context = currentGameContext) {
     const explainList = document.getElementById("heroExplainList");
     if (!explainList) return;
 
-    const lines = buildHeroExplanationLines(payload);
+    const lines = buildHeroExplanationLines(payload, context);
     explainList.classList.remove("is-skeleton");
     if (!lines.length) {
         explainList.classList.add("hidden");
@@ -2523,6 +2650,9 @@ function applyDealBadgeGlow(payload) {
         "signal-glow-discount",
         "signal-glow-buy",
     );
+    if (!currentGameContext || !currentGameContext.isPaidReleased) {
+        return;
+    }
 
     const status = String(payload?.historical_status || "").trim();
     const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
@@ -2544,12 +2674,127 @@ function applyDealBadgeGlow(payload) {
 function applyHeroDecisionState(payload) {
     const hero = document.querySelector(".hero");
     if (!(hero instanceof HTMLElement)) return;
+    if (!currentGameContext || !currentGameContext.isPaidReleased) {
+        hero.removeAttribute("data-decision");
+        return;
+    }
     const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
     if (recommendation === "BUY_NOW" || recommendation === "WAIT") {
         hero.setAttribute("data-decision", recommendation);
         return;
     }
     hero.removeAttribute("data-decision");
+}
+
+function renderHeroStats(payload, context) {
+    const labelPrimary = document.getElementById("heroStatLabelPrimary");
+    const labelLow = document.getElementById("heroStatLabelLow");
+    const labelDiscount = document.getElementById("heroStatLabelDiscount");
+    const labelScore = document.getElementById("heroStatLabelScore");
+    const labelPlayers = document.getElementById("heroStatLabelPlayers");
+
+    if (context.mode === "paid") {
+        if (labelPrimary) labelPrimary.innerText = "Current Price";
+        if (labelLow) labelLow.innerText = "Historical Low";
+        if (labelDiscount) labelDiscount.innerText = "Discount";
+        if (labelScore) labelScore.innerText = "Deal Score";
+        if (labelPlayers) labelPlayers.innerText = "Live Players";
+        document.getElementById("currentPrice").innerText = fmtPrice(payload.price ?? payload.current_price);
+        document.getElementById("historicalLow").innerText = fmtPrice(payload.historical_low ?? payload.historical_low_price);
+        const discountValue = payload.discount_percent ?? payload.latest_discount_percent;
+        document.getElementById("currentDiscount").innerText = Number.isFinite(Number(discountValue))
+            ? `${Math.round(Number(discountValue))}%`
+            : "—";
+        document.getElementById("dealScore").innerText = payload.deal_score ?? "—";
+        document.getElementById("playerCount").innerText = fmtInt(payload.current_players);
+        return;
+    }
+
+    if (context.mode === "free") {
+        if (labelPrimary) labelPrimary.innerText = "Access";
+        if (labelLow) labelLow.innerText = "Review Label";
+        if (labelDiscount) labelDiscount.innerText = "Review Score";
+        if (labelScore) labelScore.innerText = "Engagement";
+        if (labelPlayers) labelPlayers.innerText = "Live Players";
+        document.getElementById("currentPrice").innerText = "Free";
+        document.getElementById("historicalLow").innerText = getReviewLabel(payload);
+        document.getElementById("currentDiscount").innerText = Number.isFinite(Number(payload.review_score))
+            ? `${Math.round(Number(payload.review_score))}/100`
+            : "—";
+        document.getElementById("dealScore").innerText = Number.isFinite(Number(payload.popularity_score))
+            ? `${Math.round(Number(payload.popularity_score))}/100`
+            : "—";
+        document.getElementById("playerCount").innerText = fmtInt(payload.current_players);
+        return;
+    }
+
+    if (labelPrimary) labelPrimary.innerText = "Launch";
+    if (labelLow) labelLow.innerText = "Release Date";
+    if (labelDiscount) labelDiscount.innerText = "Review Label";
+    if (labelScore) labelScore.innerText = "Launch Interest";
+    if (labelPlayers) labelPlayers.innerText = "Watchers";
+    document.getElementById("currentPrice").innerText = "Unreleased";
+    document.getElementById("historicalLow").innerText = String(payload.release_date_text || payload.release_date || "TBD").trim() || "TBD";
+    document.getElementById("currentDiscount").innerText = getReviewLabel(payload);
+    document.getElementById("dealScore").innerText = Number.isFinite(Number(payload.upcoming_hot_score))
+        ? `${Math.round(Number(payload.upcoming_hot_score))}/100`
+        : "—";
+    document.getElementById("playerCount").innerText = Number.isFinite(Number(payload.wishlist_count))
+        ? fmtInt(payload.wishlist_count)
+        : "—";
+}
+
+function applyAdaptiveGameLayout(payload, context) {
+    const contextSummary = buildGameContextSummary(payload, context);
+    const contextCard = document.getElementById("gameContextCard");
+    const contextTitle = document.getElementById("gameContextTitle");
+    const contextText = document.getElementById("gameContextText");
+    if (contextCard) contextCard.classList.remove("gd-skeleton-surface");
+    if (contextTitle) contextTitle.innerText = contextSummary.title;
+    if (contextText) contextText.innerText = contextSummary.text;
+    document.getElementById("gameSub").innerText = contextSummary.heroSub;
+
+    const priceHistoryPanel = document.getElementById("priceHistoryPanel");
+    const dealExplanationPanel = document.getElementById("dealExplanationPanel");
+    const decisionPanel = document.getElementById("decisionPanel");
+    const targetAlertCard = document.getElementById("targetAlertCard");
+    const targetAlertTitle = document.getElementById("targetAlertTitle");
+    const priceHistoryTitle = document.getElementById("priceHistoryTitle");
+    const priceHistorySubtitle = document.getElementById("priceHistorySubtitle");
+    const playerHistoryTitle = document.getElementById("playerHistoryTitle");
+    const playerHistorySubtitle = document.getElementById("playerHistorySubtitle");
+    const marketSnapshotSubtitle = document.getElementById("marketSnapshotSubtitle");
+    const decisionPanelTitle = document.getElementById("decisionPanelTitle");
+    const decisionPanelSubtitle = document.getElementById("decisionPanelSubtitle");
+    const dealExplanationSubtitle = document.getElementById("dealExplanationSubtitle");
+
+    const isPaid = context.mode === "paid";
+    if (decisionPanel) decisionPanel.hidden = !isPaid;
+    if (dealExplanationPanel) dealExplanationPanel.hidden = !isPaid;
+    if (priceHistoryPanel) priceHistoryPanel.hidden = context.mode !== "paid";
+    if (targetAlertCard) targetAlertCard.hidden = context.mode !== "paid";
+
+    if (context.mode === "paid") {
+        if (priceHistoryTitle) priceHistoryTitle.innerText = "Interactive Price History";
+        if (priceHistorySubtitle) priceHistorySubtitle.innerText = "Track price movement, sale windows, and historical lows over time.";
+        if (playerHistoryTitle) playerHistoryTitle.innerText = "Player Activity History";
+        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Live player movement over time using snapshot-linked activity history.";
+        if (marketSnapshotSubtitle) marketSnapshotSubtitle.innerText = "Current state and metadata for this game.";
+        if (decisionPanelTitle) decisionPanelTitle.innerText = "Buy Recommendation + Next Sale";
+        if (decisionPanelSubtitle) decisionPanelSubtitle.innerText = "Decision signal first: should you buy now or wait for better timing?";
+        if (dealExplanationSubtitle) dealExplanationSubtitle.innerText = "How the platform is scoring this deal.";
+        if (targetAlertTitle) targetAlertTitle.innerText = "Price Target Alert";
+    } else if (context.mode === "free") {
+        if (playerHistoryTitle) playerHistoryTitle.innerText = "Engagement History";
+        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Player activity trend and live interest for this free title.";
+        if (marketSnapshotSubtitle) marketSnapshotSubtitle.innerText = "Engagement quality, sentiment, and game metadata.";
+        if (targetAlertTitle) targetAlertTitle.innerText = "Price alerts not needed for free titles";
+    } else {
+        if (playerHistoryTitle) playerHistoryTitle.innerText = "Pre-Launch Activity";
+        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Any available early activity and momentum signals before release.";
+        if (marketSnapshotSubtitle) marketSnapshotSubtitle.innerText = "Launch timing, anticipation, and metadata for this unreleased title.";
+        if (targetAlertTitle) targetAlertTitle.innerText = "Price alerts become available after launch pricing";
+    }
 }
 
 function resetPriceHistoryCache(nextGameId = null) {
@@ -2689,6 +2934,7 @@ if (!payload || payload.error) {
         resetPriceHistoryCache(currentGameId);
     }
     currentGamePayload = payload;
+    currentGameContext = resolveGameContext(payload);
     normalizeCanonicalGameRoute(payload);
     if (shareDealButton instanceof HTMLButtonElement) {
         shareDealButton.disabled = !(Number.isFinite(currentGameId) && currentGameId > 0);
@@ -2699,22 +2945,20 @@ if (!payload || payload.error) {
     applyGameStructuredData(payload);
 
     document.getElementById("gameTitle").innerText = payload.game_name || gameName;
-    document.getElementById("gameSub").innerText =
-        `${getReviewLabel(payload)} • ${payload.release_date_text || payload.release_date || "Released"}`;
-    renderHeroExplanation(payload);
+    applyAdaptiveGameLayout(payload, currentGameContext);
+    renderHeroExplanation(payload, currentGameContext);
+    renderHeroStats(payload, currentGameContext);
 
-    document.getElementById("currentPrice").innerText = fmtPrice(payload.price ?? payload.current_price);
-    document.getElementById("historicalLow").innerText = fmtPrice(payload.historical_low ?? payload.historical_low_price);
-    const discountValue = payload.discount_percent ?? payload.latest_discount_percent;
-    document.getElementById("currentDiscount").innerText = Number.isFinite(Number(discountValue))
-        ? `${Math.round(Number(discountValue))}%`
-        : "—";
-    document.getElementById("dealScore").innerText = payload.deal_score ?? "—";
-    document.getElementById("playerCount").innerText = fmtInt(payload.current_players);
     const confidenceForBadge = resolveDealConfidence(payload);
-    document.getElementById("dealBadge").innerText = confidenceForBadge
-        ? `${confidenceForBadge.confidence_icon} ${confidenceForBadge.confidence_label}`
-        : (payload.deal_label || `Deal score ${payload.deal_score ?? "—"}`);
+    if (currentGameContext?.mode === "free") {
+        document.getElementById("dealBadge").innerText = "FP Free-to-Play";
+    } else if (currentGameContext?.mode === "unreleased") {
+        document.getElementById("dealBadge").innerText = "UP Upcoming";
+    } else {
+        document.getElementById("dealBadge").innerText = confidenceForBadge
+            ? `${confidenceForBadge.confidence_icon} ${confidenceForBadge.confidence_label}`
+            : (payload.deal_label || `Deal score ${payload.deal_score ?? "—"}`);
+    }
     applyDealBadgeGlow(payload);
     applyHeroDecisionState(payload);
     document.getElementById("heroBanner").classList.remove("gd-skeleton-surface");
@@ -2727,18 +2971,29 @@ if (!payload || payload.error) {
             `url('https://cdn.cloudflare.steamstatic.com/steam/apps/${payload.steam_appid}/header.jpg')`;
     }
 
-    renderMarketInfo(payload);
-    renderDealExplanation(payload.deal_explanation || {});
-    renderDealConfidence(payload);
-    renderPrediction(payload);
+    renderMarketInfo(payload, currentGameContext);
+    if (currentGameContext?.isPaidReleased) {
+        renderDealExplanation(payload.deal_explanation || {});
+        renderDealConfidence(payload);
+        renderPrediction(payload);
+    }
     if (Number.isFinite(currentGameId) && currentGameId > 0) {
-        const moduleResults = await Promise.allSettled([
-            loadPriceHistory(activeRange),
-            loadPlayerHistory(currentGameId),
-            loadRelatedGames(currentGameId),
-            syncWatchButton(),
-            syncDealTargetAlert(),
-        ]);
+        const modulePromises = [];
+        if (currentGameContext?.isPaidReleased) {
+            modulePromises.push(loadPriceHistory(activeRange));
+        } else {
+            renderPriceChart({ points: [], history: [] });
+            modulePromises.push(Promise.resolve());
+        }
+        modulePromises.push(loadPlayerHistory(currentGameId));
+        modulePromises.push(loadRelatedGames(currentGameId));
+        modulePromises.push(syncWatchButton());
+        if (currentGameContext?.isPaidReleased) {
+            modulePromises.push(syncDealTargetAlert());
+        } else {
+            applyDealTargetState(null);
+        }
+        const moduleResults = await Promise.allSettled(modulePromises);
         if (moduleResults[0].status === "rejected") {
             console.warn("Price history unavailable for game detail", moduleResults[0].reason);
             renderPriceChart({ points: [], history: [] });
@@ -2751,7 +3006,7 @@ if (!payload || payload.error) {
             console.warn("Related games unavailable for game detail", moduleResults[2].reason);
             renderRelatedFallback("Related games are temporarily unavailable.");
         }
-        if (moduleResults[4].status === "rejected") {
+        if (currentGameContext?.isPaidReleased && moduleResults[4] && moduleResults[4].status === "rejected") {
             console.warn("Deal target sync unavailable for game detail", moduleResults[4].reason);
             setTargetAlertStatus("Could not load target alert settings.", "error");
         }
@@ -2771,6 +3026,10 @@ async function loadPriceHistory(range) {
     document.querySelectorAll(".range-btn").forEach((btn) => {
         btn.classList.toggle("active", btn.dataset.range === range);
     });
+    if (currentGameContext && !currentGameContext.isPaidReleased) {
+        renderPriceChart({ points: [], history: [] });
+        return;
+    }
     if (!Number.isFinite(currentGameId) || currentGameId <= 0) {
         renderPriceChart({ points: [], history: [] });
         return;
@@ -2843,8 +3102,9 @@ function renderRelatedFallback(message) {
     `;
 }
 
-function renderMarketInfo(data) {
+function renderMarketInfo(data, context = currentGameContext) {
     const el = document.getElementById("marketInfo");
+    if (!el) return;
     const current = Number(data.price ?? data.current_price);
     const historicalLow = Number(data.historical_low ?? data.historical_low_price);
     const genres = Array.isArray(data.genres) ? data.genres : parseCsv(data.genres);
@@ -2861,22 +3121,47 @@ function renderMarketInfo(data) {
     const lowDelta = Number.isFinite(current) && Number.isFinite(historicalLow)
         ? `${current >= historicalLow ? "+" : ""}${(current - historicalLow).toFixed(2)} vs low`
         : "—";
-    const items = [
-        { label: "Original Price", value: fmtPrice(data.original_price), compact: false, keyMetric: true },
-        {
-            label: "Current Discount",
-            value: data.discount_percent !== null && data.discount_percent !== undefined ? `${data.discount_percent}%` : "—",
-            compact: false,
-            keyMetric: true,
-        },
-        { label: "Historical Low Comparison", value: lowDelta, compact: false, keyMetric: true },
-        { label: "Deal Opportunity", value: opportunityValue, compact: true },
-        { label: "Review Score", value: data.review_score ?? "—", compact: false },
-        { label: "Review Count", value: fmtInt(data.review_total_count ?? data.review_count), compact: false },
-        { label: "Buy Score", value: Number.isFinite(Number(data.buy_score)) ? Number(data.buy_score).toFixed(1) : "—", compact: false },
-        { label: "Genres", value: genres.slice(0, 3).join(", ") || "—", compact: true },
-        { label: "Platforms", value: platforms.slice(0, 3).join(", ") || "—", compact: true },
-    ];
+    let items = [];
+    if (context?.mode === "free") {
+        items = [
+            { label: "Access", value: "Free to play", compact: false, keyMetric: true },
+            { label: "Live Players", value: fmtInt(data.current_players), compact: false, keyMetric: true },
+            { label: "Review Label", value: getReviewLabel(data), compact: true, keyMetric: true },
+            { label: "Review Score", value: Number.isFinite(Number(data.review_score)) ? `${Math.round(Number(data.review_score))}/100` : "—", compact: false },
+            { label: "Review Count", value: fmtInt(data.review_total_count ?? data.review_count), compact: false },
+            { label: "Trend", value: normalizeReasonSnippet(data.trend_reason_summary ?? data.momentum?.reason) || "—", compact: true },
+            { label: "Genres", value: genres.slice(0, 3).join(", ") || "—", compact: true },
+            { label: "Platforms", value: platforms.slice(0, 3).join(", ") || "—", compact: true },
+        ];
+    } else if (context?.mode === "unreleased") {
+        items = [
+            { label: "Launch Status", value: "Unreleased", compact: false, keyMetric: true },
+            { label: "Release Date", value: String(data.release_date_text || data.release_date || "TBD").trim() || "TBD", compact: false, keyMetric: true },
+            { label: "Review Label", value: getReviewLabel(data), compact: true, keyMetric: true },
+            { label: "Wishlist / Follows", value: Number.isFinite(Number(data.wishlist_count)) ? fmtInt(data.wishlist_count) : "—", compact: false },
+            { label: "Launch Interest", value: Number.isFinite(Number(data.upcoming_hot_score)) ? `${Math.round(Number(data.upcoming_hot_score))}/100` : "—", compact: false },
+            { label: "Store", value: resolveStoreUrl(data) ? "Available to follow on store" : "Store page unavailable", compact: true },
+            { label: "Genres", value: genres.slice(0, 3).join(", ") || "—", compact: true },
+            { label: "Platforms", value: platforms.slice(0, 3).join(", ") || "—", compact: true },
+        ];
+    } else {
+        items = [
+            { label: "Original Price", value: fmtPrice(data.original_price), compact: false, keyMetric: true },
+            {
+                label: "Current Discount",
+                value: data.discount_percent !== null && data.discount_percent !== undefined ? `${data.discount_percent}%` : "—",
+                compact: false,
+                keyMetric: true,
+            },
+            { label: "Historical Low Comparison", value: lowDelta, compact: false, keyMetric: true },
+            { label: "Deal Opportunity", value: opportunityValue, compact: true },
+            { label: "Review Label", value: getReviewLabel(data), compact: true, keyMetric: true },
+            { label: "Review Count", value: fmtInt(data.review_total_count ?? data.review_count), compact: false },
+            { label: "Buy Score", value: Number.isFinite(Number(data.buy_score)) ? Number(data.buy_score).toFixed(1) : "—", compact: false },
+            { label: "Genres", value: genres.slice(0, 3).join(", ") || "—", compact: true },
+            { label: "Platforms", value: platforms.slice(0, 3).join(", ") || "—", compact: true },
+        ];
+    }
 
     el.innerHTML = items.map(({ label, value, compact, keyMetric }) => `
         <div class="info-item${keyMetric ? " key-metric" : ""}">

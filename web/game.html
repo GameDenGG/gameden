@@ -142,41 +142,58 @@ a {
 
 .hero-shell {
     display: grid;
-    grid-template-columns: minmax(320px, 1fr) minmax(420px, 1.08fr);
-    align-items: stretch;
+    grid-template-columns: minmax(340px, 0.9fr) minmax(460px, 1.1fr);
+    align-items: start;
+    gap: 0;
 }
 
 .hero-media {
-    min-height: 100%;
+    align-self: start;
+    padding: 16px;
+    padding-right: 10px;
 }
 
 .hero-banner {
-    height: 100%;
-    min-height: 350px;
+    height: clamp(270px, 33vw, 390px);
     background:
         linear-gradient(180deg, rgba(96,165,250,0.16), rgba(96,165,250,0.05));
-    background-size: contain;
-    background-position: center top;
+    background-size: cover;
+    background-position: center 24%;
     background-repeat: no-repeat;
-    background-color: rgba(6, 12, 24, 0.72);
-    border-right: 1px solid rgba(154,182,255,0.12);
+    background-color: rgba(7, 14, 28, 0.88);
+    border: 1px solid rgba(154,182,255,0.2);
+    border-radius: 20px;
+    box-shadow: 0 22px 40px rgba(3, 8, 20, 0.36);
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-banner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, rgba(7, 14, 28, 0.06) 0%, rgba(7, 14, 28, 0.42) 100%);
 }
 
 .hero-body {
-    padding: var(--space-4);
+    padding: var(--space-4) var(--space-4) var(--space-4) 10px;
     display: grid;
     gap: var(--space-3);
 }
 
 .hero-top {
     display: grid;
-    gap: 10px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: start;
 }
 
 .hero-meta-row {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    align-items: flex-start;
+    justify-content: flex-end;
     gap: 10px;
     flex-wrap: wrap;
 }
@@ -566,7 +583,7 @@ a {
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-2);
 }
 
@@ -604,9 +621,17 @@ a {
 
 .content-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.5fr) minmax(312px, 0.92fr);
+    grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.9fr);
     gap: var(--space-4);
     margin-bottom: var(--space-4);
+}
+
+.content-grid.content-grid-right-focus {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.content-grid.content-grid-right-focus .left-column {
+    display: none;
 }
 
 .left-column,
@@ -632,6 +657,40 @@ a {
     pointer-events: none;
     border-top: 1px solid rgba(193, 214, 255, 0.12);
     opacity: 0.85;
+}
+
+.panel-primary {
+    border-color: rgba(111, 232, 255, 0.34);
+    background:
+        radial-gradient(circle at 90% 0%, rgba(111, 232, 255, 0.08), transparent 42%),
+        linear-gradient(180deg, rgba(12, 28, 51, 0.97), rgba(8, 18, 34, 0.97));
+}
+
+.panel-primary .panel-title {
+    font-size: 24px;
+}
+
+.panel-primary .panel-subtitle {
+    color: #bfd4ff;
+}
+
+.panel-secondary {
+    border-color: rgba(154, 182, 255, 0.16);
+    background: linear-gradient(180deg, rgba(12, 24, 44, 0.95), rgba(9, 19, 36, 0.95));
+    box-shadow: var(--shadow-sm);
+}
+
+.panel-highlight {
+    border-color: rgba(92, 228, 169, 0.3);
+    background:
+        radial-gradient(circle at 88% 6%, rgba(92, 228, 169, 0.11), transparent 46%),
+        linear-gradient(180deg, rgba(14, 33, 59, 0.97), rgba(8, 18, 33, 0.98));
+}
+
+.panel-tertiary {
+    border-color: rgba(154, 182, 255, 0.1);
+    background: linear-gradient(180deg, rgba(10, 20, 36, 0.95), rgba(8, 16, 30, 0.95));
+    box-shadow: 0 12px 26px rgba(0, 0, 0, 0.22);
 }
 
 .panel-head {
@@ -787,7 +846,7 @@ a {
     border-radius: 18px;
     border: 1px solid rgba(154,182,255,0.12);
     background: linear-gradient(180deg, rgba(22,35,58,0.84), rgba(13,23,40,0.92));
-    min-height: 84px;
+    min-height: 72px;
     display: grid;
     align-content: start;
     gap: 6px;
@@ -939,7 +998,7 @@ a {
 }
 
 #dealExplanation {
-    min-height: 310px;
+    min-height: 220px;
 }
 
 .related-title {
@@ -975,14 +1034,25 @@ a {
         grid-template-columns: 1fr;
     }
 
+    .hero-media {
+        padding: 16px 16px 0;
+    }
+
     .hero-banner {
-        min-height: 240px;
-        border-right: 0;
-        border-bottom: 1px solid rgba(154, 182, 255, 0.12);
+        height: clamp(220px, 42vw, 320px);
     }
 
     .hero-body {
-        padding: 18px;
+        padding: 16px 18px 18px;
+    }
+
+    .hero-top {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .hero-meta-row {
+        justify-content: flex-start;
     }
 
     .hero-title h1 {
@@ -1048,7 +1118,7 @@ a {
     }
 
     .hero-banner {
-        min-height: 180px;
+        height: clamp(180px, 46vw, 240px);
     }
 
     .hero-title h1 {
@@ -1198,7 +1268,7 @@ a {
 
 @media (max-width: 520px) {
     .hero-banner {
-        min-height: 160px;
+        height: clamp(152px, 52vw, 210px);
     }
 
     .stats-grid {
@@ -1335,7 +1405,7 @@ a {
 
     <section class="content-grid">
         <div class="left-column">
-            <section class="panel" id="priceHistoryPanel">
+            <section class="panel panel-primary" id="priceHistoryPanel">
                 <div class="panel-head">
                     <h2 class="panel-title" id="priceHistoryTitle">Interactive Price History</h2>
                     <div class="panel-subtitle" id="priceHistorySubtitle">Track price movement, sale windows, and historical lows over time.</div>
@@ -1354,7 +1424,7 @@ a {
                 </div>
             </section>
 
-            <section class="panel" id="playerHistoryPanel">
+            <section class="panel panel-secondary" id="playerHistoryPanel">
                 <div class="panel-head">
                     <h2 class="panel-title" id="playerHistoryTitle">Player Activity History</h2>
                     <div class="panel-subtitle" id="playerHistorySubtitle">Live player movement over time using snapshot-linked activity history.</div>
@@ -1367,7 +1437,7 @@ a {
                 </div>
             </section>
 
-            <section class="panel" id="dealExplanationPanel">
+            <section class="panel panel-secondary" id="dealExplanationPanel">
                 <div class="panel-head">
                     <h2 class="panel-title">Deal Explanation</h2>
                     <div class="panel-subtitle" id="dealExplanationSubtitle">How the platform is scoring this deal.</div>
@@ -1379,7 +1449,7 @@ a {
         </div>
 
         <div class="right-column">
-            <section class="panel decision-panel" id="decisionPanel">
+            <section class="panel decision-panel panel-highlight" id="decisionPanel">
                 <div class="panel-head">
                     <h2 class="panel-title" id="decisionPanelTitle">Buy Recommendation + Next Sale</h2>
                     <div class="panel-subtitle" id="decisionPanelSubtitle">Decision signal first: should you buy now or wait for better timing?</div>
@@ -1398,7 +1468,7 @@ a {
                 </div>
             </section>
 
-            <section class="panel" id="marketSnapshotPanel">
+            <section class="panel panel-secondary" id="marketSnapshotPanel">
                 <div class="panel-head">
                     <h2 class="panel-title">Market Snapshot</h2>
                     <div class="panel-subtitle" id="marketSnapshotSubtitle">Current state and metadata for this game.</div>
@@ -1410,7 +1480,7 @@ a {
         </div>
     </section>
 
-    <section class="panel discovery-panel">
+    <section class="panel discovery-panel panel-tertiary">
         <div class="panel-head">
             <h2 class="panel-title">Discovery Loops</h2>
             <div class="panel-subtitle">Related games based on discounts, tags, and similar player movement.</div>
@@ -2316,7 +2386,7 @@ function getReviewLabel(payload) {
     return payload?.review_score_label
         || payload?.review_label
         || payload?.review_summary
-        || "Review label unavailable";
+        || "Review summary pending";
 }
 
 function resolveGameContext(payload) {
@@ -2354,6 +2424,23 @@ function resolveGameContext(payload) {
         numericPlayers,
         releaseDateValue,
     };
+}
+
+function shouldShowPlayerHistoryPanel(payload, context = currentGameContext) {
+    const mode = String(context?.mode || "").trim().toLowerCase();
+    if (mode === "paid") return true;
+
+    const players = Number(payload?.current_players);
+    const playerChange = Number(payload?.player_change);
+    const trend = Number(payload?.short_term_player_trend ?? payload?.player_momentum);
+    const popularity = Number(payload?.popularity_score);
+
+    const hasPlayers = Number.isFinite(players) && players > 0;
+    const hasPlayerChange = Number.isFinite(playerChange) && Math.abs(playerChange) > 0;
+    const hasTrend = Number.isFinite(trend) && Math.abs(trend) > 0.01;
+    const hasPopularity = Number.isFinite(popularity) && popularity > 0;
+
+    return hasPlayers || hasPlayerChange || hasTrend || hasPopularity;
 }
 
 function buildGameContextSummary(payload, context) {
@@ -2755,6 +2842,7 @@ function applyAdaptiveGameLayout(payload, context) {
     document.getElementById("gameSub").innerText = contextSummary.heroSub;
 
     const priceHistoryPanel = document.getElementById("priceHistoryPanel");
+    const playerHistoryPanel = document.getElementById("playerHistoryPanel");
     const dealExplanationPanel = document.getElementById("dealExplanationPanel");
     const decisionPanel = document.getElementById("decisionPanel");
     const targetAlertCard = document.getElementById("targetAlertCard");
@@ -2767,12 +2855,23 @@ function applyAdaptiveGameLayout(payload, context) {
     const decisionPanelTitle = document.getElementById("decisionPanelTitle");
     const decisionPanelSubtitle = document.getElementById("decisionPanelSubtitle");
     const dealExplanationSubtitle = document.getElementById("dealExplanationSubtitle");
+    const contentGrid = document.querySelector(".content-grid");
+    const leftColumn = document.querySelector(".left-column");
 
     const isPaid = context.mode === "paid";
+    const showPlayerHistory = shouldShowPlayerHistoryPanel(payload, context);
     if (decisionPanel) decisionPanel.hidden = !isPaid;
     if (dealExplanationPanel) dealExplanationPanel.hidden = !isPaid;
     if (priceHistoryPanel) priceHistoryPanel.hidden = context.mode !== "paid";
+    if (playerHistoryPanel) playerHistoryPanel.hidden = !showPlayerHistory;
     if (targetAlertCard) targetAlertCard.hidden = context.mode !== "paid";
+
+    const leftColumnHasVisibleSections = leftColumn
+        ? Array.from(leftColumn.children).some((child) => child instanceof HTMLElement && !child.hidden)
+        : true;
+    if (contentGrid instanceof HTMLElement) {
+        contentGrid.classList.toggle("content-grid-right-focus", !leftColumnHasVisibleSections);
+    }
 
     if (context.mode === "paid") {
         if (priceHistoryTitle) priceHistoryTitle.innerText = "Interactive Price History";
@@ -2787,12 +2886,20 @@ function applyAdaptiveGameLayout(payload, context) {
     } else if (context.mode === "free") {
         if (playerHistoryTitle) playerHistoryTitle.innerText = "Engagement History";
         if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Player activity trend and live interest for this free title.";
-        if (marketSnapshotSubtitle) marketSnapshotSubtitle.innerText = "Engagement quality, sentiment, and game metadata.";
+        if (marketSnapshotSubtitle) {
+            marketSnapshotSubtitle.innerText = showPlayerHistory
+                ? "Engagement quality, sentiment, and game metadata."
+                : "Sentiment and game metadata. Engagement telemetry is still building.";
+        }
         if (targetAlertTitle) targetAlertTitle.innerText = "Price alerts not needed for free titles";
     } else {
         if (playerHistoryTitle) playerHistoryTitle.innerText = "Pre-Launch Activity";
         if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Any available early activity and momentum signals before release.";
-        if (marketSnapshotSubtitle) marketSnapshotSubtitle.innerText = "Launch timing, anticipation, and metadata for this unreleased title.";
+        if (marketSnapshotSubtitle) {
+            marketSnapshotSubtitle.innerText = showPlayerHistory
+                ? "Launch timing, anticipation, and metadata for this unreleased title."
+                : "Launch timing and metadata. Activity signals will appear as launch nears.";
+        }
         if (targetAlertTitle) targetAlertTitle.innerText = "Price alerts become available after launch pricing";
     }
 }
@@ -2978,38 +3085,49 @@ if (!payload || payload.error) {
         renderPrediction(payload);
     }
     if (Number.isFinite(currentGameId) && currentGameId > 0) {
-        const modulePromises = [];
+        const moduleTasks = [];
         if (currentGameContext?.isPaidReleased) {
-            modulePromises.push(loadPriceHistory(activeRange));
+            moduleTasks.push({ key: "price", promise: loadPriceHistory(activeRange) });
         } else {
             renderPriceChart({ points: [], history: [] });
-            modulePromises.push(Promise.resolve());
+            moduleTasks.push({ key: "price", promise: Promise.resolve() });
         }
-        modulePromises.push(loadPlayerHistory(currentGameId));
-        modulePromises.push(loadRelatedGames(currentGameId));
-        modulePromises.push(syncWatchButton());
+        if (shouldShowPlayerHistoryPanel(payload, currentGameContext)) {
+            moduleTasks.push({ key: "players", promise: loadPlayerHistory(currentGameId) });
+        } else {
+            renderPlayerChart({ players: [] });
+        }
+        moduleTasks.push({ key: "related", promise: loadRelatedGames(currentGameId) });
+        moduleTasks.push({ key: "watch", promise: syncWatchButton() });
         if (currentGameContext?.isPaidReleased) {
-            modulePromises.push(syncDealTargetAlert());
+            moduleTasks.push({ key: "alert", promise: syncDealTargetAlert() });
         } else {
             applyDealTargetState(null);
         }
-        const moduleResults = await Promise.allSettled(modulePromises);
-        if (moduleResults[0].status === "rejected") {
-            console.warn("Price history unavailable for game detail", moduleResults[0].reason);
-            renderPriceChart({ points: [], history: [] });
-        }
-        if (moduleResults[1].status === "rejected") {
-            console.warn("Player history unavailable for game detail", moduleResults[1].reason);
-            renderPlayerChart({ players: [] });
-        }
-        if (moduleResults[2].status === "rejected") {
-            console.warn("Related games unavailable for game detail", moduleResults[2].reason);
-            renderRelatedFallback("Related games are temporarily unavailable.");
-        }
-        if (currentGameContext?.isPaidReleased && moduleResults[4] && moduleResults[4].status === "rejected") {
-            console.warn("Deal target sync unavailable for game detail", moduleResults[4].reason);
-            setTargetAlertStatus("Could not load target alert settings.", "error");
-        }
+        const moduleResults = await Promise.allSettled(moduleTasks.map((task) => task.promise));
+        moduleResults.forEach((result, index) => {
+            if (result.status !== "rejected") return;
+            const key = moduleTasks[index]?.key;
+            if (key === "price") {
+                console.warn("Price history unavailable for game detail", result.reason);
+                renderPriceChart({ points: [], history: [] });
+                return;
+            }
+            if (key === "players") {
+                console.warn("Player history unavailable for game detail", result.reason);
+                renderPlayerChart({ players: [] });
+                return;
+            }
+            if (key === "related") {
+                console.warn("Related games unavailable for game detail", result.reason);
+                renderRelatedFallback("Related games are temporarily unavailable.");
+                return;
+            }
+            if (key === "alert") {
+                console.warn("Deal target sync unavailable for game detail", result.reason);
+                setTargetAlertStatus("Could not load target alert settings.", "error");
+            }
+        });
     } else {
         await loadPriceHistory(activeRange).catch((error) => {
             console.warn("Price history unavailable for game detail", error);
@@ -3047,6 +3165,11 @@ async function loadPriceHistory(range) {
 }
 
 async function loadPlayerHistory(gameId) {
+    const playerHistoryPanel = document.getElementById("playerHistoryPanel");
+    if (playerHistoryPanel && playerHistoryPanel.hidden) {
+        renderPlayerChart({ players: [] });
+        return;
+    }
     const payload = await fetchJson(`/games/${gameId}/player-history`).catch(() => ({ players: [], stats: {} }));
     renderPlayerChart(payload);
 }

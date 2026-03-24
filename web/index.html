@@ -6027,6 +6027,17 @@ input:focus-visible {
             };
         }
 
+        function deriveReviewLabelFromScore(rawScore) {
+            const score = Number(rawScore);
+            if (!Number.isFinite(score) || score < 0) return null;
+            if (score >= 95) return "Overwhelmingly Positive";
+            if (score >= 80) return "Very Positive";
+            if (score >= 70) return "Mostly Positive";
+            if (score >= 40) return "Mixed";
+            if (score >= 20) return "Mostly Negative";
+            return "Very Negative";
+        }
+
         function normalizeGameRow(row) {
             if (!row || typeof row !== "object") return row;
             const canonicalGameId = toPositiveIntOrNull(row.game_id ?? row.id);
@@ -6046,7 +6057,7 @@ input:focus-visible {
                 ?? row.review_summary
                 ?? row.reviewSummary
                 ?? "",
-            ).trim() || (hasReviewScore ? `${Math.round(normalizedReviewScore)}% positive` : null);
+            ).trim() || deriveReviewLabelFromScore(normalizedReviewScore);
             return {
                 ...row,
                 game_id: row.game_id ?? row.id ?? null,
@@ -10973,7 +10984,7 @@ input:focus-visible {
             try {
                 const params = new URLSearchParams();
                 params.set("q", trimmed);
-                params.set("limit", "10");
+                params.set("limit", String(SEARCH_INITIAL_VISIBLE_RESULTS));
                 const payload = await fetchJson(`/search?${params.toString()}`, { signal: controller.signal });
                 const isCurrent = (
                     state.search.requestId === requestId

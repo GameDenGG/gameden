@@ -732,6 +732,28 @@ def safe_num(value, default: float = 0.0) -> float:
         return default
 
 
+def _normalize_review_label(raw_label, review_score) -> str | None:
+    label = str(raw_label or "").strip()
+    if label:
+        return label
+    score = safe_num(review_score, default=-1.0)
+    if score < 0:
+        return None
+    if score >= 95:
+        return "Overwhelmingly Positive"
+    if score >= 80:
+        return "Very Positive"
+    if score >= 70:
+        return "Mostly Positive"
+    if score >= 40:
+        return "Mixed"
+    if score >= 20:
+        return "Mostly Negative"
+    if score >= 0:
+        return "Very Negative"
+    return None
+
+
 def _compact_search_text(value: str | None) -> str:
     return _normalize_search_text(value).replace(" ", "")
 
@@ -3655,6 +3677,17 @@ def _ensure_game_detail_contract(payload: dict) -> dict:
         normalized.get("historical_low_price"),
         normalized.get("historical_low"),
     )
+    review_label = _normalize_review_label(
+        _first_non_null(
+            normalized.get("review_score_label"),
+            normalized.get("review_label"),
+            normalized.get("review_summary"),
+        ),
+        normalized.get("review_score"),
+    )
+    normalized["review_score_label"] = review_label
+    normalized["review_label"] = review_label
+    normalized["review_summary"] = review_label
     normalized.setdefault("prediction", {})
     if not isinstance(normalized.get("prediction"), dict):
         normalized["prediction"] = {}
@@ -4602,9 +4635,9 @@ def search_games_fast(
         normalized_limit = max(1, min(int(limit), 20))
         query_tokens = _search_tokens(normalized_query)
         tokenized_query = "%".join(query_tokens) if len(query_tokens) > 1 else ""
-        fast_candidate_limit = min(96, max(30, normalized_limit * 8))
+        fast_candidate_limit = min(42, max(18, normalized_limit * 3))
         if len(normalized_query) <= 2:
-            fast_candidate_limit = min(72, max(24, normalized_limit * 6))
+            fast_candidate_limit = min(30, max(12, normalized_limit * 2))
 
         rows = session.execute(
             text(
@@ -4678,9 +4711,9 @@ def search_games_fast(
         should_run_broad_pass = len(rows) < min(2, normalized_limit)
         if should_run_broad_pass:
             remaining_slots = max(1, normalized_limit - len(rows))
-            candidate_limit = min(96, max(28, remaining_slots * 8))
+            candidate_limit = min(64, max(16, remaining_slots * 5))
             if len(normalized_query) <= 2:
-                candidate_limit = min(72, max(24, remaining_slots * 8))
+                candidate_limit = min(40, max(12, remaining_slots * 4))
             try:
                 broad_rows = session.execute(
                     text(
@@ -4834,7 +4867,9 @@ def search_games_fast(
                 "worth_buying_score": row["worth_buying_score"],
                 "review_score": row.get("review_score"),
                 "review_total_count": row.get("review_total_count"),
-                "review_score_label": row.get("review_score_label"),
+                "review_score_label": _normalize_review_label(row.get("review_score_label"), row.get("review_score")),
+                "review_label": _normalize_review_label(row.get("review_score_label"), row.get("review_score")),
+                "review_summary": _normalize_review_label(row.get("review_score_label"), row.get("review_score")),
                 "deal_heat_reason": row["deal_heat_reason"],
                 "release_date": row["release_date"].isoformat() if row["release_date"] else None,
                 "is_upcoming": bool(row["is_upcoming"]) if row["is_upcoming"] is not None else False,

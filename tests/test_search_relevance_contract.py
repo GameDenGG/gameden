@@ -27,6 +27,7 @@ class SearchRelevanceContractTests(unittest.TestCase):
         self.assertIn("query_with_order = build_released_query(include_similarity=False)", self.text)
 
     def test_search_endpoint_prefers_exact_and_prefix_before_tiebreakers(self) -> None:
+        self.assertIn("def _normalize_review_label(raw_label, review_score) -> str | None:", self.text)
         self.assertIn("CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END", self.text)
         self.assertIn("CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END", self.text)
         self.assertIn("sim DESC", self.text)
@@ -41,6 +42,7 @@ class SearchRelevanceContractTests(unittest.TestCase):
     def test_home_search_dropdown_uses_search_endpoint(self) -> None:
         self.assertIn("function refreshSearchResults(options = {})", self.web_text)
         self.assertIn("const payload = await fetchJson(`/search?${params.toString()}`", self.web_text)
+        self.assertIn("params.set(\"limit\", String(SEARCH_INITIAL_VISIBLE_RESULTS));", self.web_text)
         self.assertNotIn("fetchJson(`/games/search?", self.web_text)
 
     def test_home_search_dropdown_rows_use_anchor_navigation(self) -> None:
@@ -52,6 +54,7 @@ class SearchRelevanceContractTests(unittest.TestCase):
         self.assertNotIn("renderedNode.click();", self.web_text)
 
     def test_frontend_search_fallback_does_not_use_deal_score(self) -> None:
+        self.assertIn("function deriveReviewLabelFromScore(rawScore)", self.web_text)
         start = self.web_text.index("function searchFallbackPool(query, limit = 20)")
         end = self.web_text.index("function resolveSearchResultHref(row)", start)
         fallback_source = self.web_text[start:end]

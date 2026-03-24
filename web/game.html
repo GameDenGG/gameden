@@ -987,6 +987,12 @@ a {
     min-height: 74px;
 }
 
+.break-row-highlight {
+    border-color: rgba(111, 232, 255, 0.34);
+    background: linear-gradient(180deg, rgba(19, 39, 70, 0.88), rgba(11, 23, 42, 0.92));
+    box-shadow: inset 0 0 0 1px rgba(111, 232, 255, 0.08);
+}
+
 .break-top {
     display: flex;
     justify-content: space-between;
@@ -2611,6 +2617,100 @@ function normalizeReasonSnippet(value) {
     return compact.charAt(0).toUpperCase() + compact.slice(1);
 }
 
+const PLAYER_INTEREST_STATE_LABELS = Object.freeze({
+    stable_evergreen: "Stable evergreen player base",
+    declining: "Declining interest over last 90 days",
+    resurging: "Resurging player activity",
+    one_off_spike: "Recent spike — likely temporary",
+    launch_hype_dropoff: "Launch hype dropoff",
+    stable: "Stable player trend",
+    mixed: "Mixed player trend signals",
+});
+
+function getRankingExplanations(payload) {
+    const explanations = payload?.ranking_explanations;
+    return explanations && typeof explanations === "object" ? explanations : {};
+}
+
+function formatTrendPercent(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    const pct = numeric * 100;
+    return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
+}
+
+function getPlayerSignalInsights(payload) {
+    const explanations = getRankingExplanations(payload);
+    const trends = explanations?.player_trends && typeof explanations.player_trends === "object"
+        ? explanations.player_trends
+        : {};
+    const stateRaw = String(explanations?.player_interest_state || "").trim().toLowerCase();
+    const state = stateRaw || "mixed";
+    const confidence = Number(explanations?.player_history_confidence);
+    const shortTerm = Number(trends?.short_term);
+    const mediumTerm = Number(trends?.medium_term);
+    const longTerm = Number(trends?.long_term);
+    const coverageDays = Number(trends?.coverage_days);
+    const pointCount = Number(trends?.history_point_count);
+    return {
+        state,
+        stateLabel: PLAYER_INTEREST_STATE_LABELS[state] || PLAYER_INTEREST_STATE_LABELS.mixed,
+        confidence,
+        shortTerm,
+        mediumTerm,
+        longTerm,
+        coverageDays,
+        pointCount,
+    };
+}
+
+function formatPlayerHistoryConfidence(insights) {
+    const confidence = Number(insights?.confidence);
+    const coverageDays = Number(insights?.coverageDays);
+    if (!Number.isFinite(confidence)) {
+        return "Confidence pending (history still building)";
+    }
+    const tier = confidence >= 0.75 ? "High confidence" : confidence >= 0.45 ? "Moderate confidence" : "Low confidence";
+    const years = Number.isFinite(coverageDays) && coverageDays > 0 ? (coverageDays / 365) : 0;
+    if (years >= 1) {
+        return `${tier} (${years.toFixed(1)} years of player history)`;
+    }
+    if (Number.isFinite(coverageDays) && coverageDays > 0) {
+        return `${tier} (${Math.round(coverageDays)} days of player history)`;
+    }
+    return `${tier} (limited player history)`;
+}
+
+function buildPlayerTrendComparisonText(insights) {
+    const shortText = formatTrendPercent(insights?.shortTerm);
+    const mediumText = formatTrendPercent(insights?.mediumTerm);
+    const longText = formatTrendPercent(insights?.longTerm);
+    const segments = [];
+    if (shortText) segments.push(`7d ${shortText}`);
+    if (mediumText) segments.push(`30d ${mediumText}`);
+    if (longText) segments.push(`90d ${longText}`);
+    if (!segments.length) return "";
+    return `Trend comparison: ${segments.join(" • ")}`;
+}
+
+function buildRecommendationHeadline(payload, insights) {
+    const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
+    const buyReason = normalizeReasonSnippet(payload?.buy_reason);
+    if (recommendation === "BUY_NOW") {
+        return `BUY — ${buyReason || "Current value and player signal align."}`;
+    }
+    if (recommendation === "WAIT") {
+        if (insights?.state === "declining" || insights?.state === "launch_hype_dropoff") {
+            return "WAIT — Price may be fair, but player interest is trending down.";
+        }
+        if (insights?.state === "one_off_spike") {
+            return "WAIT — Recent spike looks temporary; a better entry may appear.";
+        }
+        return `WAIT — ${buyReason || "Timing signal suggests better value later."}`;
+    }
+    return buyReason || "Recommendation signal is still calibrating.";
+}
+
 function resolveDealConfidence(payload) {
     const helper = window.GameDenSite && window.GameDenSite.getDealConfidence;
     if (typeof helper === "function") {
@@ -2639,6 +2739,7 @@ function resolveDealConfidence(payload) {
 
 function buildDealConfidenceReasonLines(payload) {
     const lines = [];
+    const insights = getPlayerSignalInsights(payload);
     const candidates = [
         payload?.buy_reason,
         payload?.predicted_sale_reason ?? payload?.next_sale_prediction?.reason,
@@ -2649,6 +2750,13 @@ function buildDealConfidenceReasonLines(payload) {
         if (!normalized) return;
         pushUniqueExplanationLine(lines, normalized);
     });
+    if (insights?.stateLabel) {
+        pushUniqueExplanationLine(lines, insights.stateLabel);
+    }
+    const trendComparison = buildPlayerTrendComparisonText(insights);
+    if (trendComparison) {
+        pushUniqueExplanationLine(lines, trendComparison);
+    }
     return lines.slice(0, 2);
 }
 
@@ -2685,10 +2793,13 @@ function renderDealConfidence(payload) {
     }
 
     panel.hidden = false;
+    const insights = getPlayerSignalInsights(payload);
     const reasonLines = buildDealConfidenceReasonLines(payload);
     const reasonText = reasonLines.length
         ? reasonLines.join(" • ")
         : "Signals are mixed and a better entry may appear later.";
+    const recommendationHeadline = buildRecommendationHeadline(payload, insights);
+    const confidenceSummary = formatPlayerHistoryConfidence(insights);
     const scoreText = Number.isFinite(Number(confidence.score))
         ? `${Math.round(Number(confidence.score))}/100`
         : "—";
@@ -2701,6 +2812,14 @@ function renderDealConfidence(payload) {
         <div class="prediction-item">
             <div class="prediction-title">Explanation</div>
             <div class="prediction-value info-value-compact">${escapeHtml(reasonText)}</div>
+        </div>
+        <div class="prediction-item">
+            <div class="prediction-title">Why ${escapeHtml(String(payload?.buy_recommendation || "signal").toUpperCase() || "Signal")}</div>
+            <div class="prediction-value info-value-compact">${escapeHtml(recommendationHeadline)}</div>
+        </div>
+        <div class="prediction-item">
+            <div class="prediction-title">Player Signal Confidence</div>
+            <div class="prediction-value info-value-compact">${escapeHtml(confidenceSummary)}</div>
         </div>
         <div class="prediction-item key-metric">
             <div class="prediction-title">Score</div>
@@ -2719,6 +2838,7 @@ function pushUniqueExplanationLine(lines, line) {
 
 function buildHeroExplanationLines(payload, context = currentGameContext) {
     const lines = [];
+    const playerInsights = getPlayerSignalInsights(payload);
     if (context?.mode === "unreleased") {
         const releaseText = String(payload?.release_date_text || payload?.release_date || "").trim();
         if (releaseText) pushUniqueExplanationLine(lines, `Launch window: ${releaseText}`);
@@ -2780,6 +2900,9 @@ function buildHeroExplanationLines(payload, context = currentGameContext) {
     ) {
         pushUniqueExplanationLine(lines, "Strong player growth");
     }
+    if (playerInsights?.stateLabel) {
+        pushUniqueExplanationLine(lines, playerInsights.stateLabel);
+    }
 
     if (discount >= 60) {
         pushUniqueExplanationLine(lines, "Large discount vs normal price");
@@ -2801,6 +2924,10 @@ function buildHeroExplanationLines(payload, context = currentGameContext) {
     }
     if (!lines.length && predictedReason) {
         pushUniqueExplanationLine(lines, predictedReason);
+    }
+    const confidenceText = formatPlayerHistoryConfidence(playerInsights);
+    if (confidenceText) {
+        pushUniqueExplanationLine(lines, confidenceText);
     }
 
     return lines.slice(0, 3);
@@ -3202,6 +3329,11 @@ function findMajorPlayerSpike(points) {
 
 function computePlayerTrendInsights(filteredPoints, allPoints, range) {
     const rangeLabel = PLAYER_HISTORY_RANGE_LABELS[range] || "selected window";
+    const backendInsights = getPlayerSignalInsights(currentGamePayload);
+    const backendState = String(backendInsights?.state || "").trim().toLowerCase();
+    const backendStateLabel = String(backendInsights?.stateLabel || "").trim();
+    const backendComparison = buildPlayerTrendComparisonText(backendInsights);
+    const backendConfidence = formatPlayerHistoryConfidence(backendInsights);
     if (!filteredPoints.length || !allPoints.length) {
         return {
             trend: "flat",
@@ -3229,6 +3361,15 @@ function computePlayerTrendInsights(filteredPoints, allPoints, range) {
             ? "Player activity trending downward"
             : "Player activity stable";
     const trendDeltaText = Number.isFinite(trendPct) ? ` (${trendPct >= 0 ? "+" : ""}${trendPct.toFixed(1)}%)` : "";
+    const trendFromState = (
+        backendState === "declining" || backendState === "launch_hype_dropoff"
+            ? "down"
+            : backendState === "resurging"
+                ? "up"
+                : backendState === "stable_evergreen" || backendState === "stable"
+                    ? "flat"
+                    : trend
+    );
 
     const fromPeakPct = peakPoint.players > 0
         ? ((latest.players - peakPoint.players) / peakPoint.players) * 100
@@ -3239,9 +3380,11 @@ function computePlayerTrendInsights(filteredPoints, allPoints, range) {
             : `Up ${fromPeakPct.toFixed(1)}% above earlier range peak`)
         : "Peak comparison unavailable";
 
-    const detailPieces = [
-        `${fromPeakText} (${fmtInt(peakPoint.players)} on ${formatPlayerDate(peakPoint.timestamp)})`,
-    ];
+    const detailPieces = [];
+    if (backendComparison) {
+        detailPieces.push(backendComparison);
+    }
+    detailPieces.push(`${fromPeakText} (${fmtInt(peakPoint.players)} on ${formatPlayerDate(peakPoint.timestamp)})`);
     if (spike) {
         detailPieces.push(`Major spike +${fmtInt(spike.delta)} on ${formatPlayerDate(spike.timestamp)}`);
     }
@@ -3253,10 +3396,16 @@ function computePlayerTrendInsights(filteredPoints, allPoints, range) {
         ? `${(totalDays / 365).toFixed(1)}y history`
         : `${Math.max(1, Math.round(totalDays))}d history`;
     const coverage = `Tracking since ${formatPlayerDate(earliestAll.timestamp)} • ${yearsLabel}`;
+    const summary = backendStateLabel && backendState !== "mixed"
+        ? `${backendStateLabel} (${rangeLabel} view).`
+        : `${trendPrefix} over last ${rangeLabel}${trendDeltaText}.`;
+    if (backendConfidence) {
+        detailPieces.push(backendConfidence);
+    }
 
     return {
-        trend,
-        summary: `${trendPrefix} over last ${rangeLabel}${trendDeltaText}.`,
+        trend: trendFromState,
+        summary,
         detail: detailPieces.join(" • "),
         coverage,
         peakIndex: peakIndex >= 0 ? peakIndex : null,
@@ -3397,7 +3546,7 @@ if (!payload || payload.error) {
 
     renderMarketInfo(payload, currentGameContext);
     if (currentGameContext?.isPaidReleased) {
-        renderDealExplanation(payload.deal_explanation || {});
+        renderDealExplanation(payload);
         renderDealConfidence(payload);
         renderPrediction(payload);
     }
@@ -3576,6 +3725,9 @@ function renderMarketInfo(data, context = currentGameContext) {
     const lowDelta = Number.isFinite(current) && Number.isFinite(historicalLow)
         ? `${current >= historicalLow ? "+" : ""}${(current - historicalLow).toFixed(2)} vs low`
         : "—";
+    const playerInsights = getPlayerSignalInsights(data);
+    const playerTrendState = playerInsights?.stateLabel || "—";
+    const playerTrendConfidence = formatPlayerHistoryConfidence(playerInsights);
     let items = [];
     if (context?.mode === "free") {
         items = [
@@ -3585,6 +3737,8 @@ function renderMarketInfo(data, context = currentGameContext) {
             { label: "Review Score", value: Number.isFinite(Number(data.review_score)) ? `${Math.round(Number(data.review_score))}/100` : "—", compact: false },
             { label: "Review Count", value: fmtInt(data.review_total_count ?? data.review_count), compact: false },
             { label: "Trend", value: normalizeReasonSnippet(data.trend_reason_summary ?? data.momentum?.reason) || "—", compact: true },
+            { label: "Trend State", value: playerTrendState, compact: true },
+            { label: "Signal Confidence", value: playerTrendConfidence, compact: true },
             { label: "Genres", value: genres.slice(0, 3).join(", ") || "—", compact: true },
             { label: "Platforms", value: platforms.slice(0, 3).join(", ") || "—", compact: true },
         ];
@@ -3595,6 +3749,8 @@ function renderMarketInfo(data, context = currentGameContext) {
             { label: "Review Label", value: getReviewLabel(data), compact: true, keyMetric: true },
             { label: "Wishlist / Follows", value: Number.isFinite(Number(data.wishlist_count)) ? fmtInt(data.wishlist_count) : "—", compact: false },
             { label: "Launch Interest", value: Number.isFinite(Number(data.upcoming_hot_score)) ? `${Math.round(Number(data.upcoming_hot_score))}/100` : "—", compact: false },
+            { label: "Trend State", value: playerTrendState, compact: true },
+            { label: "Signal Confidence", value: playerTrendConfidence, compact: true },
             { label: "Store", value: resolveStoreUrl(data) ? "Available to follow on store" : "Store page unavailable", compact: true },
             { label: "Genres", value: genres.slice(0, 3).join(", ") || "—", compact: true },
             { label: "Platforms", value: platforms.slice(0, 3).join(", ") || "—", compact: true },
@@ -3613,6 +3769,8 @@ function renderMarketInfo(data, context = currentGameContext) {
             { label: "Review Label", value: getReviewLabel(data), compact: true, keyMetric: true },
             { label: "Review Count", value: fmtInt(data.review_total_count ?? data.review_count), compact: false },
             { label: "Buy Score", value: Number.isFinite(Number(data.buy_score)) ? Number(data.buy_score).toFixed(1) : "—", compact: false },
+            { label: "Trend State", value: playerTrendState, compact: true, keyMetric: true },
+            { label: "Signal Confidence", value: playerTrendConfidence, compact: true },
             { label: "Genres", value: genres.slice(0, 3).join(", ") || "—", compact: true },
             { label: "Platforms", value: platforms.slice(0, 3).join(", ") || "—", compact: true },
         ];
@@ -3626,8 +3784,25 @@ function renderMarketInfo(data, context = currentGameContext) {
     `).join("");
 }
 
-function renderDealExplanation(explain) {
+function renderDealExplanation(payload) {
     const el = document.getElementById("dealExplanation");
+    if (!el) return;
+    const explain = payload?.deal_explanation && typeof payload.deal_explanation === "object"
+        ? payload.deal_explanation
+        : {};
+    const playerInsights = getPlayerSignalInsights(payload);
+    const trendStateLabel = playerInsights?.stateLabel || "Mixed player trend signals";
+    const confidenceLabel = formatPlayerHistoryConfidence(playerInsights);
+    const trendComparison = buildPlayerTrendComparisonText(playerInsights);
+    const recommendationHeadline = buildRecommendationHeadline(payload, playerInsights);
+    const recommendationSignal = String(payload?.buy_recommendation || "Signal").trim().toUpperCase() || "SIGNAL";
+    const longTrendReason = normalizeReasonSnippet(
+        payload?.trend_reason_summary
+        ?? payload?.momentum?.reason
+        ?? payload?.deal_heat_reason
+        ?? payload?.ranking_explanations?.momentum,
+    ) || "Long-term player behavior is included in this recommendation.";
+
     const rows = [
         ["Discount Strength", explain.discount_strength, 30],
         ["Historical Value", explain.historical_value, 25],
@@ -3636,7 +3811,7 @@ function renderDealExplanation(explain) {
         ["Sale Rarity", explain.sale_rarity, 10],
     ];
 
-    el.innerHTML = rows.map(([label, score, max]) => {
+    const scoreRowsHtml = rows.map(([label, score, max]) => {
         const pct = score ? Math.max(0, Math.min(100, (score / max) * 100)) : 0;
         return `
             <div class="break-row">
@@ -3647,7 +3822,27 @@ function renderDealExplanation(explain) {
                 <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
             </div>
         `;
-    }).join("") + `<div class="summary">${escapeHtml(explain.summary || "Snapshot-derived deal explanation.")}</div>`;
+    }).join("");
+
+    el.innerHTML = `
+        <div class="break-row break-row-highlight">
+            <div class="break-top">
+                <span>Player Trend Summary</span>
+                <span>${escapeHtml(trendStateLabel)}</span>
+            </div>
+            <div class="summary">${escapeHtml(trendComparison || longTrendReason)}</div>
+            <div class="summary">${escapeHtml(confidenceLabel)}</div>
+        </div>
+        <div class="break-row">
+            <div class="break-top">
+                <span>Recommendation Context</span>
+                <span>${escapeHtml(recommendationSignal)}</span>
+            </div>
+            <div class="summary">${escapeHtml(recommendationHeadline)}</div>
+        </div>
+        ${scoreRowsHtml}
+        <div class="summary">${escapeHtml(explain.summary || "Snapshot-derived deal explanation.")}</div>
+    `;
 }
 
 function renderPrediction(payload) {

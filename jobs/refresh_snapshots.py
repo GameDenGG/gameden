@@ -169,6 +169,7 @@ DEAL_RADAR_SIGNAL_PRIORITY = {
 }
 WORTH_BUYING_SCORE_VERSION = "v1"
 MOMENTUM_SCORE_VERSION = "v1"
+PLAYER_HISTORY_LOOKBACK_DAYS = 730
 WORKER_ID = os.getenv("SNAPSHOT_WORKER_ID") or f"refresh_snapshots:{uuid.uuid4().hex[:8]}"
 ROLLOUT_HOLD_TIER = INGESTION_ROLLOUT_HOLD_TIER
 DIRTY_CLAIM_PREDICATE_SQL = (
@@ -227,6 +228,10 @@ def compute_deal_score(
     review_count: float,
     avg_player_count: float,
     player_momentum: float,
+    history_confidence: float | None = None,
+    medium_term_trend: float | None = None,
+    long_term_trend: float | None = None,
+    player_interest_state: str | None = None,
 ) -> float:
     discount_component = clamp(discount_percent, 0.0, 100.0) * 0.45
 
@@ -240,7 +245,29 @@ def compute_deal_score(
     review_component = (review_quality / 100.0) * review_confidence * 15.0
 
     player_component = clamp(math.log10(max(avg_player_count, 0.0) + 1.0) * 4.0, 0.0, 10.0)
-    momentum_component = clamp(player_momentum, -5.0, 10.0)
+    if (
+        history_confidence is None
+        and medium_term_trend is None
+        and long_term_trend is None
+        and not player_interest_state
+    ):
+        momentum_component = clamp(player_momentum, -5.0, 10.0)
+    else:
+        confidence_factor = clamp(safe_num(history_confidence, 0.45), 0.2, 1.0)
+        medium = safe_num(medium_term_trend, 0.0)
+        long_term = safe_num(long_term_trend, 0.0)
+        momentum_component = (
+            clamp(player_momentum * 14.0, -6.0, 12.0)
+            + clamp(medium * 9.0, -4.0, 4.0)
+            + clamp(long_term * 7.0, -3.0, 3.0)
+        ) * (0.5 + confidence_factor * 0.5)
+        normalized_state = str(player_interest_state or "").strip().lower()
+        if normalized_state in {"stable_evergreen", "resurging"}:
+            momentum_component += 1.5
+        elif normalized_state in {"declining", "launch_hype_dropoff"}:
+            momentum_component -= 2.0
+        elif normalized_state == "one_off_spike":
+            momentum_component -= 1.5
 
     total = discount_component + historical_component + review_component + player_component + momentum_component
     return round(clamp(total, 0.0, 100.0), 2)
@@ -400,37 +427,216 @@ def compute_recommended_score(
     return round(clamp(score, 0.0, 150.0), 2)
 
 
+def compute_player_history_profile(
+    *,
+    current_players: int | None,
+    avg_players_last_24h: float | None,
+    avg_players_7d: float | None,
+    avg_players_30d: float | None,
+    avg_players_90d: float | None,
+    avg_players_365d: float | None,
+    peak_players_365d: float | None,
+    min_players_365d: float | None,
+    history_point_count: int | None,
+    history_coverage_days: int | None,
+) -> dict[str, Any]:
+    current = max(0.0, safe_num(current_players, 0.0))
+    avg_24h = max(0.0, safe_num(avg_players_last_24h, 0.0))
+    avg_7d = max(0.0, safe_num(avg_players_7d, 0.0))
+    avg_30d = max(0.0, safe_num(avg_players_30d, 0.0))
+    avg_90d = max(0.0, safe_num(avg_players_90d, 0.0))
+    avg_365d = max(0.0, safe_num(avg_players_365d, 0.0))
+    peak_365d = max(0.0, safe_num(peak_players_365d, 0.0))
+    min_365d = max(0.0, safe_num(min_players_365d, 0.0))
+    sample_count = max(0, int(safe_num(history_point_count, 0.0)))
+    coverage_days = max(0, int(safe_num(history_coverage_days, 0.0)))
+
+    baseline_players = avg_30d or avg_7d or avg_24h or current
+    short_baseline = avg_7d or avg_24h or baseline_players or 1.0
+    medium_baseline = avg_30d or avg_90d or short_baseline or 1.0
+    long_baseline = avg_90d or avg_365d or medium_baseline or 1.0
+    year_baseline = avg_365d or long_baseline or 1.0
+
+    short_term_delta = (current - short_baseline) / max(1.0, short_baseline) if short_baseline > 0 else 0.0
+    medium_term_delta = (avg_7d - medium_baseline) / max(1.0, medium_baseline) if avg_7d > 0 else short_term_delta * 0.6
+    long_term_delta = (avg_30d - long_baseline) / max(1.0, long_baseline) if avg_30d > 0 else medium_term_delta * 0.5
+    long_tail_delta = (avg_90d - year_baseline) / max(1.0, year_baseline) if avg_90d > 0 else long_term_delta * 0.5
+
+    peak_reference = max(1.0, avg_365d or avg_90d or avg_30d or peak_365d or 1.0)
+    if peak_365d > 0 and min_365d > 0:
+        volatility_ratio = (peak_365d - min_365d) / peak_reference
+    else:
+        volatility_ratio = 0.0
+    stability_score = clamp(1.0 - (volatility_ratio / 3.2), 0.0, 1.0)
+
+    sample_factor = clamp(math.log10(sample_count + 1.0) / 3.2, 0.0, 1.0)
+    coverage_factor = clamp(coverage_days / 365.0, 0.0, 1.0)
+    history_confidence = round(clamp((sample_factor * 0.62) + (coverage_factor * 0.38), 0.0, 1.0), 4)
+
+    spike_ratio = current / max(1.0, avg_30d or short_baseline or 1.0)
+    launch_hype_dropoff = (
+        coverage_days >= 90
+        and peak_365d > 0
+        and avg_90d > 0
+        and current > 0
+        and peak_365d >= avg_90d * 1.8
+        and current <= avg_90d * 0.45
+    )
+    one_off_spike = (
+        spike_ratio >= 1.8
+        and medium_term_delta < 0.12
+        and long_term_delta <= 0.08
+        and coverage_days >= 90
+        and history_confidence >= 0.35
+    )
+    resurging = (
+        medium_term_delta >= 0.14
+        and (long_term_delta <= 0.02 or long_tail_delta < 0.0)
+        and current >= max(1.0, short_baseline) * 1.05
+    )
+    declining = medium_term_delta <= -0.15 and long_term_delta <= -0.08
+    stable_evergreen = (
+        coverage_days >= 240
+        and sample_count >= 120
+        and stability_score >= 0.55
+        and abs(long_term_delta) <= 0.12
+        and max(avg_30d, avg_90d, avg_365d) >= 350
+    )
+    stable = (
+        coverage_days >= 120
+        and abs(medium_term_delta) <= 0.08
+        and abs(long_term_delta) <= 0.1
+        and stability_score >= 0.45
+    )
+
+    if launch_hype_dropoff:
+        player_interest_state = "launch_hype_dropoff"
+    elif one_off_spike:
+        player_interest_state = "one_off_spike"
+    elif resurging:
+        player_interest_state = "resurging"
+    elif declining:
+        player_interest_state = "declining"
+    elif stable_evergreen:
+        player_interest_state = "stable_evergreen"
+    elif stable:
+        player_interest_state = "stable"
+    else:
+        player_interest_state = "mixed"
+
+    return {
+        "baseline_players": baseline_players,
+        "avg_players_24h": avg_24h,
+        "avg_players_7d": avg_7d,
+        "avg_players_30d": avg_30d,
+        "avg_players_90d": avg_90d,
+        "avg_players_365d": avg_365d,
+        "peak_players_365d": peak_365d,
+        "min_players_365d": min_365d,
+        "short_term_delta": round(short_term_delta, 6),
+        "medium_term_delta": round(medium_term_delta, 6),
+        "long_term_delta": round(long_term_delta, 6),
+        "long_tail_delta": round(long_tail_delta, 6),
+        "volatility_ratio": round(volatility_ratio, 6),
+        "stability_score": round(stability_score, 6),
+        "history_confidence": history_confidence,
+        "history_point_count": sample_count,
+        "history_coverage_days": coverage_days,
+        "spike_ratio": round(spike_ratio, 6),
+        "player_interest_state": player_interest_state,
+    }
+
+
 def compute_momentum_score(
     discount_percent: int | None,
     current_players: int | None,
     avg_players_last_24h: float | None,
+    player_profile: dict[str, Any] | None = None,
 ) -> tuple[float, float, float, str]:
     discount = max(0.0, safe_num(discount_percent, 0.0))
     players = max(0.0, safe_num(current_players, 0.0))
     baseline = max(1.0, safe_num(avg_players_last_24h, 1.0))
-    growth_ratio = players / baseline if players > 0 else 0.0
-    short_term_trend = growth_ratio - 1.0
+    profile = player_profile or {}
+    short_term_delta = safe_num(profile.get("short_term_delta"), 0.0)
+    medium_term_delta = safe_num(profile.get("medium_term_delta"), 0.0)
+    long_term_delta = safe_num(profile.get("long_term_delta"), 0.0)
+    history_confidence = clamp(safe_num(profile.get("history_confidence"), 0.0), 0.0, 1.0)
+    stability_score = clamp(safe_num(profile.get("stability_score"), 0.0), 0.0, 1.0)
+    spike_ratio = safe_num(profile.get("spike_ratio"), 0.0)
+    player_interest_state = str(profile.get("player_interest_state") or "").strip().lower()
+
+    likely_transient_spike = (
+        spike_ratio >= 1.8
+        and medium_term_delta < 0.1
+        and long_term_delta <= 0.08
+        and history_confidence >= 0.4
+    )
+
+    if not profile:
+        growth_ratio = players / baseline if players > 0 else 0.0
+        short_term_trend = growth_ratio - 1.0
+    else:
+        growth_ratio = max(0.0, 1.0 + short_term_delta)
+        short_term_trend = (
+            short_term_delta * 0.62
+            + medium_term_delta * 0.28
+            + long_term_delta * 0.10
+        )
+        short_term_trend = clamp(short_term_trend, -0.95, 1.5)
+        if likely_transient_spike:
+            short_term_trend = min(short_term_trend, 0.55)
 
     # Avoid tiny-sample spikes dominating trend ranking.
     tiny_sample_guard = 0.4 if players < 300 else 1.0
     spike_bonus = 0.0
-    if players >= 1000 and growth_ratio >= 1.8:
+    if players >= 1000 and spike_ratio >= 1.8:
         spike_bonus = 10.0
-    elif players >= 500 and growth_ratio >= 1.5:
+    elif players >= 500 and spike_ratio >= 1.5:
         spike_bonus = 6.0
 
-    momentum_score = (
-        discount * 0.45
-        + math.log1p(players) * 1.7
-        + max(0.0, short_term_trend) * 28.0
+    if player_interest_state in {"one_off_spike", "launch_hype_dropoff"}:
+        spike_bonus -= 4.0
+    elif player_interest_state == "resurging":
+        spike_bonus += 4.0
+    if likely_transient_spike and player_interest_state != "resurging":
+        spike_bonus -= 3.0
+
+    raw_momentum = (
+        discount * 0.30
+        + math.log1p(max(players, baseline)) * 2.1
+        + max(0.0, short_term_trend) * 20.0
+        + max(0.0, medium_term_delta) * 14.0
+        + max(0.0, long_term_delta) * 9.0
+        + stability_score * 4.0
         + spike_bonus
-    ) * tiny_sample_guard
+    )
+    if short_term_trend < -0.12:
+        raw_momentum += short_term_trend * 10.0
+    if medium_term_delta < -0.1:
+        raw_momentum += medium_term_delta * 8.0
+    if long_term_delta < -0.08:
+        raw_momentum += long_term_delta * 6.0
+
+    confidence_scale = 1.0 if not profile else (0.45 + history_confidence * 0.55)
+    momentum_score = raw_momentum * tiny_sample_guard * confidence_scale
     momentum_score = round(clamp(momentum_score, 0.0, 100.0), 2)
     growth_ratio = round(max(0.0, growth_ratio), 6)
     short_term_trend = round(short_term_trend, 6)
 
     growth_pct = int(round(max(0.0, (growth_ratio - 1.0) * 100.0)))
-    if growth_pct >= 150:
+    if history_confidence < 0.35 and player_interest_state in {"mixed", ""}:
+        reason = "Player history is still sparse; trend confidence is limited"
+    elif player_interest_state == "stable_evergreen":
+        reason = "Stable long-term player base with consistent engagement"
+    elif player_interest_state == "declining":
+        reason = "Player activity is cooling across medium and long-term windows"
+    elif player_interest_state == "resurging":
+        reason = "Player activity is resurging against a weaker long-term baseline"
+    elif player_interest_state == "one_off_spike":
+        reason = "Recent player spike is sharp but not yet sustained"
+    elif player_interest_state == "launch_hype_dropoff":
+        reason = "Launch spike cooled; player interest remains below prior peak"
+    elif growth_pct >= 150:
         reason = f"Players up {growth_pct}% while discounted"
     elif growth_pct >= 60:
         reason = f"On sale and climbing fast (+{growth_pct}%)"
@@ -450,18 +656,37 @@ def compute_worth_buying_score(
     latest_price: float | None,
     historical_low_price: float | None,
     historical_low_hit: bool,
+    history_confidence: float | None = None,
+    player_interest_state: str | None = None,
 ) -> tuple[float, dict[str, float], str]:
     discount_value = clamp(safe_num(discount_percent, 0.0), 0.0, 100.0)
     review_value = clamp(safe_num(review_score, 0.0), 0.0, 100.0)
     review_count_value = max(0.0, safe_num(review_count, 0.0))
     players = max(0.0, safe_num(avg_player_count, 0.0))
     growth_ratio = max(0.0, safe_num(player_growth_ratio, 0.0))
+    confidence_factor = clamp(safe_num(history_confidence, 0.45), 0.2, 1.0)
+    interest_state = str(player_interest_state or "").strip().lower()
 
     discount_component = round(discount_value * 0.42, 2)
     review_confidence = clamp(math.log10(max(10.0, review_count_value)) / 4.0, 0.0, 1.0)
     review_component = round((review_value / 100.0) * review_confidence * 24.0, 2)
-    player_activity_component = round(clamp(math.log10(players + 1.0) * 5.5, 0.0, 14.0), 2)
-    player_growth_component = round(clamp((growth_ratio - 1.0) * 18.0, 0.0, 16.0), 2)
+    player_activity_component = round(
+        clamp(math.log10(players + 1.0) * 5.5, 0.0, 14.0) * (0.65 + confidence_factor * 0.35),
+        2,
+    )
+    player_growth_component = round(
+        clamp((growth_ratio - 1.0) * 18.0, -10.0, 16.0) * confidence_factor,
+        2,
+    )
+    player_history_confidence_component = round(confidence_factor * 8.0, 2)
+    player_state_adjustment = 0.0
+    if interest_state in {"stable_evergreen", "resurging"}:
+        player_state_adjustment = 3.0
+    elif interest_state in {"declining", "launch_hype_dropoff"}:
+        player_state_adjustment = -6.0
+    elif interest_state == "one_off_spike":
+        player_state_adjustment = -4.0
+
     historical_low_component = 0.0
     if latest_price and latest_price > 0 and historical_low_price and historical_low_price > 0:
         proximity = clamp(historical_low_price / latest_price, 0.0, 1.0)
@@ -474,6 +699,8 @@ def compute_worth_buying_score(
         "review_component": review_component,
         "player_activity_component": player_activity_component,
         "player_growth_component": player_growth_component,
+        "player_history_confidence_component": player_history_confidence_component,
+        "player_state_adjustment": round(player_state_adjustment, 2),
         "historical_low_component": historical_low_component,
     }
     score = round(clamp(sum(components.values()), 0.0, 100.0), 2)
@@ -487,6 +714,10 @@ def compute_worth_buying_score(
         reasons.append("strong player activity")
     if growth_ratio >= 1.4:
         reasons.append("rising momentum")
+    if interest_state in {"stable_evergreen", "resurging"}:
+        reasons.append("durable player interest")
+    if confidence_factor < 0.35:
+        reasons.append("sparse player history")
     if historical_low_hit:
         reasons.append("new historical low")
     elif historical_low_component >= 10.0:
@@ -500,16 +731,58 @@ def compute_buy_recommendation(
     historical_low: float | None,
     discount_percent: int | None,
     days_since_last_sale: int | None,
+    player_interest_state: str | None = None,
+    history_confidence: float | None = None,
+    short_term_player_trend: float | None = None,
+    long_term_player_trend: float | None = None,
 ) -> tuple[str, str, float | None]:
     ratio = None
+    interest_state = str(player_interest_state or "").strip().lower()
+    confidence_factor = clamp(safe_num(history_confidence, 0.45), 0.0, 1.0)
+    short_trend = safe_num(short_term_player_trend, 0.0)
+    long_trend = safe_num(long_term_player_trend, 0.0)
     if current_price is not None and current_price > 0 and historical_low is not None and historical_low > 0:
         ratio = round(current_price / historical_low, 6)
         if current_price <= historical_low * 1.05:
             return "BUY_NOW", "Price near historical low", ratio
 
     normalized_discount = int(safe_num(discount_percent, -1.0)) if discount_percent is not None else None
+    if (
+        interest_state in {"declining", "launch_hype_dropoff"}
+        and normalized_discount is not None
+        and normalized_discount < 45
+    ):
+        return "WAIT", "Long-term player interest is cooling; wait for a deeper discount", ratio
+    if (
+        interest_state == "one_off_spike"
+        and confidence_factor >= 0.35
+        and normalized_discount is not None
+        and normalized_discount < 35
+    ):
+        return "WAIT", "Recent player spike looks temporary; wait for pricing to stabilize", ratio
+    if (
+        interest_state in {"stable_evergreen", "resurging"}
+        and ratio is not None
+        and ratio <= 1.12
+        and normalized_discount is not None
+        and normalized_discount >= 20
+    ):
+        return "BUY_NOW", "Price is near low while long-term player interest remains durable", ratio
+
     if normalized_discount is not None and normalized_discount < 25:
         return "WAIT", "Discount depth historically larger", ratio
+
+    if (
+        confidence_factor < 0.35
+        and ratio is not None
+        and ratio > 1.15
+        and normalized_discount is not None
+        and normalized_discount < 35
+    ):
+        return "WAIT", "Player history is still sparse and price is not near historical low", ratio
+
+    if confidence_factor >= 0.45 and long_trend <= -0.12 and short_trend <= -0.08 and normalized_discount is not None and normalized_discount < 40:
+        return "WAIT", "Player trend is weakening across multiple windows", ratio
 
     if days_since_last_sale is not None and days_since_last_sale < 30:
         return "WAIT", "Recent sale suggests another upcoming", ratio
@@ -881,6 +1154,8 @@ def compute_deal_heat(
     player_growth_ratio: float | None,
     historical_low_hit: bool,
     trend_reason_summary: str | None,
+    player_interest_state: str | None = None,
+    history_confidence: float | None = None,
 ) -> tuple[str, str, list[str]]:
     discount = clamp(safe_num(discount_percent, 0.0), 0.0, 100.0)
     reviews = clamp(safe_num(review_score, 0.0), 0.0, 100.0)
@@ -899,6 +1174,20 @@ def compute_deal_heat(
     if growth >= 1.5:
         tags.append("player_spike")
         tags.append("trending_up")
+    normalized_state = str(player_interest_state or "").strip().lower()
+    confidence_factor = clamp(safe_num(history_confidence, 0.45), 0.0, 1.0)
+    if normalized_state == "stable_evergreen":
+        tags.append("evergreen")
+    elif normalized_state == "resurging":
+        tags.append("resurgence")
+    elif normalized_state == "declining":
+        tags.append("decline")
+    elif normalized_state == "launch_hype_dropoff":
+        tags.append("launch_dropoff")
+    elif normalized_state == "one_off_spike":
+        tags.append("spike_noise")
+    if confidence_factor < 0.35:
+        tags.append("sparse_history")
 
     if len(tags) >= 4:
         level = "viral"
@@ -909,6 +1198,14 @@ def compute_deal_heat(
 
     if historical_low_hit and discount >= 40:
         reason = "Now at a new historical low with a strong discount"
+    elif normalized_state == "stable_evergreen":
+        reason = "Stable long-term player base plus favorable deal timing"
+    elif normalized_state == "resurging":
+        reason = "Player activity is resurging while deal value is attractive"
+    elif normalized_state in {"declining", "launch_hype_dropoff"}:
+        reason = "Discount is active, but long-term player interest is cooling"
+    elif normalized_state == "one_off_spike":
+        reason = "Recent spike detected, but long-term trend is not yet confirmed"
     elif growth >= 1.8 and discount > 0:
         reason = "Player counts are surging while the game is discounted"
     elif reviews >= 90 and discount >= 30:
@@ -2074,19 +2371,92 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
         int(row.game_id): row
         for row in session.query(GameInterestSignal).filter(GameInterestSignal.game_id.in_(game_ids)).all()
     }
-    avg_players_last_24h_map = {
-        int(gid): float(avg_players)
-        for gid, avg_players in (
-            session.query(GamePlayerHistory.game_id, func.avg(GamePlayerHistory.current_players))
-            .filter(
-                GamePlayerHistory.game_id.in_(game_ids),
-                GamePlayerHistory.current_players.isnot(None),
-                GamePlayerHistory.recorded_at >= now - datetime.timedelta(hours=24),
-            )
-            .group_by(GamePlayerHistory.game_id)
-            .all()
+    player_history_cutoff = now - datetime.timedelta(days=PLAYER_HISTORY_LOOKBACK_DAYS)
+    player_history_stats_map: dict[int, dict[str, Any]] = {}
+    player_history_rows = (
+        session.query(
+            GamePlayerHistory.game_id,
+            func.count(GamePlayerHistory.id),
+            func.min(GamePlayerHistory.recorded_at),
+            func.max(GamePlayerHistory.recorded_at),
+            func.avg(
+                case(
+                    (GamePlayerHistory.recorded_at >= now - datetime.timedelta(hours=24), GamePlayerHistory.current_players),
+                    else_=None,
+                )
+            ),
+            func.avg(
+                case(
+                    (GamePlayerHistory.recorded_at >= now - datetime.timedelta(days=7), GamePlayerHistory.current_players),
+                    else_=None,
+                )
+            ),
+            func.avg(
+                case(
+                    (GamePlayerHistory.recorded_at >= now - datetime.timedelta(days=30), GamePlayerHistory.current_players),
+                    else_=None,
+                )
+            ),
+            func.avg(
+                case(
+                    (GamePlayerHistory.recorded_at >= now - datetime.timedelta(days=90), GamePlayerHistory.current_players),
+                    else_=None,
+                )
+            ),
+            func.avg(
+                case(
+                    (GamePlayerHistory.recorded_at >= now - datetime.timedelta(days=365), GamePlayerHistory.current_players),
+                    else_=None,
+                )
+            ),
+            func.max(
+                case(
+                    (GamePlayerHistory.recorded_at >= now - datetime.timedelta(days=365), GamePlayerHistory.current_players),
+                    else_=None,
+                )
+            ),
+            func.min(
+                case(
+                    (GamePlayerHistory.recorded_at >= now - datetime.timedelta(days=365), GamePlayerHistory.current_players),
+                    else_=None,
+                )
+            ),
         )
-    }
+        .filter(
+            GamePlayerHistory.game_id.in_(game_ids),
+            GamePlayerHistory.current_players.isnot(None),
+            GamePlayerHistory.recorded_at >= player_history_cutoff,
+        )
+        .group_by(GamePlayerHistory.game_id)
+        .all()
+    )
+    for (
+        gid,
+        history_count,
+        first_seen_at,
+        last_seen_at,
+        avg_players_24h,
+        avg_players_7d,
+        avg_players_30d,
+        avg_players_90d,
+        avg_players_365d,
+        peak_players_365d,
+        min_players_365d,
+    ) in player_history_rows:
+        coverage_days = 0
+        if first_seen_at and last_seen_at:
+            coverage_days = max(0, int((last_seen_at - first_seen_at).days))
+        player_history_stats_map[int(gid)] = {
+            "history_point_count": int(safe_num(history_count, 0.0)),
+            "history_coverage_days": coverage_days,
+            "avg_players_24h": safe_num(avg_players_24h, 0.0),
+            "avg_players_7d": safe_num(avg_players_7d, 0.0),
+            "avg_players_30d": safe_num(avg_players_30d, 0.0),
+            "avg_players_90d": safe_num(avg_players_90d, 0.0),
+            "avg_players_365d": safe_num(avg_players_365d, 0.0),
+            "peak_players_365d": safe_num(peak_players_365d, 0.0),
+            "min_players_365d": safe_num(min_players_365d, 0.0),
+        }
     price_history_stats = {
         int(gid): {
             "history_point_count": int(point_count or 0),
@@ -2184,16 +2554,50 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
         ever_discounted = bool(max_discount > 0 or last_discounted_at is not None)
 
         current_players = int(safe_num(latest.current_players, default=0.0)) if latest and latest.current_players is not None else None
-        avg_player_count = current_players
+        player_history_stats = player_history_stats_map.get(int(game_id), {})
+        player_profile = compute_player_history_profile(
+            current_players=current_players,
+            avg_players_last_24h=player_history_stats.get("avg_players_24h"),
+            avg_players_7d=player_history_stats.get("avg_players_7d"),
+            avg_players_30d=player_history_stats.get("avg_players_30d"),
+            avg_players_90d=player_history_stats.get("avg_players_90d"),
+            avg_players_365d=player_history_stats.get("avg_players_365d"),
+            peak_players_365d=player_history_stats.get("peak_players_365d"),
+            min_players_365d=player_history_stats.get("min_players_365d"),
+            history_point_count=player_history_stats.get("history_point_count"),
+            history_coverage_days=player_history_stats.get("history_coverage_days"),
+        )
+        avg_player_count_float = max(
+            0.0,
+            safe_num(player_profile.get("baseline_players"), safe_num(current_players, 0.0)),
+        )
+        avg_player_count = int(round(avg_player_count_float)) if avg_player_count_float > 0 else current_players
         baseline_daily_peak = previous_daily_peak if previous_daily_peak and previous_daily_peak > 0 else (current_players or 1)
-        avg_players_last_24h = avg_players_last_24h_map.get(int(game_id), safe_num(current_players, 1.0))
+        avg_players_last_24h = max(
+            1.0,
+            safe_num(player_profile.get("avg_players_24h"), safe_num(current_players, 1.0)),
+        )
         momentum_score, player_growth_ratio, short_term_player_trend, trend_reason_summary = compute_momentum_score(
             discount_percent=latest_discount_percent,
             current_players=current_players,
             avg_players_last_24h=avg_players_last_24h,
+            player_profile=player_profile,
         )
-        trending_score = momentum_score
-        player_momentum = max(0.0, short_term_player_trend)
+        medium_term_player_trend = safe_num(player_profile.get("medium_term_delta"), 0.0)
+        long_term_player_trend = safe_num(player_profile.get("long_term_delta"), 0.0)
+        history_confidence = clamp(safe_num(player_profile.get("history_confidence"), 0.0), 0.0, 1.0)
+        player_interest_state = str(player_profile.get("player_interest_state") or "").strip().lower()
+        trending_score = round(
+            clamp(
+                safe_num(momentum_score, 0.0)
+                + clamp(medium_term_player_trend * 18.0, -6.0, 8.0)
+                + clamp(long_term_player_trend * 12.0, -4.0, 6.0),
+                0.0,
+                100.0,
+            ),
+            2,
+        )
+        player_momentum = round(clamp(short_term_player_trend, -1.0, 1.5), 6)
         daily_peak = max(baseline_daily_peak, current_players or 0)
 
         deal_detected_at = None
@@ -2253,6 +2657,10 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
             review_count=review_count,
             avg_player_count=safe_num(avg_player_count, default=0.0),
             player_momentum=player_momentum,
+            history_confidence=history_confidence,
+            medium_term_trend=medium_term_player_trend,
+            long_term_trend=long_term_player_trend,
+            player_interest_state=player_interest_state,
         )
 
         is_upcoming = int(game.is_released or 0) != 1
@@ -2310,6 +2718,8 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
             latest_price=latest_price,
             historical_low_price=historical_low,
             historical_low_hit=is_new_historical_low,
+            history_confidence=history_confidence,
+            player_interest_state=player_interest_state,
         )
         deal_heat_level, deal_heat_reason, deal_heat_tags = compute_deal_heat(
             discount_percent=latest_discount_percent,
@@ -2318,12 +2728,18 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
             player_growth_ratio=player_growth_ratio,
             historical_low_hit=is_new_historical_low,
             trend_reason_summary=trend_reason_summary,
+            player_interest_state=player_interest_state,
+            history_confidence=history_confidence,
         )
         buy_recommendation, buy_reason, price_vs_low_ratio = compute_buy_recommendation(
             current_price=latest_price,
             historical_low=historical_low,
             discount_percent=latest_discount_percent,
             days_since_last_sale=days_since_last_sale,
+            player_interest_state=player_interest_state,
+            history_confidence=history_confidence,
+            short_term_player_trend=short_term_player_trend,
+            long_term_player_trend=long_term_player_trend,
         )
         next_sale_prediction = compute_next_sale_prediction(
             current_price=latest_price,
@@ -2433,6 +2849,15 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
             "buy_timing": buy_reason,
             "next_sale_prediction": next_sale_prediction.get("predicted_sale_reason"),
             "deal_opportunity": deal_opportunity_reason,
+            "player_interest_state": player_interest_state,
+            "player_history_confidence": history_confidence,
+            "player_trends": {
+                "short_term": short_term_player_trend,
+                "medium_term": medium_term_player_trend,
+                "long_term": long_term_player_trend,
+                "coverage_days": int(safe_num(player_profile.get("history_coverage_days"), 0.0)),
+                "history_point_count": int(safe_num(player_profile.get("history_point_count"), 0.0)),
+            },
         }
         snapshot.upcoming_hot_score = upcoming_hot_score
         snapshot.price_sparkline_90d = sparkline
@@ -2460,6 +2885,8 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
                 and safe_num(current_players, 0.0) >= 250.0
             )
         )
+        if player_interest_state == "one_off_spike" and history_confidence >= 0.35 and medium_term_player_trend < 0.05:
+            is_trending_now = False
 
         discovery_row.game_name = game.name
         discovery_row.steam_appid = game.appid

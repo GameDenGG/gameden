@@ -3396,6 +3396,16 @@ def _first_non_null(*values):
     return None
 
 
+def _first_non_empty_text(*values) -> str | None:
+    for value in values:
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            return text
+    return None
+
+
 def _canonical_game_slug(game_name: str | None, fallback_identifier: int | str | None = None) -> str | None:
     slug = _slugify_game_identifier(game_name)
     if slug:
@@ -3677,17 +3687,30 @@ def _ensure_game_detail_contract(payload: dict) -> dict:
         normalized.get("historical_low_price"),
         normalized.get("historical_low"),
     )
-    review_label = _normalize_review_label(
+    review_score = safe_num(
         _first_non_null(
+            normalized.get("review_score"),
+            normalized.get("reviewScore"),
+            normalized.get("reviews", {}).get("score") if isinstance(normalized.get("reviews"), dict) else None,
+        ),
+        default=-1.0,
+    )
+    normalized["review_score"] = round(review_score, 2) if review_score >= 0 else None
+    review_summary = _first_non_empty_text(
+        normalized.get("review_summary"),
+        normalized.get("reviewSummary"),
+        normalized.get("reviews", {}).get("summary") if isinstance(normalized.get("reviews"), dict) else None,
+    )
+    review_label = _normalize_review_label(
+        _first_non_empty_text(
             normalized.get("review_score_label"),
             normalized.get("review_label"),
-            normalized.get("review_summary"),
         ),
-        normalized.get("review_score"),
+        normalized["review_score"],
     )
+    normalized["review_summary"] = review_summary or review_label
     normalized["review_score_label"] = review_label
     normalized["review_label"] = review_label
-    normalized["review_summary"] = review_label
     normalized.setdefault("prediction", {})
     if not isinstance(normalized.get("prediction"), dict):
         normalized["prediction"] = {}

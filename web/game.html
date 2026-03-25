@@ -1650,6 +1650,64 @@ function firstNonEmptyText(...values) {
     return "";
 }
 
+function normalizeGameReview(payload) {
+    const reviewPayload = payload?.review && typeof payload.review === "object" ? payload.review : {};
+    const scoreRaw = firstFiniteNumber(
+        reviewPayload?.score,
+        reviewPayload?.review_score,
+        payload?.review_score,
+        payload?.reviewScore,
+        payload?.reviews?.score,
+        payload?.reviews?.review_score,
+    );
+    const score = Number.isFinite(scoreRaw) && scoreRaw > 0
+        ? Math.max(0, Math.min(100, scoreRaw))
+        : null;
+    const scoreText = score !== null ? `${Math.round(score)}/100` : "";
+    const summary = firstNonEmptyText(
+        reviewPayload?.summary,
+        payload?.review_summary,
+        payload?.reviewSummary,
+        payload?.reviews?.summary,
+        payload?.reviews?.review_summary,
+    );
+    const label = firstNonEmptyText(
+        reviewPayload?.label,
+        payload?.review_score_label,
+        payload?.review_label,
+        payload?.reviewScoreLabel,
+        payload?.reviews?.label,
+        payload?.reviews?.review_label,
+    );
+    const countRaw = firstFiniteNumber(
+        reviewPayload?.count,
+        payload?.review_total_count,
+        payload?.review_count,
+        payload?.reviewCount,
+        payload?.reviews?.count,
+        payload?.reviews?.review_count,
+    );
+    const count = Number.isFinite(countRaw) && countRaw > 0 ? Math.round(countRaw) : null;
+    const sentiment = firstNonEmptyText(
+        reviewPayload?.sentiment,
+        payload?.review_sentiment,
+        payload?.reviews?.sentiment,
+    );
+
+    return {
+        summary: summary || scoreText || label || "",
+        score,
+        score_text: scoreText,
+        label: label || "",
+        count,
+        sentiment: sentiment || "",
+    };
+}
+
+function getNormalizedGameReview(payload) {
+    return normalizeGameReview(payload);
+}
+
 function fallbackGameSlug(value) {
     return String(value || "")
         .trim()
@@ -1740,25 +1798,7 @@ function normalizeResolvedGamePayload(payload) {
         || payload.game_slug
         || fallbackGameSlug(normalizedName)
     ).trim();
-    const normalizedReviewScore = firstFiniteNumber(
-        payload.review_score,
-        payload.reviewScore,
-        payload.reviews?.score,
-        payload.reviews?.review_score,
-    );
-    const normalizedReviewSummary = firstNonEmptyText(
-        payload.review_summary,
-        payload.reviewSummary,
-        payload.reviews?.summary,
-        payload.reviews?.review_summary,
-    );
-    const normalizedReviewLabel = firstNonEmptyText(
-        payload.review_score_label,
-        payload.review_label,
-        payload.reviewScoreLabel,
-        payload.reviews?.label,
-        payload.reviews?.review_label,
-    );
+    const normalizedReview = normalizeGameReview(payload);
     const normalizedPlayers = firstFiniteNumber(
         payload.current_players,
         payload.currentPlayers,
@@ -1766,16 +1806,6 @@ function normalizeResolvedGamePayload(payload) {
         payload.market_insights?.latest_player_count,
         payload.engagement,
     );
-    const normalizedReviewCount = firstFiniteNumber(
-        payload.review_total_count,
-        payload.review_count,
-        payload.reviewCount,
-        payload.reviews?.count,
-        payload.reviews?.review_count,
-    );
-    const normalizedReviewScoreText = Number.isFinite(normalizedReviewScore)
-        ? `${Math.round(Math.max(0, Math.min(100, normalizedReviewScore)))}/100`
-        : "";
 
     return {
         ...payload,
@@ -1787,12 +1817,13 @@ function normalizeResolvedGamePayload(payload) {
         game_name: normalizedName,
         slug: normalizedSlug,
         game_slug: normalizedSlug,
-        review_score: Number.isFinite(normalizedReviewScore) ? normalizedReviewScore : null,
-        review_summary: normalizedReviewSummary || normalizedReviewScoreText || normalizedReviewLabel || "",
-        review_score_label: normalizedReviewLabel || "",
-        review_label: normalizedReviewLabel || "",
-        review_total_count: Number.isFinite(normalizedReviewCount) ? normalizedReviewCount : null,
-        review_count: Number.isFinite(normalizedReviewCount) ? normalizedReviewCount : null,
+        review: normalizedReview,
+        review_score: Number.isFinite(normalizedReview.score) ? normalizedReview.score : null,
+        review_summary: normalizedReview.summary || "",
+        review_score_label: normalizedReview.label || "",
+        review_label: normalizedReview.label || "",
+        review_total_count: Number.isFinite(normalizedReview.count) ? normalizedReview.count : null,
+        review_count: Number.isFinite(normalizedReview.count) ? normalizedReview.count : null,
         current_players: Number.isFinite(normalizedPlayers) ? normalizedPlayers : null,
     };
 }
@@ -2593,42 +2624,22 @@ function parseCsv(value) {
 }
 
 function getReviewSummary(payload) {
-    const summaryText = firstNonEmptyText(
-        payload?.review_summary,
-        payload?.reviewSummary,
-        payload?.reviews?.summary,
-        payload?.reviews?.review_summary,
-    );
-    if (summaryText) return summaryText;
-
-    const score = getReviewScoreValue(payload);
-    if (score !== null) return `${Math.round(score)}/100`;
-
-    const reviewLabel = firstNonEmptyText(
-        payload?.review_score_label,
-        payload?.review_label,
-        payload?.reviewScoreLabel,
-        payload?.reviews?.label,
-        payload?.reviews?.review_label,
-    );
-    if (reviewLabel) return reviewLabel;
+    const review = getNormalizedGameReview(payload);
+    if (review.summary) return review.summary;
     return "Review summary pending";
 }
 
 function getReviewScoreValue(payload) {
-    const score = firstFiniteNumber(
-        payload?.review_score,
-        payload?.reviewScore,
-        payload?.reviews?.score,
-        payload?.reviews?.review_score,
-    );
+    const review = getNormalizedGameReview(payload);
+    const score = review.score;
     if (!Number.isFinite(score) || score <= 0) return null;
     return Math.max(0, Math.min(100, score));
 }
 
 function getReviewScoreText(payload) {
-    const score = getReviewScoreValue(payload);
-    return score === null ? "—" : `${Math.round(score)}/100`;
+    const review = getNormalizedGameReview(payload);
+    if (review.score_text) return review.score_text;
+    return "—";
 }
 
 function getEngagementText(payload) {
@@ -2657,7 +2668,8 @@ function getEngagementText(payload) {
 }
 
 function getReviewLabel(payload) {
-    return getReviewSummary(payload);
+    const review = getNormalizedGameReview(payload);
+    return review.label || review.summary || "Review summary pending";
 }
 
 function resolveGameContext(payload) {
@@ -3390,23 +3402,6 @@ function parseHistoryTimestamp(value) {
     return Date.parse(text);
 }
 
-function filterPlayerHistorySeriesByRange(entries, range) {
-    const rows = Array.isArray(entries) ? entries : [];
-    const days = PLAYER_HISTORY_RANGE_DAYS[range];
-    if (!Number.isFinite(days)) return rows;
-    const normalized = rows
-        .map((entry) => ({ entry, ts: parseHistoryTimestamp(entry?.timestamp) }))
-        .filter((row) => Number.isFinite(row.ts))
-        .sort((a, b) => a.ts - b.ts);
-    if (!normalized.length) return rows;
-    const latestTs = normalized[normalized.length - 1].ts;
-    const cutoffMs = latestTs - (days * 24 * 60 * 60 * 1000);
-    const filtered = normalized
-        .filter((row) => row.ts >= cutoffMs)
-        .map((row) => row.entry);
-    return filtered.length ? filtered : normalized.map((row) => row.entry);
-}
-
 function buildRangedPriceHistoryPayload(historyPayload, range) {
     const payload = historyPayload && typeof historyPayload === "object" ? historyPayload : {};
     return {
@@ -3420,9 +3415,14 @@ function normalizePlayerHistoryPoints(entries) {
     const rows = Array.isArray(entries) ? entries : [];
     return rows
         .map((entry) => {
-            const timestamp = String(entry?.timestamp || "").trim();
+            const timestamp = String(entry?.timestamp ?? entry?.recorded_at ?? "").trim();
             const ts = parseHistoryTimestamp(timestamp);
-            const players = Number(entry?.players);
+            const players = firstFiniteNumber(
+                entry?.players,
+                entry?.current_players,
+                entry?.player_count,
+                entry?.value,
+            );
             if (!timestamp || !Number.isFinite(ts) || !Number.isFinite(players)) return null;
             return { timestamp, ts, players };
         })
@@ -3470,90 +3470,137 @@ function dedupePlayerPointsByTimestamp(points) {
     return Array.from(byTimestamp.values()).sort((a, b) => a.ts - b.ts);
 }
 
-function buildPlayerRangeSeries(points, range) {
-    const rows = Array.isArray(points) ? points : [];
-    if (!rows.length) return [];
-    const bounds = resolvePlayerRangeBounds(rows, range);
-    if (!Number.isFinite(bounds.min) || !Number.isFinite(bounds.max)) return rows;
-    if (!Number.isFinite(PLAYER_HISTORY_RANGE_DAYS[range])) return rows;
-
-    const visible = rows.filter((point) => point.ts >= bounds.min && point.ts <= bounds.max);
-    const previous = [...rows].reverse().find((point) => point.ts < bounds.min) || null;
-
-    const anchored = [...visible];
-    if (!anchored.length) {
-        if (previous) {
-            anchored.push(
-                {
-                    ...previous,
-                    ts: bounds.min,
-                    timestamp: new Date(bounds.min).toISOString(),
-                },
-                {
-                    ...previous,
-                    ts: bounds.max,
-                    timestamp: new Date(bounds.max).toISOString(),
-                },
-            );
-        }
-        return dedupePlayerPointsByTimestamp(anchored);
-    }
-
-    const firstVisible = anchored[0];
-    if (firstVisible.ts > bounds.min) {
-        const source = previous || firstVisible;
-        anchored.unshift({
-            ...source,
-            ts: bounds.min,
-            timestamp: new Date(bounds.min).toISOString(),
-        });
-    }
-
-    const lastVisible = anchored[anchored.length - 1];
-    if (lastVisible.ts < bounds.max) {
-        anchored.push({
-            ...lastVisible,
-            ts: bounds.max,
-            timestamp: new Date(bounds.max).toISOString(),
-        });
-    }
-
-    return dedupePlayerPointsByTimestamp(anchored);
+function resolvePlayerDisplayBucketMs(range) {
+    const bucketMs = PLAYER_HISTORY_DISPLAY_BUCKET_MS[range];
+    return Number.isFinite(bucketMs) && bucketMs > 0
+        ? bucketMs
+        : PLAYER_HISTORY_DAY_MS;
 }
 
-function buildPlayerDisplaySeries(points, range) {
-    const rangeSeries = buildPlayerRangeSeries(points, range);
-    if (rangeSeries.length < 3) {
-        return rangeSeries;
+function buildPlayerBucketTimestamps(minTs, maxTs, bucketMs) {
+    if (!Number.isFinite(minTs) || !Number.isFinite(maxTs) || maxTs < minTs) return [];
+    if (!Number.isFinite(bucketMs) || bucketMs <= 0) return [minTs, maxTs];
+    if (maxTs === minTs) return [minTs];
+
+    const timestamps = [minTs];
+    const maxBuckets = 4000;
+    let cursor = minTs;
+    while ((cursor + bucketMs) < maxTs && timestamps.length < maxBuckets) {
+        cursor += bucketMs;
+        timestamps.push(cursor);
     }
-
-    const bucketMs = PLAYER_HISTORY_DISPLAY_BUCKET_MS[range];
-    if (!Number.isFinite(bucketMs) || bucketMs <= 0) {
-        return rangeSeries;
+    if (timestamps[timestamps.length - 1] !== maxTs) {
+        timestamps.push(maxTs);
     }
+    return timestamps;
+}
 
-    const startTs = rangeSeries[0].ts;
-    const bucketed = [];
-    let currentBucket = null;
-    let selectedPoint = null;
+function interpolatePlayersAtTimestamp(points, targetTs) {
+    const rows = Array.isArray(points) ? points : [];
+    if (!rows.length || !Number.isFinite(targetTs)) return null;
+    if (targetTs <= rows[0].ts) return rows[0].players;
+    if (targetTs >= rows[rows.length - 1].ts) return rows[rows.length - 1].players;
 
-    rangeSeries.forEach((point) => {
-        const bucketIndex = Math.max(0, Math.floor((point.ts - startTs) / bucketMs));
-        if (currentBucket === null || bucketIndex !== currentBucket) {
-            if (selectedPoint) bucketed.push(selectedPoint);
-            currentBucket = bucketIndex;
-            selectedPoint = point;
-            return;
+    let low = 0;
+    let high = rows.length - 1;
+    while (low <= high) {
+        const middle = Math.floor((low + high) / 2);
+        const point = rows[middle];
+        if (point.ts === targetTs) return point.players;
+        if (point.ts < targetTs) {
+            low = middle + 1;
+        } else {
+            high = middle - 1;
         }
-        selectedPoint = point;
-    });
-    if (selectedPoint) bucketed.push(selectedPoint);
+    }
 
-    return dedupePlayerPointsByTimestamp([
-        rangeSeries[0],
-        ...bucketed,
-        rangeSeries[rangeSeries.length - 1],
-    ]);
+    const rightIndex = Math.min(rows.length - 1, Math.max(0, low));
+    const leftIndex = Math.max(0, rightIndex - 1);
+    const left = rows[leftIndex];
+    const right = rows[rightIndex];
+    if (!left && !right) return null;
+    if (!left) return right.players;
+    if (!right) return left.players;
+    if (right.ts === left.ts) return right.players;
+
+    const progress = (targetTs - left.ts) / (right.ts - left.ts);
+    return left.players + ((right.players - left.players) * progress);
+}
+
+function buildFinalPlayerDisplaySeries(rawEntries, range) {
+    const normalizedRange = normalizePlayerRange(range) || "all";
+    const rawPoints = normalizePlayerHistoryPoints(rawEntries);
+    if (!rawPoints.length) {
+        return {
+            range: normalizedRange,
+            rawPoints: [],
+            displayedPoints: [],
+            rangeBounds: { min: null, max: null },
+        };
+    }
+
+    const rangeBounds = resolvePlayerRangeBounds(rawPoints, normalizedRange);
+    if (!Number.isFinite(rangeBounds.min) || !Number.isFinite(rangeBounds.max) || rangeBounds.max < rangeBounds.min) {
+        return {
+            range: normalizedRange,
+            rawPoints,
+            displayedPoints: [...rawPoints],
+            rangeBounds: {
+                min: rawPoints[0].ts,
+                max: rawPoints[rawPoints.length - 1].ts,
+            },
+        };
+    }
+
+    const bucketStarts = buildPlayerBucketTimestamps(
+        rangeBounds.min,
+        rangeBounds.max,
+        resolvePlayerDisplayBucketMs(normalizedRange),
+    );
+    const rangedRawPoints = rawPoints.filter((point) => point.ts >= rangeBounds.min && point.ts <= rangeBounds.max);
+    let rangedIndex = 0;
+    let fallbackPlayers = interpolatePlayersAtTimestamp(rawPoints, rangeBounds.min);
+    const bucketedPoints = [];
+
+    for (let index = 0; index < bucketStarts.length; index += 1) {
+        const bucketStart = bucketStarts[index];
+        const bucketEndExclusive = index < bucketStarts.length - 1
+            ? bucketStarts[index + 1]
+            : rangeBounds.max + 1;
+        let sum = 0;
+        let count = 0;
+
+        while (rangedIndex < rangedRawPoints.length) {
+            const candidate = rangedRawPoints[rangedIndex];
+            if (candidate.ts < bucketStart) {
+                rangedIndex += 1;
+                continue;
+            }
+            if (candidate.ts >= bucketEndExclusive) break;
+            sum += candidate.players;
+            count += 1;
+            fallbackPlayers = candidate.players;
+            rangedIndex += 1;
+        }
+
+        let players = count > 0 ? (sum / count) : interpolatePlayersAtTimestamp(rawPoints, bucketStart);
+        if (!Number.isFinite(players)) players = fallbackPlayers;
+        if (!Number.isFinite(players)) continue;
+        const roundedPlayers = Math.max(0, Math.round(players));
+        fallbackPlayers = roundedPlayers;
+        bucketedPoints.push({
+            timestamp: new Date(bucketStart).toISOString(),
+            ts: bucketStart,
+            players: roundedPlayers,
+        });
+    }
+
+    return {
+        range: normalizedRange,
+        rawPoints,
+        displayedPoints: dedupePlayerPointsByTimestamp(bucketedPoints),
+        rangeBounds,
+    };
 }
 
 function normalizePlayerRange(range) {
@@ -3579,14 +3626,6 @@ function pickDefaultPlayerRange(historyPayload) {
     if (spanDays >= 35) return "30d";
     if (spanDays >= 8) return "7d";
     return "all";
-}
-
-function buildRangedPlayerHistoryPayload(historyPayload, range) {
-    const payload = historyPayload && typeof historyPayload === "object" ? historyPayload : {};
-    return {
-        ...payload,
-        players: filterPlayerHistorySeriesByRange(payload.players, range),
-    };
 }
 
 function resetPlayerHistoryCache(nextGameId = null) {
@@ -4000,11 +4039,7 @@ async function loadPlayerHistory(gameId, range = null) {
     const resolvedRange = requestedRange || pickDefaultPlayerRange(rawPayload);
     activePlayerRange = resolvedRange;
     setPlayerRangeButtons(activePlayerRange);
-    const rangedPayload = buildRangedPlayerHistoryPayload(rawPayload, activePlayerRange);
-    renderPlayerChart(rangedPayload, {
-        range: activePlayerRange,
-        fullPlayers: rawPayload?.players,
-    });
+    renderPlayerChart(rawPayload, { range: activePlayerRange });
     if (currentGamePayload) {
         renderMarketInfo(currentGamePayload, currentGameContext);
         renderDealExplanation(currentGamePayload);
@@ -4418,16 +4453,19 @@ function renderPlayerChart(historyPayload, options = {}) {
         playerWrap.classList.remove("gd-skeleton-surface");
     }
     setChartEmptyState("playerChartEmpty", "");
-    const range = normalizePlayerRange(options?.range) || activePlayerRange;
-    const fullPoints = normalizePlayerHistoryPoints(options?.fullPlayers ?? historyPayload?.players);
-    const sourcePoints = fullPoints.length
-        ? fullPoints
-        : normalizePlayerHistoryPoints(historyPayload?.players);
-    if (sourcePoints.length) {
-        currentPlayerHistoryCoverageDays = computeHistoryCoverageDays(sourcePoints);
+    const selectedRange = normalizePlayerRange(options?.range) || activePlayerRange;
+    const series = buildFinalPlayerDisplaySeries(historyPayload?.players, selectedRange);
+    const range = series.range;
+    const rawPoints = series.rawPoints;
+    const displayedPoints = series.displayedPoints;
+    if (rawPoints.length) {
+        currentPlayerHistoryCoverageDays = computeHistoryCoverageDays(rawPoints);
     }
-    const displayedPoints = buildPlayerDisplaySeries(sourcePoints, range);
-    const trendInsights = computePlayerTrendInsights(displayedPoints, fullPoints.length ? fullPoints : displayedPoints, range);
+    const trendInsights = computePlayerTrendInsights(
+        displayedPoints,
+        rawPoints.length ? rawPoints : displayedPoints,
+        range,
+    );
     renderPlayerTrendInsights(trendInsights);
 
     if (!displayedPoints.length) {
@@ -4442,7 +4480,7 @@ function renderPlayerChart(historyPayload, options = {}) {
     const latestIndex = displayedPoints.length - 1;
     const peakIndex = Number.isInteger(trendInsights.peakIndex) ? trendInsights.peakIndex : null;
     const spikeIndex = Number.isInteger(trendInsights?.spike?.index) ? trendInsights.spike.index : null;
-    const rangeBounds = resolvePlayerRangeBounds(sourcePoints.length ? sourcePoints : displayedPoints, range);
+    const rangeBounds = series.rangeBounds;
 
     const palette = trendInsights.trend === "up"
         ? {

@@ -1824,6 +1824,7 @@ let cachedPlayerHistoryGameId = null;
 let cachedPlayerHistoryPayload = null;
 let playerHistoryInFlight = null;
 let playerHistoryRenderToken = 0;
+let currentPlayerHistoryCoverageDays = null;
 const PRICE_HISTORY_RANGE_DAYS = Object.freeze({
     "30d": 30,
     "90d": 90,
@@ -1847,11 +1848,11 @@ const PLAYER_HISTORY_RANGE_LABELS = Object.freeze({
 const PLAYER_HISTORY_HOUR_MS = 60 * 60 * 1000;
 const PLAYER_HISTORY_DAY_MS = 24 * PLAYER_HISTORY_HOUR_MS;
 const PLAYER_HISTORY_DISPLAY_BUCKET_MS = Object.freeze({
-    "7d": 6 * PLAYER_HISTORY_HOUR_MS,
-    "30d": 12 * PLAYER_HISTORY_HOUR_MS,
+    "7d": 3 * PLAYER_HISTORY_HOUR_MS,
+    "30d": PLAYER_HISTORY_DAY_MS,
     "3m": PLAYER_HISTORY_DAY_MS,
     "1y": 7 * PLAYER_HISTORY_DAY_MS,
-    all: null,
+    all: 30 * PLAYER_HISTORY_DAY_MS,
 });
 const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
 
@@ -2869,7 +2870,13 @@ function formatPlayerHistoryConfidence(insights, fallbackCoverageDays = null) {
 }
 
 function getAuthoritativePlayerConfidenceText(payload, fallbackCoverageDays = null) {
-    return formatPlayerHistoryConfidence(getPlayerSignalInsights(payload), fallbackCoverageDays);
+    const normalizedFallback = Number(fallbackCoverageDays);
+    const fallbackFromArgument = Number.isFinite(normalizedFallback) ? normalizedFallback : null;
+    const sharedFallback = Number.isFinite(Number(currentPlayerHistoryCoverageDays))
+        ? Number(currentPlayerHistoryCoverageDays)
+        : null;
+    const selectedFallback = fallbackFromArgument ?? sharedFallback;
+    return formatPlayerHistoryConfidence(getPlayerSignalInsights(payload), selectedFallback);
 }
 
 function buildPlayerTrendComparisonText(insights) {
@@ -3423,6 +3430,17 @@ function normalizePlayerHistoryPoints(entries) {
         .sort((a, b) => a.ts - b.ts);
 }
 
+function computeHistoryCoverageDays(points) {
+    const rows = Array.isArray(points) ? points : [];
+    if (rows.length < 2) return null;
+    const firstTs = rows[0].ts;
+    const lastTs = rows[rows.length - 1].ts;
+    if (!Number.isFinite(firstTs) || !Number.isFinite(lastTs) || lastTs < firstTs) {
+        return null;
+    }
+    return Math.max(0, (lastTs - firstTs) / PLAYER_HISTORY_DAY_MS);
+}
+
 function resolvePlayerRangeBounds(points, range) {
     const rows = Array.isArray(points) ? points : [];
     if (!rows.length) return { min: null, max: null };
@@ -3505,7 +3523,7 @@ function buildPlayerRangeSeries(points, range) {
 
 function buildPlayerDisplaySeries(points, range) {
     const rangeSeries = buildPlayerRangeSeries(points, range);
-    if (range === "all" || rangeSeries.length < 3) {
+    if (rangeSeries.length < 3) {
         return rangeSeries;
     }
 
@@ -3578,6 +3596,7 @@ function resetPlayerHistoryCache(nextGameId = null) {
     cachedPlayerHistoryPayload = null;
     playerHistoryInFlight = null;
     playerHistoryRenderToken += 1;
+    currentPlayerHistoryCoverageDays = null;
 }
 
 async function getPlayerHistoryPayload(gameId) {
@@ -3707,7 +3726,8 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
 
     const earliestAll = allPoints[0];
     const latestAll = allPoints[allPoints.length - 1];
-    const backendConfidence = getAuthoritativePlayerConfidenceText(currentGamePayload);
+    const coverageDays = computeHistoryCoverageDays(allPoints);
+    const backendConfidence = getAuthoritativePlayerConfidenceText(currentGamePayload, coverageDays);
     const coverageSince = `Tracking since ${formatPlayerDate(earliestAll.timestamp)}`;
     const detailCandidates = [];
     if (backendState === "declining" || backendState === "launch_hype_dropoff") {
@@ -3975,6 +3995,8 @@ async function loadPlayerHistory(gameId, range = null) {
     const renderToken = ++playerHistoryRenderToken;
     const rawPayload = await getPlayerHistoryPayload(normalizedGameId).catch(() => ({ players: [], stats: {} }));
     if (renderToken !== playerHistoryRenderToken) return;
+    const fullPoints = normalizePlayerHistoryPoints(rawPayload?.players);
+    currentPlayerHistoryCoverageDays = computeHistoryCoverageDays(fullPoints);
     const resolvedRange = requestedRange || pickDefaultPlayerRange(rawPayload);
     activePlayerRange = resolvedRange;
     setPlayerRangeButtons(activePlayerRange);
@@ -3983,6 +4005,12 @@ async function loadPlayerHistory(gameId, range = null) {
         range: activePlayerRange,
         fullPlayers: rawPayload?.players,
     });
+    if (currentGamePayload) {
+        renderMarketInfo(currentGamePayload, currentGameContext);
+        renderDealExplanation(currentGamePayload);
+        renderDealConfidence(currentGamePayload);
+        renderHeroExplanation(currentGamePayload, currentGameContext);
+    }
 }
 
 async function loadRelatedGames(gameId) {
@@ -4395,6 +4423,9 @@ function renderPlayerChart(historyPayload, options = {}) {
     const sourcePoints = fullPoints.length
         ? fullPoints
         : normalizePlayerHistoryPoints(historyPayload?.players);
+    if (sourcePoints.length) {
+        currentPlayerHistoryCoverageDays = computeHistoryCoverageDays(sourcePoints);
+    }
     const displayedPoints = buildPlayerDisplaySeries(sourcePoints, range);
     const trendInsights = computePlayerTrendInsights(displayedPoints, fullPoints.length ? fullPoints : displayedPoints, range);
     renderPlayerTrendInsights(trendInsights);

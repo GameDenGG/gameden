@@ -1666,9 +1666,12 @@ function normalizeGameReview(payload) {
     const scoreText = score !== null ? `${Math.round(score)}/100` : "";
     const summary = firstNonEmptyText(
         reviewPayload?.summary,
+        reviewPayload?.review_summary,
+        reviewPayload?.reviewSummary,
         payload?.review_summary,
         payload?.reviewSummary,
         payload?.reviews?.summary,
+        payload?.reviews?.reviewSummary,
         payload?.reviews?.review_summary,
     );
     const label = firstNonEmptyText(
@@ -3527,46 +3530,58 @@ function interpolatePlayersAtTimestamp(points, targetTs) {
     return left.players + ((right.players - left.players) * progress);
 }
 
-function buildFinalPlayerDisplaySeries(rawEntries, range) {
+function buildDisplayedPlayerSeries(rawRows, range) {
     const normalizedRange = normalizePlayerRange(range) || "all";
-    const rawPoints = normalizePlayerHistoryPoints(rawEntries);
-    if (!rawPoints.length) {
+    const sourcePoints = normalizePlayerHistoryPoints(rawRows);
+    if (!sourcePoints.length) {
         return {
             range: normalizedRange,
-            rawPoints: [],
-            displayedPoints: [],
+            sourcePoints: [],
+            series: [],
             rangeBounds: { min: null, max: null },
         };
     }
 
-    const rangeBounds = resolvePlayerRangeBounds(rawPoints, normalizedRange);
-    if (!Number.isFinite(rangeBounds.min) || !Number.isFinite(rangeBounds.max) || rangeBounds.max < rangeBounds.min) {
+    const resolvedBounds = resolvePlayerRangeBounds(sourcePoints, normalizedRange);
+    const fallbackMin = sourcePoints[0].ts;
+    const fallbackMax = sourcePoints[sourcePoints.length - 1].ts;
+    const minTs = Number.isFinite(resolvedBounds.min) ? resolvedBounds.min : fallbackMin;
+    const maxTs = Number.isFinite(resolvedBounds.max) ? resolvedBounds.max : fallbackMax;
+    if (!Number.isFinite(minTs) || !Number.isFinite(maxTs) || maxTs < minTs) {
         return {
             range: normalizedRange,
-            rawPoints,
-            displayedPoints: [...rawPoints],
-            rangeBounds: {
-                min: rawPoints[0].ts,
-                max: rawPoints[rawPoints.length - 1].ts,
-            },
+            sourcePoints,
+            series: [],
+            rangeBounds: { min: fallbackMin, max: fallbackMax },
         };
     }
 
     const bucketStarts = buildPlayerBucketTimestamps(
-        rangeBounds.min,
-        rangeBounds.max,
+        minTs,
+        maxTs,
         resolvePlayerDisplayBucketMs(normalizedRange),
     );
-    const rangedRawPoints = rawPoints.filter((point) => point.ts >= rangeBounds.min && point.ts <= rangeBounds.max);
+    const rangedRawPoints = sourcePoints.filter((point) => point.ts >= minTs && point.ts <= maxTs);
+    if (!rangedRawPoints.length) {
+        return {
+            range: normalizedRange,
+            sourcePoints,
+            series: [],
+            rangeBounds: { min: minTs, max: maxTs },
+        };
+    }
     let rangedIndex = 0;
-    let fallbackPlayers = interpolatePlayersAtTimestamp(rawPoints, rangeBounds.min);
+    let fallbackPlayers = interpolatePlayersAtTimestamp(rangedRawPoints, minTs);
+    if (!Number.isFinite(fallbackPlayers)) {
+        fallbackPlayers = interpolatePlayersAtTimestamp(sourcePoints, minTs);
+    }
     const bucketedPoints = [];
 
     for (let index = 0; index < bucketStarts.length; index += 1) {
         const bucketStart = bucketStarts[index];
         const bucketEndExclusive = index < bucketStarts.length - 1
             ? bucketStarts[index + 1]
-            : rangeBounds.max + 1;
+            : maxTs + 1;
         let sum = 0;
         let count = 0;
 
@@ -3583,7 +3598,8 @@ function buildFinalPlayerDisplaySeries(rawEntries, range) {
             rangedIndex += 1;
         }
 
-        let players = count > 0 ? (sum / count) : interpolatePlayersAtTimestamp(rawPoints, bucketStart);
+        let players = count > 0 ? (sum / count) : interpolatePlayersAtTimestamp(rangedRawPoints, bucketStart);
+        if (!Number.isFinite(players)) players = interpolatePlayersAtTimestamp(sourcePoints, bucketStart);
         if (!Number.isFinite(players)) players = fallbackPlayers;
         if (!Number.isFinite(players)) continue;
         const roundedPlayers = Math.max(0, Math.round(players));
@@ -3597,9 +3613,9 @@ function buildFinalPlayerDisplaySeries(rawEntries, range) {
 
     return {
         range: normalizedRange,
-        rawPoints,
-        displayedPoints: dedupePlayerPointsByTimestamp(bucketedPoints),
-        rangeBounds,
+        sourcePoints,
+        series: dedupePlayerPointsByTimestamp(bucketedPoints),
+        rangeBounds: { min: minTs, max: maxTs },
     };
 }
 
@@ -4454,16 +4470,16 @@ function renderPlayerChart(historyPayload, options = {}) {
     }
     setChartEmptyState("playerChartEmpty", "");
     const selectedRange = normalizePlayerRange(options?.range) || activePlayerRange;
-    const series = buildFinalPlayerDisplaySeries(historyPayload?.players, selectedRange);
+    const series = buildDisplayedPlayerSeries(historyPayload?.players, selectedRange);
     const range = series.range;
-    const rawPoints = series.rawPoints;
-    const displayedPoints = series.displayedPoints;
-    if (rawPoints.length) {
-        currentPlayerHistoryCoverageDays = computeHistoryCoverageDays(rawPoints);
+    const sourcePoints = series.sourcePoints;
+    const displayedPoints = series.series;
+    if (sourcePoints.length) {
+        currentPlayerHistoryCoverageDays = computeHistoryCoverageDays(sourcePoints);
     }
     const trendInsights = computePlayerTrendInsights(
         displayedPoints,
-        rawPoints.length ? rawPoints : displayedPoints,
+        sourcePoints.length ? sourcePoints : displayedPoints,
         range,
     );
     renderPlayerTrendInsights(trendInsights);

@@ -1755,7 +1755,9 @@ function normalizeResolvedGamePayload(payload) {
     const normalizedReviewLabel = firstNonEmptyText(
         payload.review_score_label,
         payload.review_label,
-        normalizedReviewSummary,
+        payload.reviewScoreLabel,
+        payload.reviews?.label,
+        payload.reviews?.review_label,
     );
     const normalizedPlayers = firstFiniteNumber(
         payload.current_players,
@@ -1771,6 +1773,9 @@ function normalizeResolvedGamePayload(payload) {
         payload.reviews?.count,
         payload.reviews?.review_count,
     );
+    const normalizedReviewScoreText = Number.isFinite(normalizedReviewScore)
+        ? `${Math.round(Math.max(0, Math.min(100, normalizedReviewScore)))}/100`
+        : "";
 
     return {
         ...payload,
@@ -1783,7 +1788,7 @@ function normalizeResolvedGamePayload(payload) {
         slug: normalizedSlug,
         game_slug: normalizedSlug,
         review_score: Number.isFinite(normalizedReviewScore) ? normalizedReviewScore : null,
-        review_summary: normalizedReviewSummary || normalizedReviewLabel || "",
+        review_summary: normalizedReviewSummary || normalizedReviewScoreText || normalizedReviewLabel || "",
         review_score_label: normalizedReviewLabel || "",
         review_label: normalizedReviewLabel || "",
         review_total_count: Number.isFinite(normalizedReviewCount) ? normalizedReviewCount : null,
@@ -1839,12 +1844,14 @@ const PLAYER_HISTORY_RANGE_LABELS = Object.freeze({
     "1y": "1 year",
     all: "all available history",
 });
-const PLAYER_HISTORY_DISPLAY_MAX_POINTS = Object.freeze({
-    "7d": 120,
-    "30d": 140,
-    "3m": 170,
-    "1y": 190,
-    all: 220,
+const PLAYER_HISTORY_HOUR_MS = 60 * 60 * 1000;
+const PLAYER_HISTORY_DAY_MS = 24 * PLAYER_HISTORY_HOUR_MS;
+const PLAYER_HISTORY_DISPLAY_BUCKET_MS = Object.freeze({
+    "7d": 6 * PLAYER_HISTORY_HOUR_MS,
+    "30d": 12 * PLAYER_HISTORY_HOUR_MS,
+    "3m": PLAYER_HISTORY_DAY_MS,
+    "1y": 7 * PLAYER_HISTORY_DAY_MS,
+    all: null,
 });
 const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
 
@@ -2585,20 +2592,35 @@ function parseCsv(value) {
 }
 
 function getReviewSummary(payload) {
-    const candidates = [
+    const summaryText = firstNonEmptyText(
         payload?.review_summary,
+        payload?.reviewSummary,
+        payload?.reviews?.summary,
+        payload?.reviews?.review_summary,
+    );
+    if (summaryText) return summaryText;
+
+    const score = getReviewScoreValue(payload);
+    if (score !== null) return `${Math.round(score)}/100`;
+
+    const reviewLabel = firstNonEmptyText(
         payload?.review_score_label,
         payload?.review_label,
-    ];
-    for (const candidate of candidates) {
-        const text = String(candidate || "").trim();
-        if (text) return text;
-    }
+        payload?.reviewScoreLabel,
+        payload?.reviews?.label,
+        payload?.reviews?.review_label,
+    );
+    if (reviewLabel) return reviewLabel;
     return "Review summary pending";
 }
 
 function getReviewScoreValue(payload) {
-    const score = Number(payload?.review_score ?? payload?.reviewScore);
+    const score = firstFiniteNumber(
+        payload?.review_score,
+        payload?.reviewScore,
+        payload?.reviews?.score,
+        payload?.reviews?.review_score,
+    );
     if (!Number.isFinite(score) || score <= 0) return null;
     return Math.max(0, Math.min(100, score));
 }
@@ -2622,7 +2644,7 @@ function getEngagementText(payload) {
         const pct = trend * 100;
         return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% 7d momentum`;
     }
-    const confidence = formatPlayerHistoryConfidence(insights);
+    const confidence = getAuthoritativePlayerConfidenceText(payload);
     if (confidence.startsWith("High confidence")) {
         return "Stable long-term activity";
     }
@@ -2846,6 +2868,10 @@ function formatPlayerHistoryConfidence(insights, fallbackCoverageDays = null) {
     return "Low confidence — limited data";
 }
 
+function getAuthoritativePlayerConfidenceText(payload, fallbackCoverageDays = null) {
+    return formatPlayerHistoryConfidence(getPlayerSignalInsights(payload), fallbackCoverageDays);
+}
+
 function buildPlayerTrendComparisonText(insights) {
     const shortText = formatTrendPercent(insights?.shortTerm);
     const mediumText = formatTrendPercent(insights?.mediumTerm);
@@ -2964,7 +2990,7 @@ function renderDealConfidence(payload) {
         ? reasonLines.join(" • ")
         : "Signals are mixed and a better entry may appear later.";
     const recommendationHeadline = buildRecommendationHeadline(payload, insights);
-    const confidenceSummary = formatPlayerHistoryConfidence(insights);
+    const confidenceSummary = getAuthoritativePlayerConfidenceText(payload);
     const scoreText = Number.isFinite(Number(confidence.score))
         ? `${Math.round(Number(confidence.score))}/100`
         : "—";
@@ -3090,7 +3116,7 @@ function buildHeroExplanationLines(payload, context = currentGameContext) {
     if (!lines.length && predictedReason) {
         pushUniqueExplanationLine(lines, predictedReason);
     }
-    const confidenceText = formatPlayerHistoryConfidence(playerInsights);
+    const confidenceText = getAuthoritativePlayerConfidenceText(payload);
     if (confidenceText) {
         pushUniqueExplanationLine(lines, confidenceText);
     }
@@ -3397,50 +3423,6 @@ function normalizePlayerHistoryPoints(entries) {
         .sort((a, b) => a.ts - b.ts);
 }
 
-function buildPlayerDisplaySeries(points, range) {
-    const rows = Array.isArray(points) ? points : [];
-    if (rows.length < 3) return rows;
-    const maxPoints = PLAYER_HISTORY_DISPLAY_MAX_POINTS[range] || PLAYER_HISTORY_DISPLAY_MAX_POINTS.all;
-    if (!Number.isFinite(maxPoints) || rows.length <= maxPoints) return rows;
-
-    const startTs = rows[0].ts;
-    const endTs = rows[rows.length - 1].ts;
-    const spanMs = endTs - startTs;
-    if (!Number.isFinite(spanMs) || spanMs <= 0) return rows;
-
-    const bucketMs = Math.max(1, Math.ceil(spanMs / maxPoints));
-    const sampled = [];
-    let bucketStart = startTs;
-    let bucketEnd = bucketStart + bucketMs;
-    let bucketRows = [];
-
-    const flushBucket = () => {
-        if (!bucketRows.length) return;
-        sampled.push(bucketRows[bucketRows.length - 1]);
-        bucketRows = [];
-    };
-
-    rows.forEach((point) => {
-        while (point.ts >= bucketEnd) {
-            flushBucket();
-            bucketStart = bucketEnd;
-            bucketEnd = bucketStart + bucketMs;
-        }
-        bucketRows.push(point);
-    });
-    flushBucket();
-
-    if (!sampled.length) return rows;
-    if (sampled[0].ts !== rows[0].ts) {
-        sampled.unshift(rows[0]);
-    }
-    if (sampled[sampled.length - 1].ts !== rows[rows.length - 1].ts) {
-        sampled.push(rows[rows.length - 1]);
-    }
-
-    return sampled;
-}
-
 function resolvePlayerRangeBounds(points, range) {
     const rows = Array.isArray(points) ? points : [];
     if (!rows.length) return { min: null, max: null };
@@ -3459,6 +3441,101 @@ function resolvePlayerRangeBounds(points, range) {
         min: latestTs - rangeMs,
         max: latestTs,
     };
+}
+
+function dedupePlayerPointsByTimestamp(points) {
+    const byTimestamp = new Map();
+    (Array.isArray(points) ? points : []).forEach((point) => {
+        if (!point || !Number.isFinite(point.ts)) return;
+        byTimestamp.set(point.ts, point);
+    });
+    return Array.from(byTimestamp.values()).sort((a, b) => a.ts - b.ts);
+}
+
+function buildPlayerRangeSeries(points, range) {
+    const rows = Array.isArray(points) ? points : [];
+    if (!rows.length) return [];
+    const bounds = resolvePlayerRangeBounds(rows, range);
+    if (!Number.isFinite(bounds.min) || !Number.isFinite(bounds.max)) return rows;
+    if (!Number.isFinite(PLAYER_HISTORY_RANGE_DAYS[range])) return rows;
+
+    const visible = rows.filter((point) => point.ts >= bounds.min && point.ts <= bounds.max);
+    const previous = [...rows].reverse().find((point) => point.ts < bounds.min) || null;
+
+    const anchored = [...visible];
+    if (!anchored.length) {
+        if (previous) {
+            anchored.push(
+                {
+                    ...previous,
+                    ts: bounds.min,
+                    timestamp: new Date(bounds.min).toISOString(),
+                },
+                {
+                    ...previous,
+                    ts: bounds.max,
+                    timestamp: new Date(bounds.max).toISOString(),
+                },
+            );
+        }
+        return dedupePlayerPointsByTimestamp(anchored);
+    }
+
+    const firstVisible = anchored[0];
+    if (firstVisible.ts > bounds.min) {
+        const source = previous || firstVisible;
+        anchored.unshift({
+            ...source,
+            ts: bounds.min,
+            timestamp: new Date(bounds.min).toISOString(),
+        });
+    }
+
+    const lastVisible = anchored[anchored.length - 1];
+    if (lastVisible.ts < bounds.max) {
+        anchored.push({
+            ...lastVisible,
+            ts: bounds.max,
+            timestamp: new Date(bounds.max).toISOString(),
+        });
+    }
+
+    return dedupePlayerPointsByTimestamp(anchored);
+}
+
+function buildPlayerDisplaySeries(points, range) {
+    const rangeSeries = buildPlayerRangeSeries(points, range);
+    if (range === "all" || rangeSeries.length < 3) {
+        return rangeSeries;
+    }
+
+    const bucketMs = PLAYER_HISTORY_DISPLAY_BUCKET_MS[range];
+    if (!Number.isFinite(bucketMs) || bucketMs <= 0) {
+        return rangeSeries;
+    }
+
+    const startTs = rangeSeries[0].ts;
+    const bucketed = [];
+    let currentBucket = null;
+    let selectedPoint = null;
+
+    rangeSeries.forEach((point) => {
+        const bucketIndex = Math.max(0, Math.floor((point.ts - startTs) / bucketMs));
+        if (currentBucket === null || bucketIndex !== currentBucket) {
+            if (selectedPoint) bucketed.push(selectedPoint);
+            currentBucket = bucketIndex;
+            selectedPoint = point;
+            return;
+        }
+        selectedPoint = point;
+    });
+    if (selectedPoint) bucketed.push(selectedPoint);
+
+    return dedupePlayerPointsByTimestamp([
+        rangeSeries[0],
+        ...bucketed,
+        rangeSeries[rangeSeries.length - 1],
+    ]);
 }
 
 function normalizePlayerRange(range) {
@@ -3630,8 +3707,7 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
 
     const earliestAll = allPoints[0];
     const latestAll = allPoints[allPoints.length - 1];
-    const totalDays = Math.max(0, (latestAll.ts - earliestAll.ts) / (24 * 60 * 60 * 1000));
-    const backendConfidence = formatPlayerHistoryConfidence(backendInsights, totalDays);
+    const backendConfidence = getAuthoritativePlayerConfidenceText(currentGamePayload);
     const coverageSince = `Tracking since ${formatPlayerDate(earliestAll.timestamp)}`;
     const detailCandidates = [];
     if (backendState === "declining" || backendState === "launch_hype_dropoff") {
@@ -3981,7 +4057,7 @@ function renderMarketInfo(data, context = currentGameContext) {
         : "—";
     const playerInsights = getPlayerSignalInsights(data);
     const playerTrendState = playerInsights?.stateLabel || "—";
-    const playerTrendConfidence = formatPlayerHistoryConfidence(playerInsights);
+    const playerTrendConfidence = getAuthoritativePlayerConfidenceText(data);
     let items = [];
     if (context?.mode === "free") {
         items = [
@@ -4051,7 +4127,7 @@ function renderDealExplanation(payload) {
         : {};
     const playerInsights = getPlayerSignalInsights(payload);
     const trendStateLabel = playerInsights?.stateLabel || "Mixed player trend signals";
-    const confidenceLabel = formatPlayerHistoryConfidence(playerInsights);
+    const confidenceLabel = getAuthoritativePlayerConfidenceText(payload);
     const trendComparison = buildPlayerTrendComparisonText(playerInsights);
     const recommendationHeadline = buildRecommendationHeadline(payload, playerInsights);
     const recommendationSignal = String(payload?.buy_recommendation || "Signal").trim().toUpperCase() || "SIGNAL";
@@ -4315,9 +4391,11 @@ function renderPlayerChart(historyPayload, options = {}) {
     }
     setChartEmptyState("playerChartEmpty", "");
     const range = normalizePlayerRange(options?.range) || activePlayerRange;
-    const filteredPoints = normalizePlayerHistoryPoints(historyPayload?.players);
     const fullPoints = normalizePlayerHistoryPoints(options?.fullPlayers ?? historyPayload?.players);
-    const displayedPoints = buildPlayerDisplaySeries(filteredPoints, range);
+    const sourcePoints = fullPoints.length
+        ? fullPoints
+        : normalizePlayerHistoryPoints(historyPayload?.players);
+    const displayedPoints = buildPlayerDisplaySeries(sourcePoints, range);
     const trendInsights = computePlayerTrendInsights(displayedPoints, fullPoints.length ? fullPoints : displayedPoints, range);
     renderPlayerTrendInsights(trendInsights);
 
@@ -4333,7 +4411,7 @@ function renderPlayerChart(historyPayload, options = {}) {
     const latestIndex = displayedPoints.length - 1;
     const peakIndex = Number.isInteger(trendInsights.peakIndex) ? trendInsights.peakIndex : null;
     const spikeIndex = Number.isInteger(trendInsights?.spike?.index) ? trendInsights.spike.index : null;
-    const rangeBounds = resolvePlayerRangeBounds(displayedPoints, range);
+    const rangeBounds = resolvePlayerRangeBounds(sourcePoints.length ? sourcePoints : displayedPoints, range);
 
     const palette = trendInsights.trend === "up"
         ? {

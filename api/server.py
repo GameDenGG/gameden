@@ -3708,7 +3708,12 @@ def _ensure_game_detail_contract(payload: dict) -> dict:
         ),
         normalized["review_score"],
     )
-    normalized["review_summary"] = review_summary or review_label
+    review_score_summary = (
+        f"{int(round(normalized['review_score']))}/100"
+        if normalized["review_score"] is not None
+        else None
+    )
+    normalized["review_summary"] = review_summary or review_score_summary or review_label
     normalized["review_score_label"] = review_label
     normalized["review_label"] = review_label
     normalized.setdefault("prediction", {})

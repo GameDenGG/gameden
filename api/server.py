@@ -3294,10 +3294,13 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
             "points": [],
         }
 
+    interpolate_empty_buckets = normalized_range == "all"
     ranged_index = 0
-    fallback_players = _interpolate_players_at_timestamp(ranged_points, min_ts)
-    if fallback_players is None:
-        fallback_players = _interpolate_players_at_timestamp(source_points, min_ts)
+    fallback_players = None
+    if interpolate_empty_buckets:
+        fallback_players = _interpolate_players_at_timestamp(ranged_points, min_ts)
+        if fallback_players is None:
+            fallback_players = _interpolate_players_at_timestamp(source_points, min_ts)
     series_points: list[dict] = []
 
     for index, bucket_start in enumerate(bucket_starts):
@@ -3321,6 +3324,10 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
         if bucket_count > 0:
             players_value = bucket_sum / bucket_count
         else:
+            if not interpolate_empty_buckets:
+                # Non-ALL ranges must reflect only truthful in-bucket observations.
+                # Empty buckets are represented as gaps (no point emitted).
+                continue
             players_value = _interpolate_players_at_timestamp(ranged_points, bucket_start)
             if players_value is None:
                 players_value = _interpolate_players_at_timestamp(source_points, bucket_start)
@@ -3330,7 +3337,8 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
             continue
 
         rounded_players = max(0, int(round(players_value)))
-        fallback_players = float(rounded_players)
+        if interpolate_empty_buckets:
+            fallback_players = float(rounded_players)
         series_points.append(
             {
                 "timestamp": _unix_ms_to_iso(bucket_start),

@@ -280,8 +280,8 @@ PLAYER_HISTORY_DAY_MS = 24 * 60 * 60 * 1000
 PLAYER_HISTORY_DISPLAY_BUCKET_MS: dict[str, int] = {
     "7d": 3 * 60 * 60 * 1000,
     "30d": PLAYER_HISTORY_DAY_MS,
-    "3m": PLAYER_HISTORY_DAY_MS,
-    "1y": 7 * PLAYER_HISTORY_DAY_MS,
+    "3m": 7 * PLAYER_HISTORY_DAY_MS,
+    "1y": 30 * PLAYER_HISTORY_DAY_MS,
     "all": 30 * PLAYER_HISTORY_DAY_MS,
 }
 SEO_DISCOVERY_PAGE_DEFINITIONS: dict[str, dict[str, str]] = {
@@ -3205,58 +3205,110 @@ def _resolve_player_range_bounds(source_points: list[dict], range_key: str) -> t
     return latest_ts - (int(days) * PLAYER_HISTORY_DAY_MS), latest_ts
 
 
-def _build_player_bucket_timestamps(min_ts: int, max_ts: int, bucket_ms: int) -> list[int]:
+def _unix_ms_to_utc_datetime(value: int) -> datetime.datetime:
+    return datetime.datetime.fromtimestamp(int(value) / 1000.0, tz=datetime.timezone.utc)
+
+
+def _utc_datetime_to_unix_ms(value: datetime.datetime) -> int:
+    normalized = value
+    if normalized.tzinfo is None:
+        normalized = normalized.replace(tzinfo=datetime.timezone.utc)
+    else:
+        normalized = normalized.astimezone(datetime.timezone.utc)
+    return int(round(normalized.timestamp() * 1000))
+
+
+def _align_player_bucket_start(ts: int, range_key: str) -> int:
+    dt = _unix_ms_to_utc_datetime(ts)
+    if range_key == "7d":
+        dt = dt.replace(minute=0, second=0, microsecond=0)
+        dt = dt.replace(hour=(dt.hour // 3) * 3)
+    elif range_key == "30d":
+        dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif range_key == "3m":
+        dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        dt = dt - datetime.timedelta(days=dt.weekday())
+    elif range_key in {"1y", "all"}:
+        dt = dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    return _utc_datetime_to_unix_ms(dt)
+
+
+def _advance_player_bucket_start(start_ts: int, range_key: str) -> int:
+    dt = _unix_ms_to_utc_datetime(start_ts)
+    if range_key == "7d":
+        dt += datetime.timedelta(hours=3)
+    elif range_key == "30d":
+        dt += datetime.timedelta(days=1)
+    elif range_key == "3m":
+        dt += datetime.timedelta(days=7)
+    elif range_key in {"1y", "all"}:
+        if dt.month == 12:
+            dt = dt.replace(year=dt.year + 1, month=1, day=1)
+        else:
+            dt = dt.replace(month=dt.month + 1, day=1)
+    else:
+        dt += datetime.timedelta(days=1)
+    return _utc_datetime_to_unix_ms(dt)
+
+
+def _build_player_bucket_timestamps(min_ts: int, max_ts: int, range_key: str) -> list[int]:
     if max_ts < min_ts:
         return []
-    if bucket_ms <= 0:
-        return [min_ts, max_ts]
-    if max_ts == min_ts:
-        return [min_ts]
+    normalized_range = range_key if range_key in PLAYER_HISTORY_RANGE_DAYS else "all"
+    start_boundary = _align_player_bucket_start(min_ts, normalized_range)
+    end_boundary = _align_player_bucket_start(max_ts, normalized_range)
 
     timestamps: list[int] = []
-    cursor = min_ts
+    cursor = start_boundary
     max_buckets = 4000
-    while cursor <= max_ts and len(timestamps) < max_buckets:
+    while cursor <= end_boundary and len(timestamps) < max_buckets:
         timestamps.append(cursor)
-        next_cursor = cursor + bucket_ms
+        next_cursor = _advance_player_bucket_start(cursor, normalized_range)
         if next_cursor <= cursor:
             break
         cursor = next_cursor
     return timestamps
 
 
-def _interpolate_players_at_timestamp(points: list[dict], target_ts: int) -> float | None:
-    if not points:
-        return None
-    if target_ts <= points[0]["ts"]:
-        return float(points[0]["players"])
-    if target_ts >= points[-1]["ts"]:
-        return float(points[-1]["players"])
+def _fill_player_bucket_interior_gaps(
+    real_values: list[float | None],
+) -> tuple[list[float | None], set[int]]:
+    filled_values = list(real_values)
+    interpolated_indexes: set[int] = set()
+    index = 0
+    total = len(real_values)
 
-    low = 0
-    high = len(points) - 1
-    while low <= high:
-        middle = (low + high) // 2
-        middle_point = points[middle]
-        middle_ts = int(middle_point["ts"])
-        if middle_ts == target_ts:
-            return float(middle_point["players"])
-        if middle_ts < target_ts:
-            low = middle + 1
-        else:
-            high = middle - 1
+    while index < total:
+        if real_values[index] is not None:
+            index += 1
+            continue
 
-    right_index = min(len(points) - 1, max(0, low))
-    left_index = max(0, right_index - 1)
-    left = points[left_index]
-    right = points[right_index]
-    left_ts = int(left["ts"])
-    right_ts = int(right["ts"])
-    if right_ts == left_ts:
-        return float(right["players"])
+        run_start = index
+        while index < total and real_values[index] is None:
+            index += 1
+        run_end = index - 1
 
-    progress = (target_ts - left_ts) / (right_ts - left_ts)
-    return float(left["players"]) + ((float(right["players"]) - float(left["players"])) * progress)
+        left_index = run_start - 1
+        right_index = index if index < total else None
+        if left_index < 0 or right_index is None:
+            continue
+
+        left_value = real_values[left_index]
+        right_value = real_values[right_index]
+        if left_value is None or right_value is None:
+            continue
+
+        span = right_index - left_index
+        if span <= 1:
+            continue
+
+        for fill_index in range(run_start, run_end + 1):
+            progress = (fill_index - left_index) / span
+            interpolated_value = float(left_value) + ((float(right_value) - float(left_value)) * progress)
+            filled_values[fill_index] = interpolated_value
+            interpolated_indexes.add(fill_index)
+
+    return filled_values, interpolated_indexes
 
 
 def _build_player_display_series(source_points: list[dict], range_key: str) -> dict:
@@ -3283,9 +3335,7 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
         }
 
     bucket_ms = int(PLAYER_HISTORY_DISPLAY_BUCKET_MS.get(normalized_range, PLAYER_HISTORY_DAY_MS))
-    bucket_starts = _build_player_bucket_timestamps(min_ts, max_ts, bucket_ms)
-    if normalized_range == "all" and bucket_starts and bucket_starts[-1] != max_ts:
-        bucket_starts.append(max_ts)
+    bucket_starts = _build_player_bucket_timestamps(min_ts, max_ts, normalized_range)
     ranged_points = [point for point in source_points if min_ts <= point["ts"] <= max_ts]
     if not bucket_starts:
         return {
@@ -3297,17 +3347,16 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
             "points": [],
         }
 
-    interpolate_empty_buckets = normalized_range == "all"
     ranged_index = 0
-    fallback_players = None
-    if interpolate_empty_buckets:
-        fallback_players = _interpolate_players_at_timestamp(ranged_points, min_ts)
-        if fallback_players is None:
-            fallback_players = _interpolate_players_at_timestamp(source_points, min_ts)
-    series_points: list[dict] = []
+    real_bucket_values: list[float | None] = []
+    range_end_exclusive = int(max_ts) + 1
 
     for index, bucket_start in enumerate(bucket_starts):
-        bucket_end_exclusive = bucket_starts[index + 1] if index < len(bucket_starts) - 1 else (max_ts + 1)
+        bucket_end_exclusive = (
+            bucket_starts[index + 1]
+            if index < len(bucket_starts) - 1
+            else range_end_exclusive
+        )
         bucket_sum = 0.0
         bucket_count = 0
 
@@ -3325,46 +3374,34 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
                 continue
             bucket_sum += float(candidate_players)
             bucket_count += 1
-            fallback_players = float(candidate_players)
             ranged_index += 1
 
         if bucket_count > 0:
             players_value = bucket_sum / bucket_count
         else:
-            if not interpolate_empty_buckets:
-                players_value = None
-            else:
-                players_value = _interpolate_players_at_timestamp(ranged_points, bucket_start)
-                if players_value is None:
-                    players_value = _interpolate_players_at_timestamp(source_points, bucket_start)
-                if players_value is None:
-                    players_value = fallback_players
-        if players_value is None and interpolate_empty_buckets:
-            continue
+            players_value = None
 
-        rounded_players = (
-            max(0, int(round(players_value)))
-            if players_value is not None
-            else None
-        )
-        if interpolate_empty_buckets and rounded_players is not None:
-            fallback_players = float(rounded_players)
-        series_points.append(
+        real_bucket_values.append(players_value)
+
+    display_values, interpolated_indexes = _fill_player_bucket_interior_gaps(real_bucket_values)
+    ordered_points: list[dict] = []
+    for index, bucket_start in enumerate(bucket_starts):
+        players_value = display_values[index]
+        rounded_players = max(0, int(round(players_value))) if players_value is not None else None
+        ordered_points.append(
             {
                 "timestamp": _unix_ms_to_iso(bucket_start),
                 "ts": bucket_start,
                 "players": rounded_players,
+                "is_interpolated": index in interpolated_indexes,
             }
         )
-
-    deduped_by_ts = {point["ts"]: point for point in series_points}
-    ordered_points = [deduped_by_ts[key] for key in sorted(deduped_by_ts.keys())]
 
     return {
         "range": normalized_range,
         "bucket_ms": bucket_ms,
-        "range_start": _unix_ms_to_iso(min_ts),
-        "range_end": _unix_ms_to_iso(max_ts),
+        "range_start": _unix_ms_to_iso(bucket_starts[0]),
+        "range_end": _unix_ms_to_iso(bucket_starts[-1]),
         "point_count": len(ordered_points),
         "points": ordered_points,
     }

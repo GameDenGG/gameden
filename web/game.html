@@ -3437,36 +3437,25 @@ function computeHistoryCoverageDays(points) {
     return Math.max(0, (lastTs - firstTs) / PLAYER_HISTORY_DAY_MS);
 }
 
-function filterPlayerPointsByRange(points, range) {
-    const rows = Array.isArray(points) ? points : [];
-    if (!rows.length) return [];
-    const normalizedRange = normalizePlayerRange(range) || "all";
-    const days = PLAYER_HISTORY_RANGE_DAYS[normalizedRange];
-    if (!Number.isFinite(days)) return rows;
-    const latestTs = rows[rows.length - 1]?.ts;
-    if (!Number.isFinite(latestTs)) return rows;
-    const cutoffTs = latestTs - (days * PLAYER_HISTORY_DAY_MS);
-    const filtered = rows.filter((point) => Number.isFinite(point.ts) && point.ts >= cutoffTs && point.ts <= latestTs);
-    return filtered.length ? filtered : rows;
-}
-
 function normalizeBackendDisplaySeriesPoints(entries) {
     const rows = Array.isArray(entries) ? entries : [];
     return rows
         .map((entry) => {
             const timestamp = String(entry?.timestamp ?? entry?.recorded_at ?? "").trim();
-            const ts = parseHistoryTimestamp(timestamp);
-            if (!timestamp || !Number.isFinite(ts)) return null;
+            const ts = firstFiniteNumber(entry?.ts, parseHistoryTimestamp(timestamp));
+            if (!Number.isFinite(ts)) return null;
             const players = firstFiniteNumber(
                 entry?.players,
                 entry?.current_players,
                 entry?.player_count,
                 entry?.value,
             );
+            const normalizedTimestamp = timestamp || new Date(ts).toISOString();
             return {
-                timestamp,
+                timestamp: normalizedTimestamp,
                 ts,
                 players: Number.isFinite(players) ? players : null,
+                isInterpolated: Boolean(entry?.is_interpolated),
             };
         })
         .filter(Boolean)
@@ -3498,13 +3487,11 @@ function getAuthoritativePlayerDisplaySeries(historyPayload, range, sourcePoints
         : normalizePlayerHistoryPoints(historyPayload?.players);
     const backendRangePayload = resolveBackendDisplayRangePayload(historyPayload, normalizedRange);
     const backendPoints = normalizeBackendDisplaySeriesPoints(backendRangePayload?.points);
-    const displayPoints = backendPoints.length
-        ? backendPoints
-        : filterPlayerPointsByRange(normalizedSourcePoints, normalizedRange);
+    const displayPoints = backendPoints;
     const minFromPayload = parseHistoryTimestamp(backendRangePayload?.range_start);
     const maxFromPayload = parseHistoryTimestamp(backendRangePayload?.range_end);
-    const fallbackMin = displayPoints[0]?.ts ?? normalizedSourcePoints[0]?.ts ?? null;
-    const fallbackMax = displayPoints[displayPoints.length - 1]?.ts ?? normalizedSourcePoints[normalizedSourcePoints.length - 1]?.ts ?? null;
+    const fallbackMin = displayPoints[0]?.ts ?? null;
+    const fallbackMax = displayPoints[displayPoints.length - 1]?.ts ?? null;
     return {
         range: normalizedRange,
         sourcePoints: normalizedSourcePoints,
@@ -3637,6 +3624,7 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
     const backendState = String(backendInsights?.state || "").trim().toLowerCase();
     const backendHeadline = PLAYER_INTEREST_HEADLINES[backendState] || PLAYER_INTEREST_HEADLINES.mixed;
     const comparableDisplayedPoints = displayedPoints.filter((point) => Number.isFinite(Number(point?.players)));
+    const comparableRealDisplayedPoints = comparableDisplayedPoints.filter((point) => !point?.isInterpolated);
     const coverageDays = computeHistoryCoverageDays(allPoints);
     const backendConfidence = getAuthoritativePlayerConfidenceText(currentGamePayload, coverageDays);
     if (!comparableDisplayedPoints.length || !allPoints.length) {
@@ -3652,12 +3640,19 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
 
     const first = comparableDisplayedPoints[0];
     const latest = comparableDisplayedPoints[comparableDisplayedPoints.length - 1];
-    const peakPoint = comparableDisplayedPoints.reduce(
-        (best, point) => (Number(point.players) > Number(best.players) ? point : best),
-        comparableDisplayedPoints[0],
-    );
-    const peakIndex = displayedPoints.findIndex((point) => point.ts === peakPoint.ts);
-    const spikeCandidate = findMajorPlayerSpike(comparableDisplayedPoints);
+    const markerCandidates = comparableRealDisplayedPoints;
+    const peakPoint = markerCandidates.length
+        ? markerCandidates.reduce(
+            (best, point) => (Number(point.players) > Number(best.players) ? point : best),
+            markerCandidates[0],
+        )
+        : null;
+    const peakIndex = peakPoint
+        ? displayedPoints.findIndex((point) => point.ts === peakPoint.ts)
+        : null;
+    const spikeCandidate = markerCandidates.length >= 3
+        ? findMajorPlayerSpike(markerCandidates)
+        : null;
     const spike = spikeCandidate
         ? (() => {
             const mappedIndex = displayedPoints.findIndex((point) => point.ts === spikeCandidate.ts);
@@ -3682,9 +3677,9 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
                     : trend
     );
 
-    const fromPeakPct = peakPoint.players > 0
+    const fromPeakPct = peakPoint && peakPoint.players > 0
         ? ((latest.players - peakPoint.players) / peakPoint.players) * 100
-        : 0;
+        : null;
     const fromPeakText = Number.isFinite(fromPeakPct)
         ? (fromPeakPct <= 0
             ? `Down ${Math.abs(fromPeakPct).toFixed(1)}% from range peak`

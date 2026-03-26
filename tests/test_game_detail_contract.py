@@ -24,6 +24,7 @@ class GameDetailContractTests(unittest.TestCase):
         self.assertIn('"all": None', self.server_text)
         self.assertIn('"display_series_by_range": display_series_by_range', self.server_text)
         self.assertIn('"display_series": selected_display.get("points", [])', self.server_text)
+        self.assertIn('"is_interpolated": index in interpolated_indexes', self.server_text)
 
     def test_player_display_series_are_evenly_progressive_by_bucket(self) -> None:
         base = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
@@ -49,7 +50,7 @@ class GameDetailContractTests(unittest.TestCase):
         self.assertTrue(points)
         self.assertTrue(all(delta == bucket_ms for delta in deltas))
 
-    def test_player_display_series_non_all_ranges_emit_full_timeline_with_null_gaps(self) -> None:
+    def test_player_display_series_non_all_ranges_fill_interior_gaps_only(self) -> None:
         base = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
 
         def make_point(day_offset: int, players: int) -> dict:
@@ -75,15 +76,34 @@ class GameDetailContractTests(unittest.TestCase):
                 series = server._build_player_display_series(source_points, range_key)
                 points = series.get("points", [])
                 min_ts, max_ts = server._resolve_player_range_bounds(source_points, range_key)
-                bucket_ms = server.PLAYER_HISTORY_DISPLAY_BUCKET_MS[range_key]
-                bucket_starts = server._build_player_bucket_timestamps(min_ts, max_ts, bucket_ms)
+                bucket_starts = server._build_player_bucket_timestamps(min_ts, max_ts, range_key)
                 self.assertEqual(len(points), len(bucket_starts))
                 self.assertEqual([int(point["ts"]) for point in points], bucket_starts)
-                self.assertEqual(points[0]["ts"], min_ts)
-                self.assertLessEqual(max_ts - int(points[-1]["ts"]), bucket_ms)
-                self.assertTrue(any(point["players"] is None for point in points))
+                self.assertTrue(points[0]["players"] is None)
+                self.assertFalse(bool(points[0]["is_interpolated"]))
+                interpolated_points = [point for point in points if point.get("is_interpolated")]
+                self.assertTrue(all(point["players"] is not None for point in interpolated_points))
+                for point_index, point in enumerate(points):
+                    if point["players"] is not None:
+                        continue
+                    has_left_real = any(candidate["players"] is not None for candidate in points[:point_index])
+                    has_right_real = any(candidate["players"] is not None for candidate in points[point_index + 1 :])
+                    self.assertFalse(has_left_real and has_right_real)
 
-    def test_player_display_series_all_range_keeps_interpolated_shape(self) -> None:
+        self.assertEqual(
+            server._build_player_display_series(source_points, "30d").get("point_count"),
+            31,
+        )
+        self.assertEqual(
+            server._build_player_display_series(source_points, "3m").get("point_count"),
+            14,
+        )
+        self.assertEqual(
+            server._build_player_display_series(source_points, "1y").get("point_count"),
+            13,
+        )
+
+    def test_player_display_series_all_range_keeps_coarse_monthly_shape(self) -> None:
         base = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
         start = {
             "timestamp": base.isoformat().replace("+00:00", "Z"),
@@ -103,13 +123,45 @@ class GameDetailContractTests(unittest.TestCase):
         bucket_starts = server._build_player_bucket_timestamps(
             min_ts,
             max_ts,
-            server.PLAYER_HISTORY_DISPLAY_BUCKET_MS["all"],
+            "all",
         )
         points = series.get("points", [])
 
         self.assertEqual(len(points), len(bucket_starts))
         self.assertEqual(points[0]["players"], 100)
-        self.assertEqual(points[-1]["players"], 700)
+        self.assertEqual(points[-1]["ts"], bucket_starts[-1])
+        self.assertFalse(any(point["players"] is None for point in points))
+        self.assertTrue(any(point.get("is_interpolated") for point in points))
+
+    def test_player_display_series_buckets_align_to_calendar_boundaries(self) -> None:
+        base = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+        source_points = []
+        for day_offset in range(0, 420, 5):
+            timestamp = base + datetime.timedelta(days=day_offset, hours=11, minutes=17)
+            source_points.append(
+                {
+                    "timestamp": timestamp.isoformat().replace("+00:00", "Z"),
+                    "ts": int(timestamp.timestamp() * 1000),
+                    "players": 500 + day_offset,
+                }
+            )
+
+        checks = {
+            "7d": lambda dt: dt.minute == 0 and dt.second == 0 and dt.microsecond == 0 and (dt.hour % 3 == 0),
+            "30d": lambda dt: dt.hour == 0 and dt.minute == 0 and dt.second == 0 and dt.microsecond == 0,
+            "3m": lambda dt: dt.weekday() == 0 and dt.hour == 0 and dt.minute == 0 and dt.second == 0,
+            "1y": lambda dt: dt.day == 1 and dt.hour == 0 and dt.minute == 0 and dt.second == 0,
+            "all": lambda dt: dt.day == 1 and dt.hour == 0 and dt.minute == 0 and dt.second == 0,
+        }
+
+        for range_key, predicate in checks.items():
+            with self.subTest(range_key=range_key):
+                series = server._build_player_display_series(source_points, range_key)
+                points = series.get("points", [])
+                self.assertTrue(points)
+                for point in points:
+                    dt = datetime.datetime.fromtimestamp(int(point["ts"]) / 1000, tz=datetime.timezone.utc)
+                    self.assertTrue(predicate(dt))
 
     def test_game_resolve_contract_normalizes_review_summary_and_counts(self) -> None:
         self.assertIn('"review_summary": review_summary,', self.server_text)
@@ -122,8 +174,9 @@ class GameDetailContractTests(unittest.TestCase):
     def test_game_page_uses_backend_player_series_and_review_order(self) -> None:
         self.assertIn("function getAuthoritativePlayerDisplaySeries(", self.game_text)
         self.assertIn("historyPayload?.display_series_by_range", self.game_text)
-        self.assertIn("players: Number.isFinite(players) ? players : null,", self.game_text)
+        self.assertIn("const displayPoints = backendPoints;", self.game_text)
         self.assertIn("const comparableDisplayedPoints = displayedPoints.filter((point) => Number.isFinite(Number(point?.players)));", self.game_text)
+        self.assertIn("const comparableRealDisplayedPoints = comparableDisplayedPoints.filter((point) => !point?.isInterpolated);", self.game_text)
         self.assertNotIn("function buildDisplayedPlayerSeries(", self.game_text)
         self.assertNotIn("Review summary pending", self.game_text)
         self.assertIn("if (review.summary) return review.summary;", self.game_text)

@@ -284,6 +284,8 @@ PLAYER_HISTORY_DISPLAY_BUCKET_MS: dict[str, int] = {
     "1y": 30 * PLAYER_HISTORY_DAY_MS,
     "all": 30 * PLAYER_HISTORY_DAY_MS,
 }
+PLAYER_HISTORY_INCOMPATIBLE_SOURCES: tuple[str, ...] = ("historical_import",)
+PLAYER_HISTORY_LEFT_EDGE_SEED_RANGES: tuple[str, ...] = ("30d", "3m", "1y")
 SEO_DISCOVERY_PAGE_DEFINITIONS: dict[str, dict[str, str]] = {
     "best-deals": {
         "slug": "best-deals",
@@ -3270,6 +3272,43 @@ def _build_player_bucket_timestamps(min_ts: int, max_ts: int, range_key: str) ->
     return timestamps
 
 
+def _resolve_player_left_edge_seed_value(
+    source_points: list[dict],
+    min_ts: int,
+    bucket_starts: list[int],
+    range_key: str,
+) -> float | None:
+    if range_key not in PLAYER_HISTORY_LEFT_EDGE_SEED_RANGES or not bucket_starts:
+        return None
+    prior_point: dict | None = None
+    for point in source_points:
+        point_ts = int(point.get("ts") or -1)
+        if point_ts >= min_ts:
+            break
+        players_value = safe_num(point.get("players"), default=-1.0)
+        if players_value >= 0:
+            prior_point = point
+    if prior_point is None:
+        return None
+
+    prior_ts = int(prior_point.get("ts") or -1)
+    if prior_ts < 0:
+        return None
+    if len(bucket_starts) >= 2:
+        bucket_span_ms = max(1, int(bucket_starts[1]) - int(bucket_starts[0]))
+    else:
+        bucket_span_ms = int(PLAYER_HISTORY_DISPLAY_BUCKET_MS.get(range_key, PLAYER_HISTORY_DAY_MS))
+    max_seed_gap_ms = max(bucket_span_ms * 2, PLAYER_HISTORY_DAY_MS)
+    gap_ms = int(bucket_starts[0]) - prior_ts
+    if gap_ms < 0 or gap_ms > max_seed_gap_ms:
+        return None
+
+    seeded_players = safe_num(prior_point.get("players"), default=-1.0)
+    if seeded_players < 0:
+        return None
+    return float(seeded_players)
+
+
 def _fill_player_bucket_interior_gaps(
     real_values: list[float | None],
 ) -> tuple[list[float | None], set[int]]:
@@ -3383,7 +3422,22 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
 
         real_bucket_values.append(players_value)
 
-    display_values, interpolated_indexes = _fill_player_bucket_interior_gaps(real_bucket_values)
+    interpolation_values = list(real_bucket_values)
+    seeded_indexes: set[int] = set()
+    has_real_buckets = any(value is not None for value in real_bucket_values)
+    if has_real_buckets and interpolation_values and interpolation_values[0] is None:
+        left_edge_seed = _resolve_player_left_edge_seed_value(
+            source_points,
+            min_ts,
+            bucket_starts,
+            normalized_range,
+        )
+        if left_edge_seed is not None:
+            interpolation_values[0] = left_edge_seed
+            seeded_indexes.add(0)
+
+    display_values, interpolated_indexes = _fill_player_bucket_interior_gaps(interpolation_values)
+    interpolated_indexes.update(seeded_indexes)
     ordered_points: list[dict] = []
     for index, bucket_start in enumerate(bucket_starts):
         players_value = display_values[index]
@@ -7060,7 +7114,14 @@ def get_game_player_history(
 
         row_count = (
             session.query(func.count(GamePlayerHistory.id))
-            .filter(GamePlayerHistory.game_id == game_id, GamePlayerHistory.current_players.isnot(None))
+            .filter(
+                GamePlayerHistory.game_id == game_id,
+                GamePlayerHistory.current_players.isnot(None),
+                or_(
+                    GamePlayerHistory.source.is_(None),
+                    ~GamePlayerHistory.source.in_(PLAYER_HISTORY_INCOMPATIBLE_SOURCES),
+                ),
+            )
             .scalar()
             or 0
         )
@@ -7077,6 +7138,7 @@ def get_game_player_history(
                         FROM game_player_history
                         WHERE game_id = :game_id
                           AND current_players IS NOT NULL
+                          AND COALESCE(source, '') <> 'historical_import'
                         GROUP BY bucket
                         ORDER BY bucket ASC
                         """
@@ -7093,6 +7155,7 @@ def get_game_player_history(
                         FROM game_player_history
                         WHERE game_id = :game_id
                           AND current_players IS NOT NULL
+                          AND COALESCE(source, '') <> 'historical_import'
                         GROUP BY bucket
                         ORDER BY bucket ASC
                         """
@@ -7106,6 +7169,10 @@ def get_game_player_history(
                 .filter(
                     GamePlayerHistory.game_id == game_id,
                     GamePlayerHistory.current_players.isnot(None),
+                    or_(
+                        GamePlayerHistory.source.is_(None),
+                        ~GamePlayerHistory.source.in_(PLAYER_HISTORY_INCOMPATIBLE_SOURCES),
+                    ),
                 )
                 .order_by(GamePlayerHistory.recorded_at.asc(), GamePlayerHistory.id.asc())
                 .all()
@@ -7123,6 +7190,10 @@ def get_game_player_history(
                 GamePlayerHistory.game_id == game_id,
                 GamePlayerHistory.current_players.isnot(None),
                 GamePlayerHistory.recorded_at >= seven_days_ago,
+                or_(
+                    GamePlayerHistory.source.is_(None),
+                    ~GamePlayerHistory.source.in_(PLAYER_HISTORY_INCOMPATIBLE_SOURCES),
+                ),
             )
             .first()
         )

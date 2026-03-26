@@ -3612,7 +3612,7 @@ function findMajorPlayerSpike(points) {
         const ratio = delta / previous.players;
         if (delta < minimumAbsoluteJump && ratio < 0.18) continue;
         if (!best || delta > best.delta || (delta === best.delta && ratio > best.ratio)) {
-            best = { index, delta, ratio, timestamp: current.timestamp };
+            best = { index, delta, ratio, timestamp: current.timestamp, ts: current.ts };
         }
     }
 
@@ -4440,8 +4440,12 @@ function renderPlayerChart(historyPayload, options = {}) {
                 if (!Number.isInteger(index) || index < 0 || index >= meta.data.length) return;
                 const point = meta.data[index];
                 if (!point) return;
-                const x = point.x;
-                const y = point.y;
+                const coords = typeof point.getProps === "function"
+                    ? point.getProps(["x", "y"], true)
+                    : point;
+                const x = Number(coords?.x);
+                const y = Number(coords?.y);
+                if (!Number.isFinite(x) || !Number.isFinite(y)) return;
                 const label = String(text || "").trim();
                 if (!label) return;
                 chart.ctx.save();
@@ -4450,8 +4454,22 @@ function renderPlayerChart(historyPayload, options = {}) {
                 const textWidth = chart.ctx.measureText(label).width;
                 const boxWidth = textWidth + 12;
                 const boxHeight = 18;
-                const xPos = Math.min(chart.chartArea.right - boxWidth - 4, Math.max(chart.chartArea.left + 4, x + 8));
-                const yPos = Math.max(chart.chartArea.top + 4, y - boxHeight - 8);
+                const chartLeft = chart.chartArea.left + 4;
+                const chartRight = chart.chartArea.right - boxWidth - 4;
+                const chartTop = chart.chartArea.top + 4;
+                const chartBottom = chart.chartArea.bottom - boxHeight - 4;
+                const rawX = x + 8;
+                const rawY = y - boxHeight - 8;
+                const xPos = Math.max(chartLeft, Math.min(chartRight, rawX));
+                const yPos = Math.max(chartTop, Math.min(chartBottom, rawY));
+
+                chart.ctx.strokeStyle = color;
+                chart.ctx.lineWidth = 1;
+                chart.ctx.beginPath();
+                chart.ctx.moveTo(x, y - 1);
+                chart.ctx.lineTo(xPos + 8, yPos + boxHeight);
+                chart.ctx.stroke();
+
                 chart.ctx.fillStyle = "rgba(7, 17, 31, 0.86)";
                 chart.ctx.strokeStyle = color;
                 chart.ctx.lineWidth = 1;

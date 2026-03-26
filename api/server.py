@@ -3213,14 +3213,15 @@ def _build_player_bucket_timestamps(min_ts: int, max_ts: int, bucket_ms: int) ->
     if max_ts == min_ts:
         return [min_ts]
 
-    timestamps = [min_ts]
+    timestamps: list[int] = []
     cursor = min_ts
     max_buckets = 4000
-    while (cursor + bucket_ms) < max_ts and len(timestamps) < max_buckets:
-        cursor += bucket_ms
+    while cursor <= max_ts and len(timestamps) < max_buckets:
         timestamps.append(cursor)
-    if timestamps[-1] != max_ts:
-        timestamps.append(max_ts)
+        next_cursor = cursor + bucket_ms
+        if next_cursor <= cursor:
+            break
+        cursor = next_cursor
     return timestamps
 
 
@@ -3283,8 +3284,10 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
 
     bucket_ms = int(PLAYER_HISTORY_DISPLAY_BUCKET_MS.get(normalized_range, PLAYER_HISTORY_DAY_MS))
     bucket_starts = _build_player_bucket_timestamps(min_ts, max_ts, bucket_ms)
+    if normalized_range == "all" and bucket_starts and bucket_starts[-1] != max_ts:
+        bucket_starts.append(max_ts)
     ranged_points = [point for point in source_points if min_ts <= point["ts"] <= max_ts]
-    if not ranged_points or not bucket_starts:
+    if not bucket_starts:
         return {
             "range": normalized_range,
             "bucket_ms": bucket_ms,
@@ -3316,28 +3319,35 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
                 continue
             if candidate_ts >= bucket_end_exclusive:
                 break
-            bucket_sum += float(candidate["players"])
+            candidate_players = safe_num(candidate.get("players"), default=-1.0)
+            if candidate_players < 0:
+                ranged_index += 1
+                continue
+            bucket_sum += float(candidate_players)
             bucket_count += 1
-            fallback_players = float(candidate["players"])
+            fallback_players = float(candidate_players)
             ranged_index += 1
 
         if bucket_count > 0:
             players_value = bucket_sum / bucket_count
         else:
             if not interpolate_empty_buckets:
-                # Non-ALL ranges must reflect only truthful in-bucket observations.
-                # Empty buckets are represented as gaps (no point emitted).
-                continue
-            players_value = _interpolate_players_at_timestamp(ranged_points, bucket_start)
-            if players_value is None:
-                players_value = _interpolate_players_at_timestamp(source_points, bucket_start)
-            if players_value is None:
-                players_value = fallback_players
-        if players_value is None:
+                players_value = None
+            else:
+                players_value = _interpolate_players_at_timestamp(ranged_points, bucket_start)
+                if players_value is None:
+                    players_value = _interpolate_players_at_timestamp(source_points, bucket_start)
+                if players_value is None:
+                    players_value = fallback_players
+        if players_value is None and interpolate_empty_buckets:
             continue
 
-        rounded_players = max(0, int(round(players_value)))
-        if interpolate_empty_buckets:
+        rounded_players = (
+            max(0, int(round(players_value)))
+            if players_value is not None
+            else None
+        )
+        if interpolate_empty_buckets and rounded_players is not None:
             fallback_players = float(rounded_players)
         series_points.append(
             {
@@ -3745,7 +3755,7 @@ def _build_snapshot_game_detail_payload(
         snapshot.review_score_label if snapshot and snapshot.review_score_label else game.review_score_label,
         review_score,
     )
-    review_summary = _first_non_empty_text(review_label)
+    review_summary = None
 
     worth_components = snapshot.worth_buying_components if snapshot and isinstance(snapshot.worth_buying_components, dict) else {}
     discount_strength = None
@@ -3974,7 +3984,7 @@ def _ensure_game_detail_contract(payload: dict) -> dict:
         if normalized["review_score"] is not None
         else None
     )
-    normalized["review_summary"] = review_summary or review_label or review_score_summary
+    normalized["review_summary"] = review_summary or review_score_summary or review_label
     normalized["review_score_label"] = review_label
     normalized["review_label"] = review_label
     normalized["review"] = {
@@ -3986,6 +3996,7 @@ def _ensure_game_detail_contract(payload: dict) -> dict:
         "review_score": normalized["review_score"],
         "review_label": normalized["review_label"],
         "review_count": normalized_review_count,
+        "review_total_count": normalized_review_count,
     }
     normalized.setdefault("prediction", {})
     if not isinstance(normalized.get("prediction"), dict):

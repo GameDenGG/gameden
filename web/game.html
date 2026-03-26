@@ -2851,16 +2851,24 @@ function getPlayerSignalInsights(payload) {
 function formatPlayerHistoryConfidence(insights, fallbackCoverageDays = null) {
     const confidence = Number(insights?.confidence);
     const coverageDaysRaw = Number(insights?.coverageDays);
+    const pointCountRaw = Number(insights?.pointCount);
+    const inferredCoverageDays = Number.isFinite(pointCountRaw)
+        ? Math.max(0, pointCountRaw - 1)
+        : null;
     const coverageDays = Number.isFinite(coverageDaysRaw)
         ? coverageDaysRaw
+        : Number.isFinite(inferredCoverageDays)
+            ? inferredCoverageDays
         : Number.isFinite(Number(fallbackCoverageDays))
             ? Number(fallbackCoverageDays)
             : null;
     if (Number.isFinite(confidence)) {
+        if (confidence < 0.45) return "Low confidence — limited data";
         if (confidence >= 0.75) return "High confidence — long-term data";
         if (confidence >= 0.45) return "Moderate confidence";
-        if (coverageDays !== null && coverageDays >= 365) return "Moderate confidence";
-        return "Low confidence — limited data";
+        if (coverageDays !== null && coverageDays >= 365) return "High confidence — long-term data";
+        if (coverageDays !== null && coverageDays >= 90) return "Moderate confidence";
+        return "Moderate confidence";
     }
     if (coverageDays !== null) {
         if (coverageDays >= 365) return "High confidence — long-term data";
@@ -3443,7 +3451,26 @@ function filterPlayerPointsByRange(points, range) {
 }
 
 function normalizeBackendDisplaySeriesPoints(entries) {
-    return normalizePlayerHistoryPoints(entries);
+    const rows = Array.isArray(entries) ? entries : [];
+    return rows
+        .map((entry) => {
+            const timestamp = String(entry?.timestamp ?? entry?.recorded_at ?? "").trim();
+            const ts = parseHistoryTimestamp(timestamp);
+            if (!timestamp || !Number.isFinite(ts)) return null;
+            const players = firstFiniteNumber(
+                entry?.players,
+                entry?.current_players,
+                entry?.player_count,
+                entry?.value,
+            );
+            return {
+                timestamp,
+                ts,
+                players: Number.isFinite(players) ? players : null,
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.ts - b.ts);
 }
 
 function resolveBackendDisplayRangePayload(historyPayload, range) {
@@ -3609,22 +3636,37 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
     const backendInsights = getPlayerSignalInsights(currentGamePayload);
     const backendState = String(backendInsights?.state || "").trim().toLowerCase();
     const backendHeadline = PLAYER_INTEREST_HEADLINES[backendState] || PLAYER_INTEREST_HEADLINES.mixed;
-    if (!displayedPoints.length || !allPoints.length) {
+    const comparableDisplayedPoints = displayedPoints.filter((point) => Number.isFinite(Number(point?.players)));
+    const coverageDays = computeHistoryCoverageDays(allPoints);
+    const backendConfidence = getAuthoritativePlayerConfidenceText(currentGamePayload, coverageDays);
+    if (!comparableDisplayedPoints.length || !allPoints.length) {
         return {
             trend: "flat",
             summary: "Player trend unavailable",
             detail: "",
-            coverage: "Low confidence — limited data",
+            coverage: backendConfidence,
             peakIndex: null,
             spike: null,
         };
     }
 
-    const first = displayedPoints[0];
-    const latest = displayedPoints[displayedPoints.length - 1];
-    const peakPoint = displayedPoints.reduce((best, point) => (point.players > best.players ? point : best), displayedPoints[0]);
+    const first = comparableDisplayedPoints[0];
+    const latest = comparableDisplayedPoints[comparableDisplayedPoints.length - 1];
+    const peakPoint = comparableDisplayedPoints.reduce(
+        (best, point) => (Number(point.players) > Number(best.players) ? point : best),
+        comparableDisplayedPoints[0],
+    );
     const peakIndex = displayedPoints.findIndex((point) => point.ts === peakPoint.ts);
-    const spike = findMajorPlayerSpike(displayedPoints);
+    const spikeCandidate = findMajorPlayerSpike(comparableDisplayedPoints);
+    const spike = spikeCandidate
+        ? (() => {
+            const mappedIndex = displayedPoints.findIndex((point) => point.ts === spikeCandidate.ts);
+            return {
+                ...spikeCandidate,
+                index: mappedIndex >= 0 ? mappedIndex : null,
+            };
+        })()
+        : null;
 
     const trendPct = first.players > 0
         ? ((latest.players - first.players) / first.players) * 100
@@ -3651,8 +3693,6 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
 
     const earliestAll = allPoints[0];
     const latestAll = allPoints[allPoints.length - 1];
-    const coverageDays = computeHistoryCoverageDays(allPoints);
-    const backendConfidence = getAuthoritativePlayerConfidenceText(currentGamePayload, coverageDays);
     const coverageSince = `Tracking since ${formatPlayerDate(earliestAll.timestamp)}`;
     const detailCandidates = [];
     if (backendState === "declining" || backendState === "launch_hype_dropoff") {

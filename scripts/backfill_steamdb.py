@@ -325,16 +325,14 @@ def fetch_historical_player_history(steam_appid: str) -> HistoricalPlayerBackfil
         if recorded_at is None:
             # Skip non-calendar labels such as "Last 30 Days".
             continue
-        # SteamCharts columns: Month, Avg. Players, Gain, % Gain, Peak Players.
-        # Use monthly average here so historical backfill aligns with concurrent trend math.
-        avg_players = _parse_int_token(cells[1].get_text(" ", strip=True))
-        if avg_players is None:
+        peak_players = _parse_int_token(cells[4].get_text(" ", strip=True))
+        if peak_players is None:
             continue
         rows.append(
             PlayerHistoryPoint(
                 recorded_at=recorded_at,
-                players=avg_players,
-                source="historical_import_avg",
+                players=peak_players,
+                source="historical_import",
             )
         )
 
@@ -345,7 +343,7 @@ def fetch_historical_player_history(steam_appid: str) -> HistoricalPlayerBackfil
     earliest = normalized_rows[0].recorded_at if normalized_rows else None
     latest = normalized_rows[-1].recorded_at if normalized_rows else None
     return HistoricalPlayerBackfillResult(
-        source_name="historical_import_avg",
+        source_name="historical_import",
         rows_parsed=len(normalized_rows),
         earliest_timestamp=earliest,
         latest_timestamp=latest,
@@ -393,7 +391,6 @@ def merge_player_sources(
 ) -> list[PlayerHistoryPoint]:
     source_priority = {
         "historical_import": 1,
-        "historical_import_avg": 1,
         "steamdb": 2,
     }
     merged: dict[datetime.datetime, PlayerHistoryPoint] = {}

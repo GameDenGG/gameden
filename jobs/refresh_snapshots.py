@@ -170,7 +170,6 @@ DEAL_RADAR_SIGNAL_PRIORITY = {
 WORTH_BUYING_SCORE_VERSION = "v1"
 MOMENTUM_SCORE_VERSION = "v1"
 PLAYER_HISTORY_LOOKBACK_DAYS = 730
-PLAYER_HISTORY_INCOMPATIBLE_SOURCES: tuple[str, ...] = ("historical_import",)
 WORKER_ID = os.getenv("SNAPSHOT_WORKER_ID") or f"refresh_snapshots:{uuid.uuid4().hex[:8]}"
 ROLLOUT_HOLD_TIER = INGESTION_ROLLOUT_HOLD_TIER
 DIRTY_CLAIM_PREDICATE_SQL = (
@@ -2427,10 +2426,6 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
             GamePlayerHistory.game_id.in_(game_ids),
             GamePlayerHistory.current_players.isnot(None),
             GamePlayerHistory.recorded_at >= player_history_cutoff,
-            (
-                GamePlayerHistory.source.is_(None)
-                | (~GamePlayerHistory.source.in_(PLAYER_HISTORY_INCOMPATIBLE_SOURCES))
-            ),
         )
         .group_by(GamePlayerHistory.game_id)
         .all()

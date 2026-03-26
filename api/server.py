@@ -286,6 +286,11 @@ PLAYER_HISTORY_DISPLAY_BUCKET_MS: dict[str, int] = {
 }
 PLAYER_HISTORY_INCOMPATIBLE_SOURCES: tuple[str, ...] = ("historical_import",)
 PLAYER_HISTORY_LEFT_EDGE_SEED_RANGES: tuple[str, ...] = ("30d", "3m", "1y")
+PLAYER_HISTORY_LEFT_EDGE_SEED_MAX_GAP_MS: dict[str, int] = {
+    "30d": 7 * PLAYER_HISTORY_DAY_MS,
+    "3m": 28 * PLAYER_HISTORY_DAY_MS,
+    "1y": 90 * PLAYER_HISTORY_DAY_MS,
+}
 SEO_DISCOVERY_PAGE_DEFINITIONS: dict[str, dict[str, str]] = {
     "best-deals": {
         "slug": "best-deals",
@@ -3298,7 +3303,13 @@ def _resolve_player_left_edge_seed_value(
         bucket_span_ms = max(1, int(bucket_starts[1]) - int(bucket_starts[0]))
     else:
         bucket_span_ms = int(PLAYER_HISTORY_DISPLAY_BUCKET_MS.get(range_key, PLAYER_HISTORY_DAY_MS))
-    max_seed_gap_ms = max(bucket_span_ms * 2, PLAYER_HISTORY_DAY_MS)
+    configured_gap_ms = int(
+        PLAYER_HISTORY_LEFT_EDGE_SEED_MAX_GAP_MS.get(
+            range_key,
+            PLAYER_HISTORY_DAY_MS,
+        )
+    )
+    max_seed_gap_ms = max(configured_gap_ms, bucket_span_ms)
     gap_ms = int(bucket_starts[0]) - prior_ts
     if gap_ms < 0 or gap_ms > max_seed_gap_ms:
         return None
@@ -7114,14 +7125,7 @@ def get_game_player_history(
 
         row_count = (
             session.query(func.count(GamePlayerHistory.id))
-            .filter(
-                GamePlayerHistory.game_id == game_id,
-                GamePlayerHistory.current_players.isnot(None),
-                or_(
-                    GamePlayerHistory.source.is_(None),
-                    ~GamePlayerHistory.source.in_(PLAYER_HISTORY_INCOMPATIBLE_SOURCES),
-                ),
-            )
+            .filter(GamePlayerHistory.game_id == game_id, GamePlayerHistory.current_players.isnot(None))
             .scalar()
             or 0
         )
@@ -7138,7 +7142,6 @@ def get_game_player_history(
                         FROM game_player_history
                         WHERE game_id = :game_id
                           AND current_players IS NOT NULL
-                          AND COALESCE(source, '') <> 'historical_import'
                         GROUP BY bucket
                         ORDER BY bucket ASC
                         """
@@ -7155,7 +7158,6 @@ def get_game_player_history(
                         FROM game_player_history
                         WHERE game_id = :game_id
                           AND current_players IS NOT NULL
-                          AND COALESCE(source, '') <> 'historical_import'
                         GROUP BY bucket
                         ORDER BY bucket ASC
                         """
@@ -7169,10 +7171,6 @@ def get_game_player_history(
                 .filter(
                     GamePlayerHistory.game_id == game_id,
                     GamePlayerHistory.current_players.isnot(None),
-                    or_(
-                        GamePlayerHistory.source.is_(None),
-                        ~GamePlayerHistory.source.in_(PLAYER_HISTORY_INCOMPATIBLE_SOURCES),
-                    ),
                 )
                 .order_by(GamePlayerHistory.recorded_at.asc(), GamePlayerHistory.id.asc())
                 .all()
@@ -7190,10 +7188,6 @@ def get_game_player_history(
                 GamePlayerHistory.game_id == game_id,
                 GamePlayerHistory.current_players.isnot(None),
                 GamePlayerHistory.recorded_at >= seven_days_ago,
-                or_(
-                    GamePlayerHistory.source.is_(None),
-                    ~GamePlayerHistory.source.in_(PLAYER_HISTORY_INCOMPATIBLE_SOURCES),
-                ),
             )
             .first()
         )

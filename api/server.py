@@ -268,6 +268,22 @@ HISTORY_RANGE_DAYS: dict[str, int] = {
     "90d": 90,
     "1y": 365,
 }
+PLAYER_HISTORY_RANGE_DAYS: dict[str, int | None] = {
+    "7d": 7,
+    "30d": 30,
+    "3m": 90,
+    "1y": 365,
+    "all": None,
+}
+PLAYER_HISTORY_RANGE_ORDER: tuple[str, ...] = ("7d", "30d", "3m", "1y", "all")
+PLAYER_HISTORY_DAY_MS = 24 * 60 * 60 * 1000
+PLAYER_HISTORY_DISPLAY_BUCKET_MS: dict[str, int] = {
+    "7d": 3 * 60 * 60 * 1000,
+    "30d": PLAYER_HISTORY_DAY_MS,
+    "3m": PLAYER_HISTORY_DAY_MS,
+    "1y": 7 * PLAYER_HISTORY_DAY_MS,
+    "all": 30 * PLAYER_HISTORY_DAY_MS,
+}
 SEO_DISCOVERY_PAGE_DEFINITIONS: dict[str, dict[str, str]] = {
     "best-deals": {
         "slug": "best-deals",
@@ -3121,6 +3137,228 @@ def downsample_history_points(
     return sampled
 
 
+def _coerce_utc_datetime(value) -> datetime.datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime.datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=datetime.timezone.utc)
+        return value.astimezone(datetime.timezone.utc)
+    text_value = str(value).strip()
+    if not text_value:
+        return None
+    try:
+        parsed = datetime.datetime.fromisoformat(text_value.replace("Z", "+00:00"))
+    except Exception:
+        try:
+            parsed = datetime.datetime.strptime(text_value, "%Y-%m-%d %H:%M:%S")
+        except Exception:
+            return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=datetime.timezone.utc)
+    return parsed.astimezone(datetime.timezone.utc)
+
+
+def _datetime_to_unix_ms(value) -> int | None:
+    normalized = _coerce_utc_datetime(value)
+    if normalized is None:
+        return None
+    return int(round(normalized.timestamp() * 1000))
+
+
+def _unix_ms_to_iso(value) -> str | None:
+    if value is None:
+        return None
+    try:
+        numeric_value = int(value)
+    except Exception:
+        return None
+    dt = datetime.datetime.fromtimestamp(numeric_value / 1000.0, tz=datetime.timezone.utc)
+    return dt.isoformat().replace("+00:00", "Z")
+
+
+def _normalize_player_history_points(rows: list[tuple]) -> list[dict]:
+    points: list[dict] = []
+    for timestamp_value, players_value in rows:
+        ts = _datetime_to_unix_ms(timestamp_value)
+        players = safe_num(players_value, default=-1.0)
+        if ts is None or players < 0:
+            continue
+        points.append(
+            {
+                "timestamp": _unix_ms_to_iso(ts),
+                "ts": ts,
+                "players": int(round(players)),
+            }
+        )
+    points.sort(key=lambda row: row["ts"])
+    return points
+
+
+def _resolve_player_range_bounds(source_points: list[dict], range_key: str) -> tuple[int | None, int | None]:
+    if not source_points:
+        return None, None
+    latest_ts = source_points[-1]["ts"]
+    days = PLAYER_HISTORY_RANGE_DAYS.get(range_key)
+    if days is None:
+        return source_points[0]["ts"], latest_ts
+    return latest_ts - (int(days) * PLAYER_HISTORY_DAY_MS), latest_ts
+
+
+def _build_player_bucket_timestamps(min_ts: int, max_ts: int, bucket_ms: int) -> list[int]:
+    if max_ts < min_ts:
+        return []
+    if bucket_ms <= 0:
+        return [min_ts, max_ts]
+    if max_ts == min_ts:
+        return [min_ts]
+
+    timestamps = [min_ts]
+    cursor = min_ts
+    max_buckets = 4000
+    while (cursor + bucket_ms) < max_ts and len(timestamps) < max_buckets:
+        cursor += bucket_ms
+        timestamps.append(cursor)
+    if timestamps[-1] != max_ts:
+        timestamps.append(max_ts)
+    return timestamps
+
+
+def _interpolate_players_at_timestamp(points: list[dict], target_ts: int) -> float | None:
+    if not points:
+        return None
+    if target_ts <= points[0]["ts"]:
+        return float(points[0]["players"])
+    if target_ts >= points[-1]["ts"]:
+        return float(points[-1]["players"])
+
+    low = 0
+    high = len(points) - 1
+    while low <= high:
+        middle = (low + high) // 2
+        middle_point = points[middle]
+        middle_ts = int(middle_point["ts"])
+        if middle_ts == target_ts:
+            return float(middle_point["players"])
+        if middle_ts < target_ts:
+            low = middle + 1
+        else:
+            high = middle - 1
+
+    right_index = min(len(points) - 1, max(0, low))
+    left_index = max(0, right_index - 1)
+    left = points[left_index]
+    right = points[right_index]
+    left_ts = int(left["ts"])
+    right_ts = int(right["ts"])
+    if right_ts == left_ts:
+        return float(right["players"])
+
+    progress = (target_ts - left_ts) / (right_ts - left_ts)
+    return float(left["players"]) + ((float(right["players"]) - float(left["players"])) * progress)
+
+
+def _build_player_display_series(source_points: list[dict], range_key: str) -> dict:
+    normalized_range = range_key if range_key in PLAYER_HISTORY_RANGE_DAYS else "all"
+    if not source_points:
+        return {
+            "range": normalized_range,
+            "bucket_ms": PLAYER_HISTORY_DISPLAY_BUCKET_MS.get(normalized_range, PLAYER_HISTORY_DAY_MS),
+            "range_start": None,
+            "range_end": None,
+            "point_count": 0,
+            "points": [],
+        }
+
+    min_ts, max_ts = _resolve_player_range_bounds(source_points, normalized_range)
+    if min_ts is None or max_ts is None:
+        return {
+            "range": normalized_range,
+            "bucket_ms": PLAYER_HISTORY_DISPLAY_BUCKET_MS.get(normalized_range, PLAYER_HISTORY_DAY_MS),
+            "range_start": None,
+            "range_end": None,
+            "point_count": 0,
+            "points": [],
+        }
+
+    bucket_ms = int(PLAYER_HISTORY_DISPLAY_BUCKET_MS.get(normalized_range, PLAYER_HISTORY_DAY_MS))
+    bucket_starts = _build_player_bucket_timestamps(min_ts, max_ts, bucket_ms)
+    ranged_points = [point for point in source_points if min_ts <= point["ts"] <= max_ts]
+    if not ranged_points or not bucket_starts:
+        return {
+            "range": normalized_range,
+            "bucket_ms": bucket_ms,
+            "range_start": _unix_ms_to_iso(min_ts),
+            "range_end": _unix_ms_to_iso(max_ts),
+            "point_count": 0,
+            "points": [],
+        }
+
+    ranged_index = 0
+    fallback_players = _interpolate_players_at_timestamp(ranged_points, min_ts)
+    if fallback_players is None:
+        fallback_players = _interpolate_players_at_timestamp(source_points, min_ts)
+    series_points: list[dict] = []
+
+    for index, bucket_start in enumerate(bucket_starts):
+        bucket_end_exclusive = bucket_starts[index + 1] if index < len(bucket_starts) - 1 else (max_ts + 1)
+        bucket_sum = 0.0
+        bucket_count = 0
+
+        while ranged_index < len(ranged_points):
+            candidate = ranged_points[ranged_index]
+            candidate_ts = int(candidate["ts"])
+            if candidate_ts < bucket_start:
+                ranged_index += 1
+                continue
+            if candidate_ts >= bucket_end_exclusive:
+                break
+            bucket_sum += float(candidate["players"])
+            bucket_count += 1
+            fallback_players = float(candidate["players"])
+            ranged_index += 1
+
+        if bucket_count > 0:
+            players_value = bucket_sum / bucket_count
+        else:
+            players_value = _interpolate_players_at_timestamp(ranged_points, bucket_start)
+            if players_value is None:
+                players_value = _interpolate_players_at_timestamp(source_points, bucket_start)
+            if players_value is None:
+                players_value = fallback_players
+        if players_value is None:
+            continue
+
+        rounded_players = max(0, int(round(players_value)))
+        fallback_players = float(rounded_players)
+        series_points.append(
+            {
+                "timestamp": _unix_ms_to_iso(bucket_start),
+                "ts": bucket_start,
+                "players": rounded_players,
+            }
+        )
+
+    deduped_by_ts = {point["ts"]: point for point in series_points}
+    ordered_points = [deduped_by_ts[key] for key in sorted(deduped_by_ts.keys())]
+
+    return {
+        "range": normalized_range,
+        "bucket_ms": bucket_ms,
+        "range_start": _unix_ms_to_iso(min_ts),
+        "range_end": _unix_ms_to_iso(max_ts),
+        "point_count": len(ordered_points),
+        "points": ordered_points,
+    }
+
+
+def _build_player_display_series_by_range(source_points: list[dict]) -> dict[str, dict]:
+    return {
+        range_key: _build_player_display_series(source_points, range_key)
+        for range_key in PLAYER_HISTORY_RANGE_ORDER
+    }
+
+
 def downsample_price_rows(rows, range_key: str):
     if range_key in {"30d", "90d"}:
         return rows
@@ -3485,6 +3723,21 @@ def _build_snapshot_game_detail_payload(
         if snapshot and snapshot.deal_heat_reason
         else "Snapshot-derived market context."
     )
+    review_score = (
+        snapshot.review_score
+        if snapshot and snapshot.review_score is not None
+        else game.review_score
+    )
+    review_count = (
+        snapshot.review_count
+        if snapshot and snapshot.review_count is not None
+        else game.review_total_count
+    )
+    review_label = _normalize_review_label(
+        snapshot.review_score_label if snapshot and snapshot.review_score_label else game.review_score_label,
+        review_score,
+    )
+    review_summary = _first_non_empty_text(review_label)
 
     worth_components = snapshot.worth_buying_components if snapshot and isinstance(snapshot.worth_buying_components, dict) else {}
     discount_strength = None
@@ -3531,24 +3784,12 @@ def _build_snapshot_game_detail_payload(
         "release_date_text": (
             snapshot.release_date_text if snapshot and snapshot.release_date_text else game.release_date_text
         ),
-        "review_score": (
-            snapshot.review_score
-            if snapshot and snapshot.review_score is not None
-            else game.review_score
-        ),
-        "review_score_label": (
-            snapshot.review_score_label if snapshot and snapshot.review_score_label else game.review_score_label
-        ),
-        "review_count": (
-            snapshot.review_count
-            if snapshot and snapshot.review_count is not None
-            else game.review_total_count
-        ),
-        "review_total_count": (
-            snapshot.review_count
-            if snapshot and snapshot.review_count is not None
-            else game.review_total_count
-        ),
+        "review_summary": review_summary,
+        "review_score": review_score,
+        "review_score_label": review_label,
+        "review_label": review_label,
+        "review_count": review_count,
+        "review_total_count": review_count,
         "tags": parse_csv_field(_first_non_null(snapshot.tags if snapshot else None, game.tags)),
         "genres": parse_csv_field(_first_non_null(snapshot.genres if snapshot else None, game.genres)),
         "platforms": parse_csv_field(_first_non_null(snapshot.platforms if snapshot else None, game.platforms)),
@@ -3696,6 +3937,18 @@ def _ensure_game_detail_contract(payload: dict) -> dict:
         default=-1.0,
     )
     normalized["review_score"] = round(review_score, 2) if review_score >= 0 else None
+    review_count = safe_num(
+        _first_non_null(
+            normalized.get("review_count"),
+            normalized.get("review_total_count"),
+            normalized.get("reviewCount"),
+            normalized.get("reviews", {}).get("count") if isinstance(normalized.get("reviews"), dict) else None,
+        ),
+        default=-1.0,
+    )
+    normalized_review_count = int(round(review_count)) if review_count >= 0 else None
+    normalized["review_count"] = normalized_review_count
+    normalized["review_total_count"] = normalized_review_count
     review_summary = _first_non_empty_text(
         normalized.get("review_summary"),
         normalized.get("reviewSummary"),
@@ -3713,9 +3966,19 @@ def _ensure_game_detail_contract(payload: dict) -> dict:
         if normalized["review_score"] is not None
         else None
     )
-    normalized["review_summary"] = review_summary or review_score_summary or review_label
+    normalized["review_summary"] = review_summary or review_label or review_score_summary
     normalized["review_score_label"] = review_label
     normalized["review_label"] = review_label
+    normalized["review"] = {
+        "summary": normalized["review_summary"],
+        "score": normalized["review_score"],
+        "label": normalized["review_label"],
+        "count": normalized_review_count,
+        "review_summary": normalized["review_summary"],
+        "review_score": normalized["review_score"],
+        "review_label": normalized["review_label"],
+        "review_count": normalized_review_count,
+    }
     normalized.setdefault("prediction", {})
     if not isinstance(normalized.get("prediction"), dict):
         normalized["prediction"] = {}
@@ -6727,7 +6990,11 @@ def get_game_history_by_id(
 @app.get("/games/{game_id}/player-history")
 @json_etag()
 @ttl_cache(ttl_seconds=600, endpoint_key="/games/{game_id}/player-history")
-def get_game_player_history(request: Request, game_id: int):
+def get_game_player_history(
+    request: Request,
+    game_id: int,
+    range: str = Query(default="all", pattern="^(7d|30d|3m|1y|all)$"),
+):
     started = _start_timer()
     session = ReadSessionLocal()
     try:
@@ -6742,6 +7009,7 @@ def get_game_player_history(request: Request, game_id: int):
             or 0
         )
 
+        source_points: list[dict] = []
         if row_count > 5000:
             if session.bind and session.bind.dialect.name == "postgresql":
                 rows = session.execute(
@@ -6775,19 +7043,7 @@ def get_game_player_history(request: Request, game_id: int):
                     ),
                     {"game_id": game_id},
                 ).fetchall()
-            players = [
-                {
-                    "timestamp": (
-                        row[0].replace(tzinfo=datetime.timezone.utc).isoformat().replace("+00:00", "Z")
-                        if row[0] and isinstance(row[0], datetime.datetime) and row[0].tzinfo is None
-                        else row[0].isoformat().replace("+00:00", "Z")
-                        if row[0] and isinstance(row[0], datetime.datetime)
-                        else str(row[0])
-                    ),
-                    "players": int(round(float(row[1]))) if row[1] is not None else None,
-                }
-                for row in rows
-            ]
+            source_points = _normalize_player_history_points([(row[0], row[1]) for row in rows])
         else:
             rows = (
                 session.query(GamePlayerHistory.recorded_at, GamePlayerHistory.current_players)
@@ -6798,19 +7054,7 @@ def get_game_player_history(request: Request, game_id: int):
                 .order_by(GamePlayerHistory.recorded_at.asc(), GamePlayerHistory.id.asc())
                 .all()
             )
-            players = [
-                {
-                    "timestamp": (
-                        ts.replace(tzinfo=datetime.timezone.utc).isoformat().replace("+00:00", "Z")
-                        if ts and ts.tzinfo is None
-                        else ts.isoformat().replace("+00:00", "Z")
-                        if ts
-                        else None
-                    ),
-                    "players": int(value) if value is not None else None,
-                }
-                for ts, value in rows
-            ]
+            source_points = _normalize_player_history_points(rows)
 
         seven_days_ago = utc_now() - datetime.timedelta(days=7)
         stats_row = (
@@ -6826,15 +7070,31 @@ def get_game_player_history(request: Request, game_id: int):
             )
             .first()
         )
+        display_series_by_range = _build_player_display_series_by_range(source_points)
+        selected_range = str(range or "all").strip().lower()
+        selected_display = display_series_by_range.get(selected_range) or display_series_by_range["all"]
 
         return {
             "game_id": game_id,
+            "range": selected_display["range"],
             "stats": {
                 "peak_players": int(stats_row[0]) if stats_row and stats_row[0] is not None else None,
                 "avg_players": int(round(float(stats_row[1]))) if stats_row and stats_row[1] is not None else None,
                 "min_players": int(stats_row[2]) if stats_row and stats_row[2] is not None else None,
             },
-            "players": players,
+            "players": [
+                {
+                    "timestamp": point["timestamp"],
+                    "players": point["players"],
+                }
+                for point in source_points
+            ],
+            "display_series": selected_display.get("points", []),
+            "display_point_count": int(selected_display.get("point_count") or 0),
+            "display_bucket_ms": int(selected_display.get("bucket_ms") or 0),
+            "display_range_start": selected_display.get("range_start"),
+            "display_range_end": selected_display.get("range_end"),
+            "display_series_by_range": display_series_by_range,
         }
     finally:
         session.close()

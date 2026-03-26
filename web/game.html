@@ -1657,8 +1657,6 @@ function normalizeGameReview(payload) {
         reviewPayload?.review_score,
         payload?.review_score,
         payload?.reviewScore,
-        payload?.reviews?.score,
-        payload?.reviews?.review_score,
     );
     const score = Number.isFinite(scoreRaw) && scoreRaw > 0
         ? Math.max(0, Math.min(100, scoreRaw))
@@ -1670,35 +1668,28 @@ function normalizeGameReview(payload) {
         reviewPayload?.reviewSummary,
         payload?.review_summary,
         payload?.reviewSummary,
-        payload?.reviews?.summary,
-        payload?.reviews?.reviewSummary,
-        payload?.reviews?.review_summary,
     );
     const label = firstNonEmptyText(
         reviewPayload?.label,
-        payload?.review_score_label,
         payload?.review_label,
+        payload?.review_score_label,
         payload?.reviewScoreLabel,
-        payload?.reviews?.label,
-        payload?.reviews?.review_label,
     );
     const countRaw = firstFiniteNumber(
         reviewPayload?.count,
-        payload?.review_total_count,
+        reviewPayload?.review_count,
         payload?.review_count,
+        payload?.review_total_count,
         payload?.reviewCount,
-        payload?.reviews?.count,
-        payload?.reviews?.review_count,
     );
     const count = Number.isFinite(countRaw) && countRaw > 0 ? Math.round(countRaw) : null;
     const sentiment = firstNonEmptyText(
         reviewPayload?.sentiment,
         payload?.review_sentiment,
-        payload?.reviews?.sentiment,
     );
 
     return {
-        summary: summary || scoreText || label || "",
+        summary: summary || "",
         score,
         score_text: scoreText,
         label: label || "",
@@ -1879,15 +1870,7 @@ const PLAYER_HISTORY_RANGE_LABELS = Object.freeze({
     "1y": "1 year",
     all: "all available history",
 });
-const PLAYER_HISTORY_HOUR_MS = 60 * 60 * 1000;
-const PLAYER_HISTORY_DAY_MS = 24 * PLAYER_HISTORY_HOUR_MS;
-const PLAYER_HISTORY_DISPLAY_BUCKET_MS = Object.freeze({
-    "7d": 3 * PLAYER_HISTORY_HOUR_MS,
-    "30d": PLAYER_HISTORY_DAY_MS,
-    "3m": PLAYER_HISTORY_DAY_MS,
-    "1y": 7 * PLAYER_HISTORY_DAY_MS,
-    all: 30 * PLAYER_HISTORY_DAY_MS,
-});
+const PLAYER_HISTORY_DAY_MS = 24 * 60 * 60 * 1000;
 const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
 
 if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
@@ -2629,7 +2612,9 @@ function parseCsv(value) {
 function getReviewSummary(payload) {
     const review = getNormalizedGameReview(payload);
     if (review.summary) return review.summary;
-    return "Review summary pending";
+    if (review.score_text) return review.score_text;
+    if (review.label) return review.label;
+    return "—";
 }
 
 function getReviewScoreValue(payload) {
@@ -2672,7 +2657,7 @@ function getEngagementText(payload) {
 
 function getReviewLabel(payload) {
     const review = getNormalizedGameReview(payload);
-    return review.label || review.summary || "Review summary pending";
+    return review.label || "—";
 }
 
 function resolveGameContext(payload) {
@@ -3444,178 +3429,63 @@ function computeHistoryCoverageDays(points) {
     return Math.max(0, (lastTs - firstTs) / PLAYER_HISTORY_DAY_MS);
 }
 
-function resolvePlayerRangeBounds(points, range) {
+function filterPlayerPointsByRange(points, range) {
     const rows = Array.isArray(points) ? points : [];
-    if (!rows.length) return { min: null, max: null };
-    const latestTs = rows[rows.length - 1].ts;
-    if (!Number.isFinite(latestTs)) return { min: null, max: null };
-    const days = PLAYER_HISTORY_RANGE_DAYS[range];
-    if (!Number.isFinite(days)) {
-        const earliestTs = rows[0].ts;
-        return {
-            min: Number.isFinite(earliestTs) ? earliestTs : null,
-            max: latestTs,
-        };
-    }
-    const rangeMs = days * 24 * 60 * 60 * 1000;
-    return {
-        min: latestTs - rangeMs,
-        max: latestTs,
-    };
-}
-
-function dedupePlayerPointsByTimestamp(points) {
-    const byTimestamp = new Map();
-    (Array.isArray(points) ? points : []).forEach((point) => {
-        if (!point || !Number.isFinite(point.ts)) return;
-        byTimestamp.set(point.ts, point);
-    });
-    return Array.from(byTimestamp.values()).sort((a, b) => a.ts - b.ts);
-}
-
-function resolvePlayerDisplayBucketMs(range) {
-    const bucketMs = PLAYER_HISTORY_DISPLAY_BUCKET_MS[range];
-    return Number.isFinite(bucketMs) && bucketMs > 0
-        ? bucketMs
-        : PLAYER_HISTORY_DAY_MS;
-}
-
-function buildPlayerBucketTimestamps(minTs, maxTs, bucketMs) {
-    if (!Number.isFinite(minTs) || !Number.isFinite(maxTs) || maxTs < minTs) return [];
-    if (!Number.isFinite(bucketMs) || bucketMs <= 0) return [minTs, maxTs];
-    if (maxTs === minTs) return [minTs];
-
-    const timestamps = [minTs];
-    const maxBuckets = 4000;
-    let cursor = minTs;
-    while ((cursor + bucketMs) < maxTs && timestamps.length < maxBuckets) {
-        cursor += bucketMs;
-        timestamps.push(cursor);
-    }
-    if (timestamps[timestamps.length - 1] !== maxTs) {
-        timestamps.push(maxTs);
-    }
-    return timestamps;
-}
-
-function interpolatePlayersAtTimestamp(points, targetTs) {
-    const rows = Array.isArray(points) ? points : [];
-    if (!rows.length || !Number.isFinite(targetTs)) return null;
-    if (targetTs <= rows[0].ts) return rows[0].players;
-    if (targetTs >= rows[rows.length - 1].ts) return rows[rows.length - 1].players;
-
-    let low = 0;
-    let high = rows.length - 1;
-    while (low <= high) {
-        const middle = Math.floor((low + high) / 2);
-        const point = rows[middle];
-        if (point.ts === targetTs) return point.players;
-        if (point.ts < targetTs) {
-            low = middle + 1;
-        } else {
-            high = middle - 1;
-        }
-    }
-
-    const rightIndex = Math.min(rows.length - 1, Math.max(0, low));
-    const leftIndex = Math.max(0, rightIndex - 1);
-    const left = rows[leftIndex];
-    const right = rows[rightIndex];
-    if (!left && !right) return null;
-    if (!left) return right.players;
-    if (!right) return left.players;
-    if (right.ts === left.ts) return right.players;
-
-    const progress = (targetTs - left.ts) / (right.ts - left.ts);
-    return left.players + ((right.players - left.players) * progress);
-}
-
-function buildDisplayedPlayerSeries(rawRows, range) {
+    if (!rows.length) return [];
     const normalizedRange = normalizePlayerRange(range) || "all";
-    const sourcePoints = normalizePlayerHistoryPoints(rawRows);
-    if (!sourcePoints.length) {
+    const days = PLAYER_HISTORY_RANGE_DAYS[normalizedRange];
+    if (!Number.isFinite(days)) return rows;
+    const latestTs = rows[rows.length - 1]?.ts;
+    if (!Number.isFinite(latestTs)) return rows;
+    const cutoffTs = latestTs - (days * PLAYER_HISTORY_DAY_MS);
+    const filtered = rows.filter((point) => Number.isFinite(point.ts) && point.ts >= cutoffTs && point.ts <= latestTs);
+    return filtered.length ? filtered : rows;
+}
+
+function normalizeBackendDisplaySeriesPoints(entries) {
+    return normalizePlayerHistoryPoints(entries);
+}
+
+function resolveBackendDisplayRangePayload(historyPayload, range) {
+    const normalizedRange = normalizePlayerRange(range) || "all";
+    const backendMap = historyPayload?.display_series_by_range;
+    const backendRangePayload = backendMap && typeof backendMap === "object"
+        ? backendMap[normalizedRange]
+        : null;
+    if (!backendRangePayload || typeof backendRangePayload !== "object") {
         return {
             range: normalizedRange,
-            sourcePoints: [],
-            series: [],
-            rangeBounds: { min: null, max: null },
+            point_count: 0,
+            points: [],
+            range_start: null,
+            range_end: null,
         };
     }
+    return backendRangePayload;
+}
 
-    const resolvedBounds = resolvePlayerRangeBounds(sourcePoints, normalizedRange);
-    const fallbackMin = sourcePoints[0].ts;
-    const fallbackMax = sourcePoints[sourcePoints.length - 1].ts;
-    const minTs = Number.isFinite(resolvedBounds.min) ? resolvedBounds.min : fallbackMin;
-    const maxTs = Number.isFinite(resolvedBounds.max) ? resolvedBounds.max : fallbackMax;
-    if (!Number.isFinite(minTs) || !Number.isFinite(maxTs) || maxTs < minTs) {
-        return {
-            range: normalizedRange,
-            sourcePoints,
-            series: [],
-            rangeBounds: { min: fallbackMin, max: fallbackMax },
-        };
-    }
-
-    const bucketStarts = buildPlayerBucketTimestamps(
-        minTs,
-        maxTs,
-        resolvePlayerDisplayBucketMs(normalizedRange),
-    );
-    const rangedRawPoints = sourcePoints.filter((point) => point.ts >= minTs && point.ts <= maxTs);
-    if (!rangedRawPoints.length) {
-        return {
-            range: normalizedRange,
-            sourcePoints,
-            series: [],
-            rangeBounds: { min: minTs, max: maxTs },
-        };
-    }
-    let rangedIndex = 0;
-    let fallbackPlayers = interpolatePlayersAtTimestamp(rangedRawPoints, minTs);
-    if (!Number.isFinite(fallbackPlayers)) {
-        fallbackPlayers = interpolatePlayersAtTimestamp(sourcePoints, minTs);
-    }
-    const bucketedPoints = [];
-
-    for (let index = 0; index < bucketStarts.length; index += 1) {
-        const bucketStart = bucketStarts[index];
-        const bucketEndExclusive = index < bucketStarts.length - 1
-            ? bucketStarts[index + 1]
-            : maxTs + 1;
-        let sum = 0;
-        let count = 0;
-
-        while (rangedIndex < rangedRawPoints.length) {
-            const candidate = rangedRawPoints[rangedIndex];
-            if (candidate.ts < bucketStart) {
-                rangedIndex += 1;
-                continue;
-            }
-            if (candidate.ts >= bucketEndExclusive) break;
-            sum += candidate.players;
-            count += 1;
-            fallbackPlayers = candidate.players;
-            rangedIndex += 1;
-        }
-
-        let players = count > 0 ? (sum / count) : interpolatePlayersAtTimestamp(rangedRawPoints, bucketStart);
-        if (!Number.isFinite(players)) players = interpolatePlayersAtTimestamp(sourcePoints, bucketStart);
-        if (!Number.isFinite(players)) players = fallbackPlayers;
-        if (!Number.isFinite(players)) continue;
-        const roundedPlayers = Math.max(0, Math.round(players));
-        fallbackPlayers = roundedPlayers;
-        bucketedPoints.push({
-            timestamp: new Date(bucketStart).toISOString(),
-            ts: bucketStart,
-            players: roundedPlayers,
-        });
-    }
-
+function getAuthoritativePlayerDisplaySeries(historyPayload, range, sourcePoints = null) {
+    const normalizedRange = normalizePlayerRange(range) || "all";
+    const normalizedSourcePoints = Array.isArray(sourcePoints) && sourcePoints.length
+        ? sourcePoints
+        : normalizePlayerHistoryPoints(historyPayload?.players);
+    const backendRangePayload = resolveBackendDisplayRangePayload(historyPayload, normalizedRange);
+    const backendPoints = normalizeBackendDisplaySeriesPoints(backendRangePayload?.points);
+    const displayPoints = backendPoints.length
+        ? backendPoints
+        : filterPlayerPointsByRange(normalizedSourcePoints, normalizedRange);
+    const minFromPayload = parseHistoryTimestamp(backendRangePayload?.range_start);
+    const maxFromPayload = parseHistoryTimestamp(backendRangePayload?.range_end);
+    const fallbackMin = displayPoints[0]?.ts ?? normalizedSourcePoints[0]?.ts ?? null;
+    const fallbackMax = displayPoints[displayPoints.length - 1]?.ts ?? normalizedSourcePoints[normalizedSourcePoints.length - 1]?.ts ?? null;
     return {
         range: normalizedRange,
-        sourcePoints,
-        series: dedupePlayerPointsByTimestamp(bucketedPoints),
-        rangeBounds: { min: minTs, max: maxTs },
+        sourcePoints: normalizedSourcePoints,
+        series: displayPoints,
+        rangeBounds: {
+            min: Number.isFinite(minFromPayload) ? minFromPayload : fallbackMin,
+            max: Number.isFinite(maxFromPayload) ? maxFromPayload : fallbackMax,
+        },
     };
 }
 
@@ -4470,16 +4340,17 @@ function renderPlayerChart(historyPayload, options = {}) {
     }
     setChartEmptyState("playerChartEmpty", "");
     const selectedRange = normalizePlayerRange(options?.range) || activePlayerRange;
-    const series = buildDisplayedPlayerSeries(historyPayload?.players, selectedRange);
+    const sourcePoints = normalizePlayerHistoryPoints(historyPayload?.players);
+    const series = getAuthoritativePlayerDisplaySeries(historyPayload, selectedRange, sourcePoints);
     const range = series.range;
-    const sourcePoints = series.sourcePoints;
+    const authoritativeSourcePoints = series.sourcePoints;
     const displayedPoints = series.series;
-    if (sourcePoints.length) {
-        currentPlayerHistoryCoverageDays = computeHistoryCoverageDays(sourcePoints);
+    if (authoritativeSourcePoints.length) {
+        currentPlayerHistoryCoverageDays = computeHistoryCoverageDays(authoritativeSourcePoints);
     }
     const trendInsights = computePlayerTrendInsights(
         displayedPoints,
-        sourcePoints.length ? sourcePoints : displayedPoints,
+        authoritativeSourcePoints.length ? authoritativeSourcePoints : displayedPoints,
         range,
     );
     renderPlayerTrendInsights(trendInsights);

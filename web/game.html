@@ -3622,12 +3622,31 @@ function findMajorPlayerSpike(points) {
 function computePlayerTrendInsights(displayedPoints, allPoints, range) {
     const backendInsights = getPlayerSignalInsights(currentGamePayload);
     const backendState = String(backendInsights?.state || "").trim().toLowerCase();
-    const backendHeadline = PLAYER_INTEREST_HEADLINES[backendState] || PLAYER_INTEREST_HEADLINES.mixed;
-    const comparableDisplayedPoints = displayedPoints.filter((point) => Number.isFinite(Number(point?.players)));
-    const comparableRealDisplayedPoints = comparableDisplayedPoints.filter((point) => !point?.isInterpolated);
+    const backendHeadline =
+        PLAYER_INTEREST_HEADLINES[backendState] || PLAYER_INTEREST_HEADLINES.mixed;
+
     const coverageDays = computeHistoryCoverageDays(allPoints);
-    const backendConfidence = getAuthoritativePlayerConfidenceText(currentGamePayload, coverageDays);
-    if (!comparableDisplayedPoints.length || !allPoints.length) {
+    const backendConfidence = getAuthoritativePlayerConfidenceText(
+        currentGamePayload,
+        coverageDays,
+    );
+
+    const normalizedDisplayedPoints = Array.isArray(displayedPoints)
+        ? displayedPoints.map((point, index) => {
+            const players = Number(point?.players);
+            return {
+                ...point,
+                __index: index,
+                players: Number.isFinite(players) ? players : null,
+            };
+        })
+        : [];
+
+    const comparableDisplayedPoints = normalizedDisplayedPoints.filter(
+        (point) => point.players !== null,
+    );
+
+    if (!comparableDisplayedPoints.length || !Array.isArray(allPoints) || !allPoints.length) {
         return {
             trend: "flat",
             summary: "Player trend unavailable",
@@ -3640,40 +3659,57 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
 
     const first = comparableDisplayedPoints[0];
     const latest = comparableDisplayedPoints[comparableDisplayedPoints.length - 1];
-    const firstRealPoint = comparableDisplayedPoints.find((point) => !point?.isInterpolated) || null;
-    const markerCandidates = comparableDisplayedPoints.filter((point) => {
-        if (!point) return false;
-        if (!point.isInterpolated) return true;
-        if (!firstRealPoint) return true;
-        // Exclude only left-edge continuity seed/fill before first real anchor.
-        return Number(point.ts) >= Number(firstRealPoint.ts);
-    });
-    const peakPoint = markerCandidates.length
-        ? markerCandidates.reduce(
-            (best, point) => (Number(point.players) > Number(best.players) ? point : best),
-            markerCandidates[0],
-        )
-        : null;
-    const peakIndex = peakPoint
-        ? displayedPoints.findIndex((point) => point.ts === peakPoint.ts)
-        : null;
-    const spikeCandidate = markerCandidates.length >= 3
-        ? findMajorPlayerSpike(markerCandidates)
-        : null;
-    const spike = spikeCandidate
-        ? (() => {
-            const mappedIndex = displayedPoints.findIndex((point) => point.ts === spikeCandidate.ts);
-            return {
-                ...spikeCandidate,
-                index: mappedIndex >= 0 ? mappedIndex : null,
+
+    // Peak must come from the exact rendered series.
+    // Tie-breaker prefers later point so label sits on visible topmost/latest occurrence.
+    let peakPoint = comparableDisplayedPoints[0];
+    for (let i = 1; i < comparableDisplayedPoints.length; i += 1) {
+        const point = comparableDisplayedPoints[i];
+        if (
+            point.players > peakPoint.players ||
+            (point.players === peakPoint.players && point.__index > peakPoint.__index)
+        ) {
+            peakPoint = point;
+        }
+    }
+    const peakIndex = peakPoint.__index;
+
+    // Spike must also come from consecutive rendered points.
+    // This guarantees index alignment with Chart.js meta.data[index].
+    let spike = null;
+    for (let i = 1; i < normalizedDisplayedPoints.length; i += 1) {
+        const prev = normalizedDisplayedPoints[i - 1];
+        const curr = normalizedDisplayedPoints[i];
+
+        if (prev.players === null || curr.players === null) continue;
+
+        const delta = curr.players - prev.players;
+        if (delta <= 0) continue;
+
+        if (
+            !spike ||
+            delta > spike.delta ||
+            (delta === spike.delta && curr.players > spike.players)
+        ) {
+            spike = {
+                ts: curr.ts,
+                timestamp: curr.timestamp,
+                players: curr.players,
+                delta,
+                index: curr.__index,
+                previousTs: prev.ts,
+                previousTimestamp: prev.timestamp,
+                previousPlayers: prev.players,
             };
-        })()
-        : null;
+        }
+    }
 
     const trendPct = first.players > 0
         ? ((latest.players - first.players) / first.players) * 100
         : 0;
+
     const trend = trendPct >= 2.5 ? "up" : trendPct <= -2.5 ? "down" : "flat";
+
     const trendFromState = (
         backendState === "declining" || backendState === "launch_hype_dropoff"
             ? "down"
@@ -3687,28 +3723,39 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
     const fromPeakPct = peakPoint && peakPoint.players > 0
         ? ((latest.players - peakPoint.players) / peakPoint.players) * 100
         : null;
+
     const fromPeakText = Number.isFinite(fromPeakPct)
-        ? (fromPeakPct <= 0
-            ? `Down ${Math.abs(fromPeakPct).toFixed(1)}% from range peak`
-            : `Up ${fromPeakPct.toFixed(1)}% above earlier range peak`)
+        ? (
+            fromPeakPct <= 0
+                ? `Down ${Math.abs(fromPeakPct).toFixed(1)}% from range peak`
+                : `Up ${fromPeakPct.toFixed(1)}% above earlier range peak`
+        )
         : "Peak comparison unavailable";
 
     const earliestAll = allPoints[0];
-    const latestAll = allPoints[allPoints.length - 1];
-    const coverageSince = `Tracking since ${formatPlayerDate(earliestAll.timestamp)}`;
+    const coverageSince = earliestAll?.timestamp
+        ? `Tracking since ${formatPlayerDate(earliestAll.timestamp)}`
+        : "Tracking history available";
+
     const detailCandidates = [];
+
     if (backendState === "declining" || backendState === "launch_hype_dropoff") {
         detailCandidates.push(fromPeakText);
-    } else if (backendState === "one_off_spike" && spike) {
+    } else if (backendState === "one_off_spike" && spike?.timestamp) {
         detailCandidates.push(`Spike detected on ${formatPlayerDate(spike.timestamp)}`);
     } else if (backendState === "resurging") {
         const mediumPct = formatTrendPercent(backendInsights?.mediumTerm);
-        if (mediumPct) detailCandidates.push(`Up ${mediumPct.replace("+", "")} over the last 30 days`);
+        if (mediumPct) {
+            detailCandidates.push(`Up ${mediumPct.replace("+", "")} over the last 30 days`);
+        }
     } else if (backendState === "stable_evergreen" || backendState === "stable") {
         detailCandidates.push("Recent and long-term activity are holding steady");
     } else if (Number.isFinite(trendPct) && Math.abs(trendPct) >= 5) {
-        detailCandidates.push(`${trendPct >= 0 ? "Up" : "Down"} ${Math.abs(trendPct).toFixed(1)}% in this view`);
+        detailCandidates.push(
+            `${trendPct >= 0 ? "Up" : "Down"} ${Math.abs(trendPct).toFixed(1)}% in this view`,
+        );
     }
+
     detailCandidates.push(coverageSince);
 
     return {
@@ -3716,8 +3763,8 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
         summary: backendHeadline,
         detail: detailCandidates.filter(Boolean).slice(0, 2).join(" • "),
         coverage: backendConfidence,
-        peakIndex: peakIndex >= 0 ? peakIndex : null,
-        spike,
+        peakIndex: Number.isInteger(peakIndex) ? peakIndex : null,
+        spike: spike && Number.isInteger(spike.index) ? spike : null,
     };
 }
 
@@ -4390,11 +4437,7 @@ function renderPlayerChart(historyPayload, options = {}) {
     if (authoritativeSourcePoints.length) {
         currentPlayerHistoryCoverageDays = computeHistoryCoverageDays(authoritativeSourcePoints);
     }
-    const trendInsights = computePlayerTrendInsights(
-        displayedPoints,
-        authoritativeSourcePoints.length ? authoritativeSourcePoints : displayedPoints,
-        range,
-    );
+const trendInsights = computePlayerTrendInsights(displayedPoints, range);
     renderPlayerTrendInsights(trendInsights);
 
     if (!displayedPoints.length) {

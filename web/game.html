@@ -1571,20 +1571,6 @@ a {
     display: none;
 }
 
-.decision-why-section .panel-body {
-    display: grid;
-    gap: 10px;
-}
-
-.decision-why-list {
-    margin: 0;
-    padding-left: 18px;
-    display: grid;
-    gap: 5px;
-    color: #d6e5ff;
-    font-size: 14px;
-}
-
 .decision-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 320px;
@@ -1770,20 +1756,6 @@ a {
             <span>Recommendation</span>
             <strong id="summaryRecommendation">--</strong>
         </article>
-    </section>
-
-    <section class="panel panel-secondary decision-why-section" id="dealExplanationPanel">
-        <div class="panel-head">
-            <h2 class="panel-title">Why</h2>
-            <div class="panel-subtitle" id="dealExplanationSubtitle">Short reasons behind the decision.</div>
-        </div>
-        <div class="panel-body">
-            <ul class="hero-explain-list is-skeleton decision-why-list" id="heroExplainList" aria-live="polite">
-                <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></li>
-                <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></li>
-            </ul>
-            <ul class="decision-why-list" id="dealExplanation"></ul>
-        </div>
     </section>
 
     <div class="decision-layout content-grid">
@@ -3718,7 +3690,6 @@ function applyAdaptiveGameLayout(payload, context) {
 
     const priceHistoryPanel = document.getElementById("priceHistoryPanel");
     const playerHistoryPanel = document.getElementById("playerHistoryPanel");
-    const dealExplanationPanel = document.getElementById("dealExplanationPanel");
     const decisionPanel = document.getElementById("decisionPanel");
     const targetAlertCard = document.getElementById("targetAlertCard");
     const targetAlertTitle = document.getElementById("targetAlertTitle");
@@ -3729,12 +3700,10 @@ function applyAdaptiveGameLayout(payload, context) {
     const marketSnapshotSubtitle = document.getElementById("marketSnapshotSubtitle");
     const decisionPanelTitle = document.getElementById("decisionPanelTitle");
     const decisionPanelSubtitle = document.getElementById("decisionPanelSubtitle");
-    const dealExplanationSubtitle = document.getElementById("dealExplanationSubtitle");
 
     const isPaid = context.mode === "paid";
     const showPlayerHistory = shouldShowPlayerHistoryPanel(payload, context);
     if (decisionPanel) decisionPanel.hidden = !isPaid;
-    if (dealExplanationPanel) dealExplanationPanel.hidden = false;
     if (priceHistoryPanel) priceHistoryPanel.hidden = context.mode !== "paid";
     if (playerHistoryPanel) playerHistoryPanel.hidden = !showPlayerHistory;
     if (targetAlertCard) targetAlertCard.hidden = context.mode !== "paid";
@@ -3747,7 +3716,6 @@ function applyAdaptiveGameLayout(payload, context) {
         if (marketSnapshotSubtitle) marketSnapshotSubtitle.innerText = "Metadata and context.";
         if (decisionPanelTitle) decisionPanelTitle.innerText = "Recommendation";
         if (decisionPanelSubtitle) decisionPanelSubtitle.innerText = "Buy timing guidance.";
-        if (dealExplanationSubtitle) dealExplanationSubtitle.innerText = "Short reasons behind the decision.";
         if (targetAlertTitle) targetAlertTitle.innerText = "Price Target Alert";
     } else if (context.mode === "free") {
         if (playerHistoryTitle) playerHistoryTitle.innerText = "Engagement History";
@@ -3757,7 +3725,6 @@ function applyAdaptiveGameLayout(payload, context) {
         }
         if (decisionPanelTitle) decisionPanelTitle.innerText = "Recommendation";
         if (decisionPanelSubtitle) decisionPanelSubtitle.innerText = "Watch engagement before committing time.";
-        if (dealExplanationSubtitle) dealExplanationSubtitle.innerText = "Short reasons behind the decision.";
         if (targetAlertTitle) targetAlertTitle.innerText = "Price alerts not needed for free titles";
     } else {
         if (playerHistoryTitle) playerHistoryTitle.innerText = "Pre-Launch Activity";
@@ -3767,7 +3734,6 @@ function applyAdaptiveGameLayout(payload, context) {
         }
         if (decisionPanelTitle) decisionPanelTitle.innerText = "Recommendation";
         if (decisionPanelSubtitle) decisionPanelSubtitle.innerText = "Watch launch timing and first-sale window.";
-        if (dealExplanationSubtitle) dealExplanationSubtitle.innerText = "Short reasons behind the decision.";
         if (targetAlertTitle) targetAlertTitle.innerText = "Price alerts become available after launch pricing";
     }
 }
@@ -4441,7 +4407,6 @@ if (!payload || payload.error) {
 
     document.getElementById("gameTitle").innerText = payload.game_name || gameName;
     applyAdaptiveGameLayout(payload, currentGameContext);
-    renderHeroExplanation(payload, currentGameContext);
     renderHeroStats(payload, currentGameContext);
     renderDecisionSummaryStrip(payload, currentGameContext);
     renderStoreDecisionSection(payload);
@@ -4470,7 +4435,6 @@ if (!payload || payload.error) {
 
     renderMarketInfo(payload, currentGameContext);
     if (currentGameContext?.isPaidReleased) {
-        renderDealExplanation(payload);
         renderDealConfidence(payload);
         renderPrediction(payload);
     }
@@ -4579,9 +4543,7 @@ async function loadPlayerHistory(gameId, range = null) {
     renderPlayerChart(rawPayload, { range: activePlayerRange });
     if (currentGamePayload) {
         renderMarketInfo(currentGamePayload, currentGameContext);
-        renderDealExplanation(currentGamePayload);
         renderDealConfidence(currentGamePayload);
-        renderHeroExplanation(currentGamePayload, currentGameContext);
     }
 }
 

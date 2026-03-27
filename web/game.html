@@ -1383,10 +1383,44 @@ a {
 }
 
 .decision-hero .hero-banner {
-    background-size: contain !important;
+    --hero-image: none;
+    isolation: isolate;
+    background:
+        radial-gradient(circle at 24% 18%, rgba(111, 232, 255, 0.2), transparent 52%),
+        linear-gradient(180deg, rgba(8, 18, 34, 0.92), rgba(6, 14, 28, 0.96));
+    background-size: cover, cover;
     background-repeat: no-repeat;
     background-position: center;
-    background-color: rgba(8, 17, 32, 0.9);
+    background-color: rgba(8, 17, 32, 0.92);
+}
+
+.decision-hero .hero-banner::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image: var(--hero-image);
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    filter: blur(24px) saturate(1.12) brightness(0.86);
+    transform: scale(1.16);
+    opacity: 0.72;
+}
+
+.decision-hero .hero-banner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background-image:
+        linear-gradient(180deg, rgba(6, 13, 25, 0.16) 0%, rgba(6, 13, 25, 0.44) 100%),
+        var(--hero-image);
+    background-size: cover, contain;
+    background-repeat: no-repeat, no-repeat;
+    background-position: center, center;
 }
 
 .decision-hero-content {
@@ -1747,8 +1781,8 @@ a {
             <strong id="summaryDealQuality">--</strong>
         </article>
         <article class="decision-summary-chip">
-            <span>Health</span>
-            <strong id="summaryGameHealth">--</strong>
+            <span>Player activity</span>
+            <strong id="summaryPlayerActivity">--</strong>
         </article>
         <article class="decision-summary-chip">
             <span>Confidence</span>
@@ -2171,6 +2205,7 @@ function clearLoadingChrome() {
 
 function renderGameLoadingSkeletons() {
     setStoreCta("");
+    setHeroBannerArtwork("");
     setInlineSkeleton("gameTitle", "gd-skeleton-w-64");
     setInlineSkeleton("gameSub", "gd-skeleton-w-80");
     setInlineSkeleton("dealBadge", "gd-skeleton-w-40");
@@ -3028,7 +3063,7 @@ function deriveDealQualityLabel(payload, context = currentGameContext) {
     return "Weak";
 }
 
-function deriveGameHealthLabel(payload, context = currentGameContext) {
+function derivePlayerActivityLabel(payload, context = currentGameContext) {
     const mode = String(context?.mode || "").toLowerCase();
     if (mode === "unreleased") return "Rising";
     const insights = getPlayerSignalInsights(payload);
@@ -3056,13 +3091,27 @@ function deriveRecommendationLabel(payload, context = currentGameContext) {
 
 function renderDecisionSummaryStrip(payload, context = currentGameContext) {
     const dealQualityEl = document.getElementById("summaryDealQuality");
-    const healthEl = document.getElementById("summaryGameHealth");
+    const playerActivityEl = document.getElementById("summaryPlayerActivity");
     const confidenceEl = document.getElementById("summaryConfidence");
     const recommendationEl = document.getElementById("summaryRecommendation");
     if (dealQualityEl) dealQualityEl.textContent = deriveRecommendationLabel(payload, context);
-    if (healthEl) healthEl.textContent = deriveGameHealthLabel(payload, context);
+    if (playerActivityEl) playerActivityEl.textContent = derivePlayerActivityLabel(payload, context);
     if (confidenceEl) confidenceEl.textContent = deriveConfidenceLabel(payload);
     if (recommendationEl) recommendationEl.textContent = deriveDealQualityLabel(payload, context);
+}
+
+function setHeroBannerArtwork(imageUrl) {
+    const heroBanner = document.getElementById("heroBanner");
+    if (!(heroBanner instanceof HTMLElement)) return;
+    const normalized = String(imageUrl || "").trim();
+    if (!normalized) {
+        heroBanner.style.removeProperty("--hero-image");
+        heroBanner.style.backgroundImage = "";
+        return;
+    }
+    const safeUrl = normalized.replaceAll("\"", "%22").replaceAll("'", "%27");
+    heroBanner.style.setProperty("--hero-image", `url("${safeUrl}")`);
+    heroBanner.style.backgroundImage = "";
 }
 
 function buildSimpleStoreRows(payload) {
@@ -4340,11 +4389,11 @@ if (!payload || payload.error) {
     document.getElementById("heroBanner").classList.remove("gd-skeleton-surface");
 
     if (payload.banner_url || payload.header_image || payload.banner_image) {
-        document.getElementById("heroBanner").style.backgroundImage =
-            `url('${payload.banner_url || payload.header_image || payload.banner_image}')`;
+        setHeroBannerArtwork(payload.banner_url || payload.header_image || payload.banner_image);
     } else if (payload.steam_appid) {
-        document.getElementById("heroBanner").style.backgroundImage =
-            `url('https://cdn.cloudflare.steamstatic.com/steam/apps/${payload.steam_appid}/header.jpg')`;
+        setHeroBannerArtwork(`https://cdn.cloudflare.steamstatic.com/steam/apps/${payload.steam_appid}/header.jpg`);
+    } else {
+        setHeroBannerArtwork("");
     }
 
     renderMarketInfo(payload, currentGameContext);

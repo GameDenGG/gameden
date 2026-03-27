@@ -4421,6 +4421,8 @@ const trendInsights = computePlayerTrendInsights(
     authoritativeSourcePoints.length ? authoritativeSourcePoints : displayedPoints,
     range,
 );
+    console.log("render selectedRange =", selectedRange);
+console.log("render displayedPoints =", displayedPoints);
 renderPlayerTrendInsights(trendInsights);
 
     if (!displayedPoints.length) {
@@ -4531,7 +4533,8 @@ renderPlayerTrendInsights(trendInsights);
             }
         },
     };
-
+console.log("render trendInsights =", trendInsights);
+console.log("render rangeBounds =", rangeBounds);
     const nextData = {
         datasets: [
             {
@@ -4543,7 +4546,7 @@ renderPlayerTrendInsights(trendInsights);
                 })),
                 spanGaps: true,
                 borderWidth: 2.4,
-                tension: 0.32,
+                tension: 0,
                 fill: true,
                 borderColor: palette.line,
                 backgroundColor(context) {

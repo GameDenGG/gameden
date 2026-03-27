@@ -3640,7 +3640,14 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
 
     const first = comparableDisplayedPoints[0];
     const latest = comparableDisplayedPoints[comparableDisplayedPoints.length - 1];
-    const markerCandidates = comparableRealDisplayedPoints;
+    const firstRealPoint = comparableDisplayedPoints.find((point) => !point?.isInterpolated) || null;
+    const markerCandidates = comparableDisplayedPoints.filter((point) => {
+        if (!point) return false;
+        if (!point.isInterpolated) return true;
+        if (!firstRealPoint) return true;
+        // Exclude only left-edge continuity seed/fill before first real anchor.
+        return Number(point.ts) >= Number(firstRealPoint.ts);
+    });
     const peakPoint = markerCandidates.length
         ? markerCandidates.reduce(
             (best, point) => (Number(point.players) > Number(best.players) ? point : best),

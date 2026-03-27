@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!--
+      Runtime ownership note:
+      - Canonical game detail routes (/game and /game/{identifier}) render web/game.html.
+      - This file is only served by /game-detail and should not be used for canonical /game page fixes.
+    -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="View game-level price history, active discounts, and trend insights to compare deals across stores and make smarter buying decisions.">

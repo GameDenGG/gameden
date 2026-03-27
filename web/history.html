@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!--
+      ACTIVE IMPLEMENTATION for /history route only.
+      This page has its own chart runtime and is separate from canonical /game detail charts.
+      Route ownership source: api/server.py
+    -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Explore historical game pricing, discount movement, and trend signals across stores to identify the best time to buy with confidence.">
@@ -553,6 +558,8 @@
             </div>
         </section>
 
+        <div id="pageState" class="loading-state" role="status">Loading history...</div>
+
         <div class="layout">
             <main class="stack">
                 <section class="panel">
@@ -746,6 +753,8 @@
             playersChartCanvas: document.getElementById("playersChart")
         };
 
+        const pageStateEl = document.getElementById("pageState");
+
         function escapeHtml(value) {
             return String(value ?? "")
                 .replaceAll("&", "&amp;")
@@ -818,6 +827,32 @@
             els.alertStatus.className = "status" + (type ? ` ${type}` : "");
         }
 
+        function setPageState(kind, message, options = {}) {
+            if (!(pageStateEl instanceof HTMLElement)) return;
+            const safeKind = kind === "error" ? "error-state" : kind === "empty" ? "empty-state" : "loading-state";
+            const safeMessage = String(message || "").trim();
+            const retryLabel = String(options?.retryLabel || "Retry").trim() || "Retry";
+            const onRetry = typeof options?.onRetry === "function" ? options.onRetry : null;
+            const token = onRetry ? String(Date.now()) : "";
+            pageStateEl.className = safeKind;
+            pageStateEl.innerHTML = `${escapeHtml(safeMessage)}${onRetry ? ` <button class="btn" type="button" data-history-retry="${token}">${escapeHtml(retryLabel)}</button>` : ""}`;
+            pageStateEl.classList.remove("hidden");
+            if (onRetry) {
+                const retryButton = pageStateEl.querySelector(`[data-history-retry="${token}"]`);
+                if (retryButton instanceof HTMLButtonElement) {
+                    retryButton.addEventListener("click", () => {
+                        void onRetry();
+                    });
+                }
+            }
+        }
+
+        function clearPageState() {
+            if (!(pageStateEl instanceof HTMLElement)) return;
+            pageStateEl.classList.add("hidden");
+            pageStateEl.textContent = "";
+        }
+
         async function fetchJson(path, options = {}) {
             const runtime = typeof window.getGameDenRuntime === "function"
                 ? await window.getGameDenRuntime()
@@ -834,6 +869,96 @@
                 ...options,
                 headers
             });
+        }
+
+        function parseHistoryBoundaryTimestamp(value) {
+            if (value === null || value === undefined) return NaN;
+            if (typeof value === "number" && Number.isFinite(value)) {
+                return value >= 1_000_000_000_000 ? value : value * 1000;
+            }
+            const text = String(value).trim();
+            if (!text) return NaN;
+            if (/^\d+$/.test(text)) {
+                const numeric = Number(text);
+                if (!Number.isFinite(numeric)) return NaN;
+                return numeric >= 1_000_000_000_000 ? numeric : numeric * 1000;
+            }
+            return Date.parse(text);
+        }
+
+        function normalizeHistoryBoundaryNumber(value, options = {}) {
+            const integer = options?.integer === true;
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return null;
+            return integer ? Math.round(numeric) : numeric;
+        }
+
+        function normalizeHistoryBoundaryList(value) {
+            if (Array.isArray(value)) {
+                return value
+                    .map((item) => String(item || "").trim())
+                    .filter(Boolean);
+            }
+            if (typeof value === "string" && value.trim()) {
+                return value
+                    .split(",")
+                    .map((item) => String(item || "").trim())
+                    .filter(Boolean);
+            }
+            return [];
+        }
+
+        function normalizeHistoryBoundaryRow(row, fallbackName = "") {
+            if (!row || typeof row !== "object") return null;
+            const ts = parseHistoryBoundaryTimestamp(row?.timestamp ?? row?.recorded_at);
+            const rawTimestamp = String(row?.timestamp ?? row?.recorded_at ?? "").trim();
+            const timestamp = Number.isFinite(ts)
+                ? new Date(ts).toISOString()
+                : rawTimestamp;
+            if (!timestamp) return null;
+            const currentPlayers = normalizeHistoryBoundaryNumber(
+                row?.current_players ?? row?.players ?? row?.player_count,
+                { integer: true },
+            );
+            return {
+                ...row,
+                timestamp,
+                ts: Number.isFinite(ts) ? ts : null,
+                game_name: String(row?.game_name ?? fallbackName ?? "").trim(),
+                store_url: String(row?.store_url ?? "").trim(),
+                price: normalizeHistoryBoundaryNumber(row?.price),
+                original_price: normalizeHistoryBoundaryNumber(row?.original_price),
+                discount_percent: normalizeHistoryBoundaryNumber(row?.discount_percent, { integer: true }),
+                current_players: currentPlayers,
+                is_interpolated: Boolean(row?.is_interpolated ?? row?.isInterpolated),
+                genres: normalizeHistoryBoundaryList(row?.genres),
+                tags: normalizeHistoryBoundaryList(row?.tags),
+                platforms: normalizeHistoryBoundaryList(row?.platforms),
+                review_score: normalizeHistoryBoundaryNumber(row?.review_score),
+                review_score_label: String(row?.review_score_label ?? "").trim(),
+                review_total_count: normalizeHistoryBoundaryNumber(row?.review_total_count, { integer: true }),
+            };
+        }
+
+        function normalizeHistoryBoundaryPayload(rawRows, fallbackName = "") {
+            // Boundary normalizer: /games/{name}/history rows are canonicalized once here.
+            const rows = Array.isArray(rawRows)
+                ? rawRows
+                    .map((row) => normalizeHistoryBoundaryRow(row, fallbackName))
+                    .filter(Boolean)
+                : [];
+            const latestRow = rows.length ? rows[rows.length - 1] : null;
+            const metadata = {
+                game_name: latestRow?.game_name || fallbackName,
+                store_url: latestRow?.store_url || "",
+                genres: Array.isArray(latestRow?.genres) ? latestRow.genres : [],
+                tags: Array.isArray(latestRow?.tags) ? latestRow.tags : [],
+                platforms: Array.isArray(latestRow?.platforms) ? latestRow.platforms : [],
+                review_score: latestRow?.review_score ?? null,
+                review_score_label: latestRow?.review_score_label || "",
+                review_total_count: latestRow?.review_total_count ?? null,
+            };
+            return { rows, latestRow, metadata };
         }
 
         function buildHero(metadata, latestRow, rows) {
@@ -935,6 +1060,7 @@
         }
 
         function buildCharts(rows) {
+            // /history-specific chart implementation (price + players). Not authoritative for /game page fixes.
             destroyCharts();
 
             const labels = rows.map((row) => formatShortDate(row.timestamp));
@@ -1027,48 +1153,51 @@
         }
 
         async function loadHistory() {
+            setPageState("loading", "Loading history...");
             if (!gameName) {
-                renderPageError("No game name was provided in the URL.");
+                renderPageError("No game name was provided in the URL.", {
+                    kind: "empty",
+                    retry: false,
+                });
                 return;
             }
 
             try {
-                const rows = await fetchJson(`/games/${encodeURIComponent(gameName)}/history`);
+                const rawRows = await fetchJson(`/games/${encodeURIComponent(gameName)}/history`);
+                const normalized = normalizeHistoryBoundaryPayload(rawRows, gameName);
 
-                if (!Array.isArray(rows) || rows.length === 0) {
-                    renderPageError("No history data was found for this game yet.");
+                if (!normalized.rows.length) {
+                    renderPageError("No history data was found for this game yet.", {
+                        kind: "empty",
+                        retry: true,
+                    });
                     return;
                 }
 
-                const latestRow = rows[rows.length - 1];
-                const metadata = {
-                    game_name: latestRow.game_name || gameName,
-                    store_url: latestRow.store_url || "",
-                    genres: Array.isArray(latestRow.genres) ? latestRow.genres : [],
-                    tags: Array.isArray(latestRow.tags) ? latestRow.tags : [],
-                    platforms: Array.isArray(latestRow.platforms) ? latestRow.platforms : [],
-                    review_score: latestRow.review_score ?? null,
-                    review_score_label: latestRow.review_score_label || "",
-                    review_total_count: latestRow.review_total_count ?? null
-                };
-
-                buildHero(metadata, latestRow, rows);
-                buildReviewSection(metadata);
-                buildSnapshotCards(latestRow, rows);
-                buildHistoryTable(rows);
-                buildCharts(rows);
+                buildHero(normalized.metadata, normalized.latestRow, normalized.rows);
+                buildReviewSection(normalized.metadata);
+                buildSnapshotCards(normalized.latestRow, normalized.rows);
+                buildHistoryTable(normalized.rows);
+                buildCharts(normalized.rows);
+                clearPageState();
             } catch (error) {
                 console.error(error);
-                renderPageError(error.message || "Failed to load history.");
+                renderPageError(error.message || "Failed to load history.", {
+                    kind: "error",
+                    retry: true,
+                });
             }
         }
 
-        function renderPageError(message) {
+        function renderPageError(message, options = {}) {
+            const kind = options?.kind === "empty" ? "empty" : "error";
+            const allowRetry = options?.retry !== false;
+            setPageState(kind, message, allowRetry ? {
+                onRetry: () => loadHistory(),
+            } : null);
             els.gameTitle.textContent = "History unavailable";
             els.heroSubtitle.textContent = message;
             els.heroPills.innerHTML = `<span class="chip">Load error</span>`;
-
-            const block = `<div class="error-state">${escapeHtml(message)}</div>`;
 
             document.querySelectorAll(".panel-body").forEach((panelBody) => {
                 if (panelBody.querySelector("canvas") || panelBody.querySelector("table") || panelBody.querySelector("form")) {

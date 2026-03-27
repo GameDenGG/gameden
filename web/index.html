@@ -8138,8 +8138,28 @@ input:focus-visible {
             container.innerHTML = `<div class="analytics-empty">${escapeHtml(message)}</div>`;
         }
 
-        function renderError(container, message) {
-            container.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+        function renderError(container, message, options = {}) {
+            const onRetry = typeof options.onRetry === "function" ? options.onRetry : null;
+            const retryLabel = options.retryLabel || "Retry";
+            const detail = options.detail
+                ? `<div class="section-empty-detail">${escapeHtml(options.detail)}</div>`
+                : "";
+            const retryButton = onRetry
+                ? `<button type="button" class="secondary-btn status-retry-btn">${escapeHtml(retryLabel)}</button>`
+                : "";
+            container.innerHTML = `<div class="error">${escapeHtml(message)}${detail}${retryButton}</div>`;
+            if (onRetry) {
+                const retryEl = container.querySelector(".status-retry-btn");
+                if (retryEl) {
+                    retryEl.addEventListener("click", () => {
+                        try {
+                            onRetry();
+                        } catch (error) {
+                            console.error(error);
+                        }
+                    });
+                }
+            }
         }
 
         function matchesSearchTerm(game, term) {
@@ -14213,7 +14233,9 @@ try {
                     : 0;
                 const startCriticalLoad = () => loadCriticalHomepageData().catch((error) => {
                     console.error(error);
-                    renderError(ui.opportunitiesGrid, "Failed to load opportunities.");
+                    renderError(ui.opportunitiesGrid, "Failed to load opportunities.", {
+                        onRetry: () => { void startCriticalLoad(); },
+                    });
                 });
                 if (restoredSnapshot && !shouldFetchCriticalBundle) {
                     setTimeout(() => {
@@ -14265,7 +14287,9 @@ try {
                 );
             } catch (error) {
                 console.error(error);
-                renderError(ui.opportunitiesGrid, "Failed to load opportunities.");
+                renderError(ui.opportunitiesGrid, "Failed to load opportunities.", {
+                    onRetry: () => { window.location.reload(); },
+                });
                 scheduleDeferredHomepageStage();
             }
         }

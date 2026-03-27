@@ -622,10 +622,10 @@ if (skeletonUi && typeof skeletonUi.ensureStyles === "function") {
 
 function renderWatchlistSkeleton() {
     if (skeletonUi && typeof skeletonUi.markup === "function") {
-        contentEl.innerHTML = `<div class="grid">${skeletonUi.markup("watchlist-cards", 6, { cardClass: "card" })}</div>`;
+        contentEl.innerHTML = `<div class="loading">Loading tracked items…</div><div class="grid">${skeletonUi.markup("watchlist-cards", 6, { cardClass: "card" })}</div>`;
         return;
     }
-    contentEl.innerHTML = `<div class="loading">Loading watchlist...</div>`;
+    contentEl.innerHTML = `<div class="loading">Loading tracked items…</div>`;
 }
 
 function syncTabUi() {
@@ -764,6 +764,23 @@ function buildAlertMap(alertItems) {
     return byGame;
 }
 
+function renderTrackedState(kind, message, options = {}) {
+    const safeKind = kind === "error" ? "error" : kind === "loading" ? "loading" : "empty";
+    const safeMessage = escapeHtml(String(message || "").trim() || "No tracked items available.");
+    const retryLabel = escapeHtml(String(options?.retryLabel || "Retry").trim() || "Retry");
+    const onRetry = typeof options?.onRetry === "function" ? options.onRetry : null;
+    const retryToken = onRetry ? String(Date.now()) : "";
+    contentEl.innerHTML = `<div class="${safeKind}">${safeMessage}${onRetry ? ` <button class="btn" type="button" data-tracked-retry="${retryToken}">${retryLabel}</button>` : ""}</div>`;
+    if (onRetry) {
+        const retryButton = contentEl.querySelector(`[data-tracked-retry="${retryToken}"]`);
+        if (retryButton instanceof HTMLButtonElement) {
+            retryButton.addEventListener("click", () => {
+                void onRetry();
+            });
+        }
+    }
+}
+
 async function fetchJson(url, options = {}) {
     const runtime = typeof window.getGameDenRuntime === "function"
         ? await window.getGameDenRuntime()
@@ -837,9 +854,12 @@ async function removeWish(gameId) {
 
 function render(items, alertsByGame = new Map(), tab = TRACKED_TAB_WATCHLIST) {
     if (!items.length) {
-        contentEl.innerHTML = tab === TRACKED_TAB_WISHLIST
-            ? `<div class="empty">No wishlist games yet. Save games on the dashboard to keep them here.</div>`
-            : `<div class="empty">No watched games yet. Add titles from the homepage or game pages to start tracking signals.</div>`;
+        renderTrackedState(
+            "empty",
+            tab === TRACKED_TAB_WISHLIST
+                ? "No wishlist games yet. Save games on the dashboard to keep them here."
+                : "No watched games yet. Add titles from the homepage or game pages to start tracking signals.",
+        );
         return;
     }
 
@@ -991,7 +1011,9 @@ async function loadWatchlist() {
         return true;
     } catch (error) {
         console.error(error);
-        contentEl.innerHTML = `<div class="error">Failed to load tracked items.</div>`;
+        renderTrackedState("error", "Failed to load tracked items.", {
+            onRetry: () => loadWatchlist(),
+        });
         return false;
     } finally {
         contentEl.setAttribute("aria-busy", "false");

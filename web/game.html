@@ -1,6 +1,12 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
+<!--
+  ACTIVE IMPLEMENTATION for canonical game detail routes:
+  - /game
+  - /game/{identifier}
+  Route ownership source: api/server.py
+-->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="View game-level price history, active discounts, and trend insights to compare deals across stores and make smarter buying decisions on GameDen.gg.">
@@ -1358,6 +1364,274 @@ a {
 
 }
 
+/* Decision-engine layout override */
+.decision-page {
+    max-width: 1220px;
+    display: grid;
+    gap: 18px;
+}
+
+.decision-hero {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.05fr);
+    gap: 16px;
+    padding: 16px;
+}
+
+.decision-hero-media {
+    min-width: 0;
+}
+
+.decision-hero-content {
+    min-width: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.decision-hero-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.decision-verdict {
+    margin: 0;
+    font-size: clamp(26px, 3.4vw, 38px);
+    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    color: #f4fff9;
+}
+
+.decision-hero .hero-context-card {
+    opacity: 0.8;
+}
+
+.decision-hero .hero-context-title {
+    font-size: 10px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.decision-hero .hero-context-text {
+    font-size: 13px;
+    color: #b9cae8;
+}
+
+.decision-price-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.decision-price-card {
+    border: 1px solid rgba(154, 182, 255, 0.24);
+    border-radius: 12px;
+    background: rgba(9, 19, 36, 0.8);
+    padding: 10px 12px;
+    display: grid;
+    gap: 4px;
+}
+
+.decision-price-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.decision-price-value {
+    font-size: 24px;
+    line-height: 1.1;
+    color: #f4f9ff;
+}
+
+.decision-price-card:first-child {
+    border-color: rgba(92, 228, 169, 0.62);
+    background: rgba(12, 38, 28, 0.58);
+}
+
+.decision-price-card:first-child .decision-price-value {
+    font-size: 30px;
+    font-weight: 800;
+}
+
+.decision-price-card:not(:first-child) {
+    opacity: 0.78;
+}
+
+.decision-price-card-muted .decision-price-value {
+    font-size: 18px;
+    color: #d8e7ff;
+}
+
+.decision-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.decision-action-row .hero-store-cta {
+    font-weight: 800;
+    box-shadow: 0 8px 24px rgba(13, 120, 77, 0.32);
+}
+
+.decision-action-row .hero-watch-btn {
+    opacity: 0.82;
+}
+
+.decision-store-section .panel-body {
+    padding-top: 10px;
+}
+
+.decision-store-grid {
+    display: grid;
+    grid-template-columns: minmax(220px, 0.45fr) minmax(0, 1fr);
+    gap: 14px;
+}
+
+.decision-best-deal {
+    border: 1px solid rgba(92, 228, 169, 0.34);
+    border-radius: 14px;
+    background: rgba(16, 37, 28, 0.44);
+    padding: 12px;
+    display: grid;
+    gap: 6px;
+}
+
+.decision-best-label {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #bdebd6;
+    font-weight: 700;
+}
+
+.decision-best-price {
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 800;
+}
+
+.decision-best-note {
+    font-size: 13px;
+    color: #d7e6ff;
+}
+
+.decision-store-list {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 6px;
+    color: #9bb0d2;
+    font-size: 12px;
+}
+
+.decision-store-list a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.decision-store-list a:hover {
+    color: #c8dbff;
+    text-decoration: underline;
+}
+
+.decision-summary-strip {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.decision-summary-chip {
+    border: 1px solid rgba(154, 182, 255, 0.24);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: rgba(11, 22, 40, 0.8);
+    display: grid;
+    gap: 4px;
+}
+
+.decision-summary-chip span {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.decision-summary-chip strong {
+    font-size: 18px;
+    line-height: 1.1;
+}
+
+.decision-summary-chip:nth-child(n + 3) {
+    display: none;
+}
+
+.decision-why-section .panel-body {
+    display: grid;
+    gap: 10px;
+}
+
+.decision-why-list {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 5px;
+    color: #d6e5ff;
+    font-size: 14px;
+}
+
+.decision-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 16px;
+    align-items: start;
+}
+
+.decision-main {
+    display: grid;
+    gap: 16px;
+}
+
+.decision-side {
+    display: grid;
+    gap: 12px;
+}
+
+.decision-chart-panel .panel-subtitle {
+    color: #9cb3d8;
+}
+
+.decision-hidden-metrics {
+    display: none;
+}
+
+@media (max-width: 1080px) {
+    .decision-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .decision-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .decision-side {
+        display: none;
+    }
+}
+
+@media (max-width: 760px) {
+    .decision-price-row,
+    .decision-summary-strip,
+    .decision-store-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 520px) {
     .hero-banner {
         height: clamp(152px, 52vw, 210px);
@@ -1419,88 +1693,105 @@ a {
 </style>
 </head>
 <body>
-<div class="page">
+<div class="page decision-page">
     <a class="back-link" href="/">&larr; Back to dashboard</a>
 
-    <section class="hero">
-        <div class="hero-shell">
-            <div class="hero-media">
-                <div class="hero-banner" id="heroBanner"></div>
+    <section class="hero decision-hero">
+        <div class="decision-hero-media">
+            <div class="hero-banner" id="heroBanner"></div>
+        </div>
+        <div class="decision-hero-content">
+            <div class="decision-hero-top">
+                <h1 id="gameTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></h1>
+                <div class="hero-badge" id="dealBadge"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40" aria-hidden="true"></span></div>
             </div>
-            <div class="hero-body">
-                <div class="hero-top">
-                    <div class="hero-title">
-                        <h1 id="gameTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></h1>
-                        <div class="hero-sub" id="gameSub"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></div>
-                        <div class="hero-context-card gd-skeleton-surface" id="gameContextCard">
-                            <div class="hero-context-title" id="gameContextTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></div>
-                            <div class="hero-context-text" id="gameContextText"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></div>
-                        </div>
-                        <ul class="hero-explain-list is-skeleton" id="heroExplainList" aria-live="polite">
-                            <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></li>
-                            <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></li>
-                        </ul>
-                    </div>
-                    <div class="hero-meta-row">
-                        <div class="hero-badge" id="dealBadge"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40" aria-hidden="true"></span></div>
-                    </div>
+            <p class="decision-verdict" id="gameSub"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
+            <div class="hero-context-card gd-skeleton-surface" id="gameContextCard">
+                <div class="hero-context-title" id="gameContextTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></div>
+                <div class="hero-context-text" id="gameContextText"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></div>
+            </div>
+            <div class="decision-price-row">
+                <div class="decision-price-card">
+                    <span class="decision-price-label" id="heroStatLabelPrimary">Best Price</span>
+                    <strong class="decision-price-value" id="currentPrice">--</strong>
                 </div>
-
-                <div class="stats-grid hero-stats-grid">
-                    <div class="stat-card stat-card-primary">
-                        <div class="stat-label" id="heroStatLabelPrimary">Current Price</div>
-                        <div class="stat-value" id="currentPrice">--</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label" id="heroStatLabelLow">Historical Low</div>
-                        <div class="stat-value" id="historicalLow">--</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label" id="heroStatLabelDiscount">Discount</div>
-                        <div class="stat-value" id="currentDiscount">--</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label" id="heroStatLabelScore">Deal Score</div>
-                        <div class="stat-value" id="dealScore">--</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label" id="heroStatLabelPlayers">Live Players</div>
-                        <div class="stat-value" id="playerCount">--</div>
-                    </div>
+                <div class="decision-price-card">
+                    <span class="decision-price-label" id="heroStatLabelDiscount">Discount</span>
+                    <strong class="decision-price-value" id="currentDiscount">--</strong>
                 </div>
-
-                <div class="hero-cta-row">
-                    <a class="hero-store-cta is-disabled" id="storeCtaLink" href="#" aria-disabled="true" rel="noopener noreferrer" target="_blank">View on Store</a>
-                    <button class="hero-watch-btn" id="watchButton" type="button" aria-pressed="false">Watch</button>
-                    <button class="hero-watch-btn hero-share-btn" id="shareDealButton" type="button" disabled>Share Deal</button>
+                <div class="decision-price-card decision-price-card-muted">
+                    <span class="decision-price-label" id="heroStatLabelLow">Historical Low</span>
+                    <strong class="decision-price-value" id="historicalLow">--</strong>
                 </div>
-
-                <section class="target-alert-card" id="targetAlertCard" aria-label="Price target alerts">
-                    <div class="target-alert-title" id="targetAlertTitle">Price Target Alert</div>
-                    <label class="target-alert-row">
-                        <span class="target-alert-label">Below $</span>
-                        <input class="target-alert-input" id="targetPriceInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="19.99">
-                    </label>
-                    <label class="target-alert-row">
-                        <span class="target-alert-label">Discount %</span>
-                        <input class="target-alert-input" id="targetDiscountInput" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="60">
-                    </label>
-                    <div class="target-alert-actions">
-                        <button class="target-alert-btn" id="saveTargetAlertButton" type="button">Save alert</button>
-                        <button class="target-alert-btn ghost" id="clearTargetAlertButton" type="button" hidden>Clear</button>
-                    </div>
-                    <div class="target-alert-status" id="targetAlertStatus" aria-live="polite"></div>
-                </section>
+            </div>
+            <div class="decision-action-row">
+                <a class="hero-store-cta is-disabled" id="storeCtaLink" href="#" aria-disabled="true" rel="noopener noreferrer" target="_blank">Buy Now</a>
+                <a class="hero-watch-btn" id="wishlistShortcut" href="/watchlist?tab=wishlist">Wishlist</a>
+                <button class="hero-watch-btn" id="watchButton" type="button" aria-pressed="false">Watch</button>
+                <button class="hero-watch-btn hero-share-btn" id="shareDealButton" type="button" disabled>Share</button>
             </div>
         </div>
     </section>
 
-    <section class="content-grid">
-        <div class="left-column">
-            <section class="panel panel-primary" id="priceHistoryPanel">
+    <section class="panel panel-secondary decision-store-section" id="storeSection">
+        <div class="panel-head">
+            <h2 class="panel-title">Where To Buy</h2>
+            <div class="panel-subtitle">Best option first.</div>
+        </div>
+        <div class="panel-body decision-store-grid">
+            <article class="decision-best-deal" id="bestDealCard">
+                <div class="decision-best-label">Best Deal</div>
+                <div class="decision-best-price" id="bestDealPrice">--</div>
+                <div class="decision-best-note" id="bestDealNote">Best available offer right now.</div>
+            </article>
+            <div class="decision-store-list-wrap">
+                <div class="decision-best-label">Other Stores</div>
+                <ul class="decision-store-list" id="storeQuickList">
+                    <li>No alternate store offers available.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="decision-summary-strip" aria-label="Decision summary">
+        <article class="decision-summary-chip">
+            <span>Decision</span>
+            <strong id="summaryDealQuality">--</strong>
+        </article>
+        <article class="decision-summary-chip">
+            <span>Health</span>
+            <strong id="summaryGameHealth">--</strong>
+        </article>
+        <article class="decision-summary-chip">
+            <span>Confidence</span>
+            <strong id="summaryConfidence">--</strong>
+        </article>
+        <article class="decision-summary-chip">
+            <span>Recommendation</span>
+            <strong id="summaryRecommendation">--</strong>
+        </article>
+    </section>
+
+    <section class="panel panel-secondary decision-why-section" id="dealExplanationPanel">
+        <div class="panel-head">
+            <h2 class="panel-title">Why</h2>
+            <div class="panel-subtitle" id="dealExplanationSubtitle">Short reasons behind the decision.</div>
+        </div>
+        <div class="panel-body">
+            <ul class="hero-explain-list is-skeleton decision-why-list" id="heroExplainList" aria-live="polite">
+                <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></li>
+                <li><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></li>
+            </ul>
+            <ul class="decision-why-list" id="dealExplanation"></ul>
+        </div>
+    </section>
+
+    <div class="decision-layout content-grid">
+        <main class="decision-main left-column">
+            <section class="panel panel-primary decision-chart-panel" id="priceHistoryPanel">
                 <div class="panel-head">
-                    <h2 class="panel-title" id="priceHistoryTitle">Interactive Price History</h2>
-                    <div class="panel-subtitle" id="priceHistorySubtitle">Track price movement, sale windows, and historical lows over time.</div>
+                    <h2 class="panel-title" id="priceHistoryTitle">Price History</h2>
+                    <div class="panel-subtitle" id="priceHistorySubtitle">Optional detail.</div>
                 </div>
                 <div class="panel-body">
                     <div class="range-row">
@@ -1516,10 +1807,10 @@ a {
                 </div>
             </section>
 
-            <section class="panel panel-secondary" id="playerHistoryPanel">
+            <section class="panel panel-secondary decision-chart-panel" id="playerHistoryPanel">
                 <div class="panel-head">
-                    <h2 class="panel-title" id="playerHistoryTitle">Player Activity History</h2>
-                    <div class="panel-subtitle" id="playerHistorySubtitle">Live player movement over time using snapshot-linked activity history.</div>
+                    <h2 class="panel-title" id="playerHistoryTitle">Player Activity</h2>
+                    <div class="panel-subtitle" id="playerHistorySubtitle">Optional detail.</div>
                 </div>
                 <div class="panel-body">
                     <div class="range-row player-range-row" role="group" aria-label="Player history time range">
@@ -1543,58 +1834,71 @@ a {
                 </div>
             </section>
 
-            <section class="panel panel-secondary" id="dealExplanationPanel">
+            <section class="panel discovery-panel panel-tertiary">
                 <div class="panel-head">
-                    <h2 class="panel-title">Deal Explanation</h2>
-                    <div class="panel-subtitle" id="dealExplanationSubtitle">How the platform is scoring this deal.</div>
+                    <h2 class="panel-title">Discovery Loops</h2>
+                    <div class="panel-subtitle">Optional related titles.</div>
                 </div>
                 <div class="panel-body">
-                    <div class="breakdown" id="dealExplanation"></div>
+                    <div class="related-grid" id="relatedGames"></div>
                 </div>
             </section>
-        </div>
+        </main>
 
-        <div class="right-column">
+        <aside class="decision-side right-column">
             <section class="panel decision-panel panel-highlight" id="decisionPanel">
                 <div class="panel-head">
-                    <h2 class="panel-title" id="decisionPanelTitle">Buy Recommendation + Next Sale</h2>
-                    <div class="panel-subtitle" id="decisionPanelSubtitle">Decision signal first: should you buy now or wait for better timing?</div>
+                    <h2 class="panel-title" id="decisionPanelTitle">Recommendation</h2>
+                    <div class="panel-subtitle" id="decisionPanelSubtitle">Quick guidance for buy timing.</div>
                 </div>
-                <div class="panel-body decision-stack">
-                    <section class="decision-group" id="dealConfidencePanel" hidden>
-                        <h3 class="decision-group-title">Deal Confidence</h3>
-                        <div class="decision-group-subtitle">Snapshot confidence tier and score for this buy recommendation.</div>
-                        <div class="prediction-list" id="dealConfidence"></div>
-                    </section>
-                    <section class="decision-group">
-                        <h3 class="decision-group-title">Next Sale Prediction</h3>
-                        <div class="decision-group-subtitle">Expected next sale price, timing range, and model reasoning.</div>
-                        <div class="prediction-list" id="prediction"></div>
-                    </section>
+                <div class="panel-body">
+                    <div class="prediction-list" id="prediction"></div>
+                </div>
+            </section>
+
+            <section class="panel panel-secondary" id="dealConfidencePanel" hidden>
+                <div class="panel-head">
+                    <h2 class="panel-title">Confidence</h2>
+                </div>
+                <div class="panel-body">
+                    <div class="prediction-list" id="dealConfidence"></div>
                 </div>
             </section>
 
             <section class="panel panel-secondary" id="marketSnapshotPanel">
                 <div class="panel-head">
-                    <h2 class="panel-title">Market Snapshot</h2>
-                    <div class="panel-subtitle" id="marketSnapshotSubtitle">Current state and metadata for this game.</div>
+                    <h2 class="panel-title">Quick Facts</h2>
+                    <div class="panel-subtitle" id="marketSnapshotSubtitle">Metadata and context.</div>
                 </div>
                 <div class="panel-body">
                     <div class="info-list" id="marketInfo"></div>
+                    <div class="decision-hidden-metrics">
+                        <span id="dealScore">--</span>
+                        <span id="playerCount">--</span>
+                        <span id="heroStatLabelScore">Deal Score</span>
+                        <span id="heroStatLabelPlayers">Live Players</span>
+                    </div>
                 </div>
             </section>
-        </div>
-    </section>
 
-    <section class="panel discovery-panel panel-tertiary">
-        <div class="panel-head">
-            <h2 class="panel-title">Discovery Loops</h2>
-            <div class="panel-subtitle">Related games based on discounts, tags, and similar player movement.</div>
-        </div>
-        <div class="panel-body">
-            <div class="related-grid" id="relatedGames"></div>
-        </div>
-    </section>
+            <section class="target-alert-card" id="targetAlertCard" aria-label="Price target alerts">
+                <div class="target-alert-title" id="targetAlertTitle">Price Target Alert</div>
+                <label class="target-alert-row">
+                    <span class="target-alert-label">Below $</span>
+                    <input class="target-alert-input" id="targetPriceInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="19.99">
+                </label>
+                <label class="target-alert-row">
+                    <span class="target-alert-label">Discount %</span>
+                    <input class="target-alert-input" id="targetDiscountInput" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="60">
+                </label>
+                <div class="target-alert-actions">
+                    <button class="target-alert-btn" id="saveTargetAlertButton" type="button">Save alert</button>
+                    <button class="target-alert-btn ghost" id="clearTargetAlertButton" type="button" hidden>Clear</button>
+                </div>
+                <div class="target-alert-status" id="targetAlertStatus" aria-live="polite"></div>
+            </section>
+        </aside>
+    </div>
 </div>
 
 <script>
@@ -2293,6 +2597,32 @@ function setChartEmptyState(id, message = "") {
     el.textContent = text;
 }
 
+function renderGameLoadErrorState(message, options = {}) {
+    const title = String(options?.title || message || "Failed to load game").trim() || "Failed to load game";
+    const safeMessage = String(message || "").trim() || "Failed to load game";
+    const allowRetry = options?.retry !== false;
+    const contentGrid = document.querySelector(".content-grid");
+    clearLoadingChrome();
+    document.getElementById("gameTitle").innerText = title;
+    if (!(contentGrid instanceof HTMLElement)) return;
+    contentGrid.innerHTML = `
+        <div class="error">
+            <div>${escapeHtml(safeMessage)}</div>
+            ${allowRetry ? '<button class="secondary-btn" type="button" data-game-load-retry>Retry</button>' : ""}
+        </div>
+    `;
+    if (!allowRetry) return;
+    const retryButton = contentGrid.querySelector("[data-game-load-retry]");
+    if (!(retryButton instanceof HTMLButtonElement)) return;
+    retryButton.addEventListener("click", () => {
+        renderGameLoadingSkeletons();
+        void loadGame().catch((error) => {
+            console.error(error);
+            renderGameLoadErrorState("Failed to load game", { retry: true });
+        });
+    });
+}
+
 function escapeHtml(value) {
     return String(value ?? "")
         .replaceAll("&", "&amp;")
@@ -2715,30 +3045,151 @@ function shouldShowPlayerHistoryPanel(payload, context = currentGameContext) {
 }
 
 function buildGameContextSummary(payload, context) {
-    const reviewLabel = getReviewLabel(payload);
+    const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
+    const dealQuality = deriveDealQualityLabel(payload, context);
     if (context.mode === "unreleased") {
-        const releaseText = String(payload?.release_date_text || payload?.release_date || "Release date TBD").trim();
         return {
-            title: "Launch Tracking",
-            text: `Unreleased title. ${releaseText}. Add to Watch to track launch pricing and first-sale timing.`,
-            heroSub: `${reviewLabel} • ${releaseText}`,
+            title: "Decision",
+            text: "No live price yet.",
+            heroSub: "Wait for launch pricing.",
         };
     }
     if (context.mode === "free") {
-        const players = context.hasPlayerData ? `${fmtInt(context.numericPlayers)} playing now` : "Player count pending";
         return {
-            title: "Free-to-Play Snapshot",
-            text: `No purchase required. Focus on engagement and momentum: ${players}.`,
-            heroSub: `${reviewLabel} • Free to play`,
+            title: "Decision",
+            text: "No purchase needed.",
+            heroSub: "Free to play.",
         };
     }
-    const discountText = context.hasMeaningfulDiscount ? `${Math.round(context.numericDiscount)}% off` : "No active discount";
-    const priceText = context.hasMeaningfulPriceMetrics ? fmtPrice(context.numericPrice) : "Price unavailable";
+    if (recommendation === "BUY_NOW" && dealQuality === "Good") {
+        return {
+            title: "Decision",
+            text: "Strong discount with healthy activity.",
+            heroSub: "Good deal. Buy now.",
+        };
+    }
+    if (recommendation === "WAIT") {
+        return {
+            title: "Decision",
+            text: "Current value is not strong.",
+            heroSub: "Wait for a better price.",
+        };
+    }
     return {
-        title: "Deal Snapshot",
-        text: `${priceText} right now • ${discountText}. Check recommendation and history before buying.`,
-        heroSub: `${reviewLabel} • ${payload?.release_date_text || payload?.release_date || "Released"}`,
+        title: "Decision",
+        text: "Signals are mixed right now.",
+        heroSub: "Watch for a better signal.",
     };
+}
+
+function deriveDealQualityLabel(payload, context = currentGameContext) {
+    if (context?.mode !== "paid") return "Fair";
+    const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
+    const discount = Number(payload?.discount_percent ?? payload?.latest_discount_percent);
+    const historicalStatus = String(payload?.historical_status || "").trim().toLowerCase();
+    if (
+        recommendation === "BUY_NOW"
+        || historicalStatus === "new_historical_low"
+        || historicalStatus === "matches_historical_low"
+        || historicalStatus === "near_historical_low"
+        || (Number.isFinite(discount) && discount >= 55)
+    ) {
+        return "Good";
+    }
+    if (Number.isFinite(discount) && discount >= 25) return "Fair";
+    return "Weak";
+}
+
+function deriveGameHealthLabel(payload, context = currentGameContext) {
+    const mode = String(context?.mode || "").toLowerCase();
+    if (mode === "unreleased") return "Rising";
+    const insights = getPlayerSignalInsights(payload);
+    const state = String(insights?.state || "").trim().toLowerCase();
+    if (state === "resurging") return "Rising";
+    if (state === "declining" || state === "launch_hype_dropoff") return "Declining";
+    return "Stable";
+}
+
+function deriveConfidenceLabel(payload) {
+    const confidenceText = String(getAuthoritativePlayerConfidenceText(payload) || "").toLowerCase();
+    if (confidenceText.startsWith("high confidence")) return "High";
+    if (confidenceText.startsWith("moderate confidence")) return "Medium";
+    return "Low";
+}
+
+function deriveRecommendationLabel(payload, context = currentGameContext) {
+    if (context?.mode === "unreleased") return "Watch";
+    if (context?.mode === "free") return "Watch";
+    const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
+    if (recommendation === "BUY_NOW") return "Buy";
+    if (recommendation === "WAIT") return "Wait";
+    return "Watch";
+}
+
+function renderDecisionSummaryStrip(payload, context = currentGameContext) {
+    const dealQualityEl = document.getElementById("summaryDealQuality");
+    const healthEl = document.getElementById("summaryGameHealth");
+    const confidenceEl = document.getElementById("summaryConfidence");
+    const recommendationEl = document.getElementById("summaryRecommendation");
+    if (dealQualityEl) dealQualityEl.textContent = deriveRecommendationLabel(payload, context);
+    if (healthEl) healthEl.textContent = deriveGameHealthLabel(payload, context);
+    if (confidenceEl) confidenceEl.textContent = deriveConfidenceLabel(payload);
+    if (recommendationEl) recommendationEl.textContent = deriveDealQualityLabel(payload, context);
+}
+
+function buildSimpleStoreRows(payload) {
+    const rows = [];
+    const primaryUrl = resolveStoreUrl(payload);
+    rows.push({
+        name: /store\.steampowered\.com/i.test(primaryUrl) ? "Steam" : "Primary Store",
+        price: fmtPrice(payload?.price ?? payload?.current_price),
+        url: primaryUrl || "#",
+        isBest: true,
+    });
+    const candidateLists = [
+        payload?.store_deals,
+        payload?.stores,
+        payload?.store_prices,
+        payload?.offers,
+    ];
+    candidateLists.forEach((list) => {
+        if (!Array.isArray(list)) return;
+        list.forEach((entry) => {
+            const name = String(entry?.store_name ?? entry?.store ?? entry?.name ?? "").trim();
+            const url = String(entry?.url ?? entry?.store_url ?? "").trim();
+            const price = firstFiniteNumber(entry?.price, entry?.current_price, entry?.sale_price);
+            if (!name || !url || !Number.isFinite(price)) return;
+            if (rows.some((row) => row.url.toLowerCase() === url.toLowerCase())) return;
+            rows.push({
+                name,
+                price: fmtPrice(price),
+                url,
+                isBest: false,
+            });
+        });
+    });
+    return rows.slice(0, 5);
+}
+
+function renderStoreDecisionSection(payload) {
+    const bestDealPriceEl = document.getElementById("bestDealPrice");
+    const bestDealNoteEl = document.getElementById("bestDealNote");
+    const quickListEl = document.getElementById("storeQuickList");
+    const storeRows = buildSimpleStoreRows(payload);
+    const best = storeRows[0] || null;
+    if (bestDealPriceEl) bestDealPriceEl.textContent = best?.price || "—";
+    if (bestDealNoteEl) {
+        bestDealNoteEl.textContent = `Best now: ${best?.name || "Primary store"}`;
+    }
+    if (!quickListEl) return;
+    const alternates = storeRows.slice(1, 4);
+    if (!alternates.length) {
+        quickListEl.innerHTML = "<li>No other live offers.</li>";
+        return;
+    }
+    quickListEl.innerHTML = alternates
+        .map((row) => `<li><a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.name)} · ${escapeHtml(row.price)}</a></li>`)
+        .join("");
 }
 
 function normalizeReasonSnippet(value) {
@@ -2759,7 +3210,7 @@ function normalizeReasonSnippet(value) {
             || lower.includes("climbing")
         )
     ) {
-        return "Strong player growth";
+        return "Players are rising";
     }
     if (
         lower.includes("discount")
@@ -2767,14 +3218,14 @@ function normalizeReasonSnippet(value) {
         || lower.includes("price favorable")
         || lower.includes("better sale")
     ) {
-        return "Large discount vs normal price";
+        return "Discount is strong";
     }
     if (
         lower.includes("popular")
         || lower.includes("trending")
         || lower.includes("interest")
     ) {
-        return "Popular game currently trending";
+        return "Popular right now";
     }
 
     const firstSentence = raw
@@ -3279,51 +3730,44 @@ function applyAdaptiveGameLayout(payload, context) {
     const decisionPanelTitle = document.getElementById("decisionPanelTitle");
     const decisionPanelSubtitle = document.getElementById("decisionPanelSubtitle");
     const dealExplanationSubtitle = document.getElementById("dealExplanationSubtitle");
-    const contentGrid = document.querySelector(".content-grid");
-    const leftColumn = document.querySelector(".left-column");
 
     const isPaid = context.mode === "paid";
     const showPlayerHistory = shouldShowPlayerHistoryPanel(payload, context);
     if (decisionPanel) decisionPanel.hidden = !isPaid;
-    if (dealExplanationPanel) dealExplanationPanel.hidden = !isPaid;
+    if (dealExplanationPanel) dealExplanationPanel.hidden = false;
     if (priceHistoryPanel) priceHistoryPanel.hidden = context.mode !== "paid";
     if (playerHistoryPanel) playerHistoryPanel.hidden = !showPlayerHistory;
     if (targetAlertCard) targetAlertCard.hidden = context.mode !== "paid";
 
-    const leftColumnHasVisibleSections = leftColumn
-        ? Array.from(leftColumn.children).some((child) => child instanceof HTMLElement && !child.hidden)
-        : true;
-    if (contentGrid instanceof HTMLElement) {
-        contentGrid.classList.toggle("content-grid-right-focus", !leftColumnHasVisibleSections);
-    }
-
     if (context.mode === "paid") {
-        if (priceHistoryTitle) priceHistoryTitle.innerText = "Interactive Price History";
-        if (priceHistorySubtitle) priceHistorySubtitle.innerText = "Track price movement, sale windows, and historical lows over time.";
-        if (playerHistoryTitle) playerHistoryTitle.innerText = "Player Activity History";
-        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Live player movement over time using snapshot-linked activity history.";
-        if (marketSnapshotSubtitle) marketSnapshotSubtitle.innerText = "Current state and metadata for this game.";
-        if (decisionPanelTitle) decisionPanelTitle.innerText = "Buy Recommendation + Next Sale";
-        if (decisionPanelSubtitle) decisionPanelSubtitle.innerText = "Decision signal first: should you buy now or wait for better timing?";
-        if (dealExplanationSubtitle) dealExplanationSubtitle.innerText = "How the platform is scoring this deal.";
+        if (priceHistoryTitle) priceHistoryTitle.innerText = "Price History";
+        if (priceHistorySubtitle) priceHistorySubtitle.innerText = "Optional detail.";
+        if (playerHistoryTitle) playerHistoryTitle.innerText = "Player Activity";
+        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Optional detail.";
+        if (marketSnapshotSubtitle) marketSnapshotSubtitle.innerText = "Metadata and context.";
+        if (decisionPanelTitle) decisionPanelTitle.innerText = "Recommendation";
+        if (decisionPanelSubtitle) decisionPanelSubtitle.innerText = "Buy timing guidance.";
+        if (dealExplanationSubtitle) dealExplanationSubtitle.innerText = "Short reasons behind the decision.";
         if (targetAlertTitle) targetAlertTitle.innerText = "Price Target Alert";
     } else if (context.mode === "free") {
         if (playerHistoryTitle) playerHistoryTitle.innerText = "Engagement History";
-        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Player activity trend and live interest for this free title.";
+        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Optional detail.";
         if (marketSnapshotSubtitle) {
-            marketSnapshotSubtitle.innerText = showPlayerHistory
-                ? "Engagement quality, sentiment, and game metadata."
-                : "Sentiment and game metadata. Engagement telemetry is still building.";
+            marketSnapshotSubtitle.innerText = "Metadata and context.";
         }
+        if (decisionPanelTitle) decisionPanelTitle.innerText = "Recommendation";
+        if (decisionPanelSubtitle) decisionPanelSubtitle.innerText = "Watch engagement before committing time.";
+        if (dealExplanationSubtitle) dealExplanationSubtitle.innerText = "Short reasons behind the decision.";
         if (targetAlertTitle) targetAlertTitle.innerText = "Price alerts not needed for free titles";
     } else {
         if (playerHistoryTitle) playerHistoryTitle.innerText = "Pre-Launch Activity";
-        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Any available early activity and momentum signals before release.";
+        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Optional detail.";
         if (marketSnapshotSubtitle) {
-            marketSnapshotSubtitle.innerText = showPlayerHistory
-                ? "Launch timing, anticipation, and metadata for this unreleased title."
-                : "Launch timing and metadata. Activity signals will appear as launch nears.";
+            marketSnapshotSubtitle.innerText = "Metadata and context.";
         }
+        if (decisionPanelTitle) decisionPanelTitle.innerText = "Recommendation";
+        if (decisionPanelSubtitle) decisionPanelSubtitle.innerText = "Watch launch timing and first-sale window.";
+        if (dealExplanationSubtitle) dealExplanationSubtitle.innerText = "Short reasons behind the decision.";
         if (targetAlertTitle) targetAlertTitle.innerText = "Price alerts become available after launch pricing";
     }
 }
@@ -3340,7 +3784,7 @@ function resetPriceHistoryCache(nextGameId = null) {
 async function getPriceHistoryPayload(gameId) {
     const normalizedGameId = Number(gameId);
     if (!Number.isFinite(normalizedGameId) || normalizedGameId <= 0) {
-        return { points: [], history: [], events: [], stats: {} };
+        return normalizePriceHistoryPayloadBoundary({ points: [], history: [], events: [], sale_markers: [], stats: {} });
     }
 
     if (cachedPriceHistoryPayload && cachedPriceHistoryGameId === normalizedGameId) {
@@ -3357,9 +3801,10 @@ async function getPriceHistoryPayload(gameId) {
 
     const requestPromise = fetchJson(`/games/${normalizedGameId}/price-history`)
         .then((payload) => {
+            const normalizedPayload = normalizePriceHistoryPayloadBoundary(payload);
             cachedPriceHistoryGameId = normalizedGameId;
-            cachedPriceHistoryPayload = payload;
-            return payload;
+            cachedPriceHistoryPayload = normalizedPayload;
+            return normalizedPayload;
         })
         .finally(() => {
             if (priceHistoryInFlight && priceHistoryInFlight.gameId === normalizedGameId) {
@@ -3398,8 +3843,78 @@ function parseHistoryTimestamp(value) {
     return Date.parse(text);
 }
 
-function buildRangedPriceHistoryPayload(historyPayload, range) {
+function normalizePriceHistoryPoint(entry) {
+    if (!entry || typeof entry !== "object") return null;
+    const ts = firstFiniteNumber(entry?.ts, parseHistoryTimestamp(entry?.timestamp ?? entry?.recorded_at));
+    if (!Number.isFinite(ts)) return null;
+    const timestampRaw = String(entry?.timestamp ?? entry?.recorded_at ?? "").trim();
+    const timestamp = timestampRaw || new Date(ts).toISOString();
+    const price = parseFiniteNumber(entry?.price);
+    if (!Number.isFinite(price)) return null;
+    const originalPrice = parseFiniteNumber(entry?.original_price);
+    const discountPercent = parseFiniteNumber(entry?.discount_percent);
+    const currentPlayers = firstFiniteNumber(
+        entry?.current_players,
+        entry?.players,
+        entry?.player_count,
+    );
+    return {
+        timestamp,
+        ts,
+        price,
+        original_price: Number.isFinite(originalPrice) ? originalPrice : null,
+        discount_percent: Number.isFinite(discountPercent) ? discountPercent : null,
+        current_players: Number.isFinite(currentPlayers) ? currentPlayers : null,
+        is_interpolated: Boolean(entry?.is_interpolated ?? entry?.isInterpolated),
+    };
+}
+
+function normalizePriceHistorySeries(entries) {
+    const rows = Array.isArray(entries) ? entries : [];
+    return rows
+        .map((entry) => normalizePriceHistoryPoint(entry))
+        .filter(Boolean)
+        .sort((a, b) => a.ts - b.ts);
+}
+
+function normalizePriceEventMarkers(entries) {
+    const rows = Array.isArray(entries) ? entries : [];
+    return rows
+        .map((entry) => {
+            const startRaw = String(entry?.start ?? "").trim();
+            const endRaw = String(entry?.end ?? "").trim();
+            const startTs = parseHistoryTimestamp(startRaw);
+            const endTs = parseHistoryTimestamp(endRaw);
+            if (!Number.isFinite(startTs) || !Number.isFinite(endTs)) return null;
+            return {
+                ...entry,
+                start: startRaw || new Date(startTs).toISOString(),
+                end: endRaw || new Date(endTs).toISOString(),
+            };
+        })
+        .filter(Boolean);
+}
+
+function normalizePriceHistoryPayloadBoundary(historyPayload) {
+    // Boundary normalizer: /games/{id}/price-history payload is canonicalized once here.
     const payload = historyPayload && typeof historyPayload === "object" ? historyPayload : {};
+    const normalizedHistory = normalizePriceHistorySeries(payload?.history);
+    const normalizedPoints = normalizePriceHistorySeries(payload?.points);
+    const canonicalPoints = normalizedPoints.length ? normalizedPoints : normalizedHistory;
+    const normalizedMarkers = normalizePriceEventMarkers(payload?.sale_markers);
+    return {
+        ...payload,
+        history: normalizedHistory,
+        points: canonicalPoints,
+        events: normalizePriceEventMarkers(payload?.events),
+        sale_markers: normalizedMarkers,
+    };
+}
+
+function buildRangedPriceHistoryPayload(historyPayload, range) {
+    const payload = historyPayload && typeof historyPayload === "object"
+        ? historyPayload
+        : { points: [], history: [], events: [], sale_markers: [] };
     return {
         ...payload,
         history: filterChartSeriesByRange(payload.history, range),
@@ -3407,21 +3922,31 @@ function buildRangedPriceHistoryPayload(historyPayload, range) {
     };
 }
 
+function normalizePlayerSeriesPoint(entry, options = {}) {
+    if (!entry || typeof entry !== "object") return null;
+    const allowNullPlayers = options.allowNullPlayers === true;
+    const timestampRaw = String(entry?.timestamp ?? entry?.recorded_at ?? "").trim();
+    const ts = firstFiniteNumber(entry?.ts, parseHistoryTimestamp(timestampRaw));
+    if (!Number.isFinite(ts)) return null;
+    const players = firstFiniteNumber(
+        entry?.players,
+        entry?.current_players,
+        entry?.player_count,
+        entry?.value,
+    );
+    if (!allowNullPlayers && !Number.isFinite(players)) return null;
+    return {
+        timestamp: timestampRaw || new Date(ts).toISOString(),
+        ts,
+        players: Number.isFinite(players) ? players : null,
+        isInterpolated: Boolean(entry?.isInterpolated ?? entry?.is_interpolated),
+    };
+}
+
 function normalizePlayerHistoryPoints(entries) {
     const rows = Array.isArray(entries) ? entries : [];
     return rows
-        .map((entry) => {
-            const timestamp = String(entry?.timestamp ?? entry?.recorded_at ?? "").trim();
-            const ts = parseHistoryTimestamp(timestamp);
-            const players = firstFiniteNumber(
-                entry?.players,
-                entry?.current_players,
-                entry?.player_count,
-                entry?.value,
-            );
-            if (!timestamp || !Number.isFinite(ts) || !Number.isFinite(players)) return null;
-            return { timestamp, ts, players };
-        })
+        .map((entry) => normalizePlayerSeriesPoint(entry, { allowNullPlayers: false }))
         .filter(Boolean)
         .sort((a, b) => a.ts - b.ts);
 }
@@ -3440,26 +3965,45 @@ function computeHistoryCoverageDays(points) {
 function normalizeBackendDisplaySeriesPoints(entries) {
     const rows = Array.isArray(entries) ? entries : [];
     return rows
-        .map((entry) => {
-            const timestamp = String(entry?.timestamp ?? entry?.recorded_at ?? "").trim();
-            const ts = firstFiniteNumber(entry?.ts, parseHistoryTimestamp(timestamp));
-            if (!Number.isFinite(ts)) return null;
-            const players = firstFiniteNumber(
-                entry?.players,
-                entry?.current_players,
-                entry?.player_count,
-                entry?.value,
-            );
-            const normalizedTimestamp = timestamp || new Date(ts).toISOString();
-            return {
-                timestamp: normalizedTimestamp,
-                ts,
-                players: Number.isFinite(players) ? players : null,
-                isInterpolated: Boolean(entry?.is_interpolated),
-            };
-        })
+        .map((entry) => normalizePlayerSeriesPoint(entry, { allowNullPlayers: true }))
         .filter(Boolean)
         .sort((a, b) => a.ts - b.ts);
+}
+
+function normalizeDisplaySeriesRangePayload(range, payload) {
+    const safeRange = normalizePlayerRange(range) || "all";
+    const rangePayload = payload && typeof payload === "object" ? payload : {};
+    const points = normalizeBackendDisplaySeriesPoints(rangePayload?.points);
+    const parsedStart = parseHistoryTimestamp(rangePayload?.range_start);
+    const parsedEnd = parseHistoryTimestamp(rangePayload?.range_end);
+    const fallbackStart = points[0]?.timestamp ?? null;
+    const fallbackEnd = points[points.length - 1]?.timestamp ?? null;
+    return {
+        range: safeRange,
+        point_count: Number.isFinite(Number(rangePayload?.point_count))
+            ? Number(rangePayload.point_count)
+            : points.length,
+        points,
+        range_start: Number.isFinite(parsedStart) ? new Date(parsedStart).toISOString() : fallbackStart,
+        range_end: Number.isFinite(parsedEnd) ? new Date(parsedEnd).toISOString() : fallbackEnd,
+    };
+}
+
+function normalizePlayerHistoryPayloadBoundary(historyPayload) {
+    // Boundary normalizer: /games/{id}/player-history payload is canonicalized once here.
+    const payload = historyPayload && typeof historyPayload === "object" ? historyPayload : {};
+    const backendMap = payload?.display_series_by_range && typeof payload.display_series_by_range === "object"
+        ? payload.display_series_by_range
+        : {};
+    const normalizedRangeMap = {};
+    Object.keys(PLAYER_HISTORY_RANGE_DAYS).forEach((rangeKey) => {
+        normalizedRangeMap[rangeKey] = normalizeDisplaySeriesRangePayload(rangeKey, backendMap[rangeKey]);
+    });
+    return {
+        ...payload,
+        players: normalizePlayerHistoryPoints(payload?.players),
+        display_series_by_range: normalizedRangeMap,
+    };
 }
 
 function resolveBackendDisplayRangePayload(historyPayload, range) {
@@ -3484,10 +4028,12 @@ function getAuthoritativePlayerDisplaySeries(historyPayload, range, sourcePoints
     const normalizedRange = normalizePlayerRange(range) || "all";
     const normalizedSourcePoints = Array.isArray(sourcePoints) && sourcePoints.length
         ? sourcePoints
-        : normalizePlayerHistoryPoints(historyPayload?.players);
+        : (Array.isArray(historyPayload?.players) ? historyPayload.players : normalizePlayerHistoryPoints(historyPayload?.players));
 
     const backendRangePayload = resolveBackendDisplayRangePayload(historyPayload, normalizedRange);
-    const backendPoints = normalizeBackendDisplaySeriesPoints(backendRangePayload?.points);
+    const backendPoints = Array.isArray(backendRangePayload?.points)
+        ? backendRangePayload.points
+        : normalizeBackendDisplaySeriesPoints(backendRangePayload?.points);
     const displayPoints = backendPoints;
 
     const minFromPayload = parseHistoryTimestamp(backendRangePayload?.range_start);
@@ -3543,7 +4089,9 @@ function setPlayerRangeButtons(range) {
 }
 
 function pickDefaultPlayerRange(historyPayload) {
-    const points = normalizePlayerHistoryPoints(historyPayload?.players);
+    const points = Array.isArray(historyPayload?.players)
+        ? historyPayload.players
+        : normalizePlayerHistoryPoints(historyPayload?.players);
     if (points.length < 2) return "30d";
     const earliest = points[0].ts;
     const latest = points[points.length - 1].ts;
@@ -3567,7 +4115,7 @@ function resetPlayerHistoryCache(nextGameId = null) {
 async function getPlayerHistoryPayload(gameId) {
     const normalizedGameId = Number(gameId);
     if (!Number.isFinite(normalizedGameId) || normalizedGameId <= 0) {
-        return { players: [], stats: {} };
+        return normalizePlayerHistoryPayloadBoundary({ players: [], stats: {}, display_series_by_range: {} });
     }
 
     if (cachedPlayerHistoryPayload && cachedPlayerHistoryGameId === normalizedGameId) {
@@ -3584,9 +4132,10 @@ async function getPlayerHistoryPayload(gameId) {
 
     const requestPromise = fetchJson(`/games/${normalizedGameId}/player-history`)
         .then((payload) => {
+            const normalizedPayload = normalizePlayerHistoryPayloadBoundary(payload);
             cachedPlayerHistoryGameId = normalizedGameId;
-            cachedPlayerHistoryPayload = payload;
-            return payload;
+            cachedPlayerHistoryPayload = normalizedPayload;
+            return normalizedPayload;
         })
         .finally(() => {
             if (playerHistoryInFlight && playerHistoryInFlight.gameId === normalizedGameId) {
@@ -3828,11 +4377,10 @@ async function loadGame() {
         if (discoveryPanel instanceof HTMLElement) {
             discoveryPanel.hidden = true;
         }
-        clearLoadingChrome();
-        document.getElementById("gameTitle").innerText = "Missing game identifier";
-        if (contentGrid instanceof HTMLElement) {
-            contentGrid.innerHTML = `<div class="error">A game path identifier, game_id query, or game_name query is required.</div>`;
-        }
+        renderGameLoadErrorState(
+            "A game path identifier, game_id query, or game_name query is required.",
+            { title: "Missing game identifier", retry: false },
+        );
         return;
     }
 
@@ -3854,11 +4402,7 @@ try {
     if (discoveryPanel instanceof HTMLElement) {
         discoveryPanel.hidden = true;
     }
-    clearLoadingChrome();
-    document.getElementById("gameTitle").innerText = message;
-    if (contentGrid instanceof HTMLElement) {
-        contentGrid.innerHTML = `<div class="error">${message}</div>`;
-    }
+    renderGameLoadErrorState(message, { retry: status !== 404 });
     return;
 }
 
@@ -3872,11 +4416,9 @@ if (!payload || payload.error) {
         if (discoveryPanel instanceof HTMLElement) {
             discoveryPanel.hidden = true;
         }
-        clearLoadingChrome();
-        document.getElementById("gameTitle").innerText = message;
-        if (contentGrid instanceof HTMLElement) {
-            contentGrid.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
-        }
+        renderGameLoadErrorState(message, {
+            retry: !/not found/i.test(String(message || "")),
+        });
         return;
     }
 
@@ -3901,6 +4443,8 @@ if (!payload || payload.error) {
     applyAdaptiveGameLayout(payload, currentGameContext);
     renderHeroExplanation(payload, currentGameContext);
     renderHeroStats(payload, currentGameContext);
+    renderDecisionSummaryStrip(payload, currentGameContext);
+    renderStoreDecisionSection(payload);
 
     const confidenceForBadge = resolveDealConfidence(payload);
     if (currentGameContext?.mode === "free") {
@@ -4023,9 +4567,11 @@ async function loadPlayerHistory(gameId, range = null) {
     }
     const requestedRange = normalizePlayerRange(range);
     const renderToken = ++playerHistoryRenderToken;
-    const rawPayload = await getPlayerHistoryPayload(normalizedGameId).catch(() => ({ players: [], stats: {} }));
+    const rawPayload = await getPlayerHistoryPayload(normalizedGameId).catch(
+        () => normalizePlayerHistoryPayloadBoundary({ players: [], stats: {}, display_series_by_range: {} }),
+    );
     if (renderToken !== playerHistoryRenderToken) return;
-    const fullPoints = normalizePlayerHistoryPoints(rawPayload?.players);
+    const fullPoints = Array.isArray(rawPayload?.players) ? rawPayload.players : [];
     currentPlayerHistoryCoverageDays = computeHistoryCoverageDays(fullPoints);
     const resolvedRange = requestedRange || pickDefaultPlayerRange(rawPayload);
     activePlayerRange = resolvedRange;
@@ -4173,65 +4719,57 @@ function renderMarketInfo(data, context = currentGameContext) {
     `).join("");
 }
 
-function renderDealExplanation(payload) {
+function renderDealExplanation(payload, context = currentGameContext) {
     const el = document.getElementById("dealExplanation");
     if (!el) return;
-    const explain = payload?.deal_explanation && typeof payload.deal_explanation === "object"
-        ? payload.deal_explanation
-        : {};
+
+    const lines = [];
+    const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
+    const historicalStatus = String(payload?.historical_status || "").trim().toLowerCase();
+    const discount = Number(payload?.discount_percent ?? payload?.latest_discount_percent);
     const playerInsights = getPlayerSignalInsights(payload);
-    const trendStateLabel = playerInsights?.stateLabel || "Mixed player trend signals";
-    const confidenceLabel = getAuthoritativePlayerConfidenceText(payload);
-    const trendComparison = buildPlayerTrendComparisonText(playerInsights);
-    const recommendationHeadline = buildRecommendationHeadline(payload, playerInsights);
-    const recommendationSignal = String(payload?.buy_recommendation || "Signal").trim().toUpperCase() || "SIGNAL";
-    const longTrendReason = normalizeReasonSnippet(
-        payload?.trend_reason_summary
-        ?? payload?.momentum?.reason
-        ?? payload?.deal_heat_reason
-        ?? payload?.ranking_explanations?.momentum,
-    ) || "Long-term player behavior is included in this recommendation.";
+    const playerState = String(playerInsights?.state || "").trim().toLowerCase();
 
-    const rows = [
-        ["Discount Strength", explain.discount_strength, 30],
-        ["Historical Value", explain.historical_value, 25],
-        ["Review Quality", explain.review_quality, 20],
-        ["Player Interest", explain.player_interest, 15],
-        ["Sale Rarity", explain.sale_rarity, 10],
-    ];
+    if (
+        historicalStatus === "new_historical_low"
+        || historicalStatus === "matches_historical_low"
+        || historicalStatus === "near_historical_low"
+    ) {
+        pushUniqueExplanationLine(lines, "Matches recent low");
+    }
+    if (Number.isFinite(discount) && discount >= 40) {
+        pushUniqueExplanationLine(lines, "Discount is higher than usual");
+    } else if (Number.isFinite(discount) && discount >= 20) {
+        pushUniqueExplanationLine(lines, "Discount is meaningful right now");
+    }
 
-    const scoreRowsHtml = rows.map(([label, score, max]) => {
-        const pct = score ? Math.max(0, Math.min(100, (score / max) * 100)) : 0;
-        return `
-            <div class="break-row">
-                <div class="break-top">
-                    <span>${escapeHtml(label)}</span>
-                    <span>${score ?? 0} / ${max}</span>
-                </div>
-                <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
-            </div>
-        `;
-    }).join("");
+    if (playerState === "stable" || playerState === "stable_evergreen") {
+        pushUniqueExplanationLine(lines, "Stable player activity");
+    } else if (playerState === "resurging") {
+        pushUniqueExplanationLine(lines, "Player activity is rising");
+    } else if (playerState === "declining" || playerState === "launch_hype_dropoff") {
+        pushUniqueExplanationLine(lines, "Player activity is softening");
+    }
 
-    el.innerHTML = `
-        <div class="break-row break-row-highlight">
-            <div class="break-top">
-                <span>Player Trend Summary</span>
-                <span>${escapeHtml(trendStateLabel)}</span>
-            </div>
-            <div class="summary">${escapeHtml(trendComparison || longTrendReason)}</div>
-            <div class="summary">${escapeHtml(confidenceLabel)}</div>
-        </div>
-        <div class="break-row">
-            <div class="break-top">
-                <span>Recommendation Context</span>
-                <span>${escapeHtml(recommendationSignal)}</span>
-            </div>
-            <div class="summary">${escapeHtml(recommendationHeadline)}</div>
-        </div>
-        ${scoreRowsHtml}
-        <div class="summary">${escapeHtml(explain.summary || "Snapshot-derived deal explanation.")}</div>
-    `;
+    const conciseReasons = buildHeroExplanationLines(payload, context);
+    conciseReasons.forEach((line) => pushUniqueExplanationLine(lines, normalizeReasonSnippet(line)));
+
+    if (recommendation === "BUY_NOW") {
+        pushUniqueExplanationLine(lines, "Recommendation supports buying now");
+    } else if (recommendation === "WAIT") {
+        pushUniqueExplanationLine(lines, "Recommendation favors waiting");
+    }
+
+    const finalLines = lines
+        .filter(Boolean)
+        .slice(0, 4);
+
+    if (!finalLines.length) {
+        el.innerHTML = "<li>Snapshot signals are still building confidence.</li>";
+        return;
+    }
+
+    el.innerHTML = finalLines.map((line) => `<li>${escapeHtml(line)}</li>`).join("");
 }
 
 function renderPrediction(payload) {
@@ -4287,6 +4825,7 @@ function renderPrediction(payload) {
 }
 
 function renderPriceChart(historyPayload) {
+    // Canonical /game price chart implementation. Do not confuse with /game-detail renderPriceChart.
     const canvas = document.getElementById("priceChart");
     if (!(canvas instanceof HTMLCanvasElement)) return;
     const ctx = canvas.getContext("2d");
@@ -4296,26 +4835,7 @@ function renderPriceChart(historyPayload) {
         priceWrap.classList.remove("gd-skeleton-surface");
     }
     setChartEmptyState("priceChartEmpty", "");
-    const legacyPoints = Array.isArray(historyPayload?.points) ? historyPayload.points : [];
-    const sampledHistory = Array.isArray(historyPayload?.history)
-        ? historyPayload.history.map((entry) => ({
-            timestamp: entry.timestamp,
-            price: entry.price,
-            original_price: entry.original_price,
-            discount_percent: entry.discount_percent,
-            current_players: entry.players,
-        }))
-        : [];
-    const points = legacyPoints.length ? legacyPoints : sampledHistory;
-    const normalizedPoints = points
-        .map((entry) => ({
-            timestamp: entry?.timestamp,
-            price: Number(entry?.price),
-            original_price: entry?.original_price,
-            discount_percent: entry?.discount_percent,
-            current_players: entry?.current_players,
-        }))
-        .filter((entry) => entry.timestamp && Number.isFinite(Date.parse(entry.timestamp)) && Number.isFinite(entry.price));
+    const normalizedPoints = Array.isArray(historyPayload?.points) ? historyPayload.points : [];
 
     if (!normalizedPoints.length) {
         if (priceChart) {
@@ -4331,49 +4851,8 @@ function renderPriceChart(historyPayload) {
     const originalPrices = normalizedPoints.map((p) => p.original_price);
     const discounts = normalizedPoints.map((p) => p.discount_percent ?? 0);
     const players = normalizedPoints.map((p) => p.current_players ?? null);
-    const historicalLowPrice = historyPayload.historical_low?.price ?? historyPayload?.stats?.historical_low ?? null;
 
     if (priceChart) priceChart.destroy();
-
-    const saleBandPlugin = {
-        id: "saleBandPlugin",
-        beforeDatasetsDraw(chart) {
-            const { ctx, chartArea, scales } = chart;
-            if (!chartArea) return;
-            const markers = Array.isArray(historyPayload?.sale_markers) ? historyPayload.sale_markers : [];
-            ctx.save();
-            markers.forEach((marker) => {
-                const startIndex = normalizedPoints.findIndex((p) => p.timestamp === marker.start);
-                const endIndex = normalizedPoints.findIndex((p) => p.timestamp === marker.end);
-                if (startIndex === -1 || endIndex === -1) return;
-                const x1 = scales.x.getPixelForValue(startIndex);
-                const x2 = scales.x.getPixelForValue(endIndex);
-                ctx.fillStyle = "rgba(34, 197, 94, 0.08)";
-                ctx.fillRect(x1, chartArea.top, Math.max(x2 - x1, 2), chartArea.bottom - chartArea.top);
-            });
-            ctx.restore();
-        },
-    };
-
-    const historicalLowPlugin = {
-        id: "historicalLowPlugin",
-        afterDatasetsDraw(chart) {
-            if (historicalLowPrice === null || historicalLowPrice === undefined) return;
-            const { ctx, chartArea, scales } = chart;
-            const y = scales.y.getPixelForValue(historicalLowPrice);
-            ctx.save();
-            ctx.strokeStyle = "rgba(244, 114, 182, 0.78)";
-            ctx.setLineDash([6, 6]);
-            ctx.beginPath();
-            ctx.moveTo(chartArea.left, y);
-            ctx.lineTo(chartArea.right, y);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.fillStyle = "rgba(244, 114, 182, 0.95)";
-            ctx.fillText(`Historical low: ${fmtPrice(historicalLowPrice)}`, chartArea.left + 8, y - 8);
-            ctx.restore();
-        },
-    };
 
     priceChart = new Chart(ctx, {
         type: "line",
@@ -4430,11 +4909,11 @@ function renderPriceChart(historyPayload) {
                 },
             },
         },
-        plugins: [saleBandPlugin, historicalLowPlugin],
     });
 }
 
 function renderPlayerChart(historyPayload, options = {}) {
+    // Canonical /game player chart implementation (separate from /history buildCharts players chart).
     const canvas = document.getElementById("playerChart");
     if (!(canvas instanceof HTMLCanvasElement)) return;
     const ctx = canvas.getContext("2d");
@@ -4445,7 +4924,9 @@ function renderPlayerChart(historyPayload, options = {}) {
     }
     setChartEmptyState("playerChartEmpty", "");
     const selectedRange = normalizePlayerRange(options?.range) || activePlayerRange;
-    const sourcePoints = normalizePlayerHistoryPoints(historyPayload?.players);
+    const sourcePoints = Array.isArray(historyPayload?.players)
+        ? historyPayload.players
+        : normalizePlayerHistoryPoints(historyPayload?.players);
     const series = getAuthoritativePlayerDisplaySeries(historyPayload, selectedRange, sourcePoints);
     const range = series.range;
     const authoritativeSourcePoints = series.sourcePoints;
@@ -4470,15 +4951,11 @@ function renderPlayerChart(historyPayload, options = {}) {
     }
 
     const latestIndex = displayedPoints.length - 1;
-    const peakIndex = Number.isInteger(trendInsights.peakIndex) ? trendInsights.peakIndex : null;
-    const spikeIndex = Number.isInteger(trendInsights?.spike?.index) ? trendInsights.spike.index : null;
     const rangeBounds = series.rangeBounds;
 
     const palette = trendInsights.trend === "up"
         ? {
             line: "#72f0bf",
-            peak: "#b7ffd9",
-            spike: "#ffe08a",
             latest: "#5ce4a9",
             fillTop: "rgba(114, 240, 191, 0.34)",
             fillBottom: "rgba(114, 240, 191, 0.02)",
@@ -4486,88 +4963,16 @@ function renderPlayerChart(historyPayload, options = {}) {
         : trendInsights.trend === "down"
             ? {
                 line: "#f6b86d",
-                peak: "#ffd7a3",
-                spike: "#ffd7a3",
                 latest: "#f6b86d",
                 fillTop: "rgba(246, 184, 109, 0.30)",
                 fillBottom: "rgba(246, 184, 109, 0.02)",
             }
             : {
                 line: "#67eaff",
-                peak: "#9beeff",
-                spike: "#ffd7a3",
                 latest: "#67eaff",
                 fillTop: "rgba(103, 234, 255, 0.30)",
                 fillBottom: "rgba(103, 234, 255, 0.02)",
             };
-
-    const playerSignalPlugin = {
-        id: "playerSignalPlugin",
-        afterDatasetsDraw(chart) {
-            const meta = chart.getDatasetMeta(0);
-            if (!meta || !Array.isArray(meta.data) || !meta.data.length) return;
-            const drawCallout = (index, text, color) => {
-                if (!Number.isInteger(index) || index < 0 || index >= meta.data.length) return;
-                const point = meta.data[index];
-                if (!point) return;
-                const coords = typeof point.getProps === "function"
-                    ? point.getProps(["x", "y"], true)
-                    : point;
-                const x = Number(coords?.x);
-                const y = Number(coords?.y);
-                const isSkipped = Boolean(point?.skip || coords?.skip);
-                if (isSkipped || !Number.isFinite(x) || !Number.isFinite(y)) return;
-                const label = String(text || "").trim();
-                if (!label) return;
-                chart.ctx.save();
-                chart.ctx.font = "11px Inter, system-ui, sans-serif";
-                chart.ctx.textBaseline = "middle";
-                const textWidth = chart.ctx.measureText(label).width;
-                const boxWidth = textWidth + 12;
-                const boxHeight = 18;
-                const chartLeft = chart.chartArea.left + 4;
-                const chartRight = chart.chartArea.right - boxWidth - 4;
-                const chartTop = chart.chartArea.top + 4;
-                const chartBottom = chart.chartArea.bottom - boxHeight - 4;
-                const rawX = x + 8;
-                const rawY = y - boxHeight - 8;
-                const xPos = Math.max(chartLeft, Math.min(chartRight, rawX));
-                const yPos = Math.max(chartTop, Math.min(chartBottom, rawY));
-                const anchorRight = xPos + boxWidth;
-                const anchorBottom = yPos + boxHeight;
-                const anchorX = x < xPos ? xPos + 4 : x > anchorRight ? anchorRight - 4 : x;
-                const anchorY = y < yPos ? yPos : y > anchorBottom ? anchorBottom : y;
-
-                chart.ctx.strokeStyle = color;
-                chart.ctx.lineWidth = 1;
-                chart.ctx.beginPath();
-                chart.ctx.moveTo(x, y);
-                chart.ctx.lineTo(anchorX, anchorY);
-                chart.ctx.stroke();
-
-                chart.ctx.fillStyle = "rgba(7, 17, 31, 0.86)";
-                chart.ctx.strokeStyle = color;
-                chart.ctx.lineWidth = 1;
-                chart.ctx.beginPath();
-                if (typeof chart.ctx.roundRect === "function") {
-                    chart.ctx.roundRect(xPos, yPos, boxWidth, boxHeight, 7);
-                    chart.ctx.fill();
-                    chart.ctx.stroke();
-                } else {
-                    chart.ctx.fillRect(xPos, yPos, boxWidth, boxHeight);
-                    chart.ctx.strokeRect(xPos, yPos, boxWidth, boxHeight);
-                }
-                chart.ctx.fillStyle = color;
-                chart.ctx.fillText(label, xPos + 6, yPos + (boxHeight / 2));
-                chart.ctx.restore();
-            };
-
-            drawCallout(peakIndex, "Peak", palette.peak);
-            if (spikeIndex !== null && spikeIndex !== peakIndex) {
-                drawCallout(spikeIndex, "Spike", palette.spike);
-            }
-        },
-    };
     const nextData = {
         datasets: [
             {
@@ -4594,26 +4999,22 @@ function renderPlayerChart(historyPayload, options = {}) {
                 pointRadius(context) {
                     const index = context.dataIndex;
                     if (index === latestIndex) return 3.5;
-                    if (index === peakIndex) return 4.4;
-                    if (index === spikeIndex) return 3.6;
                     return 0;
                 },
                 pointHoverRadius(context) {
                     const index = context.dataIndex;
-                    if (index === peakIndex || index === spikeIndex || index === latestIndex) return 6;
+                    if (index === latestIndex) return 6;
                     return 4;
                 },
                 pointBackgroundColor(context) {
                     const index = context.dataIndex;
-                    if (index === peakIndex) return palette.peak;
-                    if (index === spikeIndex) return palette.spike;
                     if (index === latestIndex) return palette.latest;
                     return palette.line;
                 },
                 pointBorderColor: "rgba(8, 18, 34, 0.9)",
                 pointBorderWidth(context) {
                     const index = context.dataIndex;
-                    return (index === peakIndex || index === spikeIndex || index === latestIndex) ? 1.4 : 0;
+                    return index === latestIndex ? 1.4 : 0;
                 },
             },
         ],
@@ -4632,14 +5033,6 @@ function renderPlayerChart(historyPayload, options = {}) {
                     },
                     label(item) {
                         return `Players: ${fmtInt(item.parsed.y)}`;
-                    },
-                    afterBody(items) {
-                        const idx = items[0].dataIndex;
-                        if (idx === peakIndex) return ["Range peak point"];
-                        if (idx === spikeIndex && trendInsights?.spike) {
-                            return [`Spike jump: +${fmtInt(trendInsights.spike.delta)}`];
-                        }
-                        return [];
                     },
                 },
             },
@@ -4685,7 +5078,6 @@ function renderPlayerChart(historyPayload, options = {}) {
             type: "line",
             data: nextData,
             options: nextOptions,
-            plugins: [playerSignalPlugin],
         });
         return;
     }
@@ -4693,7 +5085,7 @@ function renderPlayerChart(historyPayload, options = {}) {
     playerChart.data.labels = nextData.labels;
     playerChart.data.datasets = nextData.datasets;
     playerChart.options = nextOptions;
-    playerChart.config.plugins = [playerSignalPlugin];
+    playerChart.config.plugins = [];
     playerChart.update("none");
 }
 
@@ -4858,8 +5250,7 @@ void loadGame().catch((error) => {
     if (shareDealButton instanceof HTMLButtonElement) {
         shareDealButton.disabled = true;
     }
-    clearLoadingChrome();
-    document.getElementById("gameTitle").innerText = "Failed to load game";
+    renderGameLoadErrorState("Failed to load game", { retry: true });
 });
 </script>
 </body>

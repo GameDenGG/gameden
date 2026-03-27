@@ -267,7 +267,35 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
     const identifier = canonicalIdentifier(g);
     return identifier ? `/game/${identifier}` : "/game";
   };
-  const setStatus = (msg, err = false) => { if (!msg) { ui.status.classList.add("hidden"); ui.status.classList.remove("error"); ui.status.textContent = ""; return; } ui.status.textContent = msg; ui.status.classList.remove("hidden"); ui.status.classList.toggle("error", !!err); };
+  let statusRetryToken = 0;
+  const setStatus = (msg, err = false, options = {}) => {
+    const retryLabel = String(options?.retryLabel || "Retry").trim() || "Retry";
+    const onRetry = typeof options?.onRetry === "function" ? options.onRetry : null;
+    if (!msg) {
+      ui.status.classList.add("hidden");
+      ui.status.classList.remove("error");
+      ui.status.textContent = "";
+      statusRetryToken += 1;
+      return;
+    }
+    ui.status.classList.remove("hidden");
+    ui.status.classList.toggle("error", !!err);
+    if (!onRetry) {
+      ui.status.textContent = msg;
+      statusRetryToken += 1;
+      return;
+    }
+    const nextToken = statusRetryToken + 1;
+    statusRetryToken = nextToken;
+    ui.status.innerHTML = `${h(msg)} <button class="btn" type="button" data-status-retry="${nextToken}">${h(retryLabel)}</button>`;
+    const retryButton = ui.status.querySelector(`[data-status-retry="${nextToken}"]`);
+    if (retryButton instanceof HTMLButtonElement) {
+      retryButton.addEventListener("click", () => {
+        if (statusRetryToken !== nextToken) return;
+        void onRetry();
+      });
+    }
+  };
   const setCount = (total, shown) => ui.count.textContent = Number.isFinite(total) ? `${Math.round(shown || 0).toLocaleString()} of ${Math.round(total).toLocaleString()}` : "--";
   const hasMore = () => state.page <= state.totalPages;
   const stopRequest = () => { if (state.controller) { try { state.controller.abort(); } catch {} state.controller = null; } };
@@ -497,7 +525,14 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
       const incoming = Array.isArray(payload?.items) ? payload.items : []; state.total = Math.max(0, n(payload?.total, 0) || 0); state.totalPages = Math.max(0, n(payload?.total_pages, 0) || 0); state.page = Math.max(1, page + 1); state.rows = unique([...state.rows, ...incoming]);
       if (page === 1) render(state.rows, false); else if (incoming.length) render(incoming, true);
       setCount(state.total, state.rows.length); chips(); setStatus(!state.rows.length ? "No games match your current search and filters." : "");
-    } catch (e) { if (e?.name !== "AbortError") { if (page === 1) ui.grid.innerHTML = ""; setStatus("Failed to load directory results. Please try again.", true); } }
+    } catch (e) {
+      if (e?.name !== "AbortError") {
+        if (page === 1) ui.grid.innerHTML = "";
+        setStatus("Failed to load directory results. Please try again.", true, {
+          onRetry: () => loadReleased(true),
+        });
+      }
+    }
     finally { if (id === state.requestId) { state.loading = false; state.loadingMore = false; state.controller = null; updateMore(); } }
   }
   async function loadFilters() {
@@ -528,7 +563,12 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
       }
       const payload = await fetchJson("/dashboard/home"); const homeRows = byPath(payload, DASHBOARD_VIEWS[state.view]?.key); const rows = Array.isArray(homeRows) ? homeRows : []; state.rows = unique(rows); state.total = state.rows.length; state.totalPages = 1; render(state.rows, false); setCount(state.total, state.rows.length); if (!state.rows.length) setStatus("No items are available for this section yet.");
     }
-    catch { ui.grid.innerHTML = ""; setStatus(state.seoSlug ? "Failed to load this discovery page." : "Failed to load this discovery section.", true); }
+    catch {
+      ui.grid.innerHTML = "";
+      setStatus(state.seoSlug ? "Failed to load this discovery page." : "Failed to load this discovery section.", true, {
+        onRetry: () => loadStatic(),
+      });
+    }
     finally { state.loading = false; updateMore(); }
   }
   function readUi() { state.filters.search = String(ui.search.value || "").trim(); state.filters.genre = String(ui.genre.value || "").trim(); state.filters.platform = String(ui.platform.value || "").trim(); state.filters.sort = String(ui.sort.value || "alpha-asc").trim() || "alpha-asc"; state.filters.tag = String(ui.tag.value || "").trim(); state.filters.reviewLabel = String(ui.review.value || "").trim(); state.filters.minDiscount = n(ui.minDiscount.value, null); state.filters.maxPrice = n(ui.maxPrice.value, null); state.filters.minPlayers = n(ui.minPlayers.value, null); state.filters.dealsOnly = !!ui.dealsOnly.checked; state.filters.includeFree = !!ui.includeFree.checked; }
@@ -547,7 +587,11 @@ a{color:inherit}.page{width:min(1420px,100% - 28px);margin:0 auto;padding:20px 0
     if (state.view === RELEASED_VIEW) { await loadFilters(); syncUi(); await loadReleased(true); }
     else { ui.controls.classList.add("hidden"); chips(); await loadStatic(); }
   }
-  window.addEventListener("pagehide", cleanup); window.addEventListener("beforeunload", cleanup); start().catch(() => setStatus("Failed to initialize the directory page.", true));
+  window.addEventListener("pagehide", cleanup);
+  window.addEventListener("beforeunload", cleanup);
+  start().catch(() => setStatus("Failed to initialize the directory page.", true, {
+    onRetry: () => start(),
+  }));
 })();
 </script>
 </body>

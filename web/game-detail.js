@@ -1,3 +1,9 @@
+/*
+  Runtime ownership note:
+  - Canonical game detail routes (/game and /game/{identifier}) execute scripts in web/game.html.
+  - This script is tied to /game-detail (web/game-detail.html) and is a legacy/alternate detail path.
+  - Do not apply /game page chart fixes here unless the issue is confirmed on /game-detail.
+*/
 const API_BASE = "/games";
 const params = new URLSearchParams(window.location.search);
 const gameId = params.get("game_id");
@@ -761,6 +767,7 @@ function renderDealFactors(data) {
 }
 
 function renderPriceChart(data) {
+  // /game-detail-specific price chart. Non-authoritative for canonical /game chart fixes.
   const labels = (data.points || []).map((p) => new Date(p.timestamp).toLocaleDateString());
   const prices = (data.points || []).map((p) => p.price);
   const priceHistoryPanel = document.getElementById("priceChart")?.closest(".panel");

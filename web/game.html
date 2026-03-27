@@ -3663,9 +3663,32 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
     }
 
     let spike = null;
-    for (let i = 1; i < markerPoints.length; i += 1) {
-        const prev = markerPoints[i - 1];
-        const curr = markerPoints[i];
+
+const startIndex = firstRealIndex >= 0 ? firstRealIndex + 1 : 1;
+
+for (let i = startIndex; i < normalizedDisplayedPoints.length; i += 1) {
+    const prev = normalizedDisplayedPoints[i - 1];
+    const curr = normalizedDisplayedPoints[i];
+
+    if (prev.players === null || curr.players === null) continue;
+
+    const delta = curr.players - prev.players;
+    if (delta <= 0) continue;
+
+    if (
+        !spike ||
+        delta > spike.delta ||
+        (delta === spike.delta && curr.players > spike.players)
+    ) {
+        spike = {
+            ts: curr.ts,
+            timestamp: curr.timestamp,
+            players: curr.players,
+            delta,
+            index: curr.__index,
+        };
+    }
+}
         if (prev.players === null || curr.players === null) continue;
 
         const delta = curr.players - prev.players;

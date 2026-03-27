@@ -4445,7 +4445,8 @@ function renderPlayerChart(historyPayload, options = {}) {
                     : point;
                 const x = Number(coords?.x);
                 const y = Number(coords?.y);
-                if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+                const isSkipped = Boolean(point?.skip || coords?.skip);
+                if (isSkipped || !Number.isFinite(x) || !Number.isFinite(y)) return;
                 const label = String(text || "").trim();
                 if (!label) return;
                 chart.ctx.save();
@@ -4462,12 +4463,16 @@ function renderPlayerChart(historyPayload, options = {}) {
                 const rawY = y - boxHeight - 8;
                 const xPos = Math.max(chartLeft, Math.min(chartRight, rawX));
                 const yPos = Math.max(chartTop, Math.min(chartBottom, rawY));
+                const anchorRight = xPos + boxWidth;
+                const anchorBottom = yPos + boxHeight;
+                const anchorX = x < xPos ? xPos + 4 : x > anchorRight ? anchorRight - 4 : x;
+                const anchorY = y < yPos ? yPos : y > anchorBottom ? anchorBottom : y;
 
                 chart.ctx.strokeStyle = color;
                 chart.ctx.lineWidth = 1;
                 chart.ctx.beginPath();
-                chart.ctx.moveTo(x, y - 1);
-                chart.ctx.lineTo(xPos + 8, yPos + boxHeight);
+                chart.ctx.moveTo(x, y);
+                chart.ctx.lineTo(anchorX, anchorY);
                 chart.ctx.stroke();
 
                 chart.ctx.fillStyle = "rgba(7, 17, 31, 0.86)";

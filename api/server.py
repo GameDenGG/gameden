@@ -287,7 +287,7 @@ PLAYER_HISTORY_DISPLAY_BUCKET_MS: dict[str, int] = {
 PLAYER_HISTORY_INCOMPATIBLE_SOURCES: tuple[str, ...] = ("historical_import",)
 PLAYER_HISTORY_LEFT_EDGE_SEED_RANGES: tuple[str, ...] = ("30d", "3m", "1y")
 PLAYER_HISTORY_LEFT_EDGE_SEED_MAX_GAP_MS: dict[str, int] = {
-    "30d": 7 * PLAYER_HISTORY_DAY_MS,
+    "30d": 21 * PLAYER_HISTORY_DAY_MS,
     "3m": 28 * PLAYER_HISTORY_DAY_MS,
     "1y": 90 * PLAYER_HISTORY_DAY_MS,
 }

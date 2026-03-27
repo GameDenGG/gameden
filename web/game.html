@@ -3491,15 +3491,21 @@ function getAuthoritativePlayerDisplaySeries(historyPayload, range, sourcePoints
     const minFromPayload = parseHistoryTimestamp(backendRangePayload?.range_start);
     const maxFromPayload = parseHistoryTimestamp(backendRangePayload?.range_end);
     const fallbackMin = displayPoints[0]?.ts ?? null;
-    const fallbackMax = displayPoints[displayPoints.length - 1]?.ts ?? null;
-    return {
-        range: normalizedRange,
-        sourcePoints: normalizedSourcePoints,
-        series: displayPoints,
-        rangeBounds: {
-            min: Number.isFinite(minFromPayload) ? minFromPayload : fallbackMin,
-            max: Number.isFinite(maxFromPayload) ? maxFromPayload : fallbackMax,
-        },
+const fallbackMax = displayPoints[displayPoints.length - 1]?.ts ?? null;
+
+// ✅ Always trust backend range_end if present
+const resolvedMax = Number.isFinite(maxFromPayload)
+    ? maxFromPayload
+    : fallbackMax;
+
+return {
+    range: normalizedRange,
+    sourcePoints: normalizedSourcePoints,
+    series: displayPoints,
+    rangeBounds: {
+        min: Number.isFinite(minFromPayload) ? minFromPayload : fallbackMin,
+        max: resolvedMax,
+    },
     };
 }
 
@@ -3594,31 +3600,6 @@ function formatPlayerTickLabel(timestamp, range) {
     return date.toLocaleDateString(undefined, { year: "numeric", month: "short" });
 }
 
-function findMajorPlayerSpike(points) {
-    if (!Array.isArray(points) || points.length < 3) return null;
-    let best = null;
-    let peakPlayers = 0;
-    points.forEach((point) => {
-        if (point.players > peakPlayers) peakPlayers = point.players;
-    });
-    const minimumAbsoluteJump = Math.max(250, peakPlayers * 0.04);
-
-    for (let index = 1; index < points.length; index += 1) {
-        const previous = points[index - 1];
-        const current = points[index];
-        if (!previous || !current || previous.players <= 0) continue;
-        const delta = current.players - previous.players;
-        if (delta <= 0) continue;
-        const ratio = delta / previous.players;
-        if (delta < minimumAbsoluteJump && ratio < 0.18) continue;
-        if (!best || delta > best.delta || (delta === best.delta && ratio > best.ratio)) {
-            best = { index, delta, ratio, timestamp: current.timestamp, ts: current.ts };
-        }
-    }
-
-    return best;
-}
-
 function computePlayerTrendInsights(displayedPoints, allPoints, range) {
     const backendInsights = getPlayerSignalInsights(currentGamePayload);
     const backendState = String(backendInsights?.state || "").trim().toLowerCase();
@@ -3638,15 +3619,16 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
                 ...point,
                 __index: index,
                 players: Number.isFinite(players) ? players : null,
+                isInterpolated: Boolean(point?.isInterpolated ?? point?.is_interpolated),
             };
         })
         : [];
 
-    const comparableDisplayedPoints = normalizedDisplayedPoints.filter(
+    const validDisplayedPoints = normalizedDisplayedPoints.filter(
         (point) => point.players !== null,
     );
 
-    if (!comparableDisplayedPoints.length || !Array.isArray(allPoints) || !allPoints.length) {
+    if (!validDisplayedPoints.length || !Array.isArray(allPoints) || !allPoints.length) {
         return {
             trend: "flat",
             summary: "Player trend unavailable",
@@ -3657,14 +3639,21 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
         };
     }
 
-    const first = comparableDisplayedPoints[0];
-    const latest = comparableDisplayedPoints[comparableDisplayedPoints.length - 1];
+    const firstRealIndex = normalizedDisplayedPoints.findIndex(
+        (point) => point.players !== null && !point.isInterpolated,
+    );
 
-    // Peak must come from the exact rendered series.
-    // Tie-breaker prefers later point so label sits on visible topmost/latest occurrence.
-    let peakPoint = comparableDisplayedPoints[0];
-    for (let i = 1; i < comparableDisplayedPoints.length; i += 1) {
-        const point = comparableDisplayedPoints[i];
+    const markerPoints = validDisplayedPoints.filter((point) => {
+        if (firstRealIndex < 0) return true;
+        return point.__index >= firstRealIndex;
+    });
+
+    const first = markerPoints[0] || validDisplayedPoints[0];
+    const latest = validDisplayedPoints[validDisplayedPoints.length - 1];
+
+    let peakPoint = markerPoints[0] || null;
+    for (let i = 1; i < markerPoints.length; i += 1) {
+        const point = markerPoints[i];
         if (
             point.players > peakPoint.players ||
             (point.players === peakPoint.players && point.__index > peakPoint.__index)
@@ -3672,15 +3661,11 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
             peakPoint = point;
         }
     }
-    const peakIndex = peakPoint.__index;
 
-    // Spike must also come from consecutive rendered points.
-    // This guarantees index alignment with Chart.js meta.data[index].
     let spike = null;
-    for (let i = 1; i < normalizedDisplayedPoints.length; i += 1) {
-        const prev = normalizedDisplayedPoints[i - 1];
-        const curr = normalizedDisplayedPoints[i];
-
+    for (let i = 1; i < markerPoints.length; i += 1) {
+        const prev = markerPoints[i - 1];
+        const curr = markerPoints[i];
         if (prev.players === null || curr.players === null) continue;
 
         const delta = curr.players - prev.players;
@@ -3697,9 +3682,6 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
                 players: curr.players,
                 delta,
                 index: curr.__index,
-                previousTs: prev.ts,
-                previousTimestamp: prev.timestamp,
-                previousPlayers: prev.players,
             };
         }
     }
@@ -3738,16 +3720,13 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
         : "Tracking history available";
 
     const detailCandidates = [];
-
     if (backendState === "declining" || backendState === "launch_hype_dropoff") {
         detailCandidates.push(fromPeakText);
     } else if (backendState === "one_off_spike" && spike?.timestamp) {
         detailCandidates.push(`Spike detected on ${formatPlayerDate(spike.timestamp)}`);
     } else if (backendState === "resurging") {
         const mediumPct = formatTrendPercent(backendInsights?.mediumTerm);
-        if (mediumPct) {
-            detailCandidates.push(`Up ${mediumPct.replace("+", "")} over the last 30 days`);
-        }
+        if (mediumPct) detailCandidates.push(`Up ${mediumPct.replace("+", "")} over the last 30 days`);
     } else if (backendState === "stable_evergreen" || backendState === "stable") {
         detailCandidates.push("Recent and long-term activity are holding steady");
     } else if (Number.isFinite(trendPct) && Math.abs(trendPct) >= 5) {
@@ -3755,7 +3734,6 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
             `${trendPct >= 0 ? "Up" : "Down"} ${Math.abs(trendPct).toFixed(1)}% in this view`,
         );
     }
-
     detailCandidates.push(coverageSince);
 
     return {
@@ -3763,11 +3741,10 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
         summary: backendHeadline,
         detail: detailCandidates.filter(Boolean).slice(0, 2).join(" • "),
         coverage: backendConfidence,
-        peakIndex: Number.isInteger(peakIndex) ? peakIndex : null,
+        peakIndex: peakPoint ? peakPoint.__index : null,
         spike: spike && Number.isInteger(spike.index) ? spike : null,
     };
 }
-
 function renderPlayerTrendInsights(insights) {
     const summaryEl = document.getElementById("playerTrendSummary");
     const detailEl = document.getElementById("playerTrendDetail");

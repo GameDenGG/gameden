@@ -3480,13 +3480,20 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
     interpolated_indexes.update(seeded_indexes)
 
     ordered_points: list[dict] = []
+    last_index = len(bucket_starts) - 1
+
     for index, bucket_start in enumerate(bucket_starts):
         players_value = display_values[index]
         rounded_players = max(0, int(round(players_value))) if players_value is not None else None
+
+        point_ts = bucket_start
+        if index == last_index:
+            point_ts = int(max_ts)
+
         ordered_points.append(
             {
-                "timestamp": _unix_ms_to_iso(bucket_start),
-                "ts": bucket_start,
+                "timestamp": _unix_ms_to_iso(point_ts),
+                "ts": point_ts,
                 "players": rounded_players,
                 "is_interpolated": index in interpolated_indexes and not real_bucket_has_data[index],
             }
@@ -3495,11 +3502,12 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
     return {
         "range": normalized_range,
         "bucket_ms": bucket_ms,
-        "range_start": _unix_ms_to_iso(bucket_starts[0]),
-        "range_end": _unix_ms_to_iso(max_ts),
+        "range_start": _unix_ms_to_iso(int(min_ts)),
+        "range_end": _unix_ms_to_iso(int(max_ts)),
         "point_count": len(ordered_points),
         "points": ordered_points,
     }
+
 def _build_player_display_series_by_range(source_points: list[dict]) -> dict[str, dict]:
     return {
         range_key: _build_player_display_series(source_points, range_key)

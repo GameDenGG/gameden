@@ -3738,13 +3738,27 @@ function computePlayerTrendInsights(displayedPoints, allPoints, range) {
     }
     detailCandidates.push(coverageSince);
 
+    const normalizedPeakIndex = Number.isInteger(peakPoint?.__index) ? peakPoint.__index : null;
+    const safePeakIndex = normalizedPeakIndex !== null
+        && normalizedPeakIndex >= 0
+        && normalizedPeakIndex < normalizedDisplayedPoints.length
+        ? normalizedPeakIndex
+        : null;
+
+    const normalizedSpike = spike && Number.isInteger(spike.index) ? spike : null;
+    const safeSpike = normalizedSpike
+        && normalizedSpike.index >= 0
+        && normalizedSpike.index < normalizedDisplayedPoints.length
+        ? normalizedSpike
+        : null;
+
     return {
         trend: trendFromState,
         summary: backendHeadline,
         detail: detailCandidates.filter(Boolean).slice(0, 2).join(" • "),
         coverage: backendConfidence,
-        peakIndex: peakPoint ? peakPoint.__index : null,
-        spike: spike && Number.isInteger(spike.index) ? spike : null,
+        peakIndex: safePeakIndex,
+        spike: safeSpike,
     };
 }
 function renderPlayerTrendInsights(insights) {
@@ -4533,8 +4547,6 @@ renderPlayerTrendInsights(trendInsights);
             }
         },
     };
-console.log("render trendInsights =", trendInsights);
-console.log("render rangeBounds =", rangeBounds);
     const nextData = {
         datasets: [
             {

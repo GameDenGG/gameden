@@ -3386,7 +3386,6 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
 
     bucket_ms = int(PLAYER_HISTORY_DISPLAY_BUCKET_MS.get(normalized_range, PLAYER_HISTORY_DAY_MS))
     bucket_starts = _build_player_bucket_timestamps(min_ts, max_ts, normalized_range)
-    ranged_points = [point for point in source_points if min_ts <= point["ts"] <= max_ts]
     if not bucket_starts:
         return {
             "range": normalized_range,
@@ -3397,8 +3396,27 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
             "points": [],
         }
 
+    # Keep the in-range points for real bucket aggregation...
+    ranged_points = [point for point in source_points if min_ts <= int(point["ts"]) <= max_ts]
+
+    # ...but also capture the closest valid point before the window as a left anchor.
+    left_anchor = None
+    for point in reversed(source_points):
+        ts = safe_num(point.get("ts"), default=None)
+        players = safe_num(point.get("players"), default=-1.0)
+        if ts is None or players < 0:
+            continue
+        if int(ts) < min_ts:
+            left_anchor = {
+                "ts": int(ts),
+                "players": float(players),
+                "timestamp": point.get("timestamp") or _unix_ms_to_iso(int(ts)),
+            }
+            break
+
     ranged_index = 0
     real_bucket_values: list[float | None] = []
+    real_bucket_has_data: list[bool] = []
     range_end_exclusive = int(max_ts) + 1
 
     for index, bucket_start in enumerate(bucket_starts):
@@ -3407,35 +3425,46 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
             if index < len(bucket_starts) - 1
             else range_end_exclusive
         )
+
         bucket_sum = 0.0
         bucket_count = 0
 
         while ranged_index < len(ranged_points):
             candidate = ranged_points[ranged_index]
             candidate_ts = int(candidate["ts"])
+
             if candidate_ts < bucket_start:
                 ranged_index += 1
                 continue
             if candidate_ts >= bucket_end_exclusive:
                 break
+
             candidate_players = safe_num(candidate.get("players"), default=-1.0)
-            if candidate_players < 0:
-                ranged_index += 1
-                continue
-            bucket_sum += float(candidate_players)
-            bucket_count += 1
+            if candidate_players >= 0:
+                bucket_sum += float(candidate_players)
+                bucket_count += 1
+
             ranged_index += 1
 
         if bucket_count > 0:
-            players_value = bucket_sum / bucket_count
+            real_bucket_values.append(bucket_sum / bucket_count)
+            real_bucket_has_data.append(True)
         else:
-            players_value = None
-
-        real_bucket_values.append(players_value)
+            real_bucket_values.append(None)
+            real_bucket_has_data.append(False)
 
     interpolation_values = list(real_bucket_values)
     seeded_indexes: set[int] = set()
+
     has_real_buckets = any(value is not None for value in real_bucket_values)
+
+    # Seed the first bucket from the nearest valid point before the window.
+    # This fixes early cutoff and creates continuity into the first real in-range bucket.
+    if has_real_buckets and interpolation_values and interpolation_values[0] is None and left_anchor is not None:
+        interpolation_values[0] = left_anchor["players"]
+        seeded_indexes.add(0)
+
+    # Fall back to existing seed logic if needed.
     if has_real_buckets and interpolation_values and interpolation_values[0] is None:
         left_edge_seed = _resolve_player_left_edge_seed_value(
             source_points,
@@ -3449,6 +3478,7 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
 
     display_values, interpolated_indexes = _fill_player_bucket_interior_gaps(interpolation_values)
     interpolated_indexes.update(seeded_indexes)
+
     ordered_points: list[dict] = []
     for index, bucket_start in enumerate(bucket_starts):
         players_value = display_values[index]
@@ -3458,7 +3488,7 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
                 "timestamp": _unix_ms_to_iso(bucket_start),
                 "ts": bucket_start,
                 "players": rounded_players,
-                "is_interpolated": index in interpolated_indexes,
+                "is_interpolated": index in interpolated_indexes and not real_bucket_has_data[index],
             }
         )
 
@@ -3466,12 +3496,10 @@ def _build_player_display_series(source_points: list[dict], range_key: str) -> d
         "range": normalized_range,
         "bucket_ms": bucket_ms,
         "range_start": _unix_ms_to_iso(bucket_starts[0]),
-        "range_end": _unix_ms_to_iso(bucket_starts[-1]),
+        "range_end": _unix_ms_to_iso(max_ts),
         "point_count": len(ordered_points),
         "points": ordered_points,
     }
-
-
 def _build_player_display_series_by_range(source_points: list[dict]) -> dict[str, dict]:
     return {
         range_key: _build_player_display_series(source_points, range_key)

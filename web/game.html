@@ -4437,8 +4437,11 @@ function renderPlayerChart(historyPayload, options = {}) {
     if (authoritativeSourcePoints.length) {
         currentPlayerHistoryCoverageDays = computeHistoryCoverageDays(authoritativeSourcePoints);
     }
-const trendInsights = computePlayerTrendInsights(displayedPoints, range);
-    renderPlayerTrendInsights(trendInsights);
+const trendInsights = computePlayerTrendInsights(
+    displayedPoints,
+    authoritativeSourcePoints.length ? authoritativeSourcePoints : displayedPoints,
+    range,
+);
 
     if (!displayedPoints.length) {
         if (playerChart) {

@@ -1892,7 +1892,7 @@ a {
             <div class="decision-action-row">
                 <a class="hero-store-cta is-disabled" id="storeCtaLink" href="#" aria-disabled="true" rel="noopener noreferrer" target="_blank">Buy Now</a>
                 <button class="hero-watch-btn" id="watchButton" type="button" aria-pressed="false">Watch</button>
-                <button class="hero-watch-btn" id="ownedButton" type="button" aria-pressed="false">Owned</button>
+                <button class="hero-watch-btn" id="ownedButton" type="button" aria-pressed="false">Own</button>
                 <button class="hero-watch-btn hero-share-btn" id="shareDealButton" type="button" disabled>Share Deal</button>
             </div>
         </div>
@@ -2443,6 +2443,48 @@ function emitTrackedSync(action, list, gameId) {
         );
     } catch {
         // Ignore storage sync failures.
+    }
+}
+
+function parseTrackedSyncPayload(rawValue) {
+    if (!rawValue) return null;
+    try {
+        const parsed = JSON.parse(rawValue);
+        if (!parsed || typeof parsed !== "object") return null;
+        const userId = String(parsed.user_id || "").trim();
+        const action = String(parsed.action || "").trim().toLowerCase();
+        const list = String(parsed.list || "").trim().toLowerCase();
+        const gameId = Number(parsed.game_id || 0);
+        const ts = Number(parsed.ts || 0);
+        if (!userId || !(action === "add" || action === "remove")) return null;
+        if (!(list === "wishlist" || list === "watchlist")) return null;
+        if (!Number.isFinite(gameId) || gameId <= 0) return null;
+        if (!Number.isFinite(ts) || ts <= 0) return null;
+        return {
+            user_id: userId,
+            action,
+            list,
+            game_id: Math.trunc(gameId),
+            ts,
+        };
+    } catch {
+        return null;
+    }
+}
+
+function applyTrackedSyncPayload(syncPayload) {
+    const payload = syncPayload && typeof syncPayload === "object" ? syncPayload : null;
+    if (!payload) return;
+    const currentUserId = String(CURRENT_USER_ID || "").trim();
+    if (!currentUserId || payload.user_id !== currentUserId) return;
+    if (!Number.isFinite(currentGameId) || currentGameId <= 0) return;
+    if (Number(payload.game_id) !== Number(currentGameId)) return;
+    if (payload.list === "watchlist") {
+        setWatchButtonState(payload.action === "add");
+        return;
+    }
+    if (payload.list === "wishlist") {
+        setOwnedButtonState(payload.action === "add");
     }
 }
 
@@ -5166,7 +5208,7 @@ function setOwnedButtonState(isOwned) {
     const active = !!isOwned;
     ownedButton.classList.toggle("active", active);
     ownedButton.setAttribute("aria-pressed", active ? "true" : "false");
-    ownedButton.textContent = active ? "Owned ✓" : "Owned";
+    ownedButton.textContent = active ? "Owned" : "Own";
 }
 
 function setOwnedButtonPending(isPending) {
@@ -5198,7 +5240,7 @@ function setWatchButtonState(isWatching) {
     const active = !!isWatching;
     watchButton.classList.toggle("active", active);
     watchButton.setAttribute("aria-pressed", active ? "true" : "false");
-    watchButton.textContent = active ? "Watching" : "Watch";
+    watchButton.textContent = active ? "Watched" : "Watch";
 }
 
 function setWatchButtonPending(isPending) {
@@ -5227,16 +5269,24 @@ function pulseWatchButtonSuccess() {
 
 async function syncWatchButton() {
     if (!watchButton || !Number.isFinite(currentGameId) || currentGameId <= 0) return;
-    const items = await fetchUserWatchlist().catch(() => []);
-    const watched = items.some((item) => Number(item.game_id) === Number(currentGameId));
-    setWatchButtonState(watched);
+    try {
+        const items = await fetchUserWatchlist();
+        const watched = items.some((item) => Number(item.game_id) === Number(currentGameId));
+        setWatchButtonState(watched);
+    } catch (error) {
+        console.warn("Failed to sync watch state for game detail", error);
+    }
 }
 
 async function syncOwnedButton() {
     if (!ownedButton || !Number.isFinite(currentGameId) || currentGameId <= 0) return;
-    const items = await fetchUserOwned().catch(() => []);
-    const owned = items.some((item) => Number(item.game_id) === Number(currentGameId));
-    setOwnedButtonState(owned);
+    try {
+        const items = await fetchUserOwned();
+        const owned = items.some((item) => Number(item.game_id) === Number(currentGameId));
+        setOwnedButtonState(owned);
+    } catch (error) {
+        console.warn("Failed to sync owned state for game detail", error);
+    }
 }
 
 async function toggleWatch() {
@@ -5388,6 +5438,11 @@ if (typeof window.getGameDenAuthRuntime === "function") {
 }
 
 window.addEventListener("storage", (event) => {
+    if (event.key === TRACKED_SYNC_STORAGE_KEY) {
+        const payload = parseTrackedSyncPayload(event.newValue || "");
+        applyTrackedSyncPayload(payload);
+        return;
+    }
     if (event.key !== AUTH_SYNC_STORAGE_KEY) return;
     void refreshCurrentUserIdFromAccountState()
         .then(() => Promise.allSettled([syncWatchButton(), syncOwnedButton()]))

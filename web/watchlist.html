@@ -638,11 +638,34 @@ function syncTabUi() {
 }
 
 function normalizeWatchlistItems(payload) {
-    return Array.isArray(payload?.items) ? payload.items : [];
+    const rows = Array.isArray(payload?.items)
+        ? payload.items
+        : Array.isArray(payload)
+            ? payload
+            : [];
+    return rows.map(normalizeTrackedItem).filter(Boolean);
 }
 
 function normalizeOwnedItems(payload) {
-    return Array.isArray(payload) ? payload : [];
+    const rows = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.items)
+            ? payload.items
+            : [];
+    return rows.map(normalizeTrackedItem).filter(Boolean);
+}
+
+function normalizeTrackedItem(row) {
+    if (!row || typeof row !== "object") return null;
+    const gameId = Number(row.game_id ?? row.id ?? 0);
+    const normalizedId = Number.isFinite(gameId) && gameId > 0 ? Math.trunc(gameId) : null;
+    const gameName = String(row.game_name ?? row.name ?? "").trim();
+    if (normalizedId === null && !gameName) return null;
+    return {
+        ...row,
+        game_id: normalizedId,
+        game_name: gameName || (normalizedId !== null ? `Game ${normalizedId}` : "Unknown game"),
+    };
 }
 
 function patchDashboardSnapshotTrackedList(action, list, gameId) {
@@ -708,6 +731,32 @@ function parseAccountSyncPayload(rawValue) {
             user_id: String(parsed.user_id || "").trim(),
             previous_user_id: String(parsed.previous_user_id || "").trim(),
             type: String(parsed.type || "").trim().toLowerCase(),
+        };
+    } catch {
+        return null;
+    }
+}
+
+function parseTrackedSyncPayload(rawValue) {
+    if (!rawValue) return null;
+    try {
+        const parsed = JSON.parse(rawValue);
+        if (!parsed || typeof parsed !== "object") return null;
+        const userId = String(parsed.user_id || "").trim();
+        const action = String(parsed.action || "").trim().toLowerCase();
+        const list = String(parsed.list || "").trim().toLowerCase();
+        const gameId = Number(parsed.game_id || 0);
+        const ts = Number(parsed.ts || 0);
+        if (!userId || !(action === "add" || action === "remove")) return null;
+        if (!(list === TRACKED_TAB_WATCHLIST || list === TRACKED_TAB_WISHLIST_LEGACY)) return null;
+        if (!Number.isFinite(gameId) || gameId <= 0) return null;
+        if (!Number.isFinite(ts) || ts <= 0) return null;
+        return {
+            user_id: userId,
+            action,
+            list,
+            game_id: Math.trunc(gameId),
+            ts,
         };
     } catch {
         return null;
@@ -997,9 +1046,23 @@ async function loadWatchlist() {
     renderWatchlistSkeleton();
     try {
         await ensureAuthRuntimeForCurrentUser();
+        const watchlistPromise = fetchJson(`/api/watchlist?user_id=${encodeURIComponent(requestedUserId)}`).catch((error) => {
+            if (ACTIVE_TAB === TRACKED_TAB_WATCHLIST) {
+                throw error;
+            }
+            console.warn("Watchlist payload unavailable while rendering owned tab", error);
+            return { items: [] };
+        });
+        const ownedPromise = fetchJson(`/owned/${encodeURIComponent(requestedUserId)}`).catch((error) => {
+            if (ACTIVE_TAB === TRACKED_TAB_OWNED) {
+                throw error;
+            }
+            console.warn("Owned payload unavailable while rendering watchlist tab", error);
+            return [];
+        });
         const [watchlistPayload, ownedPayload, alertsPayload] = await Promise.all([
-            fetchJson(`/api/watchlist?user_id=${encodeURIComponent(requestedUserId)}`),
-            fetchJson(`/owned/${encodeURIComponent(requestedUserId)}`),
+            watchlistPromise,
+            ownedPromise,
             fetchJson(`/api/alerts?user_id=${encodeURIComponent(requestedUserId)}&limit=120`).catch(() => ({ items: [] })),
         ]);
         if (requestId !== loadWatchlistRequestId || String(CURRENT_USER_ID || "").trim() !== requestedUserId) {
@@ -1050,6 +1113,13 @@ if (typeof window.getGameDenAuthRuntime === "function") {
 }
 
 window.addEventListener("storage", (event) => {
+    if (event.key === TRACKED_SYNC_STORAGE_KEY) {
+        const payload = parseTrackedSyncPayload(event.newValue || "");
+        if (payload && payload.user_id === String(CURRENT_USER_ID || "").trim()) {
+            void loadWatchlist();
+        }
+        return;
+    }
     if (event.key === AUTH_SYNC_STORAGE_KEY) {
         const payload = parseAccountSyncPayload(event.newValue || "");
         if (payload) {

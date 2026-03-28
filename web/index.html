@@ -7620,10 +7620,10 @@ input:focus-visible {
 
         function cardActionLabel(action, isActive) {
             if (action === "wishlist") {
-                return isActive ? "Owned ✓" : "Mark Owned";
+                return isActive ? "Owned" : "Own";
             }
             if (action === "watchlist") {
-                return isActive ? "👀 Watching" : "👁️ Watch";
+                return isActive ? "Watched" : "Watch";
             }
             return "Action";
         }
@@ -7733,10 +7733,10 @@ input:focus-visible {
             return `
                 <div class="card-action-row">
                     <button class="card-action-btn ${wishlistActive ? "active" : ""}" type="button" aria-pressed="${wishlistActive}" data-action="wishlist" data-game-name="${escapeHtml(game.game_name || "")}"${gameIdAttr}>
-                        ${wishlistActive ? "Owned ✓" : "Mark Owned"}
+                        ${cardActionLabel("wishlist", wishlistActive)}
                     </button>
                     <button class="card-action-btn watch ${watchlistActive ? "active" : ""}" type="button" aria-pressed="${watchlistActive}" data-action="watchlist" data-game-name="${escapeHtml(game.game_name || "")}"${gameIdAttr}>
-                        ${watchlistActive ? "👀 Watching" : "👁️ Watch"}
+                        ${cardActionLabel("watchlist", watchlistActive)}
                     </button>
                 </div>
             `;

@@ -1207,24 +1207,112 @@ input:focus-visible {
 .panel-personal .panel-title { color: #e1d6ff; }
 .panel-activity .panel-title { color: #ffe2ba; }
 
-#bestDealsPanel,
+/* Homepage section hierarchy tiers */
+/* Tier 1: Primary decision surfaces */
 #opportunitiesPanel,
-#recommendedForYouPanel {
-    border-color: rgba(154, 182, 255, 0.28);
+#buyNowPicksPanel {
+    border-color: rgba(170, 204, 255, 0.34);
+    background: linear-gradient(180deg, rgba(16, 30, 52, 0.94), rgba(9, 18, 33, 0.98));
     box-shadow:
-        0 26px 56px rgba(2, 8, 24, 0.44),
-        0 0 0 1px rgba(121, 168, 255, 0.09) inset;
+        0 30px 60px rgba(2, 8, 24, 0.45),
+        0 0 0 1px rgba(154, 182, 255, 0.12) inset;
 }
 
-#worthBuyingPanel,
-#trendingGamesPanel,
-#newHistoricalLowsPanel,
-#buyNowPicksPanel,
-#waitForSalePanel,
-#allGamesPanel,
-#topReviewedPanel,
-#upcomingPanel {
-    border-color: rgba(121, 168, 255, 0.17);
+#opportunitiesPanel .panel-head,
+#buyNowPicksPanel .panel-head {
+    border-bottom-color: rgba(154, 182, 255, 0.2);
+    padding-top: 18px;
+    padding-bottom: 11px;
+}
+
+#opportunitiesPanel .panel-title,
+#buyNowPicksPanel .panel-title {
+    font-size: 22px;
+    letter-spacing: -0.018em;
+    color: #eef6ff;
+}
+
+#opportunitiesPanel .panel-subtitle,
+#buyNowPicksPanel .panel-subtitle {
+    color: rgba(199, 220, 248, 0.9);
+}
+
+#opportunitiesPanel .panel-body,
+#buyNowPicksPanel .panel-body {
+    padding-top: 14px;
+    padding-bottom: 18px;
+}
+
+/* Tier 2: Secondary decision surfaces */
+#bestDealsPanel,
+#waitForSalePanel {
+    border-color: rgba(121, 168, 255, 0.22);
+    background: linear-gradient(180deg, rgba(13, 24, 43, 0.9), rgba(9, 17, 31, 0.95));
+    box-shadow: 0 20px 44px rgba(2, 7, 20, 0.34);
+}
+
+#bestDealsPanel .panel-title,
+#waitForSalePanel .panel-title {
+    font-size: 20px;
+    letter-spacing: -0.02em;
+}
+
+#bestDealsPanel .panel-subtitle,
+#waitForSalePanel .panel-subtitle {
+    color: rgba(170, 196, 232, 0.78);
+}
+
+/* Tier 3: Exploratory/optional surfaces */
+#opportunityRadarPanel,
+#moreIntelSection {
+    border-color: rgba(121, 168, 255, 0.14);
+    background: linear-gradient(180deg, rgba(10, 19, 34, 0.86), rgba(8, 15, 28, 0.92));
+    box-shadow: 0 12px 28px rgba(2, 7, 20, 0.22);
+}
+
+#opportunityRadarPanel .panel-head,
+#moreIntelSection > .panel-head {
+    border-bottom-color: rgba(121, 168, 255, 0.08);
+    padding-top: 15px;
+    padding-bottom: 8px;
+}
+
+#opportunityRadarPanel .panel-title,
+#moreIntelSection .panel-title {
+    font-size: 18px;
+    letter-spacing: -0.015em;
+    opacity: 0.9;
+}
+
+#opportunityRadarPanel .panel-subtitle,
+#moreIntelSection .panel-subtitle {
+    color: rgba(154, 182, 230, 0.7);
+    font-size: 10.5px;
+}
+
+#opportunityRadarPanel .panel-body,
+#moreIntelSection > .panel-body {
+    padding-top: 10px;
+    padding-bottom: 13px;
+}
+
+#discoveryTabsShell {
+    gap: 6px;
+    border: 1px solid rgba(121, 168, 255, 0.14);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(9, 17, 31, 0.72), rgba(8, 15, 29, 0.82));
+    padding: 10px 12px 11px;
+}
+
+#discoveryTabsShell .discovery-tabs-title {
+    font-size: 18px;
+    letter-spacing: -0.015em;
+    opacity: 0.88;
+}
+
+#discoveryTabsShell .discovery-tabs-subtitle {
+    color: rgba(154, 182, 230, 0.68);
+    font-size: 10.5px;
 }
 
 .panel-deal-radar .panel-title {
@@ -1619,10 +1707,20 @@ input:focus-visible {
 
 .card-meta-row.context {
     flex-wrap: wrap;
-    color: var(--muted);
-    font-size: 10px;
-    font-weight: 700;
+    color: rgba(154, 182, 230, 0.68);
+    font-size: 9px;
+    font-weight: 600;
     letter-spacing: 0.01em;
+}
+
+.card-meta-row.card-secondary-signals {
+    display: none;
+    opacity: 0.72;
+}
+
+.game-card:hover .card-meta-row.card-secondary-signals,
+.game-card:focus-within .card-meta-row.card-secondary-signals {
+    display: flex;
 }
 
 .meta-chip {
@@ -1730,13 +1828,13 @@ input:focus-visible {
 }
 
 .context-item {
-    color: var(--muted);
+    color: rgba(154, 182, 230, 0.62);
     white-space: nowrap;
 }
 
 .context-item strong {
-    color: #dbe8ff;
-    font-weight: 800;
+    color: rgba(219, 232, 255, 0.74);
+    font-weight: 700;
 }
 
 .card-reason-line {
@@ -1761,24 +1859,24 @@ input:focus-visible {
     align-items: center;
     justify-content: space-between;
     gap: 6px;
-    border: 1px solid rgba(121, 168, 255, 0.16);
-    background: rgba(121, 168, 255, 0.07);
+    border: 1px solid rgba(121, 168, 255, 0.12);
+    background: rgba(121, 168, 255, 0.045);
     border-radius: 8px;
     padding: 4px 6px;
     min-width: 0;
 }
 
 .mini-stat-label {
-    color: var(--muted);
-    font-size: 9px;
+    color: rgba(154, 182, 230, 0.62);
+    font-size: 8px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     white-space: nowrap;
 }
 
 .mini-stat-value {
-    font-size: 11px;
-    color: #dce8ff;
+    font-size: 10px;
+    color: rgba(220, 232, 255, 0.78);
     white-space: nowrap;
 }
 
@@ -3371,6 +3469,19 @@ input:focus-visible {
         font-size: 18px;
         letter-spacing: -0.02em;
     }
+    #opportunitiesPanel .panel-title,
+    #buyNowPicksPanel .panel-title {
+        font-size: 19px;
+    }
+    #bestDealsPanel .panel-title,
+    #waitForSalePanel .panel-title {
+        font-size: 17px;
+    }
+    #opportunityRadarPanel .panel-title,
+    #moreIntelSection .panel-title,
+    #discoveryTabsShell .discovery-tabs-title {
+        font-size: 16px;
+    }
     .panel-subtitle {
         margin-top: 4px;
         font-size: 11px;
@@ -3592,6 +3703,19 @@ input:focus-visible {
     }
     .panel-title {
         font-size: 17px;
+    }
+    #opportunitiesPanel .panel-title,
+    #buyNowPicksPanel .panel-title {
+        font-size: 18px;
+    }
+    #bestDealsPanel .panel-title,
+    #waitForSalePanel .panel-title {
+        font-size: 16px;
+    }
+    #opportunityRadarPanel .panel-title,
+    #moreIntelSection .panel-title,
+    #discoveryTabsShell .discovery-tabs-title {
+        font-size: 15px;
     }
     .discovery-tabs-title {
         font-size: 18px;
@@ -7303,7 +7427,7 @@ input:focus-visible {
                 <div class="card-meta-stack">
                     <div class="card-meta-row deal-quality compact-primary">
                         <div class="card-meta-cluster primary">
-                            ${primaryChips.slice(0, 4).join("")}
+                            ${primaryChips.slice(0, 2).join("")}
                         </div>
                     </div>
                     <div class="card-meta-row context compact">
@@ -7361,7 +7485,7 @@ input:focus-visible {
             if (!signals.length) return "";
 
             return `
-                <div class="card-meta-row signals compact-secondary">
+                <div class="card-meta-row signals compact-secondary card-secondary-signals">
                     ${signals.map((entry) => {
                         const glowClass = glowClassForSignalKey(entry.key);
                         return `<span class="meta-chip signal ${escapeHtml(entry.tone)}${glowClass}">${escapeHtml(compactCardSignalLabel(entry))}</span>`;
@@ -7398,14 +7522,13 @@ input:focus-visible {
                 ? `<span class="meta-chip deal-primary${discountGlowClass}">${Math.round(discount)}% off</span>`
                 : `<span class="meta-chip deal-neutral">No active sale</span>`;
             const metricChip = Number.isFinite(dealScore) ? `<span class="meta-chip metric">Deal ${Math.round(dealScore)}</span>` : "";
+            const qualityChip = confidenceChip || recommendationChip || metricChip;
+            const visibleChips = [discountChip, qualityChip].filter(Boolean).slice(0, 2);
 
             return `
                 <div class="card-meta-row deal-quality compact-primary">
                     <div class="card-meta-cluster primary">
-                        ${recommendationChip}
-                        ${discountChip}
-                        ${confidenceChip}
-                        ${!confidenceChip ? metricChip : ""}
+                        ${visibleChips.join("")}
                     </div>
                 </div>
             `;
@@ -7421,18 +7544,18 @@ input:focus-visible {
             const contextItems = [];
             if (Number.isFinite(historicalLow) && historicalLow > 0) {
                 if (Number.isFinite(priceVsLowRatio) && priceVsLowRatio > 0 && priceVsLowRatio <= 1.06) {
-                    contextItems.push('<span class="context-item"><strong>Near low</strong></span>');
+                    contextItems.push('<span class="context-item">Near low</span>');
                 } else {
-                    contextItems.push(`<span class="context-item">Low <strong>${fmtPrice(historicalLow)}</strong></span>`);
+                    contextItems.push(`<span class="context-item">Low ${fmtPrice(historicalLow)}</span>`);
                 }
             }
             if (Number.isFinite(players) && players > 0) {
-                contextItems.push(`<span class="context-item"><strong>${fmtInt(players)}</strong> players</span>`);
+                contextItems.push(`<span class="context-item">${fmtInt(players)} players</span>`);
             }
             if (Number.isFinite(reviewScore) && reviewScore > 0) {
-                contextItems.push(`<span class="context-item"><strong>${Math.round(reviewScore)}%</strong> reviews</span>`);
+                contextItems.push(`<span class="context-item">${Math.round(reviewScore)}% reviews</span>`);
             } else if (reviewLabel) {
-                contextItems.push(`<span class="context-item"><strong>${escapeHtml(reviewLabel)}</strong></span>`);
+                contextItems.push(`<span class="context-item">${escapeHtml(reviewLabel)}</span>`);
             }
             if (!contextItems.length) return "";
 

@@ -112,6 +112,11 @@ if (window.GameDenSite && window.GameDenSite.skeleton && typeof window.GameDenSi
     --font-mono: "JetBrains Mono", Consolas, monospace;
     --row-card-min: 208px;
     --row-card-max: 244px;
+    --ui-ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+    --ui-ease-press: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ui-duration-fast: 140ms;
+    --ui-duration-base: 180ms;
+    --ui-duration-slow: 220ms;
 }
 
 *,
@@ -352,7 +357,10 @@ select {
 }
 
 .search-bar-wrap {
-    transition: transform 0.24s ease, opacity 0.24s ease, filter 0.24s ease;
+    transition:
+        transform var(--ui-duration-slow) var(--ui-ease-standard),
+        opacity var(--ui-duration-slow) var(--ui-ease-standard),
+        filter var(--ui-duration-slow) var(--ui-ease-standard);
 }
 
 .search-bar-wrap.scrolled {
@@ -450,17 +458,18 @@ select {
     cursor: pointer;
     line-height: 1;
     transition:
-        border-color 0.18s ease,
-        background 0.18s ease,
-        color 0.18s ease,
-        transform 0.18s ease;
+        border-color var(--ui-duration-base) var(--ui-ease-standard),
+        background var(--ui-duration-base) var(--ui-ease-standard),
+        color var(--ui-duration-base) var(--ui-ease-standard),
+        box-shadow var(--ui-duration-base) var(--ui-ease-standard),
+        transform var(--ui-duration-base) var(--ui-ease-standard);
 }
 
 .home-jump-chip:hover {
     border-color: rgba(121, 168, 255, 0.42);
     background: rgba(121, 168, 255, 0.16);
     color: #eef5ff;
-    transform: translateY(-1px);
+    transform: translateY(-0.5px);
 }
 
 .home-jump-chip.is-active {
@@ -556,7 +565,10 @@ select {
 }
 
 .global-filters-shell {
-    transition: opacity 0.24s ease, transform 0.24s ease, filter 0.24s ease;
+    transition:
+        opacity var(--ui-duration-slow) var(--ui-ease-standard),
+        transform var(--ui-duration-slow) var(--ui-ease-standard),
+        filter var(--ui-duration-slow) var(--ui-ease-standard);
 }
 
 .global-filters {
@@ -710,6 +722,20 @@ select {
     color: var(--text);
     cursor: pointer;
     user-select: none;
+    transition:
+        border-color var(--ui-duration-base) var(--ui-ease-standard),
+        background var(--ui-duration-base) var(--ui-ease-standard),
+        box-shadow var(--ui-duration-base) var(--ui-ease-standard);
+}
+
+.pill-toggle:hover {
+    border-color: rgba(121, 168, 255, 0.44);
+    background: rgba(121, 168, 255, 0.1);
+    box-shadow: 0 6px 14px rgba(6, 14, 28, 0.18);
+}
+
+.pill-toggle:active {
+    box-shadow: 0 3px 8px rgba(6, 14, 28, 0.14);
 }
 
 .secondary-btn,
@@ -728,11 +754,11 @@ select {
     font-weight: 800;
     text-decoration: none;
     transition:
-        transform 0.14s ease,
-        border-color 0.16s ease,
-        background 0.16s ease,
-        box-shadow 0.16s ease,
-        color 0.16s ease;
+        transform var(--ui-duration-fast) var(--ui-ease-standard),
+        border-color var(--ui-duration-base) var(--ui-ease-standard),
+        background var(--ui-duration-base) var(--ui-ease-standard),
+        box-shadow var(--ui-duration-base) var(--ui-ease-standard),
+        color var(--ui-duration-base) var(--ui-ease-standard);
     will-change: transform;
 }
 
@@ -1060,11 +1086,11 @@ input:focus-visible {
     cursor: pointer;
     line-height: 1;
     transition:
-        border-color 0.18s ease,
-        background 0.18s ease,
-        color 0.18s ease,
-        box-shadow 0.18s ease,
-        transform 0.18s ease;
+        border-color var(--ui-duration-base) var(--ui-ease-standard),
+        background var(--ui-duration-base) var(--ui-ease-standard),
+        color var(--ui-duration-base) var(--ui-ease-standard),
+        box-shadow var(--ui-duration-base) var(--ui-ease-standard),
+        transform var(--ui-duration-base) var(--ui-ease-standard);
 }
 
 .discovery-tab-btn:hover {
@@ -1389,7 +1415,9 @@ input:focus-visible {
 .reveal-enabled .panel-reveal {
     opacity: 0;
     transform: translateY(12px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    transition:
+        opacity var(--ui-duration-slow) var(--ui-ease-standard),
+        transform var(--ui-duration-slow) var(--ui-ease-standard);
     will-change: opacity, transform;
 }
 
@@ -1524,7 +1552,12 @@ input:focus-visible {
     cursor: pointer;
     font-weight: 800;
     opacity: 0.58;
-    transition: opacity 0.16s ease, border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+    transition:
+        opacity var(--ui-duration-base) var(--ui-ease-standard),
+        border-color var(--ui-duration-base) var(--ui-ease-standard),
+        background var(--ui-duration-base) var(--ui-ease-standard),
+        color var(--ui-duration-base) var(--ui-ease-standard),
+        box-shadow var(--ui-duration-base) var(--ui-ease-standard);
 }
 
 .row-nav-btn:hover {
@@ -1658,12 +1691,12 @@ input:focus-visible {
     position: relative;
     z-index: 4;
     transition:
-        transform 0.12s ease,
-        border-color 0.16s ease,
-        background 0.16s ease,
-        box-shadow 0.16s ease,
-        color 0.16s ease,
-        opacity 0.16s ease;
+        transform var(--ui-duration-fast) var(--ui-ease-standard),
+        border-color var(--ui-duration-base) var(--ui-ease-standard),
+        background var(--ui-duration-base) var(--ui-ease-standard),
+        box-shadow var(--ui-duration-base) var(--ui-ease-standard),
+        color var(--ui-duration-base) var(--ui-ease-standard),
+        opacity var(--ui-duration-base) var(--ui-ease-standard);
     will-change: transform, box-shadow;
 }
 
@@ -1791,13 +1824,34 @@ input:focus-visible {
 }
 
 .card-meta-row.card-secondary-signals {
-    display: none;
-    opacity: 0.72;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 4px;
+    min-height: 16px;
+    max-height: 16px;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(1px);
+    transition:
+        opacity 0.18s cubic-bezier(0.22, 0.61, 0.36, 1),
+        transform 0.18s cubic-bezier(0.22, 0.61, 0.36, 1),
+        visibility 0s linear 0.18s;
+}
+
+.card-meta-row.card-secondary-signals .meta-chip {
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .game-card:hover .card-meta-row.card-secondary-signals,
 .game-card:focus-within .card-meta-row.card-secondary-signals {
-    display: flex;
+    opacity: 0.72;
+    visibility: visible;
+    transform: translateY(0);
+    transition-delay: 0s;
 }
 
 .meta-chip {
@@ -2670,10 +2724,10 @@ input:focus-visible {
     font-weight: 700;
     cursor: pointer;
     transition:
-        transform 0.14s ease,
-        border-color 0.18s ease,
-        background 0.18s ease,
-        box-shadow 0.18s ease;
+        transform var(--ui-duration-fast) var(--ui-ease-standard),
+        border-color var(--ui-duration-base) var(--ui-ease-standard),
+        background var(--ui-duration-base) var(--ui-ease-standard),
+        box-shadow var(--ui-duration-base) var(--ui-ease-standard);
 }
 
 .deal-radar-more-btn:hover {
@@ -2684,7 +2738,7 @@ input:focus-visible {
 }
 
 .deal-radar-more-btn:active {
-    transform: scale(0.985);
+    transform: translateY(0);
 }
 
 .deal-radar-more-btn:focus-visible {
@@ -2861,9 +2915,9 @@ input:focus-visible {
     position: relative;
     transform: translateZ(0);
     transition:
-        box-shadow 0.22s cubic-bezier(0.22, 0.61, 0.36, 1),
-        border-color 0.22s cubic-bezier(0.22, 0.61, 0.36, 1),
-        background 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+        box-shadow var(--ui-duration-slow) var(--ui-ease-standard),
+        border-color var(--ui-duration-slow) var(--ui-ease-standard),
+        background var(--ui-duration-slow) var(--ui-ease-standard);
     animation: cardFadeIn 0.35s ease;
     content-visibility: auto;
     will-change: box-shadow;
@@ -2937,14 +2991,14 @@ input:focus-visible {
 
 .card-banner-img {
     transition:
-        transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1),
-        filter 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+        transform var(--ui-duration-slow) var(--ui-ease-standard),
+        filter var(--ui-duration-slow) var(--ui-ease-standard);
     transform: scale(1);
     content-visibility: auto;
 }
 
 .card-banner-overlay {
-    transition: background 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition: background var(--ui-duration-slow) var(--ui-ease-standard);
 }
 
 .game-name a,
@@ -2952,11 +3006,11 @@ input:focus-visible {
 .pill,
 .deal-score-badge {
     transition:
-        transform 0.14s ease,
-        background 0.16s ease,
-        border-color 0.16s ease,
-        color 0.16s ease,
-        box-shadow 0.16s ease;
+        transform var(--ui-duration-fast) var(--ui-ease-standard),
+        background var(--ui-duration-base) var(--ui-ease-standard),
+        border-color var(--ui-duration-base) var(--ui-ease-standard),
+        color var(--ui-duration-base) var(--ui-ease-standard),
+        box-shadow var(--ui-duration-base) var(--ui-ease-standard);
 }
 
 .game-card:hover .game-name a {
@@ -3059,7 +3113,7 @@ input:focus-visible {
         radial-gradient(circle at 20% 0%, rgba(255,255,255,0.08), transparent 30%),
         radial-gradient(circle at 80% 120%, rgba(121,168,255,0.14), transparent 36%);
     opacity: 0;
-    transition: opacity 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition: opacity var(--ui-duration-slow) var(--ui-ease-standard);
     pointer-events: none;
     z-index: 0;
 }
@@ -3948,7 +4002,7 @@ input:focus-visible {
     margin-left: auto;
     font-size: 11px;
     color: var(--muted);
-    transition: transform 0.2s ease;
+    transition: transform var(--ui-duration-base) var(--ui-ease-standard);
 }
 
 .account-utility-card.is-expanded .account-utility-chevron {
@@ -3959,7 +4013,9 @@ input:focus-visible {
     max-height: 0;
     opacity: 0;
     overflow: hidden;
-    transition: max-height 0.24s ease, opacity 0.2s ease;
+    transition:
+        max-height var(--ui-duration-slow) var(--ui-ease-standard),
+        opacity var(--ui-duration-base) var(--ui-ease-standard);
     border-top: 1px solid rgba(121, 168, 255, 0.16);
 }
 

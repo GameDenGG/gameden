@@ -537,6 +537,215 @@
     };
   }
 
+  function _normalizeConfidenceLevel(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (!normalized) return "";
+    if (normalized.includes("high")) return "high";
+    if (normalized.includes("med")) return "medium";
+    if (normalized.includes("mod")) return "medium";
+    if (normalized.includes("low")) return "low";
+    return "";
+  }
+
+  function _resolveDealTimingMode(payload, options = {}) {
+    const explicitMode = String(options.mode || "").trim().toLowerCase();
+    if (explicitMode === "paid" || explicitMode === "free" || explicitMode === "unreleased") {
+      return explicitMode;
+    }
+
+    const source = payload && typeof payload === "object" ? payload : {};
+    const isUpcoming = source.is_upcoming === true;
+    const releasedFlag = source.is_released;
+    const isUnreleasedFlag = releasedFlag === 0 || String(releasedFlag) === "0";
+    const releaseDateValue = String(source.release_date || "").trim();
+    const releaseDateMs = releaseDateValue ? Date.parse(releaseDateValue) : NaN;
+    const hasFutureReleaseDate = Number.isFinite(releaseDateMs) && releaseDateMs > Date.now();
+    if (isUpcoming || isUnreleasedFlag || hasFutureReleaseDate) return "unreleased";
+
+    const numericPrice = _toFiniteNumber(source.price ?? source.current_price ?? source.latest_price);
+    if (numericPrice !== null && numericPrice <= 0) return "free";
+    return "paid";
+  }
+
+  function _deriveTimingConfidenceTier(payload) {
+    const source = payload && typeof payload === "object" ? payload : {};
+    const historyPointCount = _toFiniteNumber(
+      source.history_point_count
+      ?? source.historyPointCount
+      ?? source.ranking_explanations?.player_trends?.history_point_count
+    );
+    const modelConfidence = _toFiniteNumber(
+      source.history_confidence
+      ?? source.player_history_confidence
+      ?? source.ranking_explanations?.player_trends?.history_confidence
+    );
+    const predictedConfidenceLevel = _normalizeConfidenceLevel(
+      source.predicted_sale_confidence
+      ?? source.next_sale_prediction?.confidence
+    );
+
+    let score = 0;
+    if (historyPointCount !== null) {
+      if (historyPointCount >= 48) score += 2;
+      else if (historyPointCount >= 20) score += 1;
+      else if (historyPointCount <= 5) score -= 2;
+      else score -= 1;
+    }
+    if (modelConfidence !== null) {
+      if (modelConfidence >= 0.75) score += 2;
+      else if (modelConfidence >= 0.5) score += 1;
+      else score -= 1;
+    }
+    if (predictedConfidenceLevel === "high") score += 2;
+    else if (predictedConfidenceLevel === "medium") score += 1;
+    else if (predictedConfidenceLevel === "low") score -= 1;
+
+    if (score >= 3) return "high";
+    if (score <= -1) return "low";
+    return "medium";
+  }
+
+  function getDealTimingSignal(payload, options = {}) {
+    const source = payload && typeof payload === "object" ? payload : {};
+    const mode = _resolveDealTimingMode(source, options);
+    const watched = options.watched === true || source.watchlisted === true;
+
+    if (mode === "unreleased") {
+      return {
+        state: "watch_for_sale",
+        label: "Watch for a sale",
+        reason: "No live sale data yet.",
+        tone: "info",
+        urgency_score: 42,
+        confidence_tier: "low",
+      };
+    }
+    if (mode === "free") {
+      return {
+        state: "watch_for_sale",
+        label: "Watch this one",
+        reason: "No purchase needed right now.",
+        tone: "info",
+        urgency_score: 40,
+        confidence_tier: "medium",
+      };
+    }
+
+    const recommendation = String(source.buy_recommendation || "").trim().toUpperCase();
+    const discount = Math.max(0, _toFiniteNumber(source.discount_percent ?? source.latest_discount_percent) || 0);
+    const dealScore = Math.max(
+      0,
+      _toFiniteNumber(source.deal_score ?? source.buy_score ?? source.worth_buying_score) || 0
+    );
+    const priceVsLowRatio = _toFiniteNumber(source.price_vs_low_ratio);
+    const historicalStatus = String(source.historical_status || "").trim().toLowerCase();
+    const predictedNextDiscount = _toFiniteNumber(
+      source.predicted_next_discount_percent
+      ?? source.next_sale_prediction?.expected_next_discount_percent
+    );
+    const predictedWindowMin = _toFiniteNumber(
+      source.predicted_next_sale_window_days_min
+      ?? source.next_sale_prediction?.estimated_window_days_min
+    );
+    const historyPointCount = _toFiniteNumber(
+      source.history_point_count
+      ?? source.historyPointCount
+      ?? source.ranking_explanations?.player_trends?.history_point_count
+    );
+    const confidenceTier = _deriveTimingConfidenceTier(source);
+    const nearHistoricalLow = (
+      historicalStatus === "new_historical_low"
+      || historicalStatus === "matches_historical_low"
+      || historicalStatus === "near_historical_low"
+      || (priceVsLowRatio !== null && priceVsLowRatio > 0 && priceVsLowRatio <= 1.08)
+    );
+    const atHistoricalLow = (
+      historicalStatus === "new_historical_low"
+      || historicalStatus === "matches_historical_low"
+      || (priceVsLowRatio !== null && priceVsLowRatio > 0 && priceVsLowRatio <= 1.02)
+    );
+    const sparseHistory = historyPointCount !== null && historyPointCount > 0 && historyPointCount < 6;
+    const noHistory = historyPointCount === null || historyPointCount <= 0;
+    const lowConfidence = sparseHistory
+      || (confidenceTier === "low" && !nearHistoricalLow && discount < 35)
+      || (noHistory && recommendation !== "BUY_NOW" && !nearHistoricalLow && dealScore < 65);
+
+    if (lowConfidence) {
+      return {
+        state: "low_confidence",
+        label: "Low confidence",
+        reason: "Price history is still sparse.",
+        tone: "info",
+        urgency_score: 34,
+        confidence_tier: confidenceTier,
+      };
+    }
+
+    const hasLikelyBetterFutureDrop = (
+      predictedNextDiscount !== null
+      && predictedNextDiscount >= discount + 10
+      && predictedWindowMin !== null
+      && predictedWindowMin <= 90
+    );
+    if (
+      recommendation === "WAIT"
+      || (priceVsLowRatio !== null && priceVsLowRatio >= 1.15 && discount < 35 && hasLikelyBetterFutureDrop)
+      || (discount < 20 && dealScore < 60)
+    ) {
+      return {
+        state: "wait_for_better_drop",
+        label: "Wait for a better drop",
+        reason: hasLikelyBetterFutureDrop
+          ? "History suggests deeper discounts return."
+          : "Current sale is weak relative to history.",
+        tone: "warn",
+        urgency_score: 44,
+        confidence_tier: confidenceTier,
+      };
+    }
+
+    if (recommendation === "BUY_NOW" || atHistoricalLow || (discount >= 55 && dealScore >= 72)) {
+      return {
+        state: "buy_now",
+        label: "Buy now",
+        reason: watched
+          ? "Watched game reached a strong discount."
+          : nearHistoricalLow
+            ? "Price is near its historical low."
+            : "Current timing signal is strong.",
+        tone: "good",
+        urgency_score: 92,
+        confidence_tier: confidenceTier,
+      };
+    }
+
+    if (nearHistoricalLow || (discount >= 35 && dealScore >= 68) || dealScore >= 80) {
+      return {
+        state: "good_time_to_buy",
+        label: "Good time to buy",
+        reason: watched
+          ? "Watched game is now at a compelling price."
+          : nearHistoricalLow
+            ? "Price is close to its historical low."
+            : "Discount strength is solid right now.",
+        tone: "good",
+        urgency_score: 76,
+        confidence_tier: confidenceTier,
+      };
+    }
+
+    return {
+      state: "watch_for_sale",
+      label: watched ? "Watch this one" : "Watch for a sale",
+      reason: discount > 0
+        ? "Current discount is modest versus past sales."
+        : "No strong timing signal yet.",
+      tone: "info",
+      urgency_score: watched ? 58 : 52,
+      confidence_tier: confidenceTier,
+    };
+  }
+
   function _normalizeNewSignalToken(value) {
     return String(value ?? "").trim().toLowerCase();
   }
@@ -1049,6 +1258,7 @@
     toGameSlug,
     buildGamePath,
     getDealConfidence,
+    getDealTimingSignal,
     markNewSignal,
     resetNewSignalScope,
     skeleton: skeletonApi,

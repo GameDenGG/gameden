@@ -2265,22 +2265,22 @@ def _coerce_utc_datetime(value: datetime.datetime | None) -> datetime.datetime |
 def _build_personalization_token_weights(
     seed_rows: list[tuple[int, str | None, str | None]],
     *,
-    wishlist_game_ids: set[int],
+    owned_game_ids: set[int],
     watchlist_game_ids: set[int],
     target_game_ids: set[int],
     recent_game_ids: set[int],
 ) -> dict[str, float]:
     token_weights: dict[str, float] = {}
     for game_id, tags, genres in seed_rows:
-        base_weight = 1.0
-        if game_id in wishlist_game_ids:
-            base_weight += 1.0
+        base_weight = 0.9
         if game_id in watchlist_game_ids:
-            base_weight += 0.8
+            base_weight += 1.4
         if game_id in target_game_ids:
-            base_weight += 0.6
+            base_weight += 1.0
+        if game_id in owned_game_ids:
+            base_weight += 0.85
         if game_id in recent_game_ids:
-            base_weight += 0.4
+            base_weight += 0.45
 
         tokens = {str(token).strip().lower() for token in [*parse_csv_field(tags), *parse_csv_field(genres)]}
         for token in tokens:
@@ -2561,20 +2561,54 @@ def _build_personalized_deal_item(
     player_growth_ratio = safe_num(snapshot.player_growth_ratio, 0.0)
     short_term_player_trend = safe_num(snapshot.short_term_player_trend, 0.0)
     price_vs_low_ratio = safe_num(snapshot.price_vs_low_ratio, 0.0)
+    recommendation = _normalize_buy_recommendation(snapshot.buy_recommendation)
     historical_status = str(snapshot.historical_status or "").strip().lower()
     current_players = safe_num(snapshot.current_players, 0.0)
+    near_historical_low = (
+        historical_status in {"new_historical_low", "matches_historical_low", "near_historical_low"}
+        or (price_vs_low_ratio > 0 and price_vs_low_ratio <= 1.08)
+    )
+    players_rising = (
+        short_term_player_trend >= 0.06
+        or player_growth_ratio >= 1.08
+        or (momentum_score >= 58 and current_players >= 250)
+    )
+    recent_event_count = int(recent_event_counts.get(game_id, 0))
 
     score = 0.0
     reasons: list[str] = []
 
     if use_personal_context and in_watchlist:
-        score += 46.0
-        _append_unique_reason(reasons, "In your watchlist")
+        score += 14.0
+        _append_unique_reason(reasons, "On your watchlist")
+        if discount >= 50:
+            score += 16.0
+            _append_unique_reason(reasons, "Watchlist game with a major discount")
+        elif discount >= 35:
+            score += 11.0
+            _append_unique_reason(reasons, "Watchlist game with a strong discount")
+        elif discount >= 20:
+            score += 6.0
+        if near_historical_low:
+            score += 10.0
+            _append_unique_reason(reasons, "Watchlist game near its historical low")
+        if recommendation == "BUY_NOW" or buy_score >= 72:
+            score += 9.0
+            _append_unique_reason(reasons, "Watchlist game with strong buy confidence")
+        if players_rising or trending_score >= 62:
+            score += 7.0
+            _append_unique_reason(reasons, "Watchlist game with rising momentum")
+        if recent_event_count > 0:
+            score += min(8.0, recent_event_count * 2.0)
     if use_personal_context and in_target_watch and not in_watchlist:
-        score += 32.0
+        score += 18.0
         _append_unique_reason(reasons, "In your price alerts")
+        if discount >= 30:
+            score += 8.0
+        if near_historical_low:
+            score += 6.0
     if use_personal_context and recently_tracked and not in_watchlist:
-        score += 10.0
+        score += 8.0
         _append_unique_reason(reasons, "Recently tracked by you")
     if is_owned and not exclude_owned:
         _append_unique_reason(reasons, "Already in your owned library")
@@ -2594,19 +2628,10 @@ def _build_personalized_deal_item(
     elif discount >= 30:
         score += 4.0
 
-    near_historical_low = (
-        historical_status in {"new_historical_low", "matches_historical_low", "near_historical_low"}
-        or (price_vs_low_ratio > 0 and price_vs_low_ratio <= 1.08)
-    )
     if near_historical_low:
         score += 10.0
         _append_unique_reason(reasons, "Near historical low")
 
-    players_rising = (
-        short_term_player_trend >= 0.06
-        or player_growth_ratio >= 1.08
-        or (momentum_score >= 58 and current_players >= 250)
-    )
     if players_rising:
         score += 8.0
         _append_unique_reason(reasons, "Players rising")
@@ -2622,11 +2647,10 @@ def _build_personalized_deal_item(
     if use_personal_context and similarity_bonus > 0:
         score += min(14.0, similarity_bonus * 0.7)
         if overlap_count >= 2 and deal_score >= 60:
-            _append_unique_reason(reasons, "Similar to games you watch")
+            _append_unique_reason(reasons, "Similar to your owned and tracked games")
         elif overlap_count >= 1:
-            _append_unique_reason(reasons, "Similar to your tracked games")
+            _append_unique_reason(reasons, "Matches your library interests")
 
-    recent_event_count = int(recent_event_counts.get(game_id, 0))
     if recent_event_count > 0:
         score += min(12.0, recent_event_count * 3.0)
         _append_unique_reason(reasons, "Fresh deal event")
@@ -2665,7 +2689,7 @@ def _build_personalized_deal_item(
 
     if not reasons:
         if use_personal_context:
-            _append_unique_reason(reasons, "Relevant to your tracked games")
+            _append_unique_reason(reasons, "Relevant to your library and tracked games")
         else:
             _append_unique_reason(reasons, "Trending game with strong deal score")
     reason_lines = reasons[:2]
@@ -8032,7 +8056,7 @@ def get_daily_deal_digest(
                 if game_id is not None
             }
 
-            seed_game_ids = watchlist_game_ids | target_game_ids
+            seed_game_ids = watchlist_game_ids | target_game_ids | owned_game_ids
             if seed_game_ids:
                 seed_rows = [
                     (int(game_id), tags, genres)
@@ -8045,7 +8069,7 @@ def get_daily_deal_digest(
                 ]
                 token_weights = _build_personalization_token_weights(
                     seed_rows,
-                    wishlist_game_ids=set(),
+                    owned_game_ids=owned_game_ids,
                     watchlist_game_ids=watchlist_game_ids,
                     target_game_ids=target_game_ids,
                     recent_game_ids=set(),
@@ -8696,7 +8720,7 @@ def list_personalized_deals(
         owned_game_ids = {int(game_id) for game_id, _ in owned_rows if game_id is not None}
         watchlist_game_ids = {int(game_id) for game_id, _ in watchlist_rows if game_id is not None}
         target_game_ids = {int(game_id) for game_id, _ in target_rows if game_id is not None}
-        has_personal_seed_data = bool(watchlist_game_ids or target_game_ids)
+        has_personal_seed_data = bool(watchlist_game_ids or target_game_ids or owned_game_ids)
         if not personalization_enabled or not has_personal_seed_data:
             fallback_items = _build_personalized_fallback_items(session, normalized_limit)
             if exclude_owned and owned_game_ids:
@@ -8715,7 +8739,7 @@ def list_personalized_deals(
                 "generated_at": now.isoformat(),
             }
         if bool(summary):
-            seed_game_id_list = list(watchlist_game_ids | target_game_ids)
+            seed_game_id_list = list(watchlist_game_ids | target_game_ids | owned_game_ids)
             seed_candidate_limit = max(normalized_limit, min(36, max(12, len(seed_game_id_list) * 6)))
             seed_rows = _query_release_feed_rows(
                 session,
@@ -8812,7 +8836,7 @@ def list_personalized_deals(
             if touched_at >= recent_cutoff
         }
 
-        seed_game_ids = watchlist_game_ids | target_game_ids
+        seed_game_ids = watchlist_game_ids | target_game_ids | owned_game_ids
         seed_rows: list[tuple[int, str | None, str | None]] = []
         if personalization_enabled and seed_game_ids:
             seed_rows = [
@@ -8826,7 +8850,7 @@ def list_personalized_deals(
 
         token_weights = _build_personalization_token_weights(
             seed_rows,
-            wishlist_game_ids=set(),
+            owned_game_ids=owned_game_ids,
             watchlist_game_ids=watchlist_game_ids,
             target_game_ids=target_game_ids,
             recent_game_ids=recent_game_ids,

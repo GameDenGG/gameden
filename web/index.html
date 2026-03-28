@@ -3948,9 +3948,9 @@ input:focus-visible {
 
                 <nav class="home-jump-nav" id="homeJumpNav" aria-label="Jump to homepage zones">
                     <button class="home-jump-chip" type="button" data-home-jump-group="Buy Now" data-home-jump-target="opportunitiesPanel">Buy Now</button>
-                    <button class="home-jump-chip" type="button" data-home-jump-group="Watch Closely" data-home-jump-target="opportunityRadarPanel">Watch Closely</button>
-                    <button class="home-jump-chip" type="button" data-home-jump-group="Discover" data-home-jump-target="discoveryTabsShell">Discover</button>
                     <button class="home-jump-chip" type="button" data-home-jump-group="Your Radar" data-home-jump-target="recommendedForYouPanel">Your Radar</button>
+                    <button class="home-jump-chip" type="button" data-home-jump-group="Discover" data-home-jump-target="discoveryTabsShell">Discover</button>
+                    <button class="home-jump-chip" type="button" data-home-jump-group="Watch Closely" data-home-jump-target="opportunityRadarPanel">Watch Closely</button>
                     <button class="home-jump-chip" type="button" data-home-jump-group="Market Intelligence" data-home-jump-target="moreIntelSection">Market Intelligence</button>
                     <div class="home-jump-account-slot">
                         <section class="account-utility-card" id="accountPanel">
@@ -4107,7 +4107,7 @@ input:focus-visible {
                     <div class="discovery-tabs-head">
                         <div class="discovery-tabs-head-main">
                             <h2 class="discovery-tabs-title">Discover</h2>
-                            <div class="discovery-tabs-subtitle">Switch browse modes to keep the homepage focused while exploring live market surfaces.</div>
+                            <div class="discovery-tabs-subtitle">Explore additional deal views when you want more options beyond the primary decision rails.</div>
                         </div>
                         <button class="secondary-btn discovery-owned-filter-btn" id="feedOwnedToggleBtn" type="button" aria-pressed="false" data-active="true">
                             Hide Owned: On
@@ -4288,7 +4288,7 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-catalog" id="upcomingPanel">
+                <section class="panel panel-catalog panel-secondary-intel" id="upcomingPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Upcoming Releases</h2>
@@ -4860,9 +4860,9 @@ input:focus-visible {
         });
         const HOMEPAGE_GROUP_ORDER = Object.freeze([
             HOMEPAGE_SECTION_GROUPS.BUY_NOW,
-            HOMEPAGE_SECTION_GROUPS.WATCH_CLOSELY,
-            HOMEPAGE_SECTION_GROUPS.DISCOVER,
             HOMEPAGE_SECTION_GROUPS.YOUR_RADAR,
+            HOMEPAGE_SECTION_GROUPS.DISCOVER,
+            HOMEPAGE_SECTION_GROUPS.WATCH_CLOSELY,
             HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE,
         ]);
         const HOMEPAGE_GROUP_INDEX = Object.freeze(HOMEPAGE_GROUP_ORDER.reduce((accumulator, groupName, index) => {
@@ -4870,6 +4870,8 @@ input:focus-visible {
             return accumulator;
         }, {}));
         const MORE_MARKET_INTEL_SECTION_IDS = Object.freeze([
+            "upcomingPanel",
+            "seasonalSaleTopPanel",
             "recentlyUpdatedPanel",
             "dealRadarPanel",
             "analyticsPanel",
@@ -4880,13 +4882,13 @@ input:focus-visible {
 
             { id: "opportunityRadarPanel", group: HOMEPAGE_SECTION_GROUPS.WATCH_CLOSELY, priority: 10, column: "main" },
             { id: "waitForSalePanel", group: HOMEPAGE_SECTION_GROUPS.WATCH_CLOSELY, priority: 20, column: "main" },
-            { id: "upcomingPanel", group: HOMEPAGE_SECTION_GROUPS.WATCH_CLOSELY, priority: 30, column: "main" },
-            { id: "seasonalSaleTopPanel", group: HOMEPAGE_SECTION_GROUPS.WATCH_CLOSELY, priority: 40, column: "main" },
-            { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.WATCH_CLOSELY, priority: 40, column: "lower" },
+            { id: "upcomingPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 10, column: "main" },
+            { id: "seasonalSaleTopPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 15, column: "main" },
+            { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 15, column: "lower" },
 
             { id: "recommendedForYouPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 10, column: "side" },
-            { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 20, column: "side" },
-            { id: "watchlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 30, column: "side" },
+            { id: "watchlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 20, column: "side" },
+            { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 30, column: "side" },
             { id: "dailyDigestPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 40, column: "side" },
             { id: "alertsPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 50, column: "side" },
 
@@ -4951,6 +4953,12 @@ input:focus-visible {
             { id: "dealRadarPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 30, column: "main" },
             { id: "analyticsPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 40, column: "main" },
         ].map((entry) => Object.freeze(entry)));
+        const HOMEPAGE_TIMING_EMPHASIS_SECTION_KEYS = Object.freeze(new Set([
+            "opportunitiesGrid",
+            "newDealsGrid",
+            "personalizedDealsGrid",
+            "dealRankedGrid",
+        ]));
 
         const state = {
             latestPrices: [],
@@ -5067,7 +5075,7 @@ input:focus-visible {
                 open: false,
                 previousFocusedElement: null,
             },
-            moreIntelExpanded: true,
+            moreIntelExpanded: false,
             analyticsPanelExpanded: false,
             discoveryTabs: {
                 activeKey: DISCOVERY_DEFAULT_TAB_KEY,
@@ -5515,7 +5523,7 @@ input:focus-visible {
                         ...parsed.feedFilters,
                     };
                 }
-                state.moreIntelExpanded = true;
+                state.moreIntelExpanded = parsed.moreIntelExpanded === true;
                 state.analyticsPanelExpanded = !!parsed.analyticsPanelExpanded;
                 sanitizeProtectedHomepageRailState();
                 state.dashboardRestore.restored = true;
@@ -6167,6 +6175,61 @@ input:focus-visible {
         function normalizeBuyRecommendation(value) {
             const normalized = String(value || "").trim().toUpperCase();
             return normalized === "BUY_NOW" || normalized === "WAIT" ? normalized : "";
+        }
+
+        function getDealTimingSignalForRow(game, options = {}) {
+            const runtime = window.GameDenSite;
+            const helper = runtime && typeof runtime.getDealTimingSignal === "function"
+                ? runtime.getDealTimingSignal
+                : null;
+            if (!helper) return null;
+            try {
+                return helper(game, options);
+            } catch {
+                return null;
+            }
+        }
+
+        function scoreTimingUrgencyAdjustment(signal, options = {}) {
+            if (!signal || typeof signal !== "object") return 0;
+            const state = String(signal.state || "").trim().toLowerCase();
+            const watched = options?.watched === true;
+            if (state === "buy_now") return watched ? 12 : 8;
+            if (state === "good_time_to_buy") return watched ? 8 : 4;
+            if (state === "wait_for_better_drop") return watched ? -2 : -4;
+            if (state === "watch_for_sale") return watched ? 2 : 0;
+            if (state === "low_confidence") return -3;
+            return 0;
+        }
+
+        function shouldEmphasizeCardTiming(game, context = {}, timingSignal = null) {
+            if (!timingSignal || typeof timingSignal !== "object") return false;
+            const sectionKey = String(context?.sectionKey || "").trim();
+            if (HOMEPAGE_TIMING_EMPHASIS_SECTION_KEYS.has(sectionKey)) return true;
+            const watched = isInWatchlist(game);
+            const state = String(timingSignal.state || "").trim().toLowerCase();
+            return watched && (state === "buy_now" || state === "good_time_to_buy");
+        }
+
+        function mapTimingSignalToChipClass(timingSignal) {
+            const state = String(timingSignal?.state || "").trim().toLowerCase();
+            const tone = String(timingSignal?.tone || "").trim().toLowerCase();
+            if (state === "buy_now") return `deal-flag${signalGlowClass("buy")}`;
+            if (state === "good_time_to_buy") return "signal good";
+            if (state === "wait_for_better_drop") return "deal-neutral";
+            if (state === "low_confidence") return "signal info";
+            if (tone === "good") return "signal good";
+            if (tone === "warn") return "deal-neutral";
+            return "signal info";
+        }
+
+        function buildCardTimingChip(timingSignal) {
+            if (!timingSignal || typeof timingSignal !== "object") return "";
+            const rawLabel = String(timingSignal.label || "").trim();
+            if (!rawLabel) return "";
+            const label = rawLabel.length > 24 ? `${rawLabel.slice(0, 21).trimEnd()}...` : rawLabel;
+            const chipClass = mapTimingSignalToChipClass(timingSignal);
+            return `<span class="meta-chip ${escapeHtml(chipClass)}">${escapeHtml(label)}</span>`;
         }
 
         function pickByRecommendation(rows, recommendation, limit = 24) {
@@ -7222,16 +7285,19 @@ input:focus-visible {
             `;
         }
 
-        function buildCardDealQualityRow(game) {
+        function buildCardDealQualityRow(game, context = {}) {
             const discount = Math.max(0, Number(game.discount_percent) || 0);
             const dealScore = Number(game.deal_score);
             const historicalStatus = String(game.historical_status || "").trim();
             const recommendation = normalizeBuyRecommendation(game.buy_recommendation);
             const confidenceChip = buildDealConfidenceBadge(game, { className: "deal-confidence-badge compact" });
             const discountGlowClass = isLargeDiscount(discount) ? signalGlowClass("discount") : "";
+            const timingChip = context?.timingVisible ? buildCardTimingChip(context?.timingSignal) : "";
 
             let recommendationChip = "";
-            if (recommendation === "BUY_NOW") {
+            if (timingChip) {
+                recommendationChip = timingChip;
+            } else if (recommendation === "BUY_NOW") {
                 recommendationChip = `<span class="meta-chip deal-flag${signalGlowClass("buy")}">Buy now</span>`;
             } else if (recommendation === "WAIT") {
                 recommendationChip = `<span class="meta-chip deal-neutral">Wait</span>`;
@@ -7298,7 +7364,7 @@ input:focus-visible {
             }
             return `
                 <div class="card-meta-stack">
-                    ${buildCardDealQualityRow(game)}
+                    ${buildCardDealQualityRow(game, context)}
                     ${buildCardSignalRow(game)}
                     ${buildCardContextRow(game)}
                 </div>
@@ -7548,26 +7614,274 @@ input:focus-visible {
             return ownedKeys;
         }
 
-        function filterDiscoveryFeedRows(rows) {
-            const normalizedRows = uniqueGamesByIdentity(rows);
-            const ownedKeys = buildOwnedFeedIdentitySet();
-            if (!isOwnedHiddenInFeeds() || !ownedKeys.size) {
+        function getDiscoveryRowTokens(row, fallbackTokenLookup = null) {
+            const normalized = normalizeGameRow(row);
+            const tokens = new Set();
+            [...safeArray(normalized.genres), ...safeArray(normalized.tags)].forEach((token) => {
+                const cleaned = String(token || "").trim().toLowerCase();
+                if (cleaned.length >= 2) {
+                    tokens.add(cleaned);
+                }
+            });
+            if (!tokens.size && fallbackTokenLookup instanceof Map) {
+                const key = gameIdentityKey(normalized);
+                const fallbackTokens = key ? fallbackTokenLookup.get(key) : null;
+                safeArray(fallbackTokens).forEach((token) => {
+                    const cleaned = String(token || "").trim().toLowerCase();
+                    if (cleaned.length >= 2) {
+                        tokens.add(cleaned);
+                    }
+                });
+            }
+            return Array.from(tokens);
+        }
+
+        function buildDiscoverySeedTokenLookup() {
+            const tokenLookup = new Map();
+            const seedRows = uniqueGamesByIdentity([
+                ...safeArray(state.latestPrices),
+                ...safeArray(state.dealRanked),
+                ...safeArray(state.worthBuyingNow),
+                ...safeArray(state.buyNowPicks),
+                ...safeArray(state.waitPicks),
+                ...safeArray(state.trendingNow),
+                ...safeArray(state.discoveryTrending),
+                ...safeArray(state.newHistoricalLows),
+                ...safeArray(state.opportunitiesNow),
+                ...safeArray(state.opportunityRadar),
+                ...safeArray(state.personalizedDeals),
+                ...safeArray(state.allGames),
+            ]);
+            seedRows.forEach((row) => {
+                const key = gameIdentityKey(row);
+                if (!key || tokenLookup.has(key)) return;
+                const tokens = getDiscoveryRowTokens(row);
+                if (!tokens.length) return;
+                tokenLookup.set(key, tokens);
+            });
+            return tokenLookup;
+        }
+
+        function addDiscoveryTokenWeights(rows, tokenWeights, baseWeight, fallbackTokenLookup) {
+            uniqueGamesByIdentity(rows).forEach((row) => {
+                const tokens = getDiscoveryRowTokens(row, fallbackTokenLookup);
+                if (!tokens.length) return;
+                tokens.forEach((token) => {
+                    const previous = Number(tokenWeights.get(token) || 0);
+                    tokenWeights.set(token, previous + baseWeight);
+                });
+            });
+        }
+
+        function buildDiscoveryPersonalizationContext() {
+            const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
+            const watchRows = uniqueGamesByIdentity(state.watchlist);
+            const ownedRows = uniqueGamesByIdentity(state.wishlist);
+            if (!knownUser || (!watchRows.length && !ownedRows.length)) {
                 return {
-                    rows: normalizedRows,
-                    hiddenOwnedCount: 0,
-                    totalCount: normalizedRows.length,
+                    enabled: false,
+                    watchKeys: new Set(),
+                    ownedKeys: new Set(),
+                    watchTokenWeights: new Map(),
+                    ownedTokenWeights: new Map(),
+                    tokenLookup: new Map(),
                 };
             }
 
+            const tokenLookup = buildDiscoverySeedTokenLookup();
+            const watchKeys = new Set(
+                watchRows
+                    .map((row) => gameIdentityKey(row))
+                    .filter((key) => !!key),
+            );
+            const ownedKeys = new Set(
+                ownedRows
+                    .map((row) => gameIdentityKey(row))
+                    .filter((key) => !!key),
+            );
+            const watchTokenWeights = new Map();
+            const ownedTokenWeights = new Map();
+            addDiscoveryTokenWeights(watchRows, watchTokenWeights, 1.4, tokenLookup);
+            addDiscoveryTokenWeights(ownedRows, ownedTokenWeights, 1.05, tokenLookup);
+
+            return {
+                enabled: true,
+                watchKeys,
+                ownedKeys,
+                watchTokenWeights,
+                ownedTokenWeights,
+                tokenLookup,
+            };
+        }
+
+        function scoreWatchOpportunitySignal(game) {
+            const discount = Math.max(0, Number(game.discount_percent || 0));
+            const dealScore = Math.max(0, Number(game.deal_score || 0));
+            const buyScore = Math.max(0, Number(game.buy_score ?? game.worth_buying_score ?? 0));
+            const recommendation = normalizeBuyRecommendation(game.buy_recommendation);
+            const trendingScore = Math.max(0, Number(game.trending_score || game.momentum_score || 0));
+            const momentumScore = Math.max(0, Number(game.momentum_score || 0));
+            const shortTrend = Number(game.short_term_player_trend || 0);
+            const playerGrowth = Number(game.player_growth_ratio || 0);
+            const ratio = Number(game.price_vs_low_ratio || 0);
+            const status = String(game.historical_status || "").trim().toLowerCase();
+            const nearLow = status === "new_historical_low"
+                || status === "matches_historical_low"
+                || status === "near_historical_low"
+                || (Number.isFinite(ratio) && ratio > 0 && ratio <= 1.08);
+
+            let signal = 0;
+            if (discount >= 70) signal += 14;
+            else if (discount >= 50) signal += 10;
+            else if (discount >= 35) signal += 7;
+            else if (discount >= 20) signal += 4;
+
+            if (nearLow) signal += 10;
+            if (recommendation === "BUY_NOW" || buyScore >= 72) signal += 9;
+            else if (dealScore >= 68) signal += 5;
+
+            if (
+                trendingScore >= 62
+                || momentumScore >= 58
+                || shortTrend >= 0.06
+                || playerGrowth >= 1.08
+            ) {
+                signal += 7;
+            }
+            return signal;
+        }
+
+        function scoreDiscoveryRowForUserIntent(row, index, personalizationContext) {
+            const normalized = normalizeGameRow(row);
+            const key = gameIdentityKey(normalized);
+            const isWatched = key ? personalizationContext.watchKeys.has(key) : false;
+            const isOwned = key ? personalizationContext.ownedKeys.has(key) : false;
+            const dealScore = Math.max(0, Number(normalized.deal_score || 0));
+            const opportunityScore = Math.max(0, Number(normalized.deal_opportunity_score || 0));
+            const trendingScore = Math.max(0, Number(normalized.trending_score || normalized.momentum_score || 0));
+            const popularityScore = Math.max(0, Number(normalized.popularity_score || 0));
+            const discount = Math.max(0, Number(normalized.discount_percent || 0));
+
+            let score = Math.max(0, 45 - (index * 1.05));
+            score += dealScore * 0.28;
+            score += opportunityScore * 0.20;
+            score += trendingScore * 0.14;
+            score += popularityScore * 0.05;
+            score += discount * 0.12;
+            const timingSignal = getDealTimingSignalForRow(normalized, {
+                watched: isWatched,
+                mode: isUnreleasedInventoryRow(normalized) ? "unreleased" : "paid",
+            });
+            score += scoreTimingUrgencyAdjustment(timingSignal, { watched: isWatched });
+
+            if (isWatched) {
+                score += 10 + Math.min(26, scoreWatchOpportunitySignal(normalized));
+            }
+            if (isOwned && !isOwnedHiddenInFeeds()) {
+                score -= 16;
+            }
+
+            const rowTokens = getDiscoveryRowTokens(normalized, personalizationContext.tokenLookup);
+            if (rowTokens.length) {
+                let watchOverlap = 0;
+                let ownedOverlap = 0;
+                rowTokens.forEach((token) => {
+                    watchOverlap += Number(personalizationContext.watchTokenWeights.get(token) || 0);
+                    ownedOverlap += Number(personalizationContext.ownedTokenWeights.get(token) || 0);
+                });
+                if (!isWatched) {
+                    score += Math.min(14, watchOverlap * 2.2);
+                }
+                if (!isOwned) {
+                    score += Math.min(11, ownedOverlap * 1.8);
+                }
+            }
+
+            return score;
+        }
+
+        function personalizeDiscoveryRows(rows) {
+            const normalizedRows = uniqueGamesByIdentity(rows);
+            const personalizationContext = buildDiscoveryPersonalizationContext();
+            if (!personalizationContext.enabled || !normalizedRows.length) {
+                return normalizedRows;
+            }
+
+            const scored = normalizedRows.map((row, index) => ({
+                row,
+                index,
+                score: scoreDiscoveryRowForUserIntent(row, index, personalizationContext),
+            }));
+            scored.sort((left, right) => {
+                const scoreDiff = Number(right.score || 0) - Number(left.score || 0);
+                if (scoreDiff !== 0) return scoreDiff;
+                return left.index - right.index;
+            });
+            return scored.map((entry) => entry.row);
+        }
+
+        function buildDiscoveryFallbackPool(seedRows = []) {
+            return uniqueGamesByIdentity([
+                ...safeArray(seedRows),
+                ...safeArray(state.buyNowPicks),
+                ...safeArray(state.waitPicks),
+                ...safeArray(state.opportunitiesNow),
+                ...safeArray(state.opportunityRadar),
+                ...safeArray(state.dealRanked),
+                ...safeArray(state.worthBuyingNow),
+                ...safeArray(state.trendingNow),
+                ...safeArray(state.discoveryTrending),
+                ...safeArray(state.newHistoricalLows),
+                ...safeArray(state.personalizedDeals),
+            ]);
+        }
+
+        function resolveDiscoveryFeedRows(rows, options = {}) {
+            const targetCount = Math.max(1, Number(options?.targetCount) || 12);
+            const includeFallback = options?.includeFallback !== false;
+            const rankedRows = personalizeDiscoveryRows(rows);
+            const fallbackRows = Array.isArray(options?.fallbackRows)
+                ? personalizeDiscoveryRows(options.fallbackRows)
+                : includeFallback
+                    ? personalizeDiscoveryRows(buildDiscoveryFallbackPool(rankedRows))
+                    : [];
+            return filterDiscoveryFeedRows(rankedRows, {
+                fallbackRows,
+                targetCount,
+            });
+        }
+
+        function filterDiscoveryFeedRows(rows, options = {}) {
+            const normalizedRows = uniqueGamesByIdentity(rows);
+            const ownedKeys = buildOwnedFeedIdentitySet();
+            const hideOwnedEnabled = isOwnedHiddenInFeeds() && ownedKeys.size > 0;
             const visibleRows = [];
             let hiddenOwnedCount = 0;
             for (const row of normalizedRows) {
                 const key = gameIdentityKey(row);
-                if (key && ownedKeys.has(key)) {
+                if (hideOwnedEnabled && key && ownedKeys.has(key)) {
                     hiddenOwnedCount += 1;
                     continue;
                 }
                 visibleRows.push(row);
+            }
+
+            const targetCount = Math.max(0, Number(options?.targetCount || 0));
+            const fallbackRows = uniqueGamesByIdentity(options?.fallbackRows || []);
+            if (targetCount > 0 && visibleRows.length < targetCount && fallbackRows.length) {
+                const seenKeys = new Set(
+                    visibleRows
+                        .map((row) => gameIdentityKey(row))
+                        .filter((key) => !!key),
+                );
+                for (const candidate of fallbackRows) {
+                    const key = gameIdentityKey(candidate);
+                    if (!key || seenKeys.has(key)) continue;
+                    if (hideOwnedEnabled && ownedKeys.has(key)) continue;
+                    visibleRows.push(candidate);
+                    seenKeys.add(key);
+                    if (visibleRows.length >= targetCount) break;
+                }
             }
 
             return {
@@ -8229,12 +8543,29 @@ input:focus-visible {
             const detailHref = buildGameDetailHref(game);
             const gameName = escapeHtml(game.game_name || "Unknown game");
             const upcomingCard = isUpcomingCard(game, context);
+            const watched = isInWatchlist(game);
+            const timingSignal = upcomingCard
+                ? null
+                : getDealTimingSignalForRow(game, {
+                    watched,
+                    mode: "paid",
+                });
+            const timingVisible = !upcomingCard && shouldEmphasizeCardTiming(game, context, timingSignal);
+            const timingReason = timingVisible ? normalizeReasonSnippet(timingSignal?.reason) : "";
+            const cardContext = {
+                ...context,
+                timingSignal,
+                timingVisible,
+            };
             const decisionExplainLines = upcomingCard ? [] : buildDecisionExplainLines(game);
-            const primaryReason = upcomingCard
-                ? escapeHtml(buildUpcomingPrimaryReason(game))
-                : decisionExplainLines.length
-                    ? escapeHtml(decisionExplainLines[0])
-                    : "";
+            let primaryReason = "";
+            if (upcomingCard) {
+                primaryReason = escapeHtml(buildUpcomingPrimaryReason(game));
+            } else if (timingReason) {
+                primaryReason = escapeHtml(timingReason);
+            } else if (decisionExplainLines.length) {
+                primaryReason = escapeHtml(decisionExplainLines[0]);
+            }
             const currentPrice = Number(game.price);
             const shouldUseTbaPrice = upcomingCard && (!Number.isFinite(currentPrice) || currentPrice <= 0);
             const currentPriceLabel = shouldUseTbaPrice ? "TBA" : fmtPrice(game.price);
@@ -8261,9 +8592,9 @@ input:focus-visible {
                         </div>
                     </div>
                     ${buildActionButtons(game)}
-                    ${buildCardMetadataStack(game, context)}
+                    ${buildCardMetadataStack(game, cardContext)}
                     ${primaryReason ? `<div class="card-reason-line">${primaryReason}</div>` : ""}
-                    ${buildCardMiniStatsRow(game, context)}
+                    ${buildCardMiniStatsRow(game, cardContext)}
                 </article>
             `;
         }
@@ -8693,7 +9024,7 @@ input:focus-visible {
         }
 
         function renderNewDeals() {
-            const filtered = filterDiscoveryFeedRows(state.buyNowPicks);
+            const filtered = resolveDiscoveryFeedRows(state.buyNowPicks, { targetCount: 12 });
             if (!filtered.rows.length) {
                 renderOwnedFilteredFeedEmpty(
                     ui.newDealsGrid,
@@ -8721,7 +9052,7 @@ input:focus-visible {
         }
 
         function renderRecommendedDeals() {
-            const filtered = filterDiscoveryFeedRows(state.waitPicks);
+            const filtered = resolveDiscoveryFeedRows(state.waitPicks, { targetCount: 12 });
             if (!filtered.rows.length) {
                 renderOwnedFilteredFeedEmpty(
                     ui.recommendedDealsGrid,
@@ -9862,7 +10193,7 @@ input:focus-visible {
                         ? state.dealRanked
                         : state.worthBuyingNow
                 );
-            const filtered = filterDiscoveryFeedRows(sectionItems);
+            const filtered = resolveDiscoveryFeedRows(sectionItems, { targetCount: 8 });
             if (!filtered.rows.length) {
                 renderOwnedFilteredFeedEmpty(
                     ui.dealRankedGrid,
@@ -9889,7 +10220,7 @@ input:focus-visible {
         }
 
         function renderOpportunities() {
-            const filtered = filterDiscoveryFeedRows(state.opportunitiesNow);
+            const filtered = resolveDiscoveryFeedRows(state.opportunitiesNow, { targetCount: 12 });
             if (!filtered.rows.length) {
                 renderOwnedFilteredFeedEmpty(
                     ui.opportunitiesGrid,
@@ -9916,7 +10247,7 @@ input:focus-visible {
         }
 
         function renderOpportunityRadar() {
-            const filtered = filterDiscoveryFeedRows(state.opportunityRadar);
+            const filtered = resolveDiscoveryFeedRows(state.opportunityRadar, { targetCount: 12 });
             if (!filtered.rows.length) {
                 renderOwnedFilteredFeedEmpty(
                     ui.opportunityRadarGrid,
@@ -10058,7 +10389,10 @@ input:focus-visible {
                     protectedKeys,
                     personalizedLimit,
                 );
-            const filteredDisplay = filterDiscoveryFeedRows(displayItems);
+            const filteredDisplay = resolveDiscoveryFeedRows(displayItems, {
+                targetCount: personalizedLimit,
+                includeFallback: false,
+            });
             const personalizedActive = knownUser && !fallbackMode && !!state.personalizedStatus?.personalized;
 
             setPanelVisibility(ui.recommendedForYouPanel, true);
@@ -10113,7 +10447,7 @@ input:focus-visible {
             const sectionItems = state.worthBuyingNow.length
                 ? state.worthBuyingNow
                 : state.dealRanked;
-            const filtered = filterDiscoveryFeedRows(sectionItems);
+            const filtered = resolveDiscoveryFeedRows(sectionItems, { targetCount: 12 });
             if (!filtered.rows.length) {
                 renderOwnedFilteredFeedEmpty(
                     ui.worthBuyingGrid,
@@ -10143,7 +10477,7 @@ input:focus-visible {
             const sectionItems = state.trendingNow.length
                 ? state.trendingNow
                 : (state.discoveryTrending.length ? state.discoveryTrending : state.trendingDeals);
-            const filtered = filterDiscoveryFeedRows(sectionItems);
+            const filtered = resolveDiscoveryFeedRows(sectionItems, { targetCount: 12 });
             if (!filtered.rows.length) {
                 renderOwnedFilteredFeedEmpty(
                     ui.trendingDealsGrid,
@@ -10170,7 +10504,7 @@ input:focus-visible {
         }
 
         function renderNewHistoricalLows() {
-            const filtered = filterDiscoveryFeedRows(state.newHistoricalLows);
+            const filtered = resolveDiscoveryFeedRows(state.newHistoricalLows, { targetCount: 12 });
             if (!filtered.rows.length) {
                 renderOwnedFilteredFeedEmpty(
                     ui.newHistoricalLowsGrid,
@@ -12670,7 +13004,7 @@ try {
                 await ensureAuthRuntimeForUser(requestedUserId);
                 const includeOwnedParam = state.feedFilters?.showOwned ? "1" : "0";
                 const payload = await fetchJson(
-                    `/api/personalized-deals?user_id=${encodeURIComponent(requestedUserId)}&limit=${HOMEPAGE_SECTION_LIMITS.personalizedDeals}&summary=1&include_owned=${includeOwnedParam}`,
+                    `/api/personalized-deals?user_id=${encodeURIComponent(requestedUserId)}&limit=${HOMEPAGE_SECTION_LIMITS.personalizedDeals}&include_owned=${includeOwnedParam}`,
                 );
                 if (String(CURRENT_USER_ID || "").trim() !== requestedUserId) {
                     return safeArray(state.personalizedDeals);

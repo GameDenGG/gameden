@@ -3194,40 +3194,56 @@ function shouldShowPlayerHistoryPanel(payload, context = currentGameContext) {
 }
 
 function buildGameContextSummary(payload, context) {
-    const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
-    const dealQuality = deriveDealQualityLabel(payload, context);
+    const timing = deriveTimingSignal(payload, context);
+    const timingLabel = String(timing?.label || "").trim() || "Watch for a sale";
+    const timingReason = String(timing?.reason || "").trim();
+    const timingState = String(timing?.state || "").trim().toLowerCase();
     if (context.mode === "unreleased") {
         return {
             title: "Decision",
-            text: "No live price yet.",
+            text: timingReason || "No live price yet.",
             heroSub: "Wait for launch pricing.",
         };
     }
     if (context.mode === "free") {
         return {
             title: "Decision",
-            text: "No purchase needed.",
+            text: timingReason || "No purchase needed.",
             heroSub: "Free to play.",
         };
     }
-    if (recommendation === "BUY_NOW" && dealQuality === "Good") {
+    if (timingState === "buy_now") {
         return {
             title: "Decision",
-            text: "Strong discount with healthy activity.",
-            heroSub: "Good deal. Buy now.",
+            text: timingReason || "Current deal timing is strong.",
+            heroSub: "Buy now.",
         };
     }
-    if (recommendation === "WAIT") {
+    if (timingState === "good_time_to_buy") {
         return {
             title: "Decision",
-            text: "Current value is not strong.",
+            text: timingReason || "Current price is compelling for this title.",
+            heroSub: "Good time to buy.",
+        };
+    }
+    if (timingState === "wait_for_better_drop") {
+        return {
+            title: "Decision",
+            text: timingReason || "History suggests better value later.",
             heroSub: "Wait for a better price.",
+        };
+    }
+    if (timingState === "low_confidence") {
+        return {
+            title: "Decision",
+            text: timingReason || "Timing signal is still calibrating.",
+            heroSub: "Low confidence. Watch this one.",
         };
     }
     return {
         title: "Decision",
-        text: "Signals are mixed right now.",
-        heroSub: "Watch for a better signal.",
+        text: timingReason || "Signals are mixed right now.",
+        heroSub: timingLabel,
     };
 }
 
@@ -3266,9 +3282,31 @@ function deriveConfidenceLabel(payload) {
     return "Low";
 }
 
-function deriveRecommendationLabel(payload, context = currentGameContext) {
+function deriveTimingSignal(payload, context = currentGameContext) {
+    const runtime = window.GameDenSite;
+    const helper = runtime && typeof runtime.getDealTimingSignal === "function"
+        ? runtime.getDealTimingSignal
+        : null;
+    if (!helper) return null;
+    const mode = String(context?.mode || "").trim().toLowerCase();
+    try {
+        return helper(payload, {
+            mode: mode === "paid" || mode === "free" || mode === "unreleased" ? mode : "paid",
+            watched: !!(payload?.watchlisted),
+        });
+    } catch {
+        return null;
+    }
+}
+
+function deriveRecommendationLabel(payload, context = currentGameContext, timingSignal = null) {
     if (context?.mode === "unreleased") return "Watch";
     if (context?.mode === "free") return "Watch";
+    const timing = timingSignal || deriveTimingSignal(payload, context);
+    const timingState = String(timing?.state || "").trim().toLowerCase();
+    if (timingState === "buy_now" || timingState === "good_time_to_buy") return "Buy";
+    if (timingState === "wait_for_better_drop") return "Wait";
+    if (timingState === "watch_for_sale" || timingState === "low_confidence") return "Watch";
     const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
     if (recommendation === "BUY_NOW") return "Buy";
     if (recommendation === "WAIT") return "Wait";
@@ -3280,10 +3318,12 @@ function renderDecisionSummaryStrip(payload, context = currentGameContext) {
     const playerActivityEl = document.getElementById("summaryPlayerActivity");
     const confidenceEl = document.getElementById("summaryConfidence");
     const recommendationEl = document.getElementById("summaryRecommendation");
-    if (dealQualityEl) dealQualityEl.textContent = deriveRecommendationLabel(payload, context);
+    const timing = deriveTimingSignal(payload, context);
+    const timingLabel = String(timing?.label || "").trim();
+    if (dealQualityEl) dealQualityEl.textContent = timingLabel || deriveRecommendationLabel(payload, context, timing);
     if (playerActivityEl) playerActivityEl.textContent = derivePlayerActivityLabel(payload, context);
     if (confidenceEl) confidenceEl.textContent = deriveConfidenceLabel(payload);
-    if (recommendationEl) recommendationEl.textContent = deriveDealQualityLabel(payload, context);
+    if (recommendationEl) recommendationEl.textContent = deriveRecommendationLabel(payload, context, timing);
 }
 
 function setHeroBannerArtwork(imageUrl) {
@@ -3659,6 +3699,7 @@ function pushUniqueExplanationLine(lines, line) {
 function buildHeroExplanationLines(payload, context = currentGameContext) {
     const lines = [];
     const playerInsights = getPlayerSignalInsights(payload);
+    const timing = deriveTimingSignal(payload, context);
     if (context?.mode === "unreleased") {
         const releaseText = String(payload?.release_date_text || payload?.release_date || "").trim();
         if (releaseText) pushUniqueExplanationLine(lines, `Launch window: ${releaseText}`);
@@ -3695,6 +3736,9 @@ function buildHeroExplanationLines(payload, context = currentGameContext) {
     const playerTrend = Number(payload?.short_term_player_trend ?? payload?.momentum?.short_term_player_trend);
     const popularityScore = Number(payload?.popularity_score);
     const heatLevel = String((payload?.deal_heat_level ?? payload?.deal_heat?.level) || "").trim().toUpperCase();
+    if (timing?.reason) {
+        pushUniqueExplanationLine(lines, normalizeReasonSnippet(timing.reason));
+    }
 
     if (recommendation === "BUY_NOW") {
         pushUniqueExplanationLine(lines, buyReason || "Buy-now timing signal");
@@ -3807,9 +3851,14 @@ function applyHeroDecisionState(payload) {
         hero.removeAttribute("data-decision");
         return;
     }
-    const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
-    if (recommendation === "BUY_NOW" || recommendation === "WAIT") {
-        hero.setAttribute("data-decision", recommendation);
+    const timing = deriveTimingSignal(payload, currentGameContext);
+    const timingState = String(timing?.state || "").trim().toLowerCase();
+    if (timingState === "buy_now" || timingState === "good_time_to_buy") {
+        hero.setAttribute("data-decision", "BUY_NOW");
+        return;
+    }
+    if (timingState === "wait_for_better_drop") {
+        hero.setAttribute("data-decision", "WAIT");
         return;
     }
     hero.removeAttribute("data-decision");

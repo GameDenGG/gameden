@@ -358,14 +358,16 @@ select {
 
 .search-command-surface {
     position: relative;
-    border-radius: 20px;
-    border: 1px solid rgba(121, 168, 255, 0.24);
-    background: linear-gradient(180deg, rgba(9, 18, 33, 0.94), rgba(7, 14, 27, 0.95));
+    border-radius: 22px;
+    border: 1px solid rgba(122, 171, 255, 0.28);
+    background:
+        radial-gradient(120% 140% at 8% -18%, rgba(98, 188, 255, 0.18) 0%, rgba(98, 188, 255, 0) 55%),
+        linear-gradient(180deg, rgba(10, 20, 37, 0.96), rgba(7, 14, 27, 0.97));
     box-shadow:
-        0 16px 36px rgba(2, 7, 20, 0.28),
-        0 0 0 1px rgba(121, 168, 255, 0.08) inset;
-    padding: 12px 12px 10px;
-    backdrop-filter: blur(10px);
+        0 20px 40px rgba(2, 8, 22, 0.32),
+        0 0 0 1px rgba(122, 171, 255, 0.12) inset;
+    padding: 14px 14px 12px;
+    backdrop-filter: blur(12px);
 }
 
 .search-bar-wrap {
@@ -386,30 +388,33 @@ select {
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
-    gap: 11px;
-    padding: 14px 16px;
-    border-radius: 14px;
-    border: 1px solid rgba(121, 168, 255, 0.22);
-    background: linear-gradient(180deg, rgba(12, 24, 43, 0.9), rgba(9, 18, 33, 0.92));
-    box-shadow: 0 10px 20px rgba(4, 10, 21, 0.24);
+    gap: 12px;
+    min-height: 56px;
+    padding: 14px 18px;
+    border-radius: 16px;
+    border: 1px solid rgba(122, 171, 255, 0.26);
+    background: linear-gradient(180deg, rgba(13, 26, 47, 0.96), rgba(9, 18, 34, 0.95));
+    box-shadow: 0 12px 24px rgba(4, 10, 22, 0.26);
     transition:
         border-color var(--ui-duration-base) var(--ui-ease-standard),
         box-shadow var(--ui-duration-base) var(--ui-ease-standard),
-        background var(--ui-duration-base) var(--ui-ease-standard);
+        background var(--ui-duration-base) var(--ui-ease-standard),
+        transform var(--ui-duration-base) var(--ui-ease-standard);
 }
 
 .search-bar:focus-within {
-    border-color: rgba(103, 234, 255, 0.56);
+    border-color: rgba(103, 234, 255, 0.62);
     box-shadow:
-        0 0 0 1px rgba(103, 234, 255, 0.34),
-        0 14px 30px rgba(4, 12, 26, 0.28);
-    background: linear-gradient(180deg, rgba(14, 27, 48, 0.94), rgba(9, 19, 35, 0.95));
+        0 0 0 1px rgba(103, 234, 255, 0.36),
+        0 16px 32px rgba(4, 12, 26, 0.3);
+    background: linear-gradient(180deg, rgba(15, 30, 54, 0.97), rgba(9, 19, 35, 0.96));
+    transform: translateY(-1px);
 }
 
 .search-bar-icon {
-    font-size: 15px;
+    font-size: 16px;
     line-height: 1;
-    opacity: 0.85;
+    opacity: 0.9;
 }
 
 .search-bar input {
@@ -418,18 +423,18 @@ select {
     outline: 0;
     color: var(--text);
     width: 100%;
-    font-size: 16px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
+    font-size: 17px;
+    font-weight: 650;
+    letter-spacing: 0.012em;
 }
 
 .search-bar input::placeholder {
-    color: rgba(154, 182, 230, 0.88);
+    color: rgba(154, 182, 230, 0.84);
 }
 
 .search-guidance {
-    margin: 8px 2px 0;
-    color: rgba(154, 182, 230, 0.7);
+    margin: 8px 3px 0;
+    color: rgba(154, 182, 230, 0.68);
     font-size: 11px;
     line-height: 1.35;
     letter-spacing: 0.01em;
@@ -595,7 +600,7 @@ select {
 }
 
 .global-filters-shell {
-    margin-top: 10px;
+    margin-top: 9px;
     transition:
         opacity var(--ui-duration-slow) var(--ui-ease-standard),
         transform var(--ui-duration-slow) var(--ui-ease-standard),
@@ -603,11 +608,11 @@ select {
 }
 
 .global-filters {
-    border-radius: 14px;
-    border: 1px solid rgba(121, 168, 255, 0.16);
-    background: linear-gradient(180deg, rgba(11, 22, 39, 0.64), rgba(8, 17, 30, 0.72));
-    box-shadow: 0 8px 18px rgba(3, 8, 20, 0.18);
-    padding: 10px;
+    border-radius: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
 }
 
 .mobile-filter-toggle-row {
@@ -678,19 +683,13 @@ select {
 .filters-top-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 9px;
     align-items: center;
 }
 
 .quick-filters-row {
     align-items: center;
-    row-gap: 8px;
-}
-
-.quick-filters-row > .quick-platform-field {
-    min-width: 148px;
-    max-width: 220px;
-    flex: 1 1 170px;
+    row-gap: 9px;
 }
 
 .quick-filters-row > #toggleAdvancedFiltersBtn {
@@ -739,18 +738,18 @@ select {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    min-height: 36px;
-    padding: 7px 12px;
+    min-height: 34px;
+    padding: 6px 11px;
     border-radius: 999px;
-    border: 1px solid rgba(121, 168, 255, 0.24);
-    background: rgba(121, 168, 255, 0.07);
+    border: 1px solid rgba(121, 168, 255, 0.22);
+    background: rgba(121, 168, 255, 0.06);
     color: var(--text);
     cursor: pointer;
     user-select: none;
     font-family: var(--font-mono);
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.055em;
     text-transform: uppercase;
     transition:
         border-color var(--ui-duration-base) var(--ui-ease-standard),
@@ -765,15 +764,15 @@ select {
 }
 
 .pill-toggle.is-active {
-    border-color: rgba(103, 234, 255, 0.5);
-    background: rgba(103, 234, 255, 0.14);
+    border-color: rgba(103, 234, 255, 0.54);
+    background: rgba(103, 234, 255, 0.16);
     color: #dffcff;
 }
 
 .pill-toggle:hover {
-    border-color: rgba(121, 168, 255, 0.42);
-    background: rgba(121, 168, 255, 0.14);
-    box-shadow: 0 8px 16px rgba(4, 12, 24, 0.2);
+    border-color: rgba(121, 168, 255, 0.4);
+    background: rgba(121, 168, 255, 0.12);
+    box-shadow: 0 6px 14px rgba(4, 12, 24, 0.18);
 }
 
 .pill-toggle:active {
@@ -785,12 +784,12 @@ select {
 }
 
 .quick-filter-btn {
-    min-height: 36px;
-    padding: 7px 12px;
+    min-height: 34px;
+    padding: 6px 11px;
     border-radius: 999px;
     font-family: var(--font-mono);
-    font-size: 10.5px;
-    letter-spacing: 0.05em;
+    font-size: 10px;
+    letter-spacing: 0.055em;
     text-transform: uppercase;
     white-space: nowrap;
 }
@@ -799,33 +798,17 @@ select {
     display: none !important;
 }
 
+.quick-filter-btn.is-active,
+#toggleAdvancedFiltersBtn[aria-expanded="true"] {
+    border-color: rgba(103, 234, 255, 0.48);
+    background: rgba(103, 234, 255, 0.13);
+    color: #e0fcff;
+}
+
 .quick-owned-toggle-btn[data-active="true"] {
     border-color: rgba(110, 221, 163, 0.46);
     background: rgba(110, 221, 163, 0.14);
     color: #c9f7de;
-}
-
-.quick-platform-field label {
-    display: none;
-}
-
-.quick-platform-field select {
-    min-height: 36px;
-    border-radius: 999px;
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    padding: 7px 30px 7px 12px;
-    background: rgba(121, 168, 255, 0.07);
-    border-color: rgba(121, 168, 255, 0.24);
-}
-
-.quick-platform-field select.is-active {
-    border-color: rgba(103, 234, 255, 0.48);
-    background: rgba(103, 234, 255, 0.12);
-    color: #dffcff;
 }
 
 .quick-clear-btn {
@@ -893,19 +876,34 @@ input:focus-visible {
 }
 
 .advanced-filters {
-    display: none;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid rgba(121, 168, 255, 0.14);
+    margin-top: 0;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition:
+        max-height var(--ui-duration-slow) var(--ui-ease-standard),
+        opacity var(--ui-duration-base) var(--ui-ease-standard),
+        transform var(--ui-duration-base) var(--ui-ease-standard),
+        margin-top var(--ui-duration-base) var(--ui-ease-standard);
 }
 
 .advanced-filters.open {
-    display: block;
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(121, 168, 255, 0.2);
+    background: linear-gradient(180deg, rgba(10, 20, 37, 0.8), rgba(8, 16, 29, 0.82));
+    max-height: 560px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
 }
 
 .advanced-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
 }
 
@@ -3885,7 +3883,6 @@ input:focus-visible {
         align-items: stretch;
     }
     .quick-filters-row > .quick-filter-pill,
-    .quick-filters-row > .quick-platform-field,
     .quick-filters-row > #toggleAdvancedFiltersBtn {
         width: 100%;
         min-width: 0;
@@ -3894,9 +3891,6 @@ input:focus-visible {
     }
     .quick-filter-btn {
         justify-content: center;
-    }
-    .quick-platform-field select {
-        width: 100%;
     }
     .advanced-grid {
         grid-template-columns: repeat(1, minmax(0, 1fr));
@@ -4577,12 +4571,6 @@ input:focus-visible {
                                         >
                                             Hide owned
                                         </button>
-                                        <div class="field quick-platform-field">
-                                            <label class="sr-only" for="platformSelect">Platform</label>
-                                            <select id="platformSelect">
-                                                <option value="">All platforms</option>
-                                            </select>
-                                        </div>
                                         <button class="secondary-btn quick-filter-pill quick-filter-btn" id="toggleAdvancedFiltersBtn" type="button" aria-expanded="false" aria-controls="advancedFilters">
                                             More filters
                                             <span class="dropdown-arrow">⇊</span>
@@ -4603,6 +4591,13 @@ input:focus-visible {
                                                 <label for="genreSelect">Genre</label>
                                                 <select id="genreSelect">
                                                     <option value="">All genres</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="field">
+                                                <label for="platformSelect">Platform</label>
+                                                <select id="platformSelect">
+                                                    <option value="">All platforms</option>
                                                 </select>
                                             </div>
 
@@ -15195,9 +15190,19 @@ try {
             if (ui.quickIncludeFreeChip instanceof HTMLElement) {
                 ui.quickIncludeFreeChip.classList.toggle("is-active", !!state.filters.includeFree);
             }
-            if (ui.platformSelect instanceof HTMLSelectElement) {
-                const platformActive = String(state.filters.platform || "").trim().length > 0;
-                ui.platformSelect.classList.toggle("is-active", platformActive);
+            const hasNumericValue = (value) => value !== null && value !== "" && Number.isFinite(Number(value));
+            const hasAdvancedFilters = (
+                (hasNumericValue(state.filters.minDeal) && Number(state.filters.minDeal) > 0)
+                || String(state.filters.genre || "").trim().length > 0
+                || String(state.filters.platform || "").trim().length > 0
+                || String(state.filters.tag || "").trim().length > 0
+                || String(state.filters.reviewLabel || "").trim().length > 0
+                || hasNumericValue(state.filters.maxPrice)
+                || (hasNumericValue(state.filters.minPlayers) && Number(state.filters.minPlayers) > 0)
+                || String(state.filters.releasedSort || "best-deals") !== "best-deals"
+            );
+            if (ui.toggleAdvancedFiltersBtn instanceof HTMLButtonElement) {
+                ui.toggleAdvancedFiltersBtn.classList.toggle("is-active", hasAdvancedFilters);
             }
             if (ui.clearQuickFiltersBtn instanceof HTMLButtonElement) {
                 const hasActiveFilters = countActiveFilters() > 0;

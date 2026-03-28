@@ -346,8 +346,8 @@ select {
     position: sticky;
     top: 10px;
     z-index: 15;
-    margin-top: clamp(-18px, -2.2vw, -10px);
-    margin-bottom: 24px;
+    margin-top: clamp(-8px, -0.9vw, 2px);
+    margin-bottom: 30px;
 }
 
 .command-launcher {
@@ -360,6 +360,25 @@ select {
     position: relative;
     display: grid;
     gap: 8px;
+}
+
+.command-search-layer::before {
+    content: "";
+    position: absolute;
+    inset: -12px -10px -10px;
+    border-radius: 24px;
+    background:
+        radial-gradient(120% 120% at 50% -10%, rgba(129, 199, 255, 0.18), rgba(129, 199, 255, 0)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
+    filter: blur(10px);
+    opacity: 0.85;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.command-search-layer > * {
+    position: relative;
+    z-index: 1;
 }
 
 .search-bar-wrap {
@@ -377,39 +396,76 @@ select {
 }
 
 .search-bar {
+    position: relative;
+    overflow: hidden;
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
-    gap: 14px;
-    min-height: 72px;
-    padding: 18px 22px;
-    border-radius: 18px;
-    border: 1px solid rgba(140, 196, 255, 0.48);
+    gap: 15px;
+    min-height: 76px;
+    padding: 20px 24px;
+    border-radius: 20px;
+    border: 1px solid rgba(160, 205, 255, 0.24);
     background:
-        linear-gradient(180deg, rgba(15, 30, 52, 0.96), rgba(9, 19, 35, 0.95));
+        linear-gradient(180deg, rgba(17, 34, 58, 0.92), rgba(10, 21, 38, 0.92));
     box-shadow:
-        0 18px 32px rgba(3, 9, 21, 0.34),
-        0 0 0 1px rgba(164, 208, 255, 0.1) inset;
+        0 18px 38px rgba(3, 9, 21, 0.34),
+        0 1px 0 rgba(255, 255, 255, 0.06) inset;
     transition:
-        border-color var(--ui-duration-base) var(--ui-ease-standard),
-        box-shadow var(--ui-duration-base) var(--ui-ease-standard),
-        background var(--ui-duration-base) var(--ui-ease-standard),
-        transform var(--ui-duration-base) var(--ui-ease-standard);
+        border-color 180ms var(--ui-ease-standard),
+        box-shadow 180ms var(--ui-ease-standard),
+        background 180ms var(--ui-ease-standard),
+        transform 180ms var(--ui-ease-standard);
 }
 
 .search-bar:focus-within {
-    border-color: rgba(103, 234, 255, 0.78);
+    border-color: rgba(103, 234, 255, 0.4);
     box-shadow:
-        0 0 0 1px rgba(103, 234, 255, 0.48),
-        0 24px 40px rgba(3, 10, 22, 0.4);
-    background: linear-gradient(180deg, rgba(16, 34, 60, 0.98), rgba(9, 18, 34, 0.96));
-    transform: translateY(-1px);
+        0 0 0 1px rgba(103, 234, 255, 0.24),
+        0 28px 48px rgba(3, 10, 22, 0.42),
+        0 0 22px rgba(103, 234, 255, 0.18);
+    background: linear-gradient(180deg, rgba(19, 38, 65, 0.94), rgba(11, 22, 39, 0.93));
+    transform: translateY(-1px) scale(1.006);
+}
+
+.search-bar.is-reacting {
+    box-shadow:
+        0 0 0 1px rgba(121, 188, 255, 0.26),
+        0 20px 40px rgba(3, 9, 20, 0.4);
+}
+
+.search-bar.is-loading::after {
+    content: "";
+    position: absolute;
+    left: 22px;
+    right: 22px;
+    bottom: 9px;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(103, 234, 255, 0.1), rgba(103, 234, 255, 0.9), rgba(103, 234, 255, 0.1));
+    animation: searchPulse 1.05s ease-in-out infinite;
+}
+
+@keyframes searchPulse {
+    0% {
+        opacity: 0.4;
+        transform: scaleX(0.5);
+    }
+    50% {
+        opacity: 0.95;
+        transform: scaleX(1);
+    }
+    100% {
+        opacity: 0.4;
+        transform: scaleX(0.5);
+    }
 }
 
 .search-bar-icon {
-    font-size: 17px;
+    font-size: 18px;
     line-height: 1;
-    opacity: 0.94;
+    opacity: 0.9;
+    transform: translateY(-0.5px);
 }
 
 .search-bar input {
@@ -418,7 +474,7 @@ select {
     outline: 0;
     color: var(--text);
     width: 100%;
-    font-size: clamp(18px, 2.1vw, 21px);
+    font-size: clamp(19px, 2.2vw, 22px);
     font-weight: 700;
     letter-spacing: 0.012em;
 }
@@ -428,11 +484,11 @@ select {
 }
 
 .search-guidance {
-    margin: 0 4px;
-    color: rgba(172, 201, 241, 0.82);
+    margin: 2px 6px 0;
+    color: rgba(168, 196, 238, 0.66);
     font-size: 10px;
     line-height: 1.35;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.045em;
     text-transform: uppercase;
 }
 
@@ -598,7 +654,7 @@ select {
 .quick-toggle-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 9px;
     align-items: center;
     margin-top: 0;
 }
@@ -626,7 +682,7 @@ select {
     padding: 9px 12px;
     color: var(--text);
     background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(121, 168, 255, 0.18);
+    border: 1px solid rgba(121, 168, 255, 0.12);
     border-radius: 12px;
     outline: none;
     transition:
@@ -654,7 +710,7 @@ select {
     min-height: 34px;
     padding: 6px 11px;
     border-radius: 999px;
-    border: 1px solid rgba(121, 168, 255, 0.22);
+    border: 1px solid rgba(121, 168, 255, 0.18);
     background: rgba(121, 168, 255, 0.06);
     color: var(--text);
     cursor: pointer;
@@ -665,10 +721,11 @@ select {
     letter-spacing: 0.055em;
     text-transform: uppercase;
     transition:
-        border-color var(--ui-duration-base) var(--ui-ease-standard),
-        background var(--ui-duration-base) var(--ui-ease-standard),
-        box-shadow var(--ui-duration-base) var(--ui-ease-standard),
-        color var(--ui-duration-base) var(--ui-ease-standard);
+        border-color 170ms var(--ui-ease-standard),
+        background 170ms var(--ui-ease-standard),
+        box-shadow 170ms var(--ui-ease-standard),
+        color 170ms var(--ui-ease-standard),
+        transform 170ms var(--ui-ease-standard);
 }
 
 .pill-toggle input[type="checkbox"] {
@@ -680,6 +737,7 @@ select {
     border-color: rgba(103, 234, 255, 0.54);
     background: rgba(103, 234, 255, 0.16);
     color: #dffcff;
+    transform: translateY(-1px);
 }
 
 .pill-toggle:hover {
@@ -705,6 +763,12 @@ select {
     letter-spacing: 0.055em;
     text-transform: uppercase;
     white-space: nowrap;
+    transition:
+        border-color 170ms var(--ui-ease-standard),
+        background 170ms var(--ui-ease-standard),
+        color 170ms var(--ui-ease-standard),
+        box-shadow 170ms var(--ui-ease-standard),
+        transform 170ms var(--ui-ease-standard);
 }
 
 .quick-filter-btn.hidden {
@@ -716,6 +780,7 @@ select {
     border-color: rgba(103, 234, 255, 0.48);
     background: rgba(103, 234, 255, 0.13);
     color: #e0fcff;
+    transform: translateY(-1px);
 }
 
 .quick-owned-toggle-btn[data-active="true"] {
@@ -804,12 +869,34 @@ input:focus-visible {
     opacity: 0.8;
 }
 
+.advanced-panel-backdrop {
+    position: fixed;
+    inset: 0;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+    background: rgba(4, 11, 23, 0.14);
+    backdrop-filter: blur(0px);
+    transition:
+        opacity 180ms var(--ui-ease-standard),
+        backdrop-filter 180ms var(--ui-ease-standard);
+    z-index: 54;
+}
+
+.command-launcher.is-advanced-mode .advanced-panel-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+    backdrop-filter: blur(5px);
+}
+
 .advanced-filters-drawer {
     position: absolute;
-    top: calc(100% + 10px);
+    top: calc(100% + 16px);
     left: 0;
     right: 0;
-    z-index: 60;
+    z-index: 61;
     margin-top: 0;
     max-height: min(68vh, 660px);
     opacity: 0;
@@ -817,17 +904,20 @@ input:focus-visible {
     pointer-events: none;
     transform: translateY(-8px) scale(0.985);
     transition:
-        opacity var(--ui-duration-base) var(--ui-ease-standard),
-        transform var(--ui-duration-base) var(--ui-ease-standard),
-        box-shadow var(--ui-duration-base) var(--ui-ease-standard);
+        opacity 180ms var(--ui-ease-standard),
+        transform 180ms var(--ui-ease-standard),
+        box-shadow 180ms var(--ui-ease-standard),
+        border-color 180ms var(--ui-ease-standard);
 }
 
 .advanced-filters-drawer.open {
-    padding: 14px;
-    border-radius: 16px;
-    border: 1px solid rgba(124, 181, 255, 0.3);
+    padding: 18px;
+    border-radius: 20px;
+    border: 1px solid rgba(132, 190, 255, 0.26);
     background: linear-gradient(180deg, rgba(10, 20, 36, 0.98), rgba(8, 16, 30, 0.96));
-    box-shadow: 0 26px 44px rgba(2, 8, 21, 0.42);
+    box-shadow: 0 30px 52px rgba(2, 8, 21, 0.46);
+    overflow: auto;
+    overscroll-behavior: contain;
     opacity: 1;
     pointer-events: auto;
     transform: translateY(0) scale(1);
@@ -3697,7 +3787,7 @@ input:focus-visible {
     }
     .sticky-shell {
         margin-top: clamp(-28px, -2.8vw, -14px);
-        margin-bottom: 16px;
+        margin-bottom: 18px;
     }
     .command-launcher {
         margin-bottom: 8px;
@@ -3712,7 +3802,7 @@ input:focus-visible {
     .sticky-shell {
         top: 8px;
         z-index: 62;
-        margin-top: clamp(-16px, -4.2vw, -10px);
+        margin-top: clamp(-10px, -2.3vw, -4px);
     }
     .logo-hero {
         margin-bottom: 12px;
@@ -3758,8 +3848,8 @@ input:focus-visible {
         scroll-snap-align: start;
     }
     .search-bar {
-        min-height: 62px;
-        padding: 14px 16px;
+        min-height: 66px;
+        padding: 16px 18px;
     }
     .search-guidance {
         margin-top: 6px;
@@ -3779,17 +3869,8 @@ input:focus-visible {
         margin-left: 0;
     }
     .advanced-filters-drawer {
-        position: relative;
-        top: auto;
-        left: auto;
-        right: auto;
-        max-height: 0;
-        transform: translateY(-4px);
-    }
-    .advanced-filters-drawer.open {
-        margin-top: 10px;
-        max-height: 700px;
-        transform: translateY(0);
+        top: calc(100% + 12px);
+        max-height: min(74vh, 640px);
     }
     .advanced-drawer-head {
         align-items: flex-start;
@@ -4071,8 +4152,8 @@ input:focus-visible {
         font-size: 9px;
     }
     .search-bar {
-        min-height: 58px;
-        padding: 12px 14px;
+        min-height: 62px;
+        padding: 14px 15px;
     }
     .search-guidance {
         margin-top: 5px;
@@ -4439,6 +4520,15 @@ input:focus-visible {
                                             <span class="dropdown-arrow">⇊</span>
                                         </button>
                                     </div>
+
+                                    <button
+                                        class="advanced-panel-backdrop"
+                                        id="advancedFiltersBackdrop"
+                                        type="button"
+                                        aria-label="Close advanced filters"
+                                        aria-hidden="true"
+                                        tabindex="-1"
+                                    ></button>
 
                                     <section class="advanced-filters-drawer" id="advancedFilters" aria-hidden="true">
                                         <div class="advanced-drawer-head">
@@ -5817,7 +5907,10 @@ input:focus-visible {
 
             toggleAdvancedFiltersBtn: document.getElementById("toggleAdvancedFiltersBtn"),
             advancedFilters: document.getElementById("advancedFilters"),
+            advancedFiltersBackdrop: document.getElementById("advancedFiltersBackdrop"),
             advancedFilterSummary: document.getElementById("advancedFilterSummary"),
+            searchStack: document.getElementById("searchStack"),
+            searchBar: document.querySelector("#searchBarWrap .search-bar"),
             searchBarWrap: document.getElementById("searchBarWrap"),
             searchResultsPop: document.getElementById("searchResultsPop"),
             searchResultsList: document.getElementById("searchResultsList"),
@@ -12439,6 +12532,7 @@ input:focus-visible {
         }
 
         function renderSearchResults() {
+            syncSearchInteractionVisualState();
             const query = String(catalogQueryState.query || "").trim();
             const results = safeArray(state.search.results);
 
@@ -14910,12 +15004,26 @@ try {
             wireAlertsPanelToggle._wired = true;
         }
 
+        function syncSearchInteractionVisualState() {
+            if (!(ui.searchBar instanceof HTMLElement)) return;
+            const hasQuery = String(catalogQueryState.query || "").trim().length > 0;
+            const showLoading = hasQuery && isHomepageSearchContext() && !!state.search.loading;
+            ui.searchBar.classList.toggle("has-query", hasQuery);
+            ui.searchBar.classList.toggle("is-loading", showLoading);
+        }
+
         function setAdvancedFiltersExpanded(isOpen) {
             if (!(ui.advancedFilters instanceof HTMLElement) || !(ui.toggleAdvancedFiltersBtn instanceof HTMLButtonElement)) return;
             const shouldOpen = Boolean(isOpen);
             ui.advancedFilters.classList.toggle("open", shouldOpen);
             ui.advancedFilters.setAttribute("aria-hidden", shouldOpen ? "false" : "true");
             ui.toggleAdvancedFiltersBtn.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+            if (ui.searchStack instanceof HTMLElement) {
+                ui.searchStack.classList.toggle("is-advanced-mode", shouldOpen);
+            }
+            if (ui.advancedFiltersBackdrop instanceof HTMLButtonElement) {
+                ui.advancedFiltersBackdrop.setAttribute("aria-hidden", shouldOpen ? "false" : "true");
+            }
             syncQuickFilterVisualState();
         }
 
@@ -14970,6 +15078,7 @@ try {
 
         function wireFilters() {
             let searchInputTimer = null;
+            let searchReactionTimer = null;
             if (ui.searchResultsList) {
                 ui.searchResultsList.setAttribute("role", "listbox");
                 ui.searchResultsList.setAttribute("aria-label", "Search results");
@@ -15005,6 +15114,17 @@ try {
                 void refreshSearchResults({ force });
                 syncQuickFilterVisualState();
             };
+            const triggerSearchReaction = () => {
+                if (!(ui.searchBar instanceof HTMLElement)) return;
+                ui.searchBar.classList.add("is-reacting");
+                if (searchReactionTimer) clearTimeout(searchReactionTimer);
+                searchReactionTimer = setTimeout(() => {
+                    searchReactionTimer = null;
+                    if (ui.searchBar instanceof HTMLElement) {
+                        ui.searchBar.classList.remove("is-reacting");
+                    }
+                }, 180);
+            };
 
             ui.searchInput.addEventListener("input", (event) => {
                 const value = event.target.value;
@@ -15014,6 +15134,7 @@ try {
                 state.search.activeIndex = -1;
                 state.search.error = null;
                 if (searchInputTimer) clearTimeout(searchInputTimer);
+                triggerSearchReaction();
 
                 if (isCatalogContextActive()) {
                     clearQuickFindUiState();
@@ -15046,6 +15167,7 @@ try {
 
             ui.searchInput.addEventListener("focus", () => {
                 if (!isHomepageSearchContext()) return;
+                syncSearchInteractionVisualState();
                 const query = String(catalogQueryState.query || "").trim();
                 if (!query) return;
                 if (safeArray(state.search.results).length) {
@@ -15058,6 +15180,17 @@ try {
                     return;
                 }
                 void refreshSearchResults({ force: true });
+            });
+
+            ui.searchInput.addEventListener("blur", () => {
+                if (searchReactionTimer) {
+                    clearTimeout(searchReactionTimer);
+                    searchReactionTimer = null;
+                }
+                if (ui.searchBar instanceof HTMLElement) {
+                    ui.searchBar.classList.remove("is-reacting");
+                }
+                syncSearchInteractionVisualState();
             });
 
             ui.searchInput.addEventListener("keydown", (event) => {
@@ -15232,6 +15365,12 @@ try {
                 setAdvancedFiltersExpanded(!ui.advancedFilters.classList.contains("open"));
             });
 
+            if (ui.advancedFiltersBackdrop instanceof HTMLButtonElement) {
+                ui.advancedFiltersBackdrop.addEventListener("click", () => {
+                    setAdvancedFiltersExpanded(false);
+                });
+            }
+
             document.addEventListener("click", (event) => {
                 const target = event.target;
                 if (!(target instanceof Node)) return;
@@ -15239,11 +15378,27 @@ try {
                     && !ui.searchInput.contains(target)) {
                     closeSearchResults();
                 }
+                if (
+                    ui.advancedFilters instanceof HTMLElement
+                    && ui.advancedFilters.classList.contains("open")
+                    && ui.searchStack instanceof HTMLElement
+                    && !ui.searchStack.contains(target)
+                ) {
+                    setAdvancedFiltersExpanded(false);
+                }
+            });
+
+            document.addEventListener("keydown", (event) => {
+                if (event.key !== "Escape") return;
+                if (ui.advancedFilters instanceof HTMLElement && ui.advancedFilters.classList.contains("open")) {
+                    setAdvancedFiltersExpanded(false);
+                }
             });
 
             syncCatalogQueryContext();
             setAdvancedFiltersExpanded(false);
             syncQuickFilterVisualState();
+            syncSearchInteractionVisualState();
         }
 
         function wireScrollBehavior() {

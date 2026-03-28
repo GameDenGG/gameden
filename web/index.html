@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" class="no-js">
 <head>
 <meta charset="UTF-8">
@@ -356,7 +356,20 @@ select {
     z-index: 50;
 }
 
+.search-command-surface {
+    position: relative;
+    border-radius: 20px;
+    border: 1px solid rgba(121, 168, 255, 0.24);
+    background: linear-gradient(180deg, rgba(9, 18, 33, 0.94), rgba(7, 14, 27, 0.95));
+    box-shadow:
+        0 16px 36px rgba(2, 7, 20, 0.28),
+        0 0 0 1px rgba(121, 168, 255, 0.08) inset;
+    padding: 12px 12px 10px;
+    backdrop-filter: blur(10px);
+}
+
 .search-bar-wrap {
+    position: relative;
     transition:
         transform var(--ui-duration-slow) var(--ui-ease-standard),
         opacity var(--ui-duration-slow) var(--ui-ease-standard),
@@ -373,13 +386,30 @@ select {
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
-    gap: 12px;
-    padding: 15px 18px;
-    border-radius: 16px;
-    border: 1px solid rgba(121, 168, 255, 0.34);
-    background: linear-gradient(180deg, rgba(10, 19, 35, 0.94), rgba(8, 15, 28, 0.94));
-    box-shadow: var(--shadow-sm);
-    backdrop-filter: blur(10px);
+    gap: 11px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid rgba(121, 168, 255, 0.22);
+    background: linear-gradient(180deg, rgba(12, 24, 43, 0.9), rgba(9, 18, 33, 0.92));
+    box-shadow: 0 10px 20px rgba(4, 10, 21, 0.24);
+    transition:
+        border-color var(--ui-duration-base) var(--ui-ease-standard),
+        box-shadow var(--ui-duration-base) var(--ui-ease-standard),
+        background var(--ui-duration-base) var(--ui-ease-standard);
+}
+
+.search-bar:focus-within {
+    border-color: rgba(103, 234, 255, 0.56);
+    box-shadow:
+        0 0 0 1px rgba(103, 234, 255, 0.34),
+        0 14px 30px rgba(4, 12, 26, 0.28);
+    background: linear-gradient(180deg, rgba(14, 27, 48, 0.94), rgba(9, 19, 35, 0.95));
+}
+
+.search-bar-icon {
+    font-size: 15px;
+    line-height: 1;
+    opacity: 0.85;
 }
 
 .search-bar input {
@@ -388,18 +418,18 @@ select {
     outline: 0;
     color: var(--text);
     width: 100%;
-    font-size: 15px;
-    font-weight: 500;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
 }
 
 .search-bar input::placeholder {
-    color: #9cb6e6;
+    color: rgba(154, 182, 230, 0.88);
 }
 
 .search-guidance {
-    margin-top: 7px;
-    padding-left: 4px;
-    color: rgba(154, 182, 230, 0.72);
+    margin: 8px 2px 0;
+    color: rgba(154, 182, 230, 0.7);
     font-size: 11px;
     line-height: 1.35;
     letter-spacing: 0.01em;
@@ -408,7 +438,7 @@ select {
 .search-results-pop {
     display: none;
     position: absolute;
-    top: calc(100% + 8px);
+    top: calc(100% + 10px);
     left: 0;
     right: 0;
     border-radius: 16px;
@@ -565,6 +595,7 @@ select {
 }
 
 .global-filters-shell {
+    margin-top: 10px;
     transition:
         opacity var(--ui-duration-slow) var(--ui-ease-standard),
         transform var(--ui-duration-slow) var(--ui-ease-standard),
@@ -572,23 +603,23 @@ select {
 }
 
 .global-filters {
-    border-radius: 18px;
-    border: 1px solid rgba(121, 168, 255, 0.28);
-    background: linear-gradient(180deg, rgba(9, 17, 31, 0.96), rgba(8, 15, 28, 0.96));
-    box-shadow: var(--shadow-sm);
-    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(121, 168, 255, 0.16);
+    background: linear-gradient(180deg, rgba(11, 22, 39, 0.64), rgba(8, 17, 30, 0.72));
+    box-shadow: 0 8px 18px rgba(3, 8, 20, 0.18);
+    padding: 10px;
 }
 
 .mobile-filter-toggle-row {
     display: none;
     position: absolute;
-    top: 50%;
+    top: 16px;
     right: 12px;
     z-index: 56;
     margin: 0;
     align-items: center;
     justify-content: flex-end;
-    transform: translateY(-50%);
+    transform: none;
 }
 
 .mobile-filters-toggle {
@@ -647,49 +678,56 @@ select {
 .filters-top-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 14px;
-    align-items: flex-end;
+    gap: 8px;
+    align-items: center;
 }
 
-.filters-top-row > .field {
-    flex: 1 1 180px;
-    min-width: 150px;
+.quick-filters-row {
+    align-items: center;
+    row-gap: 8px;
 }
 
-.filters-top-row > .field:first-child {
-    flex: 0 1 150px;
-    min-width: 120px;
+.quick-filters-row > .quick-platform-field {
+    min-width: 148px;
+    max-width: 220px;
+    flex: 1 1 170px;
 }
 
-.filters-top-row > .filter-chip-row {
-    flex: 1 1 280px;
-    min-width: 220px;
+.quick-filters-row > #toggleAdvancedFiltersBtn {
+    margin-left: auto;
 }
 
 .field label {
     display: block;
-    margin-bottom: 7px;
-    color: var(--muted);
-    font-size: 11px;
+    margin-bottom: 6px;
+    color: rgba(154, 182, 230, 0.82);
+    font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.11em;
     font-weight: 800;
 }
 
 .field input,
 .field select {
     width: 100%;
-    padding: 10px 12px;
+    min-height: 38px;
+    padding: 9px 12px;
     color: var(--text);
-    background: rgba(255,255,255,0.03);
-    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(121, 168, 255, 0.18);
     border-radius: 12px;
     outline: none;
+    transition:
+        border-color var(--ui-duration-base) var(--ui-ease-standard),
+        box-shadow var(--ui-duration-base) var(--ui-ease-standard),
+        background var(--ui-duration-base) var(--ui-ease-standard);
 }
 
 .field input:focus,
 .field select:focus {
-    border-color: rgba(154,182,255,0.45);
+    border-color: rgba(103, 234, 255, 0.5);
+    box-shadow: 0 0 0 1px rgba(103, 234, 255, 0.26);
+    background: rgba(255,255,255,0.06);
 }
 
 .field select option {
@@ -697,45 +735,107 @@ select {
     background: #0b1629;
 }
 
-.filter-chip-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-#toggleAdvancedFiltersBtn {
-    flex: 0 0 auto;
-    align-self: flex-end;
-    min-width: 170px;
-    white-space: nowrap;
-    justify-content: center;
-}
-
 .pill-toggle {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 11px;
-    border: 1px solid var(--line);
-    background: rgba(255,255,255,0.03);
+    gap: 8px;
+    min-height: 36px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(121, 168, 255, 0.24);
+    background: rgba(121, 168, 255, 0.07);
     color: var(--text);
     cursor: pointer;
     user-select: none;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
     transition:
         border-color var(--ui-duration-base) var(--ui-ease-standard),
         background var(--ui-duration-base) var(--ui-ease-standard),
-        box-shadow var(--ui-duration-base) var(--ui-ease-standard);
+        box-shadow var(--ui-duration-base) var(--ui-ease-standard),
+        color var(--ui-duration-base) var(--ui-ease-standard);
+}
+
+.pill-toggle input[type="checkbox"] {
+    margin: 0;
+    accent-color: #7ae4ff;
+}
+
+.pill-toggle.is-active {
+    border-color: rgba(103, 234, 255, 0.5);
+    background: rgba(103, 234, 255, 0.14);
+    color: #dffcff;
 }
 
 .pill-toggle:hover {
-    border-color: rgba(121, 168, 255, 0.44);
-    background: rgba(121, 168, 255, 0.1);
-    box-shadow: 0 6px 14px rgba(6, 14, 28, 0.18);
+    border-color: rgba(121, 168, 255, 0.42);
+    background: rgba(121, 168, 255, 0.14);
+    box-shadow: 0 8px 16px rgba(4, 12, 24, 0.2);
 }
 
 .pill-toggle:active {
     box-shadow: 0 3px 8px rgba(6, 14, 28, 0.14);
+}
+
+.quick-filter-pill {
+    flex: 0 0 auto;
+}
+
+.quick-filter-btn {
+    min-height: 36px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.quick-filter-btn.hidden {
+    display: none !important;
+}
+
+.quick-owned-toggle-btn[data-active="true"] {
+    border-color: rgba(110, 221, 163, 0.46);
+    background: rgba(110, 221, 163, 0.14);
+    color: #c9f7de;
+}
+
+.quick-platform-field label {
+    display: none;
+}
+
+.quick-platform-field select {
+    min-height: 36px;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 7px 30px 7px 12px;
+    background: rgba(121, 168, 255, 0.07);
+    border-color: rgba(121, 168, 255, 0.24);
+}
+
+.quick-platform-field select.is-active {
+    border-color: rgba(103, 234, 255, 0.48);
+    background: rgba(103, 234, 255, 0.12);
+    color: #dffcff;
+}
+
+.quick-clear-btn {
+    border-color: rgba(121, 168, 255, 0.18);
+    background: rgba(121, 168, 255, 0.04);
+    color: rgba(154, 182, 230, 0.92);
+}
+
+#toggleAdvancedFiltersBtn {
+    justify-content: center;
 }
 
 .secondary-btn,
@@ -794,7 +894,9 @@ input:focus-visible {
 
 .advanced-filters {
     display: none;
-    margin-top: 16px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(121, 168, 255, 0.14);
 }
 
 .advanced-filters.open {
@@ -804,7 +906,7 @@ input:focus-visible {
 .advanced-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
+    gap: 12px;
 }
 
 .homepage-body,
@@ -3644,8 +3746,9 @@ input:focus-visible {
 }
 
 @media (max-width: 1180px) and (min-width: 861px) {
-    .filters-top-row > #toggleAdvancedFiltersBtn {
+    .quick-filters-row > #toggleAdvancedFiltersBtn {
         flex-basis: 100%;
+        margin-left: 0;
         align-self: stretch;
     }
 }
@@ -3683,6 +3786,10 @@ input:focus-visible {
     .search-stack {
         margin-bottom: 14px;
     }
+    .search-command-surface {
+        padding: 10px;
+        border-radius: 16px;
+    }
     .home-jump-nav {
         margin: 2px 0 8px;
         gap: 6px;
@@ -3710,9 +3817,9 @@ input:focus-visible {
     }
     .mobile-filter-toggle-row {
         display: flex;
-        top: 50%;
+        top: 14px;
         right: 12px;
-        transform: translateY(-50%);
+        transform: none;
     }
     .mobile-filters-toggle {
         min-height: 38px;
@@ -3777,22 +3884,22 @@ input:focus-visible {
         gap: 12px;
         align-items: stretch;
     }
-    .filters-top-row > .field,
-    .filters-top-row > .filter-chip-row,
-    #toggleAdvancedFiltersBtn {
+    .quick-filters-row > .quick-filter-pill,
+    .quick-filters-row > .quick-platform-field,
+    .quick-filters-row > #toggleAdvancedFiltersBtn {
         width: 100%;
         min-width: 0;
+        max-width: none;
+        margin-left: 0;
     }
-    .filter-chip-row {
-        flex-direction: column;
-    }
-    .filter-chip-row .pill-toggle,
-    #toggleAdvancedFiltersBtn {
-        width: 100%;
+    .quick-filter-btn {
         justify-content: center;
     }
+    .quick-platform-field select {
+        width: 100%;
+    }
     .advanced-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
         gap: 12px;
     }
     body.mobile-filters-open {
@@ -4417,120 +4524,132 @@ input:focus-visible {
                                 <span class="mobile-filter-count" id="mobileFilterCount" hidden>0</span>
                             </button>
                         </div>
-                        <div class="search-bar-wrap" id="searchBarWrap">
-                            <div class="search-bar">
-                                <span aria-hidden="true">🔎</span>
-                                <label class="sr-only" for="searchInput">Search games</label>
-                                <input id="searchInput" type="text" placeholder="Search games, genres, or tags..." autocomplete="off" />
+                        <div class="search-command-surface">
+                            <div class="search-bar-wrap" id="searchBarWrap">
+                                <div class="search-bar">
+                                    <span class="search-bar-icon" aria-hidden="true">🔎</span>
+                                    <label class="sr-only" for="searchInput">Search games</label>
+                                    <input id="searchInput" type="text" placeholder="Search games, genres, or tags..." autocomplete="off" />
+                                </div>
+                                <div class="search-results-pop" id="searchResultsPop">
+                                    <div class="search-results-list" id="searchResultsList"></div>
+                                </div>
+                            </div>
+                            <div class="search-guidance" id="heroSearchGuidance">Find the best time to buy any game.</div>
+
+                            <button
+                                class="mobile-filters-backdrop"
+                                id="mobileFiltersBackdrop"
+                                type="button"
+                                aria-label="Close filters panel"
+                            ></button>
+
+                            <div class="global-filters-shell" id="filtersShell">
+                                <section class="global-filters show-fade" id="filtersPanel">
+                                    <div class="mobile-filters-head">
+                                        <div class="mobile-filters-title">Filters</div>
+                                        <button
+                                            class="secondary-btn mobile-filters-close"
+                                            id="mobileFiltersCloseBtn"
+                                            type="button"
+                                            aria-label="Close filters panel"
+                                            title="Close filters"
+                                        >
+                                            &#10005;
+                                        </button>
+                                    </div>
+                                    <div class="filters-top-row quick-filters-row">
+                                        <label class="pill-toggle quick-filter-pill" id="quickDealsOnlyChip">
+                                            <input id="dealsOnlyCheckbox" type="checkbox" />
+                                            Deals only
+                                        </label>
+                                        <label class="pill-toggle quick-filter-pill" id="quickIncludeFreeChip">
+                                            <input id="includeFreeCheckbox" type="checkbox" />
+                                            Include free
+                                        </label>
+                                        <button
+                                            class="secondary-btn quick-filter-pill quick-filter-btn quick-owned-toggle-btn"
+                                            id="quickHideOwnedToggleBtn"
+                                            type="button"
+                                            aria-pressed="false"
+                                            data-active="true"
+                                            data-owned-toggle-context="quick"
+                                        >
+                                            Hide owned
+                                        </button>
+                                        <div class="field quick-platform-field">
+                                            <label class="sr-only" for="platformSelect">Platform</label>
+                                            <select id="platformSelect">
+                                                <option value="">All platforms</option>
+                                            </select>
+                                        </div>
+                                        <button class="secondary-btn quick-filter-pill quick-filter-btn" id="toggleAdvancedFiltersBtn" type="button" aria-expanded="false" aria-controls="advancedFilters">
+                                            More filters
+                                            <span class="dropdown-arrow">⇊</span>
+                                        </button>
+                                        <button class="secondary-btn quick-filter-pill quick-filter-btn quick-clear-btn hidden" id="clearQuickFiltersBtn" type="button">
+                                            Clear
+                                        </button>
+                                    </div>
+
+                                    <div class="advanced-filters" id="advancedFilters">
+                                        <div class="advanced-grid">
+                                            <div class="field">
+                                                <label for="minDealInput">Min Deal %</label>
+                                                <input id="minDealInput" type="number" min="0" max="100" placeholder="0" />
+                                            </div>
+
+                                            <div class="field">
+                                                <label for="genreSelect">Genre</label>
+                                                <select id="genreSelect">
+                                                    <option value="">All genres</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="field">
+                                                <label for="tagSelect">Tag</label>
+                                                <select id="tagSelect">
+                                                    <option value="">All tags</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="field">
+                                                <label for="reviewLabelSelect">Review Label</label>
+                                                <select id="reviewLabelSelect">
+                                                    <option value="">All review labels</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="field">
+                                                <label for="maxPriceInput">Max Price</label>
+                                                <input id="maxPriceInput" type="number" min="0" step="0.01" placeholder="Any" />
+                                            </div>
+
+                                            <div class="field">
+                                                <label for="minPlayersInput">Min Players</label>
+                                                <input id="minPlayersInput" type="number" min="0" step="1" placeholder="Any" />
+                                            </div>
+
+                                            <div class="field">
+                                                <label for="releasedSortSelect">Sort Released</label>
+                                                <select id="releasedSortSelect">
+                                                    <option value="best-deals">Best deals</option>
+                                                    <option value="best-reviews">Best reviews</option>
+                                                    <option value="player-count">Player count</option>
+                                                    <option value="price-asc">Price asc</option>
+                                                    <option value="price-desc">Price desc</option>
+                                                    <option value="alpha-asc">A–Z</option>
+                                                    <option value="alpha-desc">Z–A</option>
+                                                    <option value="deal-score">Deal score</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
                             </div>
                         </div>
-                        <div class="search-guidance" id="heroSearchGuidance">Find the best time to buy any game.</div>
-
-                        <div class="search-results-pop" id="searchResultsPop">
-                            <div class="search-results-list" id="searchResultsList"></div>
-                        </div>
                     </div>
-                    <button
-                        class="mobile-filters-backdrop"
-                        id="mobileFiltersBackdrop"
-                        type="button"
-                        aria-label="Close filters panel"
-                    ></button>
 
-                    <div class="global-filters-shell" id="filtersShell">
-                        <section class="global-filters show-fade" id="filtersPanel">
-                            <div class="mobile-filters-head">
-                                <div class="mobile-filters-title">Filters</div>
-                                <button
-                                    class="secondary-btn mobile-filters-close"
-                                    id="mobileFiltersCloseBtn"
-                                    type="button"
-                                    aria-label="Close filters panel"
-                                    title="Close filters"
-                                >
-                                    &#10005;
-                                </button>
-                            </div>
-                            <div class="filters-top-row">
-                                <div class="field">
-                                    <label for="minDealInput">Min Deal %</label>
-                                    <input id="minDealInput" type="number" min="0" max="100" placeholder="0" />
-                                </div>
-
-                                <div class="field">
-                                    <label for="genreSelect">Genre</label>
-                                    <select id="genreSelect">
-                                        <option value="">All genres</option>
-                                    </select>
-                                </div>
-
-                                <div class="field">
-                                    <label for="platformSelect">Platform</label>
-                                    <select id="platformSelect">
-                                        <option value="">All platforms</option>
-                                    </select>
-                                </div>
-
-                                <div class="filter-chip-row">
-                                    <label class="pill-toggle">
-                                        <input id="dealsOnlyCheckbox" type="checkbox" />
-                                        Deals only
-                                    </label>
-                                    <label class="pill-toggle">
-                                        <input id="includeFreeCheckbox" type="checkbox" />
-                                        Include free
-                                    </label>
-                                </div>
-
-                                <button class="secondary-btn" id="toggleAdvancedFiltersBtn" type="button">
-                                    Show More Filters
-                                    <span class="dropdown-arrow">⇊</span>
-                                </button>
-                            </div>
-
-                            <div class="advanced-filters" id="advancedFilters">
-                                <div class="advanced-grid">
-                                    <div class="field">
-                                        <label for="tagSelect">Tag</label>
-                                        <select id="tagSelect">
-                                            <option value="">All tags</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="field">
-                                        <label for="reviewLabelSelect">Review Label</label>
-                                        <select id="reviewLabelSelect">
-                                            <option value="">All review labels</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="field">
-                                        <label for="maxPriceInput">Max Price</label>
-                                        <input id="maxPriceInput" type="number" min="0" step="0.01" placeholder="Any" />
-                                    </div>
-
-                                    <div class="field">
-                                        <label for="minPlayersInput">Min Players</label>
-                                        <input id="minPlayersInput" type="number" min="0" step="1" placeholder="Any" />
-                                    </div>
-
-                                    <div class="field">
-                                        <label for="releasedSortSelect">Sort Released</label>
-                                        <select id="releasedSortSelect">
-                                            <option value="best-deals">Best deals</option>
-                                            <option value="best-reviews">Best reviews</option>
-                                            <option value="player-count">Player count</option>
-                                            <option value="price-asc">Price asc</option>
-                                            <option value="price-desc">Price desc</option>
-                                            <option value="alpha-asc">A–Z</option>
-                                            <option value="alpha-desc">Z–A</option>
-                                            <option value="deal-score">Deal score</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                    </div>
                 </div>
 
                 <nav class="home-jump-nav" id="homeJumpNav" aria-label="Jump to homepage zones">
@@ -4947,7 +5066,7 @@ input:focus-visible {
                             <div class="panel-subtitle">Your owned library and feed exclusion control.</div>
                         </div>
                         <div class="panel-head-actions">
-                            <button class="secondary-btn discovery-owned-filter-btn" id="feedOwnedToggleBtn" type="button" aria-pressed="false" data-active="true">
+                            <button class="secondary-btn discovery-owned-filter-btn" id="feedOwnedToggleBtn" type="button" aria-pressed="false" data-active="true" data-owned-toggle-context="panel">
                                 Hide Owned: On
                             </button>
                             <a class="panel-action" href="/watchlist?tab=owned">Open Owned</a>
@@ -5789,6 +5908,10 @@ input:focus-visible {
             discoveryTabsShell: document.getElementById("discoveryTabsShell"),
             discoveryTabsList: document.getElementById("discoveryTabsList"),
             discoveryTabsBody: document.getElementById("discoveryTabsBody"),
+            quickDealsOnlyChip: document.getElementById("quickDealsOnlyChip"),
+            quickIncludeFreeChip: document.getElementById("quickIncludeFreeChip"),
+            quickHideOwnedToggleBtn: document.getElementById("quickHideOwnedToggleBtn"),
+            clearQuickFiltersBtn: document.getElementById("clearQuickFiltersBtn"),
             feedOwnedToggleBtn: document.getElementById("feedOwnedToggleBtn"),
             opportunitiesPanel: document.getElementById("opportunitiesPanel"),
             opportunitiesGrid: document.getElementById("opportunitiesGrid"),
@@ -6521,18 +6644,19 @@ input:focus-visible {
 
             updateOwnedFeedToggleUi();
 
-            if (ui.feedOwnedToggleBtn instanceof HTMLButtonElement) {
-                ui.feedOwnedToggleBtn.addEventListener("click", (event) => {
+            const ownedToggleButtons = [
+                ui.feedOwnedToggleBtn,
+                ui.quickHideOwnedToggleBtn,
+            ].filter((button) => button instanceof HTMLButtonElement);
+
+            ownedToggleButtons.forEach((button) => {
+                button.addEventListener("click", (event) => {
                     event.preventDefault();
                     event.stopPropagation();
 
-                    const previousScrollY = window.scrollY;
                     state.feedFilters.showOwned = !state.feedFilters.showOwned;
                     rerenderOwnedFilteredFeedSections();
                     syncCardActionButtonsFromState();
-                    requestAnimationFrame(() => {
-                        window.scrollTo({ top: previousScrollY, behavior: "auto" });
-                    });
 
                     if (state.feedFilters.showOwned) {
                         void loadPersonalizedDeals()
@@ -6545,7 +6669,7 @@ input:focus-visible {
                             });
                     }
                 });
-            }
+            });
         }
 
         function renderSkeleton(container, kind, count = 1, options = {}) {
@@ -8545,17 +8669,28 @@ input:focus-visible {
         }
 
         function updateOwnedFeedToggleUi() {
-            if (!(ui.feedOwnedToggleBtn instanceof HTMLButtonElement)) return;
             const hideOwnedEnabled = isOwnedHiddenInFeeds();
-            ui.feedOwnedToggleBtn.textContent = hideOwnedEnabled ? "Hide Owned: On" : "Hide Owned: Off";
-            ui.feedOwnedToggleBtn.setAttribute("aria-pressed", hideOwnedEnabled ? "true" : "false");
-            ui.feedOwnedToggleBtn.setAttribute("data-active", hideOwnedEnabled ? "true" : "false");
-            ui.feedOwnedToggleBtn.setAttribute(
-                "aria-label",
-                hideOwnedEnabled
-                    ? "Hide owned games in discovery feeds is enabled. Click to show owned games."
-                    : "Hide owned games in discovery feeds is disabled. Click to hide owned games.",
-            );
+            const ownedToggleButtons = [
+                ui.feedOwnedToggleBtn,
+                ui.quickHideOwnedToggleBtn,
+            ].filter((button) => button instanceof HTMLButtonElement);
+
+            ownedToggleButtons.forEach((button) => {
+                const context = String(button.dataset.ownedToggleContext || "panel");
+                if (context === "quick") {
+                    button.textContent = "Hide owned";
+                } else {
+                    button.textContent = hideOwnedEnabled ? "Hide Owned: On" : "Hide Owned: Off";
+                }
+                button.setAttribute("aria-pressed", hideOwnedEnabled ? "true" : "false");
+                button.setAttribute("data-active", hideOwnedEnabled ? "true" : "false");
+                button.setAttribute(
+                    "aria-label",
+                    hideOwnedEnabled
+                        ? "Hide owned games in discovery feeds is enabled. Click to show owned games."
+                        : "Hide owned games in discovery feeds is disabled. Click to hide owned games.",
+                );
+            });
         }
 
         function rerenderOwnedFilteredFeedSections() {
@@ -12456,6 +12591,7 @@ input:focus-visible {
             if (queryKey.length < SEARCH_MIN_QUERY_CHARS) {
                 clearSearchRequest();
                 clearSearchStagedRenderFrame();
+                state.search.results = [];
                 state.search.loading = false;
                 state.search.error = null;
                 state.search.activeIndex = -1;
@@ -15018,8 +15154,8 @@ try {
             const shouldOpen = Boolean(isOpen);
             ui.advancedFilters.classList.toggle("open", shouldOpen);
             ui.toggleAdvancedFiltersBtn.innerHTML = shouldOpen
-                ? 'Hide More Filters <span class="dropdown-arrow">&#8675;</span>'
-                : 'Show More Filters <span class="dropdown-arrow">&#8675;</span>';
+                ? 'Hide filters <span class="dropdown-arrow">&#8675;</span>'
+                : 'More filters <span class="dropdown-arrow">&#8675;</span>';
             ui.toggleAdvancedFiltersBtn.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
             ui.filtersPanel.classList.toggle("show-fade", !shouldOpen);
         }
@@ -15049,6 +15185,24 @@ try {
                 "aria-label",
                 activeCount > 0 ? `Filters, ${activeCount} active` : "Filters",
             );
+            syncQuickFilterVisualState();
+        }
+
+        function syncQuickFilterVisualState() {
+            if (ui.quickDealsOnlyChip instanceof HTMLElement) {
+                ui.quickDealsOnlyChip.classList.toggle("is-active", !!state.filters.dealsOnly);
+            }
+            if (ui.quickIncludeFreeChip instanceof HTMLElement) {
+                ui.quickIncludeFreeChip.classList.toggle("is-active", !!state.filters.includeFree);
+            }
+            if (ui.platformSelect instanceof HTMLSelectElement) {
+                const platformActive = String(state.filters.platform || "").trim().length > 0;
+                ui.platformSelect.classList.toggle("is-active", platformActive);
+            }
+            if (ui.clearQuickFiltersBtn instanceof HTMLButtonElement) {
+                const hasActiveFilters = countActiveFilters() > 0;
+                ui.clearQuickFiltersBtn.classList.toggle("hidden", !hasActiveFilters);
+            }
         }
 
         function applyFiltersPanelInteractivity() {
@@ -15092,8 +15246,12 @@ try {
 
             if (nextOpen) {
                 window.requestAnimationFrame(() => {
-                    if (ui.minDealInput && typeof ui.minDealInput.focus === "function") {
-                        ui.minDealInput.focus({ preventScroll: true });
+                    const firstFilterControl = ui.dealsOnlyCheckbox
+                        || ui.includeFreeCheckbox
+                        || ui.platformSelect
+                        || ui.toggleAdvancedFiltersBtn;
+                    if (firstFilterControl && typeof firstFilterControl.focus === "function") {
+                        firstFilterControl.focus({ preventScroll: true });
                     }
                 });
                 return;
@@ -15154,29 +15312,32 @@ try {
                 ui.searchInput.setAttribute("aria-expanded", "false");
                 ui.searchInput.setAttribute("autocomplete", "off");
             }
+            const isCatalogContextActive = () => isDiscoveryTabActive("all-games");
             const onFilterMutation = () => {
-                scheduleCatalogReloadFromInteraction();
-                void refreshSearchResults();
+                if (isCatalogContextActive()) {
+                    scheduleCatalogReloadFromInteraction();
+                }
                 updateMobileFilterTrigger();
             };
             const onSearchMutation = () => {
-                scheduleCatalogReloadFromInteraction({
-                    softReload: true,
-                    debounceMs: SEARCH_CATALOG_RELOAD_DEBOUNCE_MS,
-                });
+                if (isCatalogContextActive()) {
+                    scheduleCatalogReloadFromInteraction({
+                        softReload: true,
+                        debounceMs: SEARCH_CATALOG_RELOAD_DEBOUNCE_MS,
+                    });
+                }
                 void refreshSearchResults();
                 updateMobileFilterTrigger();
             };
 
             ui.searchInput.addEventListener("input", (event) => {
                 const value = event.target.value;
-                state.filters.search = String(value || "").trim();
+                state.filters.search = String(value || "");
                 const queryKey = normalizeSearchQueryKey(state.filters.search);
+                const trimmedSearch = String(state.filters.search || "").trim();
                 state.search.activeIndex = -1;
                 state.search.error = null;
-                state.search.query = state.filters.search;
-                state.search.queryKey = queryKey;
-                if (!state.filters.search) {
+                if (!trimmedSearch) {
                     clearSearchRequest();
                     clearSearchStagedRenderFrame();
                     state.search.results = [];
@@ -15191,6 +15352,7 @@ try {
                     if (queryKey.length < SEARCH_MIN_QUERY_CHARS) {
                         clearSearchRequest();
                         clearSearchStagedRenderFrame();
+                        state.search.results = [];
                         state.search.loading = false;
                     } else if (safeArray(state.search.results).length) {
                         state.search.loading = false;
@@ -15351,6 +15513,35 @@ try {
                 state.filters.releasedSort = event.target.value;
                 onFilterMutation();
             });
+
+            if (ui.clearQuickFiltersBtn instanceof HTMLButtonElement) {
+                ui.clearQuickFiltersBtn.addEventListener("click", () => {
+                    state.filters.minDeal = null;
+                    state.filters.genre = "";
+                    state.filters.tag = "";
+                    state.filters.platform = "";
+                    state.filters.reviewLabel = "";
+                    state.filters.maxPrice = null;
+                    state.filters.minPlayers = null;
+                    state.filters.dealsOnly = false;
+                    state.filters.includeFree = true;
+                    state.filters.releasedSort = "best-deals";
+
+                    if (ui.minDealInput) ui.minDealInput.value = "";
+                    if (ui.genreSelect) ui.genreSelect.value = "";
+                    if (ui.tagSelect) ui.tagSelect.value = "";
+                    if (ui.platformSelect) ui.platformSelect.value = "";
+                    if (ui.reviewLabelSelect) ui.reviewLabelSelect.value = "";
+                    if (ui.maxPriceInput) ui.maxPriceInput.value = "";
+                    if (ui.minPlayersInput) ui.minPlayersInput.value = "";
+                    if (ui.dealsOnlyCheckbox) ui.dealsOnlyCheckbox.checked = false;
+                    if (ui.includeFreeCheckbox) ui.includeFreeCheckbox.checked = true;
+                    if (ui.releasedSortSelect) ui.releasedSortSelect.value = "best-deals";
+                    setAdvancedFiltersExpanded(false);
+                    onFilterMutation();
+                    updateMobileFilterTrigger();
+                });
+            }
 
             ui.toggleAdvancedFiltersBtn.addEventListener("click", () => {
                 setAdvancedFiltersExpanded(!ui.advancedFilters.classList.contains("open"));

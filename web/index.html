@@ -6590,9 +6590,21 @@ input:focus-visible {
 
         function buildCardTimingChip(timingSignal) {
             if (!timingSignal || typeof timingSignal !== "object") return "";
-            const rawLabel = String(timingSignal.label || "").trim();
-            if (!rawLabel) return "";
-            const label = rawLabel.length > 24 ? `${rawLabel.slice(0, 21).trimEnd()}...` : rawLabel;
+            const state = String(timingSignal.state || "").trim().toLowerCase();
+            let label = "";
+            if (state === "buy_now") {
+                label = "Buy now";
+            } else if (state === "good_time_to_buy") {
+                label = "Good deal";
+            } else if (state === "wait_for_better_drop") {
+                label = "Wait";
+            } else if (state === "watch_for_sale" || state === "low_confidence") {
+                label = "Watch this";
+            } else {
+                const rawLabel = String(timingSignal.label || "").trim();
+                if (!rawLabel) return "";
+                label = rawLabel.length > 24 ? `${rawLabel.slice(0, 21).trimEnd()}...` : rawLabel;
+            }
             const chipClass = mapTimingSignalToChipClass(timingSignal);
             return `<span class="meta-chip ${escapeHtml(chipClass)}">${escapeHtml(label)}</span>`;
         }
@@ -7422,9 +7434,9 @@ input:focus-visible {
             const signals = [];
             const recommendation = normalizeBuyRecommendation(game.buy_recommendation);
             if (recommendation === "BUY_NOW") {
-                pushCardSignal(signals, "buy_now_pick", "Buy now pick", "good", 98);
+                pushCardSignal(signals, "buy_now_pick", "Buy now", "good", 98);
             } else if (recommendation === "WAIT") {
-                pushCardSignal(signals, "wait_pick", "Wait for next sale", "warn", 95);
+                pushCardSignal(signals, "wait_pick", "Wait", "warn", 95);
             }
             const historicalStatus = String(game.historical_status || "").trim();
             if (historicalStatus === "new_historical_low") {
@@ -7652,7 +7664,6 @@ input:focus-visible {
 
         function buildCardDealQualityRow(game, context = {}) {
             const discount = Math.max(0, Number(game.discount_percent) || 0);
-            const dealScore = Number(game.deal_score);
             const historicalStatus = String(game.historical_status || "").trim();
             const recommendation = normalizeBuyRecommendation(game.buy_recommendation);
             const confidenceChip = buildDealConfidenceBadge(game, { className: "deal-confidence-badge compact" });
@@ -7667,18 +7678,22 @@ input:focus-visible {
             } else if (recommendation === "WAIT") {
                 recommendationChip = `<span class="meta-chip deal-neutral">Wait</span>`;
             } else if (historicalStatus === "new_historical_low") {
-                recommendationChip = `<span class="meta-chip deal-flag${signalGlowClass("low")}">New all-time low</span>`;
+                recommendationChip = `<span class="meta-chip deal-flag${signalGlowClass("low")}">Buy now</span>`;
             } else if (historicalStatus === "matches_historical_low") {
-                recommendationChip = `<span class="meta-chip signal info${signalGlowClass("low")}">Matches historical low</span>`;
+                recommendationChip = `<span class="meta-chip signal good${signalGlowClass("low")}">Good deal</span>`;
             } else if (historicalStatus === "near_historical_low") {
-                recommendationChip = `<span class="meta-chip signal info">Near historical low</span>`;
+                recommendationChip = `<span class="meta-chip signal info">Watch this</span>`;
             }
 
             const discountChip = discount > 0
                 ? `<span class="meta-chip deal-primary${discountGlowClass}">${Math.round(discount)}% off</span>`
                 : `<span class="meta-chip deal-neutral">No active sale</span>`;
-            const metricChip = Number.isFinite(dealScore) ? `<span class="meta-chip metric">Deal ${Math.round(dealScore)}</span>` : "";
-            const qualityChip = confidenceChip || recommendationChip || metricChip;
+            const fallbackDecisionChip = discount >= 60
+                ? '<span class="meta-chip signal good">Good deal</span>'
+                : discount > 0
+                    ? '<span class="meta-chip signal info">Watch this</span>'
+                    : '<span class="meta-chip deal-neutral">Wait</span>';
+            const qualityChip = confidenceChip || recommendationChip || fallbackDecisionChip;
             const visibleChips = [discountChip, qualityChip].filter(Boolean).slice(0, 2);
 
             return `
@@ -8762,7 +8777,7 @@ input:focus-visible {
             if (score >= 85) {
                 return {
                     score,
-                    confidence_label: "Strong Buy",
+                    confidence_label: "Strong buy",
                     confidence_icon: "SB",
                     class_name: "strong-buy",
                 };
@@ -8770,7 +8785,7 @@ input:focus-visible {
             if (score >= 70) {
                 return {
                     score,
-                    confidence_label: "Good Deal",
+                    confidence_label: "Good deal",
                     confidence_icon: "GD",
                     class_name: "good-deal",
                 };
@@ -8778,8 +8793,8 @@ input:focus-visible {
             if (score >= 50) {
                 return {
                     score,
-                    confidence_label: "Fair Price",
-                    confidence_icon: "FP",
+                    confidence_label: "Watch this",
+                    confidence_icon: "WS",
                     class_name: "fair-price",
                 };
             }
@@ -8797,7 +8812,6 @@ input:focus-visible {
 
             const baseClass = String(options.className || "deal-confidence-badge").trim() || "deal-confidence-badge";
             const toneClass = String(confidence.class_name || "wait").trim() || "wait";
-            const icon = String(confidence.confidence_icon || "").trim();
             const label = String(confidence.confidence_label || "").trim();
             if (!label) return "";
             const score = Number(confidence.score);
@@ -8805,7 +8819,7 @@ input:focus-visible {
                 ? `${label} (${Math.round(score)}/100)`
                 : label;
 
-            return `<span class="${escapeHtml(baseClass)} ${escapeHtml(toneClass)}" title="${escapeHtml(title)}">${escapeHtml(icon)} ${escapeHtml(label)}</span>`;
+            return `<span class="${escapeHtml(baseClass)} ${escapeHtml(toneClass)}" title="${escapeHtml(title)}">${escapeHtml(label)}</span>`;
         }
 
         function pushDecisionLine(lines, line) {

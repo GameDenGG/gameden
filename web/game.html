@@ -82,6 +82,10 @@ if (window.GameDenSite && window.GameDenSite.skeleton && typeof window.GameDenSi
     --space-3: 16px;
     --space-4: 20px;
     --space-5: 24px;
+    --motion-fast: 140ms;
+    --motion-base: 180ms;
+    --motion-slow: 220ms;
+    --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 *,
@@ -130,12 +134,12 @@ a {
 .hero {
     overflow: hidden;
     border-radius: 30px;
-    border: 1px solid rgba(154, 182, 255, 0.22);
+    border: 1px solid rgba(154, 182, 255, 0.2);
     background:
-        radial-gradient(circle at right top, rgba(96,165,250,0.18), transparent 38%),
-        linear-gradient(180deg, rgba(16,30,54,0.98), rgba(8,16,32,0.98));
-    box-shadow: var(--shadow-lg);
-    margin-bottom: var(--space-4);
+        radial-gradient(circle at right top, rgba(96,165,250,0.16), transparent 40%),
+        linear-gradient(180deg, rgba(15,29,52,0.98), rgba(7,15,30,0.98));
+    box-shadow: 0 18px 38px rgba(1, 7, 18, 0.36);
+    margin-bottom: calc(var(--space-4) + 2px);
 }
 
 .hero[data-decision="BUY_NOW"] {
@@ -328,33 +332,33 @@ a {
 
 .hero-watch-btn {
     border: 1px solid rgba(154,182,255,0.32);
-    background: rgba(255,255,255,0.03);
+    background: rgba(255,255,255,0.035);
     color: var(--text);
     border-radius: 12px;
-    padding: 10px 14px;
+    padding: 10px 15px;
     font-weight: 800;
     white-space: nowrap;
     min-width: 108px;
     cursor: pointer;
     transition:
-        transform 0.15s ease,
-        border-color 0.18s ease,
-        background 0.18s ease,
-        box-shadow 0.18s ease,
-        color 0.18s ease,
-        opacity 0.18s ease;
+        transform var(--motion-fast) var(--ease-premium),
+        border-color var(--motion-base) ease,
+        background var(--motion-base) ease,
+        box-shadow var(--motion-base) ease,
+        color var(--motion-base) ease,
+        opacity var(--motion-base) ease;
     will-change: transform, box-shadow;
 }
 
 .hero-watch-btn:hover {
-    border-color: rgba(154, 182, 255, 0.56);
-    background: rgba(121, 168, 255, 0.09);
-    box-shadow: 0 10px 20px rgba(2, 8, 20, 0.24);
-    transform: translateY(-1px);
+    border-color: rgba(154, 182, 255, 0.5);
+    background: rgba(121, 168, 255, 0.085);
+    box-shadow: 0 9px 18px rgba(2, 8, 20, 0.22);
+    transform: translateY(-1px) scale(1.005);
 }
 
 .hero-watch-btn:active {
-    transform: scale(0.97);
+    transform: translateY(0) scale(0.986);
 }
 
 .hero-watch-btn:focus-visible {
@@ -393,28 +397,32 @@ a {
     justify-content: center;
     min-width: 188px;
     border-radius: 12px;
-    border: 1px solid rgba(92, 228, 169, 0.58);
-    background: linear-gradient(180deg, rgba(92, 228, 169, 0.24), rgba(44, 165, 115, 0.24));
+    border: 1px solid rgba(106, 231, 177, 0.56);
+    background: linear-gradient(180deg, rgba(89, 214, 163, 0.28), rgba(44, 153, 108, 0.26));
     color: #e8fff3;
-    padding: 10px 16px;
+    padding: 11px 17px;
     font-weight: 900;
     letter-spacing: 0.015em;
     white-space: nowrap;
-    box-shadow: 0 10px 24px rgba(19, 117, 78, 0.22);
+    box-shadow: 0 10px 22px rgba(18, 101, 69, 0.26);
     transition:
-        transform 0.15s ease,
-        border-color 0.18s ease,
-        background 0.18s ease,
-        box-shadow 0.18s ease,
-        color 0.18s ease,
-        opacity 0.18s ease;
+        transform var(--motion-fast) var(--ease-premium),
+        border-color var(--motion-base) ease,
+        background var(--motion-base) ease,
+        box-shadow var(--motion-base) ease,
+        color var(--motion-base) ease,
+        opacity var(--motion-base) ease;
 }
 
 .hero-store-cta:hover {
-    border-color: rgba(129, 255, 198, 0.72);
-    background: linear-gradient(180deg, rgba(92, 228, 169, 0.32), rgba(44, 165, 115, 0.32));
-    box-shadow: 0 12px 28px rgba(19, 117, 78, 0.3);
-    transform: translateY(-1px);
+    border-color: rgba(141, 255, 206, 0.72);
+    background: linear-gradient(180deg, rgba(97, 226, 173, 0.36), rgba(45, 163, 115, 0.33));
+    box-shadow: 0 13px 26px rgba(19, 103, 71, 0.3);
+    transform: translateY(-1px) scale(1.01);
+}
+
+.hero-store-cta:active {
+    transform: translateY(0) scale(0.988);
 }
 
 .hero-store-cta::after {
@@ -535,23 +543,23 @@ a {
     font-weight: 800;
     cursor: pointer;
     transition:
-        transform 0.14s ease,
-        border-color 0.18s ease,
-        background 0.18s ease,
-        box-shadow 0.18s ease,
-        color 0.18s ease,
-        opacity 0.18s ease;
+        transform var(--motion-fast) var(--ease-premium),
+        border-color var(--motion-base) ease,
+        background var(--motion-base) ease,
+        box-shadow var(--motion-base) ease,
+        color var(--motion-base) ease,
+        opacity var(--motion-base) ease;
 }
 
 .target-alert-btn:hover {
     border-color: rgba(121, 168, 255, 0.56);
     background: rgba(121, 168, 255, 0.2);
     box-shadow: 0 10px 18px rgba(2, 8, 20, 0.2);
-    transform: translateY(-1px);
+    transform: translateY(-1px) scale(1.004);
 }
 
 .target-alert-btn:active {
-    transform: scale(0.98);
+    transform: translateY(0) scale(0.986);
 }
 
 .target-alert-btn:focus-visible {
@@ -649,11 +657,15 @@ a {
 
 .panel {
     border-radius: 20px;
-    border: 1px solid rgba(154, 182, 255, 0.18);
+    border: 1px solid rgba(154, 182, 255, 0.16);
     background: var(--panel);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 15px 32px rgba(1, 8, 20, 0.3);
     overflow: hidden;
     position: relative;
+    transition:
+        border-color var(--motion-base) ease,
+        box-shadow var(--motion-base) ease,
+        transform var(--motion-fast) var(--ease-premium);
 }
 
 .panel::before {
@@ -662,7 +674,7 @@ a {
     inset: 0;
     pointer-events: none;
     border-top: 1px solid rgba(193, 214, 255, 0.12);
-    opacity: 0.85;
+    opacity: 0.72;
 }
 
 .panel-primary {
@@ -700,7 +712,7 @@ a {
 }
 
 .panel-head {
-    padding: 16px 16px 0;
+    padding: 18px 18px 0;
 }
 
 .panel-head::after {
@@ -713,19 +725,19 @@ a {
 
 .panel-title {
     margin: 0;
-    font-size: 22px;
+    font-size: 21px;
     letter-spacing: -0.03em;
 }
 
 .panel-subtitle {
     margin-top: 5px;
-    color: var(--muted);
-    font-size: 13px;
+    color: #96add1;
+    font-size: 12px;
     line-height: 1.4;
 }
 
 .panel-body {
-    padding: 13px 16px 16px;
+    padding: 14px 18px 18px;
 }
 
 .decision-stack {
@@ -1368,14 +1380,14 @@ a {
 .decision-page {
     max-width: 1220px;
     display: grid;
-    gap: 18px;
+    gap: 22px;
 }
 
 .decision-hero {
     display: grid;
     grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.05fr);
-    gap: 16px;
-    padding: 16px;
+    gap: 18px;
+    padding: 18px;
 }
 
 .decision-hero-media {
@@ -1392,6 +1404,10 @@ a {
     background-repeat: no-repeat;
     background-position: center;
     background-color: rgba(8, 17, 32, 0.92);
+    border-color: rgba(154, 182, 255, 0.22);
+    box-shadow:
+        inset 0 1px 0 rgba(223, 236, 255, 0.08),
+        0 14px 30px rgba(3, 9, 21, 0.34);
 }
 
 .decision-hero .hero-banner::before {
@@ -1404,9 +1420,9 @@ a {
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
-    filter: blur(24px) saturate(1.12) brightness(0.86);
+    filter: blur(20px) saturate(1.1) brightness(0.84);
     transform: scale(1.16);
-    opacity: 0.72;
+    opacity: 0.7;
 }
 
 .decision-hero .hero-banner::after {
@@ -1416,7 +1432,7 @@ a {
     pointer-events: none;
     z-index: 1;
     background-image:
-        linear-gradient(180deg, rgba(6, 13, 25, 0.16) 0%, rgba(6, 13, 25, 0.44) 100%),
+        linear-gradient(180deg, rgba(6, 13, 25, 0.1) 0%, rgba(6, 13, 25, 0.4) 100%),
         var(--hero-image);
     background-size: cover, contain;
     background-repeat: no-repeat, no-repeat;
@@ -1426,7 +1442,7 @@ a {
 .decision-hero-content {
     min-width: 0;
     display: grid;
-    gap: 12px;
+    gap: 14px;
 }
 
 .decision-hero-top {
@@ -1436,17 +1452,30 @@ a {
     gap: 12px;
 }
 
+.decision-hero-top h1 {
+    margin: 0;
+    max-width: 14ch;
+    font-size: clamp(38px, 5vw, 56px);
+    line-height: 0.96;
+    letter-spacing: -0.05em;
+    font-weight: 900;
+    text-wrap: balance;
+}
+
 .decision-verdict {
     margin: 0;
-    font-size: clamp(26px, 3.4vw, 38px);
-    line-height: 1.08;
-    font-weight: 800;
+    max-width: 26ch;
+    font-size: clamp(30px, 3.9vw, 42px);
+    line-height: 1.06;
+    font-weight: 840;
     letter-spacing: -0.015em;
-    color: #f4fff9;
+    color: #f3fbff;
 }
 
 .decision-hero .hero-context-card {
-    opacity: 0.8;
+    opacity: 0.94;
+    border-color: rgba(154, 182, 255, 0.2);
+    background: linear-gradient(180deg, rgba(11, 22, 41, 0.82), rgba(9, 18, 34, 0.82));
 }
 
 .decision-hero .hero-context-title {
@@ -1456,56 +1485,62 @@ a {
 }
 
 .decision-hero .hero-context-text {
-    font-size: 13px;
-    color: #b9cae8;
+    font-size: 12.5px;
+    color: #afc3e4;
 }
 
 .decision-price-line {
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
-    gap: 10px;
-    border: 1px solid rgba(92, 228, 169, 0.62);
+    gap: 12px;
+    border: 1px solid rgba(108, 221, 170, 0.55);
     border-radius: 12px;
-    background: rgba(12, 38, 28, 0.58);
-    padding: 10px 14px;
+    background: linear-gradient(180deg, rgba(14, 42, 32, 0.68), rgba(9, 30, 22, 0.62));
+    padding: 12px 15px;
+    box-shadow: inset 0 1px 0 rgba(185, 250, 221, 0.08);
 }
 
 .decision-price-label {
-    font-size: 11px;
+    font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: #bdebd6;
+    letter-spacing: 0.08em;
+    color: #a8d7c3;
     font-weight: 800;
 }
 
 .decision-price-value {
-    font-size: 32px;
+    font-size: clamp(34px, 4vw, 42px);
     line-height: 1;
     color: #f4fff9;
     font-weight: 900;
+    letter-spacing: -0.03em;
 }
 
 .decision-price-discount {
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.2;
-    color: #d6ffe9;
-    font-weight: 700;
+    color: #c7f8de;
+    font-weight: 760;
 }
 
 .decision-action-row {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    align-items: center;
 }
 
 .decision-action-row .hero-store-cta {
-    font-weight: 800;
-    box-shadow: 0 8px 24px rgba(13, 120, 77, 0.32);
+    min-width: 198px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    box-shadow: 0 9px 22px rgba(13, 104, 70, 0.32);
 }
 
 .decision-action-row .hero-watch-btn {
-    opacity: 0.82;
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.045);
 }
 
 .decision-store-section .panel-body {
@@ -1521,10 +1556,14 @@ a {
 .decision-best-deal {
     border: 1px solid rgba(92, 228, 169, 0.34);
     border-radius: 14px;
-    background: rgba(16, 37, 28, 0.44);
+    background: linear-gradient(180deg, rgba(17, 40, 30, 0.5), rgba(12, 30, 23, 0.45));
     padding: 12px;
     display: grid;
     gap: 6px;
+    transition:
+        border-color var(--motion-base) ease,
+        box-shadow var(--motion-base) ease,
+        transform var(--motion-fast) var(--ease-premium);
 }
 
 .decision-best-label {
@@ -1568,29 +1607,34 @@ a {
 .decision-summary-strip {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 12px;
 }
 
 .decision-summary-chip {
-    border: 1px solid rgba(154, 182, 255, 0.24);
+    border: 1px solid rgba(154, 182, 255, 0.2);
     border-radius: 12px;
-    padding: 10px 12px;
-    background: rgba(11, 22, 40, 0.8);
+    padding: 11px 13px;
+    background: linear-gradient(180deg, rgba(12, 24, 43, 0.84), rgba(9, 18, 33, 0.84));
     display: grid;
-    gap: 4px;
+    gap: 5px;
+    transition:
+        border-color var(--motion-base) ease,
+        box-shadow var(--motion-base) ease,
+        transform var(--motion-fast) var(--ease-premium);
 }
 
 .decision-summary-chip span {
-    font-size: 11px;
-    letter-spacing: 0.06em;
+    font-size: 10px;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: #8ba5cb;
     font-weight: 700;
 }
 
 .decision-summary-chip strong {
-    font-size: 18px;
+    font-size: 19px;
     line-height: 1.1;
+    font-weight: 850;
 }
 
 .decision-summary-chip:nth-child(n + 3) {
@@ -1600,13 +1644,13 @@ a {
 .decision-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
+    gap: 18px;
     align-items: start;
 }
 
 .decision-main {
     display: grid;
-    gap: 16px;
+    gap: 18px;
 }
 
 .decision-chart-panel .panel-subtitle {
@@ -1616,17 +1660,25 @@ a {
 .decision-details-shell details {
     border: 1px solid rgba(154, 182, 255, 0.22);
     border-radius: 12px;
-    background: rgba(10, 19, 35, 0.64);
-    padding: 10px;
+    background: rgba(10, 19, 35, 0.68);
+    padding: 11px 12px;
+    transition:
+        border-color var(--motion-base) ease,
+        background var(--motion-base) ease,
+        box-shadow var(--motion-base) ease;
 }
 
 .decision-details-shell summary {
     list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     cursor: pointer;
     font-size: 13px;
     font-weight: 800;
     letter-spacing: 0.03em;
-    color: #d9e9ff;
+    color: #d5e6ff;
+    transition: color var(--motion-base) ease;
 }
 
 .decision-details-shell summary::-webkit-details-marker {
@@ -1634,16 +1686,71 @@ a {
 }
 
 .decision-details-shell summary::after {
-    content: " +";
+    content: "▾";
+    display: inline-block;
     color: #a5bde4;
+    transform: rotate(-90deg);
+    transform-origin: center;
+    transition: transform var(--motion-fast) var(--ease-premium), color var(--motion-base) ease;
 }
 
 .decision-details-shell details[open] summary::after {
-    content: " -";
+    transform: rotate(0deg);
+}
+
+.decision-details-shell details[open] {
+    border-color: rgba(154, 182, 255, 0.3);
+    background: rgba(11, 22, 40, 0.72);
+    box-shadow: 0 10px 24px rgba(2, 8, 20, 0.22);
+}
+
+.decision-details-shell summary:hover {
+    color: #e8f2ff;
+}
+
+.decision-details-shell summary:focus-visible {
+    outline: 2px solid rgba(121, 222, 255, 0.84);
+    outline-offset: 3px;
+    border-radius: 8px;
 }
 
 .decision-details-content {
     margin-top: 12px;
+}
+
+.decision-details-shell details[open] .decision-details-content {
+    animation: detailSectionReveal var(--motion-slow) var(--ease-premium);
+}
+
+@keyframes detailSectionReveal {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .panel:hover {
+        border-color: rgba(165, 193, 255, 0.24);
+        box-shadow: 0 18px 36px rgba(2, 8, 20, 0.34);
+        transform: translateY(-1px);
+    }
+
+    .decision-summary-chip:hover {
+        border-color: rgba(171, 198, 255, 0.3);
+        box-shadow: 0 10px 20px rgba(2, 8, 20, 0.2);
+        transform: translateY(-1px);
+    }
+
+    .decision-best-deal:hover {
+        border-color: rgba(123, 234, 188, 0.5);
+        box-shadow: 0 12px 22px rgba(12, 72, 48, 0.25);
+        transform: translateY(-1px);
+    }
 }
 
 @media (max-width: 1080px) {
@@ -1664,6 +1771,15 @@ a {
 }
 
 @media (max-width: 520px) {
+    .decision-hero-top h1 {
+        font-size: clamp(30px, 9vw, 40px);
+        line-height: 1;
+    }
+
+    .decision-verdict {
+        font-size: clamp(24px, 7.6vw, 32px);
+    }
+
     .hero-banner {
         height: clamp(152px, 52vw, 210px);
     }
@@ -1683,6 +1799,10 @@ a {
 
     .panel-title {
         font-size: 18px;
+    }
+
+    .decision-price-value {
+        font-size: clamp(30px, 9vw, 36px);
     }
 
     .chart-wrap {
@@ -1706,7 +1826,12 @@ a {
     .hero-store-cta,
     .hero-watch-btn,
     .target-alert-btn,
-    .range-btn {
+    .range-btn,
+    .panel,
+    .decision-summary-chip,
+    .decision-best-deal,
+    .decision-details-shell details,
+    .decision-details-shell summary::after {
         transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease, opacity 0.18s ease;
     }
 
@@ -1717,8 +1842,15 @@ a {
     .target-alert-btn:hover,
     .target-alert-btn:active,
     .range-btn:hover,
-    .range-btn:active {
+    .range-btn:active,
+    .panel:hover,
+    .decision-summary-chip:hover,
+    .decision-best-deal:hover {
         transform: none;
+    }
+
+    .decision-details-shell details[open] .decision-details-content {
+        animation: none;
     }
 }
 </style>

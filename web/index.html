@@ -2859,15 +2859,14 @@ input:focus-visible {
         0 9px 20px rgba(2, 7, 20, 0.24);
 
     position: relative;
-    transform: translateY(0) scale(1) translateZ(0);
+    transform: translateZ(0);
     transition:
-        transform 0.14s ease,
-        box-shadow 0.16s ease,
-        border-color 0.16s ease,
-        background 0.16s ease;
+        box-shadow 0.22s cubic-bezier(0.22, 0.61, 0.36, 1),
+        border-color 0.22s cubic-bezier(0.22, 0.61, 0.36, 1),
+        background 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
     animation: cardFadeIn 0.35s ease;
     content-visibility: auto;
-    will-change: transform, box-shadow;
+    will-change: box-shadow;
 }
 
 .game-card.is-new-signal {
@@ -2913,24 +2912,22 @@ input:focus-visible {
 }
 
 .game-card:hover {
-    transform: translateY(-2px) scale(1.006);
-    border-color: rgba(121, 168, 255, 0.38);
+    border-color: rgba(121, 168, 255, 0.34);
     box-shadow:
-        0 14px 28px rgba(2, 8, 24, 0.3),
-        0 0 0 1px rgba(121, 168, 255, 0.1) inset;
+        0 12px 22px rgba(2, 8, 24, 0.24),
+        0 0 0 1px rgba(121, 168, 255, 0.09) inset;
     z-index: 5;
 }
 
 .game-card:focus-within {
-    transform: translateY(-1px) scale(1.004);
-    border-color: rgba(121, 168, 255, 0.42);
+    border-color: rgba(121, 168, 255, 0.36);
     box-shadow:
-        0 12px 24px rgba(2, 8, 24, 0.28),
-        0 0 0 1px rgba(121, 168, 255, 0.14) inset;
+        0 10px 20px rgba(2, 8, 24, 0.22),
+        0 0 0 1px rgba(121, 168, 255, 0.1) inset;
 }
 
 .game-card:hover .card-banner-img {
-    transform: scale(1.01);
+    transform: scale(1.006);
     filter: saturate(1.03) brightness(1.02);
 }
 
@@ -2940,14 +2937,14 @@ input:focus-visible {
 
 .card-banner-img {
     transition:
-        transform 0.18s ease,
-        filter 0.18s ease;
+        transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1),
+        filter 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
     transform: scale(1);
     content-visibility: auto;
 }
 
 .card-banner-overlay {
-    transition: background 0.18s ease;
+    transition: background 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .game-name a,
@@ -3062,7 +3059,7 @@ input:focus-visible {
         radial-gradient(circle at 20% 0%, rgba(255,255,255,0.08), transparent 30%),
         radial-gradient(circle at 80% 120%, rgba(121,168,255,0.14), transparent 36%);
     opacity: 0;
-    transition: opacity 0.18s ease;
+    transition: opacity 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
     pointer-events: none;
     z-index: 0;
 }

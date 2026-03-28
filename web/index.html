@@ -350,24 +350,16 @@ select {
     margin-bottom: 24px;
 }
 
-.command-hub-shell {
+.command-launcher {
     position: relative;
-    margin-bottom: 12px;
-    z-index: 50;
+    margin-bottom: 8px;
+    z-index: 52;
 }
 
-.command-hub-surface {
+.command-search-layer {
     position: relative;
-    border-radius: 24px;
-    border: 1px solid rgba(124, 176, 255, 0.33);
-    background:
-        radial-gradient(116% 120% at 8% -26%, rgba(96, 182, 255, 0.24) 0%, rgba(96, 182, 255, 0) 58%),
-        linear-gradient(165deg, rgba(12, 24, 43, 0.96), rgba(7, 14, 27, 0.98));
-    box-shadow:
-        0 22px 44px rgba(2, 8, 22, 0.34),
-        0 0 0 1px rgba(124, 176, 255, 0.12) inset;
-    padding: 18px 18px 14px;
-    backdrop-filter: blur(12px);
+    display: grid;
+    gap: 8px;
 }
 
 .search-bar-wrap {
@@ -380,8 +372,8 @@ select {
 
 .search-bar-wrap.scrolled {
     transform: translateY(0);
-    opacity: 0.93;
-    filter: saturate(0.96);
+    opacity: 0.95;
+    filter: saturate(0.98);
 }
 
 .search-bar {
@@ -389,15 +381,15 @@ select {
     grid-template-columns: auto 1fr;
     align-items: center;
     gap: 14px;
-    min-height: 68px;
+    min-height: 72px;
     padding: 18px 22px;
-    border-radius: 20px;
-    border: 1px solid rgba(132, 190, 255, 0.34);
+    border-radius: 18px;
+    border: 1px solid rgba(140, 196, 255, 0.48);
     background:
-        linear-gradient(180deg, rgba(16, 32, 56, 0.98), rgba(10, 21, 39, 0.96));
+        linear-gradient(180deg, rgba(15, 30, 52, 0.96), rgba(9, 19, 35, 0.95));
     box-shadow:
-        0 14px 28px rgba(4, 10, 22, 0.28),
-        0 0 0 1px rgba(154, 196, 255, 0.07) inset;
+        0 18px 32px rgba(3, 9, 21, 0.34),
+        0 0 0 1px rgba(164, 208, 255, 0.1) inset;
     transition:
         border-color var(--ui-duration-base) var(--ui-ease-standard),
         box-shadow var(--ui-duration-base) var(--ui-ease-standard),
@@ -406,11 +398,11 @@ select {
 }
 
 .search-bar:focus-within {
-    border-color: rgba(103, 234, 255, 0.72);
+    border-color: rgba(103, 234, 255, 0.78);
     box-shadow:
-        0 0 0 1px rgba(103, 234, 255, 0.42),
-        0 20px 32px rgba(3, 10, 22, 0.34);
-    background: linear-gradient(180deg, rgba(18, 36, 64, 0.98), rgba(9, 19, 35, 0.97));
+        0 0 0 1px rgba(103, 234, 255, 0.48),
+        0 24px 40px rgba(3, 10, 22, 0.4);
+    background: linear-gradient(180deg, rgba(16, 34, 60, 0.98), rgba(9, 18, 34, 0.96));
     transform: translateY(-1px);
 }
 
@@ -426,7 +418,7 @@ select {
     outline: 0;
     color: var(--text);
     width: 100%;
-    font-size: clamp(18px, 2.2vw, 20px);
+    font-size: clamp(18px, 2.1vw, 21px);
     font-weight: 700;
     letter-spacing: 0.012em;
 }
@@ -436,11 +428,12 @@ select {
 }
 
 .search-guidance {
-    margin: 10px 4px 0;
-    color: rgba(164, 194, 238, 0.75);
-    font-size: 11px;
+    margin: 0 4px;
+    color: rgba(172, 201, 241, 0.82);
+    font-size: 10px;
     line-height: 1.35;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
 }
 
 .search-results-pop {
@@ -607,11 +600,13 @@ select {
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
-    margin-top: 14px;
+    margin-top: 0;
 }
 
-.quick-toggle-row > #toggleAdvancedFiltersBtn {
-    margin-left: auto;
+.quick-toggle-strip {
+    position: relative;
+    z-index: 2;
+    margin-top: 6px;
 }
 
 .field label {
@@ -810,30 +805,32 @@ input:focus-visible {
 }
 
 .advanced-filters-drawer {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    right: 0;
+    z-index: 60;
     margin-top: 0;
-    max-height: 0;
+    max-height: min(68vh, 660px);
     opacity: 0;
     overflow: hidden;
     pointer-events: none;
-    transform: translateY(-6px);
+    transform: translateY(-8px) scale(0.985);
     transition:
-        max-height var(--ui-duration-slow) var(--ui-ease-standard),
         opacity var(--ui-duration-base) var(--ui-ease-standard),
         transform var(--ui-duration-base) var(--ui-ease-standard),
-        margin-top var(--ui-duration-base) var(--ui-ease-standard),
-        padding var(--ui-duration-base) var(--ui-ease-standard);
+        box-shadow var(--ui-duration-base) var(--ui-ease-standard);
 }
 
 .advanced-filters-drawer.open {
-    margin-top: 12px;
     padding: 14px;
     border-radius: 16px;
-    border: 1px solid rgba(121, 168, 255, 0.24);
-    background: linear-gradient(180deg, rgba(9, 19, 34, 0.84), rgba(8, 16, 29, 0.88));
-    max-height: 620px;
+    border: 1px solid rgba(124, 181, 255, 0.3);
+    background: linear-gradient(180deg, rgba(10, 20, 36, 0.98), rgba(8, 16, 30, 0.96));
+    box-shadow: 0 26px 44px rgba(2, 8, 21, 0.42);
     opacity: 1;
     pointer-events: auto;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
 }
 
 .advanced-drawer-head {
@@ -3702,16 +3699,8 @@ input:focus-visible {
         margin-top: clamp(-28px, -2.8vw, -14px);
         margin-bottom: 16px;
     }
-    .command-hub-shell {
+    .command-launcher {
         margin-bottom: 8px;
-    }
-}
-
-@media (max-width: 1180px) and (min-width: 861px) {
-    .quick-toggle-row > #toggleAdvancedFiltersBtn {
-        flex-basis: 100%;
-        margin-left: 0;
-        align-self: stretch;
     }
 }
 
@@ -3745,12 +3734,11 @@ input:focus-visible {
         max-height: none;
     }
     .modal-body { grid-template-columns: 1fr; }
-    .command-hub-shell {
+    .command-launcher {
         margin-bottom: 14px;
     }
-    .command-hub-surface {
-        padding: 12px;
-        border-radius: 18px;
+    .command-search-layer {
+        gap: 6px;
     }
     .home-jump-nav {
         margin: 2px 0 8px;
@@ -3790,8 +3778,18 @@ input:focus-visible {
         flex: 0 0 auto;
         margin-left: 0;
     }
-    .quick-toggle-row > #toggleAdvancedFiltersBtn {
-        margin-left: 2px;
+    .advanced-filters-drawer {
+        position: relative;
+        top: auto;
+        left: auto;
+        right: auto;
+        max-height: 0;
+        transform: translateY(-4px);
+    }
+    .advanced-filters-drawer.open {
+        margin-top: 10px;
+        max-height: 700px;
+        transform: translateY(0);
     }
     .advanced-drawer-head {
         align-items: flex-start;
@@ -4402,21 +4400,22 @@ input:focus-visible {
                 </section>
 
                 <div class="sticky-shell">
-                    <div class="command-hub-shell" id="searchStack">
-                        <section class="command-hub-surface" id="commandHubSurface">
-                            <div class="search-bar-wrap command-find-wrap" id="searchBarWrap">
-                                <div class="search-bar command-find-bar">
+                    <section class="command-launcher" id="searchStack" aria-label="Quick game search">
+                        <div class="command-search-layer">
+                            <div class="search-bar-wrap command-search-wrap" id="searchBarWrap">
+                                <div class="search-bar command-search-input">
                                     <span class="search-bar-icon" aria-hidden="true">🔎</span>
                                     <label class="sr-only" for="searchInput">Search games</label>
-                                    <input id="searchInput" type="text" placeholder="Quick find a game, genre, or tag..." autocomplete="off" />
+                                    <input id="searchInput" type="text" placeholder="Search games, genres, or tags..." autocomplete="off" />
                                 </div>
                                 <div class="search-results-pop" id="searchResultsPop">
                                     <div class="search-results-list" id="searchResultsList"></div>
                                 </div>
                             </div>
-                            <div class="search-guidance" id="heroSearchGuidance">Quick-find first. Add filters only when you need precision.</div>
+                            <div class="search-guidance" id="heroSearchGuidance">Quick-find first. Filters are optional.</div>
+                        </div>
 
-                            <div class="quick-toggle-row" id="quickToggleRow">
+                            <div class="quick-toggle-row quick-toggle-strip" id="quickToggleRow">
                                         <label class="pill-toggle quick-filter-pill" id="quickDealsOnlyChip">
                                             <input id="dealsOnlyCheckbox" type="checkbox" />
                                             Deals only
@@ -4510,8 +4509,8 @@ input:focus-visible {
                                             </div>
                                         </div>
                                     </section>
-                        </section>
-                    </div>
+                        </div>
+                    </section>
 
                 </div>
 

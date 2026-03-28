@@ -924,8 +924,18 @@ input:focus-visible {
 }
 
 .discovery-tabs-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.discovery-tabs-head-main {
     display: grid;
     gap: 3px;
+    min-width: 0;
+    flex: 1 1 280px;
 }
 
 .discovery-tabs-title {
@@ -940,6 +950,23 @@ input:focus-visible {
     color: var(--muted);
     font-size: 12px;
     line-height: 1.45;
+}
+
+.discovery-owned-filter-btn {
+    min-height: 34px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.discovery-owned-filter-btn[data-active="true"] {
+    border-color: rgba(110, 221, 163, 0.45);
+    background: rgba(110, 221, 163, 0.12);
+    color: #c8f6df;
 }
 
 .discovery-tabs-list {
@@ -3307,6 +3334,13 @@ input:focus-visible {
     .discovery-tabs-shell {
         gap: 7px;
     }
+    .discovery-tabs-head {
+        align-items: stretch;
+    }
+    .discovery-tabs-head-main {
+        width: 100%;
+        flex-basis: 100%;
+    }
     .discovery-tabs-title {
         font-size: 20px;
         letter-spacing: -0.02em;
@@ -3314,6 +3348,10 @@ input:focus-visible {
     .discovery-tabs-subtitle {
         font-size: 11px;
         line-height: 1.4;
+    }
+    .discovery-owned-filter-btn {
+        width: fit-content;
+        align-self: flex-start;
     }
     .discovery-tabs-list {
         flex-wrap: nowrap;
@@ -4067,8 +4105,13 @@ input:focus-visible {
 
                 <section class="discovery-tabs-shell" id="discoveryTabsShell" aria-label="Discover browse modes">
                     <div class="discovery-tabs-head">
-                        <h2 class="discovery-tabs-title">Discover</h2>
-                        <div class="discovery-tabs-subtitle">Switch browse modes to keep the homepage focused while exploring live market surfaces.</div>
+                        <div class="discovery-tabs-head-main">
+                            <h2 class="discovery-tabs-title">Discover</h2>
+                            <div class="discovery-tabs-subtitle">Switch browse modes to keep the homepage focused while exploring live market surfaces.</div>
+                        </div>
+                        <button class="secondary-btn discovery-owned-filter-btn" id="feedOwnedToggleBtn" type="button" aria-pressed="false" data-active="true">
+                            Hide Owned: On
+                        </button>
                     </div>
                     <div class="discovery-tabs-list" id="discoveryTabsList" role="tablist" aria-label="Discovery views"></div>
                     <div class="discovery-tabs-body" id="discoveryTabsBody"></div>
@@ -4310,10 +4353,10 @@ input:focus-visible {
                 <section class="panel panel-personal hidden" id="wishlistPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Wishlist</h2>
-                            <div class="panel-subtitle">Games you want to keep an eye on for future buys.</div>
+                            <h2 class="panel-title">Owned</h2>
+                            <div class="panel-subtitle">Games you already have and want excluded from future-buy intent.</div>
                         </div>
-                        <a class="panel-action" href="/watchlist?tab=wishlist">Open Wishlist</a>
+                        <a class="panel-action" href="/watchlist?tab=owned">Open Owned</a>
                     </div>
                     <div class="panel-body">
                         <div id="wishlistList" class="mini-list"></div>
@@ -5056,6 +5099,9 @@ input:focus-visible {
                 wishlistExpanded: false,
                 watchlistExpanded: false,
             },
+            feedFilters: {
+                showOwned: false,
+            },
             visibleCounts: {
                 dealRankedGrid: 6,
                 opportunitiesGrid: 6,
@@ -5139,6 +5185,7 @@ input:focus-visible {
             discoveryTabsShell: document.getElementById("discoveryTabsShell"),
             discoveryTabsList: document.getElementById("discoveryTabsList"),
             discoveryTabsBody: document.getElementById("discoveryTabsBody"),
+            feedOwnedToggleBtn: document.getElementById("feedOwnedToggleBtn"),
             opportunitiesPanel: document.getElementById("opportunitiesPanel"),
             opportunitiesGrid: document.getElementById("opportunitiesGrid"),
             opportunityRadarPanel: document.getElementById("opportunityRadarPanel"),
@@ -5377,6 +5424,7 @@ input:focus-visible {
                     filterOptions: captureFilterOptionsFromControls(),
                     visibleCounts: { ...state.visibleCounts },
                     discoveryActiveKey: String(state.discoveryTabs?.activeKey || DISCOVERY_DEFAULT_TAB_KEY),
+                    feedFilters: { ...state.feedFilters },
                     moreIntelExpanded: !!state.moreIntelExpanded,
                     analyticsPanelExpanded: !!state.analyticsPanelExpanded,
                     sections: getDashboardSnapshotSections(24),
@@ -5460,6 +5508,12 @@ input:focus-visible {
                 }
                 if (parsed.discoveryActiveKey) {
                     state.discoveryTabs.activeKey = String(parsed.discoveryActiveKey);
+                }
+                if (parsed.feedFilters && typeof parsed.feedFilters === "object") {
+                    state.feedFilters = {
+                        ...state.feedFilters,
+                        ...parsed.feedFilters,
+                    };
                 }
                 state.moreIntelExpanded = true;
                 state.analyticsPanelExpanded = !!parsed.analyticsPanelExpanded;
@@ -5565,19 +5619,19 @@ input:focus-visible {
 
             renderWishlist();
             renderWatchlist();
-            renderPersonalizedDeals();
+            rerenderOwnedFilteredFeedSections();
             syncCardActionButtonsFromState();
             if (action === "add") {
                 if (listKey === "wishlist") {
                     void loadUserWishlist().then(() => {
                         renderWishlist();
-                        renderPersonalizedDeals();
+                        rerenderOwnedFilteredFeedSections();
                         syncCardActionButtonsFromState();
                     }).catch(() => {});
                 } else if (listKey === "watchlist") {
                     void loadUserWatchlist().then(() => {
                         renderWatchlist();
-                        renderPersonalizedDeals();
+                        rerenderOwnedFilteredFeedSections();
                         syncCardActionButtonsFromState();
                     }).catch(() => {});
                 }
@@ -5684,6 +5738,7 @@ input:focus-visible {
                 state.personalSummaryLoaded = false;
                 state.personalizedDeals = [];
                 state.personalizedStatus.personalized = false;
+                rerenderOwnedFilteredFeedSections();
             }
 
             const statePayload = await authSession.getState();
@@ -5711,12 +5766,12 @@ input:focus-visible {
                 void loadPersonalSummary();
                 void loadUserWishlist().then(() => {
                     renderWishlist();
-                    renderPersonalizedDeals();
+                    rerenderOwnedFilteredFeedSections();
                     syncCardActionButtonsFromState();
                 }).catch(() => {});
                 void loadUserWatchlist().then(() => {
                     renderWatchlist();
-                    renderPersonalizedDeals();
+                    rerenderOwnedFilteredFeedSections();
                     syncCardActionButtonsFromState();
                 }).catch(() => {});
             }
@@ -5844,6 +5899,32 @@ input:focus-visible {
                 ui.watchlistToggleBtn.addEventListener("click", () => {
                     state.trackedPreview.watchlistExpanded = !state.trackedPreview.watchlistExpanded;
                     renderWatchlist();
+                });
+            }
+        }
+
+        function wireOwnedFeedToggle() {
+            if (wireOwnedFeedToggle._wired) return;
+            wireOwnedFeedToggle._wired = true;
+
+            updateOwnedFeedToggleUi();
+
+            if (ui.feedOwnedToggleBtn instanceof HTMLButtonElement) {
+                ui.feedOwnedToggleBtn.addEventListener("click", () => {
+                    state.feedFilters.showOwned = !state.feedFilters.showOwned;
+                    rerenderOwnedFilteredFeedSections();
+                    syncCardActionButtonsFromState();
+
+                    if (state.feedFilters.showOwned) {
+                        void loadPersonalizedDeals()
+                            .then(() => {
+                                renderPersonalizedDeals();
+                                syncCardActionButtonsFromState();
+                            })
+                            .catch(() => {
+                                renderPersonalizedDeals();
+                            });
+                    }
                 });
             }
         }
@@ -6818,7 +6899,7 @@ input:focus-visible {
 
         function buildRecommendationReasonBadge(game) {
             if (isInWishlist(game.game_name)) {
-                return `<span class="pill gold">💜 Wishlist Pick</span>`;
+                return `<span class="pill gold">Owned</span>`;
             }
             if (isInWatchlist(game)) {
                 return `<span class="pill info">👀 Watchlist Pick</span>`;
@@ -7452,9 +7533,94 @@ input:focus-visible {
             });
         }
 
+        function isOwnedHiddenInFeeds() {
+            return !state.feedFilters?.showOwned;
+        }
+
+        function buildOwnedFeedIdentitySet() {
+            const ownedKeys = new Set();
+            safeArray(state.wishlist).forEach((item) => {
+                const key = gameIdentityKey(item);
+                if (key) {
+                    ownedKeys.add(key);
+                }
+            });
+            return ownedKeys;
+        }
+
+        function filterDiscoveryFeedRows(rows) {
+            const normalizedRows = uniqueGamesByIdentity(rows);
+            const ownedKeys = buildOwnedFeedIdentitySet();
+            if (!isOwnedHiddenInFeeds() || !ownedKeys.size) {
+                return {
+                    rows: normalizedRows,
+                    hiddenOwnedCount: 0,
+                    totalCount: normalizedRows.length,
+                };
+            }
+
+            const visibleRows = [];
+            let hiddenOwnedCount = 0;
+            for (const row of normalizedRows) {
+                const key = gameIdentityKey(row);
+                if (key && ownedKeys.has(key)) {
+                    hiddenOwnedCount += 1;
+                    continue;
+                }
+                visibleRows.push(row);
+            }
+
+            return {
+                rows: visibleRows,
+                hiddenOwnedCount,
+                totalCount: normalizedRows.length,
+            };
+        }
+
+        function renderOwnedFilteredFeedEmpty(container, fallbackMessage, options = {}, filterMeta = null) {
+            const hiddenOwnedCount = Math.max(0, Number(filterMeta?.hiddenOwnedCount || 0));
+            if (isOwnedHiddenInFeeds() && hiddenOwnedCount > 0) {
+                renderEmpty(
+                    container,
+                    "All matching games are marked Owned.",
+                    {
+                        tone: "neutral",
+                        detail: "Turn off Hide Owned to show your owned games again in this feed.",
+                    },
+                );
+                return;
+            }
+            renderEmpty(container, fallbackMessage, options);
+        }
+
+        function updateOwnedFeedToggleUi() {
+            if (!(ui.feedOwnedToggleBtn instanceof HTMLButtonElement)) return;
+            const hideOwnedEnabled = isOwnedHiddenInFeeds();
+            ui.feedOwnedToggleBtn.textContent = hideOwnedEnabled ? "Hide Owned: On" : "Hide Owned: Off";
+            ui.feedOwnedToggleBtn.setAttribute("aria-pressed", hideOwnedEnabled ? "true" : "false");
+            ui.feedOwnedToggleBtn.setAttribute("data-active", hideOwnedEnabled ? "true" : "false");
+            ui.feedOwnedToggleBtn.setAttribute(
+                "aria-label",
+                hideOwnedEnabled
+                    ? "Hide owned games in discovery feeds is enabled. Click to show owned games."
+                    : "Hide owned games in discovery feeds is disabled. Click to hide owned games.",
+            );
+        }
+
+        function rerenderOwnedFilteredFeedSections() {
+            updateOwnedFeedToggleUi();
+            renderOpportunities();
+            renderOpportunityRadar();
+            renderActiveDiscoveryTabPane();
+            renderPersonalizedDeals();
+            renderNewDeals();
+            renderRecommendedDeals();
+            scheduleDashboardSnapshotPersist();
+        }
+
         function cardActionLabel(action, isActive) {
             if (action === "wishlist") {
-                return isActive ? "💜 Saved" : "💜 Save";
+                return isActive ? "Owned ✓" : "Mark Owned";
             }
             if (action === "watchlist") {
                 return isActive ? "👀 Watching" : "👁️ Watch";
@@ -7567,7 +7733,7 @@ input:focus-visible {
             return `
                 <div class="card-action-row">
                     <button class="card-action-btn ${wishlistActive ? "active" : ""}" type="button" aria-pressed="${wishlistActive}" data-action="wishlist" data-game-name="${escapeHtml(game.game_name || "")}"${gameIdAttr}>
-                        ${wishlistActive ? "💜 Saved" : "💜 Save"}
+                        ${wishlistActive ? "Owned ✓" : "Mark Owned"}
                     </button>
                     <button class="card-action-btn watch ${watchlistActive ? "active" : ""}" type="button" aria-pressed="${watchlistActive}" data-action="watchlist" data-game-name="${escapeHtml(game.game_name || "")}"${gameIdAttr}>
                         ${watchlistActive ? "👀 Watching" : "👁️ Watch"}
@@ -8527,21 +8693,23 @@ input:focus-visible {
         }
 
         function renderNewDeals() {
-            if (!state.buyNowPicks.length) {
-                renderEmpty(
+            const filtered = filterDiscoveryFeedRows(state.buyNowPicks);
+            if (!filtered.rows.length) {
+                renderOwnedFilteredFeedEmpty(
                     ui.newDealsGrid,
                     "No strong buy-now picks currently.",
                     {
                         tone: "neutral",
                         detail: "Recommendation quality updates as new snapshot cycles complete.",
                     },
+                    filtered,
                 );
                 ui.newDealsShowAllBtn.classList.add("hidden");
                 return;
             }
             renderPagedCards({
                 container: ui.newDealsGrid,
-                items: state.buyNowPicks,
+                items: filtered.rows,
                 renderer: gameCardHtml,
                 visibleKey: "newDealsGrid",
                 toggleButton: null,
@@ -8553,14 +8721,16 @@ input:focus-visible {
         }
 
         function renderRecommendedDeals() {
-            if (!state.waitPicks.length) {
-                renderEmpty(
+            const filtered = filterDiscoveryFeedRows(state.waitPicks);
+            if (!filtered.rows.length) {
+                renderOwnedFilteredFeedEmpty(
                     ui.recommendedDealsGrid,
                     "No clear wait-for-next-sale picks right now.",
                     {
                         tone: "neutral",
                         detail: "Games with stronger wait signals will appear here automatically.",
                     },
+                    filtered,
                 );
                 ui.recommendedDealsShowAllBtn.classList.add("hidden");
                 return;
@@ -8568,7 +8738,7 @@ input:focus-visible {
 
             renderPagedCards({
                 container: ui.recommendedDealsGrid,
-                items: state.waitPicks,
+                items: filtered.rows,
                 renderer: gameCardHtml,
                 visibleKey: "recommendedDealsGrid",
                 toggleButton: null,
@@ -8805,7 +8975,7 @@ input:focus-visible {
                     }
 
                     if (isInWishlist(game.game_name)) {
-                        message = `Wishlist item: ${message}`;
+                        message = `Owned game: ${message}`;
                     } else if (isInWatchlist(game)) {
                         message = `Watchlist item: ${message}`;
                     }
@@ -9539,7 +9709,7 @@ input:focus-visible {
 
         function setTrackedPreviewToggleState(button, listType, totalCount, expanded) {
             if (!(button instanceof HTMLButtonElement)) return;
-            const normalizedType = listType === "watchlist" ? "watchlist" : "wishlist";
+            const normalizedType = listType === "watchlist" ? "watchlist" : "owned";
             const clampedTotal = Math.max(0, Number(totalCount) || 0);
             const hasOverflow = clampedTotal > 3;
             button.classList.toggle("hidden", !hasOverflow);
@@ -9587,7 +9757,7 @@ input:focus-visible {
                 return;
             }
             if (wishlistError) {
-                renderError(ui.wishlistList, "Failed to load wishlist.");
+                renderError(ui.wishlistList, "Failed to load owned list.");
                 setTrackedPreviewToggleState(
                     ui.wishlistToggleBtn,
                     "wishlist",
@@ -9610,7 +9780,7 @@ input:focus-visible {
             ui.wishlistList.innerHTML = previewRows.map((item) => {
                 const latest = state.latestPrices.find((game) => game.game_name === item.game_name);
                 const sub = latest ? `${fmtPrice(latest.price)} • score ${fmtInt(latest.deal_score)}` : "Tracked item";
-                return miniItemHtml(item.game_name, sub, "Wishlisted");
+                return miniItemHtml(item.game_name, sub, "Owned");
             }).join("");
             setTrackedPreviewToggleState(
                 ui.wishlistToggleBtn,
@@ -9692,9 +9862,22 @@ input:focus-visible {
                         ? state.dealRanked
                         : state.worthBuyingNow
                 );
+            const filtered = filterDiscoveryFeedRows(sectionItems);
+            if (!filtered.rows.length) {
+                renderOwnedFilteredFeedEmpty(
+                    ui.dealRankedGrid,
+                    "No biggest discounts available right now.",
+                    {
+                        tone: "neutral",
+                        detail: "New discounted games are added as snapshot updates land.",
+                    },
+                    filtered,
+                );
+                return;
+            }
             renderPagedCards({
                 container: ui.dealRankedGrid,
-                items: sectionItems,
+                items: filtered.rows,
                 renderer: gameCardHtml,
                 visibleKey: "dealRankedGrid",
                 toggleButton: null,
@@ -9706,9 +9889,22 @@ input:focus-visible {
         }
 
         function renderOpportunities() {
+            const filtered = filterDiscoveryFeedRows(state.opportunitiesNow);
+            if (!filtered.rows.length) {
+                renderOwnedFilteredFeedEmpty(
+                    ui.opportunitiesGrid,
+                    "No opportunities right now.",
+                    {
+                        tone: "neutral",
+                        detail: "High-conviction opportunities appear as live deal and momentum signals align.",
+                    },
+                    filtered,
+                );
+                return;
+            }
             renderPagedCards({
                 container: ui.opportunitiesGrid,
-                items: state.opportunitiesNow,
+                items: filtered.rows,
                 renderer: gameCardHtml,
                 visibleKey: "opportunitiesGrid",
                 toggleButton: null,
@@ -9720,9 +9916,22 @@ input:focus-visible {
         }
 
         function renderOpportunityRadar() {
+            const filtered = filterDiscoveryFeedRows(state.opportunityRadar);
+            if (!filtered.rows.length) {
+                renderOwnedFilteredFeedEmpty(
+                    ui.opportunityRadarGrid,
+                    "No deal opportunity radar picks available right now.",
+                    {
+                        tone: "neutral",
+                        detail: "Predicted opportunities refresh as new snapshot cycles complete.",
+                    },
+                    filtered,
+                );
+                return;
+            }
             renderPagedCards({
                 container: ui.opportunityRadarGrid,
-                items: state.opportunityRadar,
+                items: filtered.rows,
                 renderer: gameCardHtml,
                 visibleKey: "opportunityRadarGrid",
                 toggleButton: null,
@@ -9849,6 +10058,7 @@ input:focus-visible {
                     protectedKeys,
                     personalizedLimit,
                 );
+            const filteredDisplay = filterDiscoveryFeedRows(displayItems);
             const personalizedActive = knownUser && !fallbackMode && !!state.personalizedStatus?.personalized;
 
             setPanelVisibility(ui.recommendedForYouPanel, true);
@@ -9857,20 +10067,20 @@ input:focus-visible {
             }
             if (ui.yourDealsTodaySubtitle) {
                 ui.yourDealsTodaySubtitle.textContent = personalizedActive
-                    ? "Personalized picks using your wishlist, watchlist, and high-signal market movement."
+                    ? "Personalized picks using your watchlist, owned library, and high-signal market movement."
                     : "Trending and high deal-score picks from live snapshot signals.";
             }
 
-            if (loading && !displayItems.length) {
+            if (loading && !filteredDisplay.rows.length) {
                 renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
                 return;
             }
-            if (error && !displayItems.length) {
+            if (error && !filteredDisplay.rows.length) {
                 renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");
                 return;
             }
-            if (!displayItems.length) {
-                renderEmpty(
+            if (!filteredDisplay.rows.length) {
+                renderOwnedFilteredFeedEmpty(
                     ui.personalizedDealsGrid,
                     knownUser
                         ? "No personalized deals yet."
@@ -9878,16 +10088,17 @@ input:focus-visible {
                     {
                         tone: "neutral",
                         detail: knownUser
-                            ? "Add games to your wishlist or watchlist to improve recommendations."
+                            ? "Add games to Watch or mark them Owned to improve recommendations."
                             : "Check back as trending and deal-score signals refresh.",
                     },
+                    filteredDisplay,
                 );
                 return;
             }
 
             renderPagedCards({
                 container: ui.personalizedDealsGrid,
-                items: displayItems,
+                items: filteredDisplay.rows,
                 renderer: gameCardHtml,
                 visibleKey: "personalizedDealsGrid",
                 toggleButton: null,
@@ -9902,9 +10113,22 @@ input:focus-visible {
             const sectionItems = state.worthBuyingNow.length
                 ? state.worthBuyingNow
                 : state.dealRanked;
+            const filtered = filterDiscoveryFeedRows(sectionItems);
+            if (!filtered.rows.length) {
+                renderOwnedFilteredFeedEmpty(
+                    ui.worthBuyingGrid,
+                    "No worth-buying deals available right now.",
+                    {
+                        tone: "neutral",
+                        detail: "This section updates when high-conviction snapshot signals are detected.",
+                    },
+                    filtered,
+                );
+                return;
+            }
             renderPagedCards({
                 container: ui.worthBuyingGrid,
-                items: sectionItems,
+                items: filtered.rows,
                 renderer: gameCardHtml,
                 visibleKey: "worthBuyingGrid",
                 toggleButton: null,
@@ -9919,9 +10143,22 @@ input:focus-visible {
             const sectionItems = state.trendingNow.length
                 ? state.trendingNow
                 : (state.discoveryTrending.length ? state.discoveryTrending : state.trendingDeals);
+            const filtered = filterDiscoveryFeedRows(sectionItems);
+            if (!filtered.rows.length) {
+                renderOwnedFilteredFeedEmpty(
+                    ui.trendingDealsGrid,
+                    "No trending deal cards available right now.",
+                    {
+                        tone: "neutral",
+                        detail: "Trending cards repopulate as live player and deal momentum shifts.",
+                    },
+                    filtered,
+                );
+                return;
+            }
             renderPagedCards({
                 container: ui.trendingDealsGrid,
-                items: sectionItems,
+                items: filtered.rows,
                 renderer: gameCardHtml,
                 visibleKey: "trendingDealsGrid",
                 toggleButton: null,
@@ -9933,20 +10170,22 @@ input:focus-visible {
         }
 
         function renderNewHistoricalLows() {
-            if (!state.newHistoricalLows.length) {
-                renderEmpty(
+            const filtered = filterDiscoveryFeedRows(state.newHistoricalLows);
+            if (!filtered.rows.length) {
+                renderOwnedFilteredFeedEmpty(
                     ui.newHistoricalLowsGrid,
                     "No new all-time low prices in the last 24 hours.",
                     {
                         tone: "neutral",
                         detail: "Check back later as prices update throughout the day.",
                     },
+                    filtered,
                 );
                 return;
             }
             renderPagedCards({
                 container: ui.newHistoricalLowsGrid,
-                items: state.newHistoricalLows,
+                items: filtered.rows,
                 renderer: gameCardHtml,
                 visibleKey: "newHistoricalLowsGrid",
                 toggleButton: null,
@@ -12343,7 +12582,7 @@ try {
             if (payloadUserId && currentUserId && payloadUserId !== currentUserId) {
                 return false;
             }
-            const wishlistItems = uniqueGamesByName(payload?.wishlist || []);
+            const wishlistItems = uniqueGamesByName(payload?.owned || payload?.wishlist || []);
             const watchlistItems = uniqueGamesByName(payload?.watchlist || []);
             const alertItems = uniqueAlertSignals(payload?.alerts || []);
             let applied = false;
@@ -12399,6 +12638,7 @@ try {
                     if (applied) {
                         renderWishlist();
                         renderWatchlist();
+                        rerenderOwnedFilteredFeedSections();
                         renderAlerts();
                         syncCardActionButtonsFromState();
                     }
@@ -12428,8 +12668,9 @@ try {
             state.personalizedStatus.loading = true;
             try {
                 await ensureAuthRuntimeForUser(requestedUserId);
+                const includeOwnedParam = state.feedFilters?.showOwned ? "1" : "0";
                 const payload = await fetchJson(
-                    `/api/personalized-deals?user_id=${encodeURIComponent(requestedUserId)}&limit=${HOMEPAGE_SECTION_LIMITS.personalizedDeals}&summary=1`,
+                    `/api/personalized-deals?user_id=${encodeURIComponent(requestedUserId)}&limit=${HOMEPAGE_SECTION_LIMITS.personalizedDeals}&summary=1&include_owned=${includeOwnedParam}`,
                 );
                 if (String(CURRENT_USER_ID || "").trim() !== requestedUserId) {
                     return safeArray(state.personalizedDeals);
@@ -12494,7 +12735,7 @@ try {
             state.personalListStatus.wishlistError = null;
             try {
                 await ensureAuthRuntimeForUser(requestedUserId);
-                const payload = await fetchJson(`/wishlist/${encodeURIComponent(requestedUserId)}`);
+                const payload = await fetchJson(`/owned/${encodeURIComponent(requestedUserId)}`);
                 if (
                     requestId !== Number(state.personalListStatus.wishlistRequestId || 0)
                     || String(CURRENT_USER_ID || "").trim() !== requestedUserId
@@ -12584,6 +12825,7 @@ try {
                 : Promise.resolve(safeArray(state.wishlist));
             wishlistPromise.then(() => {
                 renderWishlist();
+                rerenderOwnedFilteredFeedSections();
                 syncCardActionButtonsFromState();
             });
 
@@ -13103,7 +13345,7 @@ try {
                 renderError(ui.dailyDigestList, "Failed to load daily digest.");
                 renderError(ui.opportunityRadarGrid, "Failed to load opportunity radar.");
                 renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");
-                renderError(ui.wishlistList, "Failed to load wishlist.");
+                renderError(ui.wishlistList, "Failed to load owned list.");
                 renderError(ui.watchlistList, "Failed to load watchlist.");
             }
         }
@@ -13174,11 +13416,11 @@ try {
             }
 
             if (target.game_id === null || !String(target.game_name || "").trim()) {
-                throw new Error("Wishlist actions require game_id and game_name");
+                throw new Error("Owned actions require game_id and game_name");
             }
             const inWishlist = isInWishlist(target.game_name, target.game_id);
             if (inWishlist) {
-                await fetchJson("/wishlist/remove", {
+                await fetchJson("/owned/remove", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -13188,7 +13430,7 @@ try {
                 });
                 emitTrackedSync("remove", "wishlist", target.game_id);
             } else {
-                await fetchJson("/wishlist/add", {
+                await fetchJson("/owned/add", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -13201,7 +13443,7 @@ try {
             await loadUserWishlist();
             renderWishlist();
             renderWatchlist();
-            renderPersonalizedDeals();
+            rerenderOwnedFilteredFeedSections();
             syncCardActionButtonsFromState();
             scheduleDashboardSnapshotPersist();
         }
@@ -14253,6 +14495,7 @@ try {
                 wireCatalogLifecycle();
                 wireAccountPanel();
                 wireTrackedPreviewToggles();
+                wireOwnedFeedToggle();
                 scheduleNonCriticalHomepageWireup();
 
                 ui.includeFreeCheckbox.checked = state.filters.includeFree;

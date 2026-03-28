@@ -1442,6 +1442,18 @@ def _is_game_watchlisted_for_user(session: Session, game_id: int, user_id: str |
     )
 
 
+def _is_game_owned_for_user(session: Session, game_id: int, user_id: str | None) -> bool:
+    normalized_user_id = normalize_user_id(user_id)
+    if _is_guest_user_id(normalized_user_id):
+        return False
+    return (
+        session.query(WishlistItem.id)
+        .filter(WishlistItem.user_id == normalized_user_id, WishlistItem.game_id == int(game_id))
+        .first()
+        is not None
+    )
+
+
 def _is_anonymous_user_id(value: str | None) -> bool:
     normalized = str(value or "").strip().lower()
     if not normalized:
@@ -2508,7 +2520,8 @@ def _build_share_deal_svg(snapshot: GameSnapshot, game_id: int) -> str:
 def _build_personalized_deal_item(
     snapshot: FeedProjectionRow,
     *,
-    wishlist_game_ids: set[int],
+    owned_game_ids: set[int],
+    exclude_owned: bool,
     watchlist_game_ids: set[int],
     target_game_ids: set[int],
     recent_game_ids: set[int],
@@ -2528,7 +2541,9 @@ def _build_personalized_deal_item(
 
     use_personal_context = personalization_enabled and has_personal_seed_data
     game_id = int(snapshot.game_id)
-    in_wishlist = game_id in wishlist_game_ids
+    is_owned = game_id in owned_game_ids
+    if exclude_owned and is_owned:
+        return None
     in_watchlist = game_id in watchlist_game_ids
     in_target_watch = game_id in target_game_ids
     recently_tracked = game_id in recent_game_ids
@@ -2552,18 +2567,17 @@ def _build_personalized_deal_item(
     score = 0.0
     reasons: list[str] = []
 
-    if use_personal_context and in_wishlist:
-        score += 52.0
-        _append_unique_reason(reasons, "In your wishlist")
     if use_personal_context and in_watchlist:
         score += 46.0
         _append_unique_reason(reasons, "In your watchlist")
-    if use_personal_context and in_target_watch and not in_wishlist and not in_watchlist:
+    if use_personal_context and in_target_watch and not in_watchlist:
         score += 32.0
         _append_unique_reason(reasons, "In your price alerts")
-    if use_personal_context and recently_tracked and not in_wishlist and not in_watchlist:
+    if use_personal_context and recently_tracked and not in_watchlist:
         score += 10.0
         _append_unique_reason(reasons, "Recently tracked by you")
+    if is_owned and not exclude_owned:
+        _append_unique_reason(reasons, "Already in your owned library")
 
     # Core ranking factors for the personalized feed.
     score += min(deal_score, 100.0) * 0.36
@@ -2627,7 +2641,7 @@ def _build_personalized_deal_item(
         _append_unique_reason(reasons, "High deal score")
 
     has_strong_signal = (
-        (use_personal_context and (in_wishlist or in_watchlist or in_target_watch or recently_tracked))
+        (use_personal_context and (in_watchlist or in_target_watch or recently_tracked))
         or recent_event_count > 0
         or discount >= 20
         or near_historical_low
@@ -3965,7 +3979,9 @@ def _build_snapshot_game_detail_payload(
         "deal_score": deal_score,
         "deal_label": deal_label,
         "deal_summary": deal_summary,
+        "owned_count": None,
         "wishlist_count": None,
+        "owned": False,
         "watchlisted": False,
         "market_insights": {
             "historical_low_price": historical_low_price,
@@ -4168,6 +4184,18 @@ def _ensure_game_detail_contract(payload: dict) -> dict:
     normalized.setdefault("market_insights", {})
     if not isinstance(normalized.get("market_insights"), dict):
         normalized["market_insights"] = {}
+    owned_count = safe_num(
+        _first_non_null(
+            normalized.get("owned_count"),
+            normalized.get("wishlist_count"),
+        ),
+        default=-1.0,
+    )
+    normalized_owned_count = int(round(owned_count)) if owned_count >= 0 else None
+    normalized["owned_count"] = normalized_owned_count
+    normalized["wishlist_count"] = normalized_owned_count
+    normalized["owned"] = bool(normalized.get("owned"))
+    normalized["watchlisted"] = bool(normalized.get("watchlisted"))
     if normalized["game_id"] > 0:
         normalized["share_card_url"] = normalized.get("share_card_url") or _build_canonical_url(
             f"/share/deal/{normalized['game_id']}"
@@ -4211,7 +4239,8 @@ def build_game_detail_payload(session, game: Game, user_id: str | None = None):
     banner_url = build_steam_banner_url(game.store_url, game.appid)
     release_dt = parse_release_date_to_datetime(game.release_date_text)
     watchlisted = _is_game_watchlisted_for_user(session, int(game.id), user_id)
-    wishlist_count = session.query(func.count(WishlistItem.id)).filter(WishlistItem.game_id == game.id).scalar() or 0
+    owned = _is_game_owned_for_user(session, int(game.id), user_id)
+    owned_count = session.query(func.count(WishlistItem.id)).filter(WishlistItem.game_id == game.id).scalar() or 0
 
     return {
         "id": game.id,
@@ -4237,7 +4266,9 @@ def build_game_detail_payload(session, game: Game, user_id: str | None = None):
         "deal_score": deal["deal_score"],
         "deal_label": deal["label"],
         "deal_summary": deal["summary"],
-        "wishlist_count": int(wishlist_count),
+        "owned_count": int(owned_count),
+        "wishlist_count": int(owned_count),
+        "owned": owned,
         "watchlisted": watchlisted,
         "market_insights": {
             "historical_low_price": historical_low_row.price if historical_low_row else None,
@@ -6820,6 +6851,7 @@ def _build_game_detail_response_payload(session: Session, game: Game, viewer_use
     else:
         payload = build_game_detail_payload(session, game, user_id=viewer_user_id)
         payload["share_card_url"] = _build_canonical_url(f"/share/deal/{game_id}")
+    payload["owned"] = _is_game_owned_for_user(session, game_id, viewer_user_id)
     payload["watchlisted"] = _is_game_watchlisted_for_user(session, game_id, viewer_user_id)
     return _ensure_game_detail_contract(payload)
 
@@ -7578,6 +7610,7 @@ def list_alerts():
 
 
 @app.get("/wishlist")
+@app.get("/owned")
 def list_wishlist(request: Request):
     normalized_user_id = resolve_request_user_id(request)
     session = Session()
@@ -7731,6 +7764,7 @@ def get_home_personal_summary(
         return {
             "user_id": normalized_user_id,
             "personalized": False,
+            "owned": [],
             "wishlist": [],
             "watchlist": [],
             "alerts": [],
@@ -7828,6 +7862,7 @@ def get_home_personal_summary(
         return {
             "user_id": normalized_user_id,
             "personalized": True,
+            "owned": wishlist_payload,
             "wishlist": wishlist_payload,
             "watchlist": watchlist_payload,
             "alerts": alerts_payload,
@@ -7963,13 +7998,13 @@ def get_daily_deal_digest(
 
     session = ReadSessionLocal()
     try:
-        wishlist_game_ids: set[int] = set()
+        owned_game_ids: set[int] = set()
         watchlist_game_ids: set[int] = set()
         target_game_ids: set[int] = set()
         token_weights: dict[str, float] = {}
 
         if personalization_enabled:
-            wishlist_game_ids = {
+            owned_game_ids = {
                 int(game_id)
                 for game_id, in (
                     session.query(WishlistItem.game_id)
@@ -7997,7 +8032,7 @@ def get_daily_deal_digest(
                 if game_id is not None
             }
 
-            seed_game_ids = wishlist_game_ids | watchlist_game_ids | target_game_ids
+            seed_game_ids = watchlist_game_ids | target_game_ids
             if seed_game_ids:
                 seed_rows = [
                     (int(game_id), tags, genres)
@@ -8010,7 +8045,7 @@ def get_daily_deal_digest(
                 ]
                 token_weights = _build_personalization_token_weights(
                     seed_rows,
-                    wishlist_game_ids=wishlist_game_ids,
+                    wishlist_game_ids=set(),
                     watchlist_game_ids=watchlist_game_ids,
                     target_game_ids=target_game_ids,
                     recent_game_ids=set(),
@@ -8023,13 +8058,12 @@ def get_daily_deal_digest(
             score = 0.0
             reasons: list[str] = []
             game_id = int(snapshot.game_id)
-            if game_id in wishlist_game_ids:
-                score += 34.0
-                _append_unique_reason(reasons, "In your wishlist")
+            if game_id in owned_game_ids:
+                return 0.0, []
             if game_id in watchlist_game_ids:
                 score += 30.0
                 _append_unique_reason(reasons, "In your watchlist")
-            if game_id in target_game_ids and game_id not in wishlist_game_ids and game_id not in watchlist_game_ids:
+            if game_id in target_game_ids and game_id not in watchlist_game_ids:
                 score += 18.0
                 _append_unique_reason(reasons, "In your price alerts")
 
@@ -8134,6 +8168,8 @@ def get_daily_deal_digest(
         for event_row, snapshot in recent_event_rows:
             if snapshot is None:
                 continue
+            if int(snapshot.game_id) in owned_game_ids:
+                continue
             event_type = str(event_row.event_type or "").strip().upper()
             metadata = event_row.metadata_json if isinstance(event_row.metadata_json, dict) else {}
             event_time = _coerce_utc_datetime(event_row.created_at) or now
@@ -8231,6 +8267,8 @@ def get_daily_deal_digest(
                 keep_best_by_game(trending_by_game, int(snapshot.game_id), priority, item)
 
         for snapshot in buy_now_rows:
+            if int(snapshot.game_id) in owned_game_ids:
+                continue
             personalization_score, personalization_reasons = personalization_context(snapshot)
             buy_score = safe_num(snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score, 0.0)
             deal_score = safe_num(snapshot.deal_score, 0.0)
@@ -8263,6 +8301,8 @@ def get_daily_deal_digest(
             keep_best_by_game(buy_now_by_game, int(snapshot.game_id), priority, item)
 
         for snapshot in trending_rows:
+            if int(snapshot.game_id) in owned_game_ids:
+                continue
             personalization_score, personalization_reasons = personalization_context(snapshot)
             trend_strength = (
                 safe_num(snapshot.trending_score, 0.0) * 0.9
@@ -8292,6 +8332,8 @@ def get_daily_deal_digest(
 
         for alert_row, snapshot in recent_alert_rows:
             if snapshot is None:
+                continue
+            if int(snapshot.game_id) in owned_game_ids:
                 continue
             alert_type = str(alert_row.alert_type or "").strip().upper()
             if not alert_type:
@@ -8615,6 +8657,7 @@ def list_personalized_deals(
     user_id: str = Query(default=DEFAULT_USER_ID),
     limit: int = Query(default=20, ge=1, le=120),
     summary: bool = Query(default=False),
+    include_owned: bool = Query(default=False),
 ):
     started = _start_timer()
     normalized_user_id = resolve_request_user_id(request, user_id)
@@ -8623,17 +8666,18 @@ def list_personalized_deals(
     session = ReadSessionLocal()
     try:
         normalized_limit = max(1, int(limit))
+        exclude_owned = not bool(include_owned)
         now = utc_now()
         recent_cutoff = now - datetime.timedelta(days=21)
         event_cutoff = now - datetime.timedelta(days=30)
         _, home_payload = _read_dashboard_cache(session)
         protected_deal_ids = _collect_protected_deal_game_ids(home_payload if isinstance(home_payload, dict) else {})
 
-        wishlist_rows: list[tuple[int | None, datetime.datetime | None]] = []
+        owned_rows: list[tuple[int | None, datetime.datetime | None]] = []
         watchlist_rows: list[tuple[int | None, datetime.datetime | None]] = []
         target_rows: list[tuple[int | None, datetime.datetime | None]] = []
         if personalization_enabled:
-            wishlist_rows = (
+            owned_rows = (
                 session.query(WishlistItem.game_id, WishlistItem.created_at)
                 .filter(WishlistItem.user_id == normalized_user_id)
                 .all()
@@ -8649,12 +8693,18 @@ def list_personalized_deals(
                 .all()
             )
 
-        wishlist_game_ids = {int(game_id) for game_id, _ in wishlist_rows if game_id is not None}
+        owned_game_ids = {int(game_id) for game_id, _ in owned_rows if game_id is not None}
         watchlist_game_ids = {int(game_id) for game_id, _ in watchlist_rows if game_id is not None}
         target_game_ids = {int(game_id) for game_id, _ in target_rows if game_id is not None}
-        has_personal_seed_data = bool(wishlist_game_ids or watchlist_game_ids or target_game_ids)
+        has_personal_seed_data = bool(watchlist_game_ids or target_game_ids)
         if not personalization_enabled or not has_personal_seed_data:
             fallback_items = _build_personalized_fallback_items(session, normalized_limit)
+            if exclude_owned and owned_game_ids:
+                fallback_items = [
+                    item
+                    for item in fallback_items
+                    if int(safe_num(item.get("game_id") or item.get("id"), 0.0)) not in owned_game_ids
+                ]
             return {
                 "user_id": normalized_user_id,
                 "personalized": False,
@@ -8665,7 +8715,7 @@ def list_personalized_deals(
                 "generated_at": now.isoformat(),
             }
         if bool(summary):
-            seed_game_id_list = list(wishlist_game_ids | watchlist_game_ids | target_game_ids)
+            seed_game_id_list = list(watchlist_game_ids | target_game_ids)
             seed_candidate_limit = max(normalized_limit, min(36, max(12, len(seed_game_id_list) * 6)))
             seed_rows = _query_release_feed_rows(
                 session,
@@ -8691,9 +8741,12 @@ def list_personalized_deals(
             )
             personalized_seed_items: list[dict] = []
             for snapshot in seed_rows:
+                if exclude_owned and int(snapshot.game_id) in owned_game_ids:
+                    continue
                 item = _build_personalized_deal_item(
                     snapshot,
-                    wishlist_game_ids=wishlist_game_ids,
+                    owned_game_ids=owned_game_ids,
+                    exclude_owned=exclude_owned,
                     watchlist_game_ids=watchlist_game_ids,
                     target_game_ids=target_game_ids,
                     recent_game_ids=set(),
@@ -8716,7 +8769,12 @@ def list_personalized_deals(
                 if not isinstance(item, dict):
                     continue
                 game_id = int(safe_num(item.get("game_id") or item.get("id"), 0.0))
-                if game_id <= 0 or game_id in seen_game_ids or game_id in protected_deal_ids:
+                if (
+                    game_id <= 0
+                    or game_id in seen_game_ids
+                    or game_id in protected_deal_ids
+                    or (exclude_owned and game_id in owned_game_ids)
+                ):
                     continue
                 merged_items.append(item)
                 seen_game_ids.add(game_id)
@@ -8738,7 +8796,7 @@ def list_personalized_deals(
             }
 
         recent_touch_by_game: dict[int, datetime.datetime] = {}
-        for game_id, touched_at in [*wishlist_rows, *watchlist_rows, *target_rows]:
+        for game_id, touched_at in [*watchlist_rows, *target_rows]:
             if game_id is None:
                 continue
             touched_dt = _coerce_utc_datetime(touched_at)
@@ -8754,7 +8812,7 @@ def list_personalized_deals(
             if touched_at >= recent_cutoff
         }
 
-        seed_game_ids = wishlist_game_ids | watchlist_game_ids | target_game_ids
+        seed_game_ids = watchlist_game_ids | target_game_ids
         seed_rows: list[tuple[int, str | None, str | None]] = []
         if personalization_enabled and seed_game_ids:
             seed_rows = [
@@ -8768,7 +8826,7 @@ def list_personalized_deals(
 
         token_weights = _build_personalization_token_weights(
             seed_rows,
-            wishlist_game_ids=wishlist_game_ids,
+            wishlist_game_ids=set(),
             watchlist_game_ids=watchlist_game_ids,
             target_game_ids=target_game_ids,
             recent_game_ids=recent_game_ids,
@@ -8869,11 +8927,12 @@ def list_personalized_deals(
         scored_rows: list[tuple[float, datetime.datetime, dict]] = []
         for snapshot in candidate_rows:
             game_id = int(snapshot.game_id)
-            if game_id in protected_deal_ids:
+            if game_id in protected_deal_ids or (exclude_owned and game_id in owned_game_ids):
                 continue
             item = _build_personalized_deal_item(
                 snapshot,
-                wishlist_game_ids=wishlist_game_ids,
+                owned_game_ids=owned_game_ids,
+                exclude_owned=exclude_owned,
                 watchlist_game_ids=watchlist_game_ids,
                 target_game_ids=target_game_ids,
                 recent_game_ids=recent_game_ids,
@@ -8940,11 +8999,12 @@ def list_personalized_deals(
             seen_game_ids = {int(safe_num(item.get("game_id"), 0.0)) for _, _, item in scored_rows}
             for snapshot in fallback_rows:
                 game_id = int(snapshot.game_id)
-                if game_id in seen_game_ids or game_id in protected_deal_ids:
+                if game_id in seen_game_ids or game_id in protected_deal_ids or (exclude_owned and game_id in owned_game_ids):
                     continue
                 item = _build_personalized_deal_item(
                     snapshot,
-                    wishlist_game_ids=wishlist_game_ids,
+                    owned_game_ids=owned_game_ids,
+                    exclude_owned=exclude_owned,
                     watchlist_game_ids=watchlist_game_ids,
                     target_game_ids=target_game_ids,
                     recent_game_ids=recent_game_ids,
@@ -8967,7 +9027,12 @@ def list_personalized_deals(
         for _, _, item in scored_rows:
             compact_item = _compact_personalized_feed_item(item)
             game_id = int(safe_num(compact_item.get("game_id") or compact_item.get("id"), 0.0))
-            if game_id <= 0 or game_id in seen_items or game_id in protected_deal_ids:
+            if (
+                game_id <= 0
+                or game_id in seen_items
+                or game_id in protected_deal_ids
+                or (exclude_owned and game_id in owned_game_ids)
+            ):
                 continue
             items.append(compact_item)
             seen_items.add(game_id)
@@ -9066,6 +9131,7 @@ def unsubscribe_notifications(payload: PushUnsubscribeRequest):
 
 
 @app.post("/wishlist")
+@app.post("/owned")
 def create_wishlist_item(payload: ListItemCreateRequest, request: Request):
     normalized_user_id = resolve_request_user_id(request)
     session = Session()
@@ -9095,6 +9161,7 @@ def create_wishlist_item(payload: ListItemCreateRequest, request: Request):
 
 
 @app.delete("/wishlist/{game_name}")
+@app.delete("/owned/{game_name}")
 def delete_wishlist_item(game_name: str, request: Request):
     normalized_user_id = resolve_request_user_id(request)
     session = Session()
@@ -9117,6 +9184,7 @@ def delete_wishlist_item(game_name: str, request: Request):
 
 
 @app.post("/wishlist/add")
+@app.post("/owned/add")
 def wishlist_add(payload: WishlistMutationRequest, request: Request):
     session = Session()
     try:
@@ -9163,6 +9231,7 @@ def wishlist_add(payload: WishlistMutationRequest, request: Request):
 
 
 @app.post("/wishlist/remove")
+@app.post("/owned/remove")
 def wishlist_remove(payload: WishlistMutationRequest, request: Request):
     session = Session()
     try:
@@ -9185,6 +9254,7 @@ def wishlist_remove(payload: WishlistMutationRequest, request: Request):
 
 
 @app.get("/wishlist/{user_id}")
+@app.get("/owned/{user_id}")
 def list_user_wishlist(request: Request, user_id: str):
     normalized_user_id = resolve_request_user_id(request, user_id)
     session = Session()
@@ -9229,6 +9299,7 @@ def merge_guest_lists(payload: MergeGuestListsRequest, request: Request):
             "ok": True,
             "user_id": authenticated_user_id,
             "guest_user_id": guest_user_id,
+            "merged_owned_count": 0,
             "merged_wishlist_count": 0,
             "merged_watchlist_count": 0,
         }
@@ -9332,8 +9403,10 @@ def merge_guest_lists(payload: MergeGuestListsRequest, request: Request):
             "ok": True,
             "user_id": authenticated_user_id,
             "guest_user_id": guest_user_id,
+            "merged_owned_count": merged_wishlist_count,
             "merged_wishlist_count": merged_wishlist_count,
             "merged_watchlist_count": merged_watchlist_count,
+            "owned": wishlist_items,
             "wishlist": wishlist_items,
             "watchlist": watchlist_items,
         }

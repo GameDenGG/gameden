@@ -27,7 +27,7 @@
   "@id": "https://gameden.gg/watchlist#page",
   "url": "https://gameden.gg/watchlist",
   "name": "GameDen.gg - Watchlist",
-  "description": "Track watched and wishlisted games with snapshot-backed market signals across stores."
+  "description": "Track watched and owned games with snapshot-backed market signals across stores."
 }
 </script>
 <link rel="preconnect" href="https://cdn.cloudflare.steamstatic.com" crossorigin>
@@ -544,20 +544,20 @@ body {
         <div class="actions">
             <button class="btn" id="refreshBtn" type="button">Refresh</button>
             <a class="btn" id="openWatchlistBtn" href="/watchlist?tab=watchlist">Open Watchlist</a>
-            <a class="btn" id="openWishlistBtn" href="/watchlist?tab=wishlist">Open Wishlist</a>
+            <a class="btn" id="openOwnedBtn" href="/watchlist?tab=owned">Open Owned</a>
             <a class="btn" href="/">Back to dashboard</a>
         </div>
     </div>
 
     <section class="hero">
         <h1>Track What Matters</h1>
-        <p>Watchlist and wishlist entries are unified here so tracked games stay in one coherent, snapshot-backed workflow.</p>
+        <p>Watch and Owned entries are unified here so tracked games stay in one coherent, snapshot-backed workflow.</p>
         <div class="meta-row">User scope: <strong id="userScope"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-30" aria-hidden="true"></span></strong></div>
     </section>
 
     <nav class="view-toggle" id="viewToggle" aria-label="Tracked items view">
         <a class="btn" id="watchTabBtn" href="/watchlist?tab=watchlist">Watchlist</a>
-        <a class="btn" id="wishTabBtn" href="/watchlist?tab=wishlist">Wishlist</a>
+        <a class="btn" id="ownedTabBtn" href="/watchlist?tab=owned">Owned</a>
     </nav>
 
     <section id="content"></section>
@@ -569,7 +569,8 @@ const DASHBOARD_SNAPSHOT_STORAGE_KEY = "gameden.dashboard.snapshot.v1";
 const TRACKED_SYNC_STORAGE_KEY = "gameden.tracked.sync.v1";
 const AUTH_SYNC_STORAGE_KEY = "gameden.auth.sync.v1";
 const TRACKED_TAB_WATCHLIST = "watchlist";
-const TRACKED_TAB_WISHLIST = "wishlist";
+const TRACKED_TAB_OWNED = "owned";
+const TRACKED_TAB_WISHLIST_LEGACY = "wishlist";
 
 function getCurrentUserId() {
     const runtime = window.GameDenSite;
@@ -605,14 +606,15 @@ function getCurrentUserId() {
 
 let CURRENT_USER_ID = getCurrentUserId();
 const urlParams = new URLSearchParams(window.location.search || "");
-const ACTIVE_TAB = String(urlParams.get("tab") || TRACKED_TAB_WATCHLIST).trim().toLowerCase() === TRACKED_TAB_WISHLIST
-    ? TRACKED_TAB_WISHLIST
+const requestedTab = String(urlParams.get("tab") || TRACKED_TAB_WATCHLIST).trim().toLowerCase();
+const ACTIVE_TAB = requestedTab === TRACKED_TAB_OWNED || requestedTab === TRACKED_TAB_WISHLIST_LEGACY
+    ? TRACKED_TAB_OWNED
     : TRACKED_TAB_WATCHLIST;
 const contentEl = document.getElementById("content");
 const watchTabBtn = document.getElementById("watchTabBtn");
-const wishTabBtn = document.getElementById("wishTabBtn");
+const ownedTabBtn = document.getElementById("ownedTabBtn");
 const openWatchlistBtn = document.getElementById("openWatchlistBtn");
-const openWishlistBtn = document.getElementById("openWishlistBtn");
+const openOwnedBtn = document.getElementById("openOwnedBtn");
 const skeletonUi = window.GameDenSite && window.GameDenSite.skeleton;
 let loadWatchlistRequestId = 0;
 
@@ -630,16 +632,16 @@ function renderWatchlistSkeleton() {
 
 function syncTabUi() {
     if (watchTabBtn) watchTabBtn.classList.toggle("is-active", ACTIVE_TAB === TRACKED_TAB_WATCHLIST);
-    if (wishTabBtn) wishTabBtn.classList.toggle("is-active", ACTIVE_TAB === TRACKED_TAB_WISHLIST);
+    if (ownedTabBtn) ownedTabBtn.classList.toggle("is-active", ACTIVE_TAB === TRACKED_TAB_OWNED);
     if (openWatchlistBtn) openWatchlistBtn.classList.toggle("is-active", ACTIVE_TAB === TRACKED_TAB_WATCHLIST);
-    if (openWishlistBtn) openWishlistBtn.classList.toggle("is-active", ACTIVE_TAB === TRACKED_TAB_WISHLIST);
+    if (openOwnedBtn) openOwnedBtn.classList.toggle("is-active", ACTIVE_TAB === TRACKED_TAB_OWNED);
 }
 
 function normalizeWatchlistItems(payload) {
     return Array.isArray(payload?.items) ? payload.items : [];
 }
 
-function normalizeWishlistItems(payload) {
+function normalizeOwnedItems(payload) {
     return Array.isArray(payload) ? payload : [];
 }
 
@@ -648,7 +650,7 @@ function patchDashboardSnapshotTrackedList(action, list, gameId) {
     const normalizedList = String(list || "").trim().toLowerCase();
     const normalizedGameId = Number(gameId);
     if (!(normalizedAction === "remove" || normalizedAction === "add")) return;
-    if (!(normalizedList === TRACKED_TAB_WATCHLIST || normalizedList === TRACKED_TAB_WISHLIST)) return;
+    if (!(normalizedList === TRACKED_TAB_WATCHLIST || normalizedList === TRACKED_TAB_WISHLIST_LEGACY)) return;
     if (!Number.isFinite(normalizedGameId) || normalizedGameId <= 0) return;
     try {
         const raw = sessionStorage.getItem(DASHBOARD_SNAPSHOT_STORAGE_KEY);
@@ -678,7 +680,7 @@ function emitTrackedSync(action, list, gameId) {
     const normalizedList = String(list || "").trim().toLowerCase();
     const normalizedGameId = Number(gameId);
     if (!(normalizedAction === "remove" || normalizedAction === "add")) return;
-    if (!(normalizedList === TRACKED_TAB_WATCHLIST || normalizedList === TRACKED_TAB_WISHLIST)) return;
+    if (!(normalizedList === TRACKED_TAB_WATCHLIST || normalizedList === TRACKED_TAB_WISHLIST_LEGACY)) return;
     if (!Number.isFinite(normalizedGameId) || normalizedGameId <= 0) return;
     try {
         const payload = {
@@ -838,11 +840,11 @@ async function removeWatch(gameId) {
     });
 }
 
-async function removeWish(gameId) {
+async function removeOwned(gameId) {
     const requestedUserId = String(CURRENT_USER_ID || "").trim();
     await ensureAuthRuntimeForCurrentUser();
     if (String(CURRENT_USER_ID || "").trim() !== requestedUserId) return;
-    await fetchJson("/wishlist/remove", {
+    await fetchJson("/owned/remove", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -856,8 +858,8 @@ function render(items, alertsByGame = new Map(), tab = TRACKED_TAB_WATCHLIST) {
     if (!items.length) {
         renderTrackedState(
             "empty",
-            tab === TRACKED_TAB_WISHLIST
-                ? "No wishlist games yet. Save games on the dashboard to keep them here."
+            tab === TRACKED_TAB_OWNED
+                ? "No owned games yet. Mark games as Owned from the dashboard or game pages."
                 : "No watched games yet. Add titles from the homepage or game pages to start tracking signals.",
         );
         return;
@@ -890,8 +892,8 @@ function render(items, alertsByGame = new Map(), tab = TRACKED_TAB_WATCHLIST) {
                     });
                 }
                 const signals = mergedSignals.slice(0, 3);
-                const removeAttr = tab === TRACKED_TAB_WISHLIST
-                    ? `data-remove-wish="${Number(item.game_id || 0)}"`
+                const removeAttr = tab === TRACKED_TAB_OWNED
+                    ? `data-remove-owned="${Number(item.game_id || 0)}"`
                     : `data-remove-watch="${Number(item.game_id || 0)}"`;
                 const gameId = Number(item.game_id || 0);
                 const runtime = window.GameDenSite;
@@ -936,7 +938,7 @@ function render(items, alertsByGame = new Map(), tab = TRACKED_TAB_WATCHLIST) {
                             <div class="signals">
                                 ${signals.length
                                     ? signals.map((signal) => `<span class="signal ${signalTone(signal)}">${escapeHtml(signal.label || signal.type || "Signal")}</span>`).join("")
-                                    : `<span class="signal">${tab === TRACKED_TAB_WISHLIST ? "Wishlisted" : "Watching for new signals"}</span>`}
+                                    : `<span class="signal">${tab === TRACKED_TAB_OWNED ? "Owned" : "Watching for new signals"}</span>`}
                             </div>
                             <div class="card-actions">
                                 <a class="btn" href="${gameHref}">Open game</a>
@@ -967,16 +969,16 @@ function render(items, alertsByGame = new Map(), tab = TRACKED_TAB_WATCHLIST) {
         });
     });
 
-    contentEl.querySelectorAll("[data-remove-wish]").forEach((button) => {
+    contentEl.querySelectorAll("[data-remove-owned]").forEach((button) => {
         button.addEventListener("click", async () => {
-            const gameId = Number(button.getAttribute("data-remove-wish") || 0);
+            const gameId = Number(button.getAttribute("data-remove-owned") || 0);
             if (!Number.isFinite(gameId) || gameId <= 0) return;
             if (button.disabled || button.classList.contains("is-pending")) return;
             setActionPending(button, true);
             try {
-                await removeWish(gameId);
-                patchDashboardSnapshotTrackedList("remove", TRACKED_TAB_WISHLIST, gameId);
-                emitTrackedSync("remove", TRACKED_TAB_WISHLIST, gameId);
+                await removeOwned(gameId);
+                patchDashboardSnapshotTrackedList("remove", TRACKED_TAB_WISHLIST_LEGACY, gameId);
+                emitTrackedSync("remove", TRACKED_TAB_WISHLIST_LEGACY, gameId);
                 await loadWatchlist();
             } catch (error) {
                 console.error(error);
@@ -995,17 +997,17 @@ async function loadWatchlist() {
     renderWatchlistSkeleton();
     try {
         await ensureAuthRuntimeForCurrentUser();
-        const [watchlistPayload, wishlistPayload, alertsPayload] = await Promise.all([
+        const [watchlistPayload, ownedPayload, alertsPayload] = await Promise.all([
             fetchJson(`/api/watchlist?user_id=${encodeURIComponent(requestedUserId)}`),
-            fetchJson(`/wishlist/${encodeURIComponent(requestedUserId)}`),
+            fetchJson(`/owned/${encodeURIComponent(requestedUserId)}`),
             fetchJson(`/api/alerts?user_id=${encodeURIComponent(requestedUserId)}&limit=120`).catch(() => ({ items: [] })),
         ]);
         if (requestId !== loadWatchlistRequestId || String(CURRENT_USER_ID || "").trim() !== requestedUserId) {
             return false;
         }
         const watchlistItems = normalizeWatchlistItems(watchlistPayload);
-        const wishlistItems = normalizeWishlistItems(wishlistPayload);
-        const items = ACTIVE_TAB === TRACKED_TAB_WISHLIST ? wishlistItems : watchlistItems;
+        const ownedItems = normalizeOwnedItems(ownedPayload);
+        const items = ACTIVE_TAB === TRACKED_TAB_OWNED ? ownedItems : watchlistItems;
         const alertsByGame = buildAlertMap(Array.isArray(alertsPayload?.items) ? alertsPayload.items : []);
         render(items, alertsByGame, ACTIVE_TAB);
         return true;

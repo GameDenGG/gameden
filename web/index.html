@@ -719,11 +719,11 @@ select {
     font-weight: 800;
     text-decoration: none;
     transition:
-        transform 0.16s ease,
-        border-color 0.18s ease,
-        background 0.18s ease,
-        box-shadow 0.18s ease,
-        color 0.18s ease;
+        transform 0.14s ease,
+        border-color 0.16s ease,
+        background 0.16s ease,
+        box-shadow 0.16s ease,
+        color 0.16s ease;
     will-change: transform;
 }
 
@@ -734,16 +734,16 @@ select {
 .card-action-btn:hover {
     border-color: rgba(121, 168, 255, 0.5);
     background: rgba(121, 168, 255, 0.16);
-    box-shadow: 0 10px 20px rgba(6, 14, 28, 0.24);
-    transform: translateY(-1px);
+    box-shadow: 0 8px 16px rgba(6, 14, 28, 0.22);
+    transform: translateY(-0.5px);
 }
 
 .secondary-btn:active,
 .panel-action:active,
 .inline-toggle-btn:active,
 .show-all-btn:active {
-    transform: translateY(0) scale(0.985);
-    box-shadow: 0 5px 10px rgba(6, 14, 28, 0.18);
+    transform: translateY(0);
+    box-shadow: 0 4px 8px rgba(6, 14, 28, 0.16);
 }
 
 button:focus-visible,
@@ -778,7 +778,7 @@ input:focus-visible {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 340px;
     grid-template-areas: "main rail";
-    gap: 20px;
+    gap: 22px;
     align-items: start;
     width: 100%;
     max-width: 100%;
@@ -796,7 +796,7 @@ input:focus-visible {
 
 .lower-sections {
     display: grid;
-    gap: 16px;
+    gap: 18px;
     align-content: start;
     min-width: 0;
     width: 100%;
@@ -809,7 +809,7 @@ input:focus-visible {
 .homepage-main-column,
 .homepage-right-rail {
     display: grid;
-    gap: 16px;
+    gap: 18px;
     align-content: start;
     width: 100%;
     min-width: 0;
@@ -828,6 +828,7 @@ input:focus-visible {
 .homepage-right-rail {
     grid-area: rail;
     grid-auto-rows: min-content;
+    gap: 14px;
     max-width: none;
     position: static;
     margin: 0;
@@ -891,7 +892,7 @@ input:focus-visible {
     justify-content: flex-start;
     align-self: start;
     width: fit-content;
-    margin-bottom: -2px;
+    margin-bottom: 0;
     padding: 6px 12px;
     border-radius: 999px;
     border: 1px solid rgba(121, 168, 255, 0.26);
@@ -941,14 +942,14 @@ input:focus-visible {
 .discovery-tabs-title {
     margin: 0;
     font-family: var(--font-display);
-    font-size: 24px;
+    font-size: 23px;
     line-height: 1.04;
     letter-spacing: -0.03em;
 }
 
 .discovery-tabs-subtitle {
-    color: var(--muted);
-    font-size: 12px;
+    color: rgba(154, 182, 230, 0.88);
+    font-size: 11px;
     line-height: 1.45;
 }
 
@@ -967,6 +968,28 @@ input:focus-visible {
     border-color: rgba(110, 221, 163, 0.45);
     background: rgba(110, 221, 163, 0.12);
     color: #c8f6df;
+}
+
+#wishlistPanel .panel-head-actions {
+    gap: 7px;
+}
+
+#wishlistPanel .discovery-owned-filter-btn {
+    min-height: 32px;
+    padding: 7px 10px;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+}
+
+#wishlistPanel .panel-action {
+    min-height: 32px;
+    padding: 7px 10px;
+}
+
+#wishlistPanel .panel-subtitle,
+#watchlistPanel .panel-subtitle {
+    color: rgba(154, 182, 230, 0.76);
+    line-height: 1.4;
 }
 
 .discovery-tabs-list {
@@ -1042,16 +1065,17 @@ input:focus-visible {
     max-width: 100%;
     min-width: 0;
     border-radius: 24px;
-    border: 1px solid rgba(121, 168, 255, 0.22);
+    border: 1px solid rgba(121, 168, 255, 0.2);
     background: linear-gradient(180deg, rgba(13, 24, 43, 0.9), rgba(9, 17, 31, 0.95));
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 22px 50px rgba(2, 7, 20, 0.42);
     overflow: hidden;
     scroll-margin-top: 138px;
 }
 
 .panel-secondary-intel {
-    border-color: rgba(121, 168, 255, 0.17);
-    box-shadow: 0 16px 34px rgba(2, 7, 20, 0.26);
+    border-color: rgba(121, 168, 255, 0.14);
+    background: linear-gradient(180deg, rgba(11, 20, 36, 0.88), rgba(8, 15, 28, 0.94));
+    box-shadow: 0 12px 28px rgba(2, 7, 20, 0.24);
 }
 
 .panel-secondary-intel::before {
@@ -1087,12 +1111,12 @@ input:focus-visible {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 14px;
+    gap: 12px;
     min-width: 0;
     max-width: 100%;
-    padding: 16px 16px 0;
-    border-bottom: 1px solid rgba(121, 168, 255, 0.12);
-    padding-bottom: 9px;
+    padding: 17px 16px 0;
+    border-bottom: 1px solid rgba(121, 168, 255, 0.1);
+    padding-bottom: 10px;
 }
 
 .panel-head > * {
@@ -1101,6 +1125,14 @@ input:focus-visible {
 
 .panel-head .row-nav {
     align-self: flex-start;
+}
+
+.panel-head-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 #recommendedForYouPanel .panel-head {
@@ -1124,20 +1156,20 @@ input:focus-visible {
 .panel-title {
     margin: 0;
     font-family: var(--font-display);
-    font-size: 22px;
-    letter-spacing: -0.03em;
+    font-size: 21px;
+    letter-spacing: -0.022em;
     line-height: 1.05;
 }
 
 .panel-subtitle {
-    margin-top: 5px;
-    color: var(--muted);
-    font-size: 12px;
+    margin-top: 4px;
+    color: rgba(154, 182, 230, 0.82);
+    font-size: 11px;
     line-height: 1.45;
 }
 
 .panel-body {
-    padding: 12px 16px 15px;
+    padding: 13px 16px 16px;
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -1174,6 +1206,26 @@ input:focus-visible {
 .panel-deal-radar .panel-title { color: #ffe1b8; }
 .panel-personal .panel-title { color: #e1d6ff; }
 .panel-activity .panel-title { color: #ffe2ba; }
+
+#bestDealsPanel,
+#opportunitiesPanel,
+#recommendedForYouPanel {
+    border-color: rgba(154, 182, 255, 0.28);
+    box-shadow:
+        0 26px 56px rgba(2, 8, 24, 0.44),
+        0 0 0 1px rgba(121, 168, 255, 0.09) inset;
+}
+
+#worthBuyingPanel,
+#trendingGamesPanel,
+#newHistoricalLowsPanel,
+#buyNowPicksPanel,
+#waitForSalePanel,
+#allGamesPanel,
+#topReviewedPanel,
+#upcomingPanel {
+    border-color: rgba(121, 168, 255, 0.17);
+}
 
 .panel-deal-radar .panel-title {
     display: inline-flex;
@@ -1241,7 +1293,7 @@ input:focus-visible {
     display: flex;
     flex-wrap: nowrap;
     align-items: stretch;
-    gap: 10px;
+    gap: 11px;
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -1311,7 +1363,7 @@ input:focus-visible {
     position: absolute;
     top: 0;
     bottom: 8px;
-    width: 48px;
+    width: 40px;
     pointer-events: none;
     z-index: 3;
 }
@@ -1463,7 +1515,7 @@ input:focus-visible {
     border: 1px solid rgba(121, 168, 255, 0.25);
     background: rgba(121, 168, 255, 0.08);
     color: var(--text);
-    border-radius: 8px;
+    border-radius: 9px;
     padding: 5px 8px;
     min-height: 30px;
     min-width: 0;
@@ -1477,12 +1529,12 @@ input:focus-visible {
     position: relative;
     z-index: 4;
     transition:
-        transform 0.14s ease,
-        border-color 0.18s ease,
-        background 0.18s ease,
-        box-shadow 0.18s ease,
-        color 0.18s ease,
-        opacity 0.18s ease;
+        transform 0.12s ease,
+        border-color 0.16s ease,
+        background 0.16s ease,
+        box-shadow 0.16s ease,
+        color 0.16s ease,
+        opacity 0.16s ease;
     will-change: transform, box-shadow;
 }
 
@@ -1499,7 +1551,7 @@ input:focus-visible {
 }
 
 .card-action-btn:active {
-    transform: scale(0.97);
+    transform: translateY(0);
 }
 
 .card-action-btn:focus-visible {
@@ -1579,8 +1631,8 @@ input:focus-visible {
     gap: 5px;
     padding: 3px 7px;
     border-radius: 999px;
-    border: 1px solid rgba(121, 168, 255, 0.2);
-    background: rgba(121, 168, 255, 0.08);
+    border: 1px solid rgba(121, 168, 255, 0.18);
+    background: rgba(121, 168, 255, 0.07);
     font-size: 9px;
     font-weight: 800;
     line-height: 1;
@@ -1637,7 +1689,7 @@ input:focus-visible {
     gap: 4px;
     border-radius: 999px;
     border: 1px solid rgba(154, 182, 255, 0.28);
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.05);
     color: #dce9ff;
     padding: 2px 6px;
     font-size: 9px;
@@ -2174,10 +2226,10 @@ input:focus-visible {
     background: linear-gradient(180deg, rgba(46, 32, 19, 0.6), rgba(21, 17, 12, 0.86));
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
     transition:
-        transform 0.18s ease,
-        border-color 0.18s ease,
-        box-shadow 0.18s ease,
-        background 0.18s ease;
+        transform 0.14s ease,
+        border-color 0.16s ease,
+        box-shadow 0.16s ease,
+        background 0.16s ease;
     transform: translateY(0) scale(1);
     will-change: transform, box-shadow;
 }
@@ -2289,9 +2341,9 @@ input:focus-visible {
 }
 
 .deal-radar-card:hover {
-    transform: translateY(-4px) scale(1.015);
-    border-color: rgba(255, 196, 111, 0.45);
-    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
+    transform: translateY(-2px) scale(1.006);
+    border-color: rgba(255, 196, 111, 0.4);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.24);
     background: linear-gradient(180deg, rgba(58, 40, 23, 0.75), rgba(30, 23, 15, 0.92));
 }
 
@@ -2485,17 +2537,17 @@ input:focus-visible {
     background: linear-gradient(180deg, rgba(21, 35, 58, 0.78), rgba(12, 22, 40, 0.9));
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
     transition:
-        transform 0.18s ease,
-        border-color 0.18s ease,
-        background 0.18s ease,
-        box-shadow 0.18s ease;
+        transform 0.14s ease,
+        border-color 0.16s ease,
+        background 0.16s ease,
+        box-shadow 0.16s ease;
 }
 
 .mini-item:hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
     border-color: rgba(121, 168, 255, 0.4);
     background: linear-gradient(180deg, rgba(27, 44, 74, 0.88), rgba(16, 28, 49, 0.96));
-    box-shadow: 0 10px 22px rgba(0,0,0,0.24);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.2);
 }
 
 .mini-item-title {
@@ -2629,15 +2681,15 @@ input:focus-visible {
     background: var(--card);
     box-shadow:
         inset 0 1px 0 rgba(255,255,255,0.06),
-        0 10px 24px rgba(2, 7, 20, 0.24);
+        0 9px 20px rgba(2, 7, 20, 0.24);
 
     position: relative;
     transform: translateY(0) scale(1) translateZ(0);
     transition:
-        transform 0.18s ease,
-        box-shadow 0.18s ease,
-        border-color 0.18s ease,
-        background 0.18s ease;
+        transform 0.14s ease,
+        box-shadow 0.16s ease,
+        border-color 0.16s ease,
+        background 0.16s ease;
     animation: cardFadeIn 0.35s ease;
     content-visibility: auto;
     will-change: transform, box-shadow;
@@ -2686,25 +2738,25 @@ input:focus-visible {
 }
 
 .game-card:hover {
-    transform: translateY(-4px) scale(1.015);
-    border-color: rgba(121, 168, 255, 0.45);
+    transform: translateY(-2px) scale(1.006);
+    border-color: rgba(121, 168, 255, 0.38);
     box-shadow:
-        0 18px 34px rgba(2, 8, 24, 0.34),
-        0 0 0 1px rgba(121, 168, 255, 0.12) inset;
+        0 14px 28px rgba(2, 8, 24, 0.3),
+        0 0 0 1px rgba(121, 168, 255, 0.1) inset;
     z-index: 5;
 }
 
 .game-card:focus-within {
-    transform: translateY(-3px) scale(1.005);
-    border-color: rgba(121, 168, 255, 0.5);
+    transform: translateY(-1px) scale(1.004);
+    border-color: rgba(121, 168, 255, 0.42);
     box-shadow:
-        0 18px 34px rgba(2, 8, 24, 0.34),
-        0 0 0 1px rgba(121, 168, 255, 0.2) inset;
+        0 12px 24px rgba(2, 8, 24, 0.28),
+        0 0 0 1px rgba(121, 168, 255, 0.14) inset;
 }
 
 .game-card:hover .card-banner-img {
-    transform: scale(1.02);
-    filter: saturate(1.06) brightness(1.03);
+    transform: scale(1.01);
+    filter: saturate(1.03) brightness(1.02);
 }
 
 .game-card:hover .card-banner-overlay {
@@ -2728,11 +2780,11 @@ input:focus-visible {
 .pill,
 .deal-score-badge {
     transition:
-        transform 0.18s ease,
-        background 0.18s ease,
-        border-color 0.18s ease,
-        color 0.18s ease,
-        box-shadow 0.18s ease;
+        transform 0.14s ease,
+        background 0.16s ease,
+        border-color 0.16s ease,
+        color 0.16s ease,
+        box-shadow 0.16s ease;
 }
 
 .game-card:hover .game-name a {
@@ -2742,8 +2794,8 @@ input:focus-visible {
 .game-card:hover .pill,
 .game-card:hover .deal-score-badge,
 .game-card:hover .meta-chip {
-    border-color: rgba(121, 168, 255, 0.34);
-    background: rgba(121, 168, 255, 0.16);
+    border-color: rgba(121, 168, 255, 0.3);
+    background: rgba(121, 168, 255, 0.14);
 }
 
 .single-column-list .game-card {
@@ -2882,19 +2934,19 @@ input:focus-visible {
 }
 
 .game-card:hover .deal-score-badge.cyan {
-    box-shadow: 0 0 18px rgba(103, 232, 249, 0.28);
+    box-shadow: 0 0 14px rgba(103, 232, 249, 0.2);
 }
 
 .game-card:hover .deal-score-badge.green {
-    box-shadow: 0 0 18px rgba(74, 222, 128, 0.28);
+    box-shadow: 0 0 14px rgba(74, 222, 128, 0.2);
 }
 
 .game-card:hover .deal-score-badge.purple {
-    box-shadow: 0 0 18px rgba(192, 132, 252, 0.28);
+    box-shadow: 0 0 14px rgba(192, 132, 252, 0.2);
 }
 
 .game-card:hover .deal-score-badge.gold {
-    box-shadow: 0 0 20px rgba(245, 158, 11, 0.32);
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.24);
 }
 
 /* keep sale pills visible without attention trapping animation */
@@ -2908,8 +2960,8 @@ input:focus-visible {
 
 /* slightly richer hover for buttons inside cards */
 .game-card:hover .card-action-btn {
-    border-color: rgba(121, 168, 255, 0.4);
-    background: rgba(121, 168, 255, 0.2);
+    border-color: rgba(121, 168, 255, 0.35);
+    background: rgba(121, 168, 255, 0.16);
 }
 
 /* premium banner shimmer */
@@ -2931,7 +2983,7 @@ input:focus-visible {
 }
 
 .game-card:hover .card-banner::after {
-    opacity: 1;
+    opacity: 0.72;
 }
 
 /* Quick View modal (SteamDB-style) */
@@ -3274,11 +3326,11 @@ input:focus-visible {
         gap: 10px;
     }
     .dashboard-grid {
-        gap: 14px;
+        gap: 16px;
     }
     .main-column,
     .side-column {
-        gap: 12px;
+        gap: 13px;
     }
     .panel {
         border-radius: 18px;
@@ -3298,12 +3350,19 @@ input:focus-visible {
         min-width: 0;
     }
     .panel-head .row-nav,
-    .panel-head .panel-action {
+    .panel-head .panel-action,
+    .panel-head .panel-head-actions {
         grid-column: 2;
         grid-row: 1;
         justify-self: end;
         align-self: start;
         margin: 0;
+    }
+    .panel-head .panel-head-actions {
+        display: inline-flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
     }
     #recommendedForYouPanel .panel-body {
         padding-top: 0;
@@ -3352,6 +3411,15 @@ input:focus-visible {
     .discovery-owned-filter-btn {
         width: fit-content;
         align-self: flex-start;
+    }
+    #wishlistPanel .panel-head-actions {
+        gap: 5px;
+    }
+    #wishlistPanel .discovery-owned-filter-btn,
+    #wishlistPanel .panel-action {
+        min-height: 30px;
+        padding: 6px 9px;
+        font-size: 9px;
     }
     .discovery-tabs-list {
         flex-wrap: nowrap;
@@ -3569,6 +3637,14 @@ input:focus-visible {
     }
     .search-result-sub {
         font-size: 11px;
+    }
+    #wishlistPanel .panel-head {
+        row-gap: 4px;
+    }
+    #wishlistPanel .panel-head .panel-head-actions {
+        grid-column: 1;
+        grid-row: 2;
+        justify-self: start;
     }
 }
 
@@ -4109,9 +4185,6 @@ input:focus-visible {
                             <h2 class="discovery-tabs-title">Discover</h2>
                             <div class="discovery-tabs-subtitle">Explore additional deal views when you want more options beyond the primary decision rails.</div>
                         </div>
-                        <button class="secondary-btn discovery-owned-filter-btn" id="feedOwnedToggleBtn" type="button" aria-pressed="false" data-active="true">
-                            Hide Owned: On
-                        </button>
                     </div>
                     <div class="discovery-tabs-list" id="discoveryTabsList" role="tablist" aria-label="Discovery views"></div>
                     <div class="discovery-tabs-body" id="discoveryTabsBody"></div>
@@ -4356,7 +4429,12 @@ input:focus-visible {
                             <h2 class="panel-title">Owned</h2>
                             <div class="panel-subtitle">Games you already have and want excluded from future-buy intent.</div>
                         </div>
-                        <a class="panel-action" href="/watchlist?tab=owned">Open Owned</a>
+                        <div class="panel-head-actions">
+                            <button class="secondary-btn discovery-owned-filter-btn" id="feedOwnedToggleBtn" type="button" aria-pressed="false" data-active="true">
+                                Hide Owned: On
+                            </button>
+                            <a class="panel-action" href="/watchlist?tab=owned">Open Owned</a>
+                        </div>
                     </div>
                     <div class="panel-body">
                         <div id="wishlistList" class="mini-list"></div>
@@ -5918,10 +5996,17 @@ input:focus-visible {
             updateOwnedFeedToggleUi();
 
             if (ui.feedOwnedToggleBtn instanceof HTMLButtonElement) {
-                ui.feedOwnedToggleBtn.addEventListener("click", () => {
+                ui.feedOwnedToggleBtn.addEventListener("click", (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const previousScrollY = window.scrollY;
                     state.feedFilters.showOwned = !state.feedFilters.showOwned;
                     rerenderOwnedFilteredFeedSections();
                     syncCardActionButtonsFromState();
+                    requestAnimationFrame(() => {
+                        window.scrollTo({ top: previousScrollY, behavior: "auto" });
+                    });
 
                     if (state.feedFilters.showOwned) {
                         void loadPersonalizedDeals()

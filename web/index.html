@@ -219,7 +219,7 @@ select {
 
 .homepage-content-shell {
     display: grid;
-    gap: 20px;
+    gap: 22px;
     min-width: 0;
 }
 
@@ -386,6 +386,15 @@ select {
 
 .search-bar input::placeholder {
     color: #9cb6e6;
+}
+
+.search-guidance {
+    margin-top: 7px;
+    padding-left: 4px;
+    color: rgba(154, 182, 230, 0.72);
+    font-size: 11px;
+    line-height: 1.35;
+    letter-spacing: 0.01em;
 }
 
 .search-results-pop {
@@ -852,6 +861,34 @@ input:focus-visible {
 .homepage-right-rail > .side-zone-header {
     width: 100%;
     min-width: 0;
+}
+
+.homepage-right-rail {
+    gap: 12px;
+}
+
+.homepage-right-rail .panel {
+    border-color: rgba(121, 168, 255, 0.16);
+    background: linear-gradient(180deg, rgba(10, 19, 34, 0.84), rgba(8, 15, 28, 0.9));
+    box-shadow: 0 10px 22px rgba(2, 7, 20, 0.22);
+}
+
+.homepage-right-rail .panel::before {
+    opacity: 0.58;
+}
+
+.homepage-right-rail .panel-head {
+    padding: 14px 14px 0;
+    padding-bottom: 8px;
+    border-bottom-color: rgba(121, 168, 255, 0.08);
+}
+
+.homepage-right-rail .panel-body {
+    padding: 10px 14px 12px;
+}
+
+.homepage-right-rail .panel-subtitle {
+    color: rgba(154, 182, 230, 0.72);
 }
 
 .side-zone-header {
@@ -1481,16 +1518,20 @@ input:focus-visible {
 .row-nav-btn {
     border: 1px solid rgba(121, 168, 255, 0.28);
     background: rgba(121, 168, 255, 0.08);
-    color: var(--text);
+    color: rgba(242, 248, 255, 0.68);
     border-radius: 10px;
     padding: 9px 11px;
     cursor: pointer;
     font-weight: 800;
+    opacity: 0.58;
+    transition: opacity 0.16s ease, border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
 }
 
 .row-nav-btn:hover {
     border-color: rgba(121, 168, 255, 0.54);
     background: rgba(121, 168, 255, 0.18);
+    color: var(--text);
+    opacity: 1;
 }
 
 .single-column-list {
@@ -1588,8 +1629,8 @@ input:focus-visible {
 
 .card-action-row {
     display: flex;
-    gap: 5px;
-    padding: 8px 10px 0;
+    gap: 4px;
+    padding: 7px 10px 0;
     flex-wrap: nowrap;
     position: relative;
     z-index: 4;
@@ -1600,9 +1641,9 @@ input:focus-visible {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    border: 1px solid rgba(121, 168, 255, 0.25);
-    background: rgba(121, 168, 255, 0.08);
-    color: var(--text);
+    border: 1px solid rgba(121, 168, 255, 0.18);
+    background: rgba(121, 168, 255, 0.035);
+    color: rgba(242, 248, 255, 0.8);
     border-radius: 9px;
     padding: 5px 8px;
     min-height: 30px;
@@ -1627,15 +1668,51 @@ input:focus-visible {
 }
 
 .card-action-btn.active {
-    border-color: rgba(74,222,128,0.45);
-    background: rgba(74,222,128,0.10);
-    box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.16);
+    border-color: rgba(121, 168, 255, 0.34);
+    background: rgba(121, 168, 255, 0.12);
+    box-shadow: 0 0 0 1px rgba(121, 168, 255, 0.12);
+}
+
+.card-action-btn.buy,
+.card-action-btn[data-action="buy"] {
+    border-color: rgba(103, 234, 255, 0.45);
+    background: linear-gradient(180deg, rgba(103, 234, 255, 0.3), rgba(121, 168, 255, 0.32));
+    color: #0b1730;
+    box-shadow: 0 8px 16px rgba(6, 16, 32, 0.24);
+}
+
+.card-action-btn.buy.active,
+.card-action-btn[data-action="buy"].active {
+    border-color: rgba(103, 234, 255, 0.62);
+    background: linear-gradient(180deg, rgba(103, 234, 255, 0.46), rgba(121, 168, 255, 0.44));
+    color: #041022;
+    box-shadow: 0 0 0 1px rgba(103, 234, 255, 0.22);
+}
+
+.card-action-btn.watch {
+    border-color: rgba(121, 168, 255, 0.32);
+    background: rgba(121, 168, 255, 0.04);
+    color: rgba(220, 232, 255, 0.92);
 }
 
 .card-action-btn.watch.active {
-    border-color: rgba(96,165,250,0.45);
-    background: rgba(96,165,250,0.10);
-    box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.16);
+    border-color: rgba(121, 168, 255, 0.5);
+    background: rgba(121, 168, 255, 0.12);
+    color: #e6f0ff;
+    box-shadow: 0 0 0 1px rgba(121, 168, 255, 0.18);
+}
+
+.card-action-btn.own {
+    border-color: rgba(121, 168, 255, 0.16);
+    background: rgba(121, 168, 255, 0.025);
+    color: rgba(210, 225, 248, 0.76);
+}
+
+.card-action-btn.own.active {
+    border-color: rgba(157, 184, 224, 0.34);
+    background: rgba(157, 184, 224, 0.09);
+    color: rgba(231, 240, 255, 0.88);
+    box-shadow: none;
 }
 
 .card-action-btn:active {
@@ -1666,7 +1743,7 @@ input:focus-visible {
 .card-meta-stack {
     display: grid;
     gap: 4px;
-    padding: 7px 10px 0;
+    padding: 6px 10px 0;
 }
 
 .card-meta-row {
@@ -1851,7 +1928,7 @@ input:focus-visible {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 5px;
-    padding: 6px 10px 10px;
+    padding: 5px 10px 9px;
 }
 
 .mini-stat {
@@ -3058,8 +3135,24 @@ input:focus-visible {
 
 /* slightly richer hover for buttons inside cards */
 .game-card:hover .card-action-btn {
-    border-color: rgba(121, 168, 255, 0.35);
-    background: rgba(121, 168, 255, 0.16);
+    border-color: rgba(121, 168, 255, 0.28);
+    background: rgba(121, 168, 255, 0.08);
+}
+
+.game-card:hover .card-action-btn.buy,
+.game-card:hover .card-action-btn[data-action="buy"] {
+    border-color: rgba(103, 234, 255, 0.55);
+    background: linear-gradient(180deg, rgba(103, 234, 255, 0.38), rgba(121, 168, 255, 0.4));
+}
+
+.game-card:hover .card-action-btn.watch {
+    border-color: rgba(121, 168, 255, 0.44);
+    background: rgba(121, 168, 255, 0.11);
+}
+
+.game-card:hover .card-action-btn.own {
+    border-color: rgba(121, 168, 255, 0.24);
+    background: rgba(121, 168, 255, 0.05);
 }
 
 /* premium banner shimmer */
@@ -3327,6 +3420,11 @@ input:focus-visible {
     }
     .search-bar {
         padding-right: 130px;
+    }
+    .search-guidance {
+        margin-top: 6px;
+        font-size: 10px;
+        color: rgba(154, 182, 230, 0.68);
     }
     .mobile-filter-toggle-row {
         display: flex;
@@ -3692,6 +3790,10 @@ input:focus-visible {
     .search-bar {
         padding-right: 116px;
     }
+    .search-guidance {
+        margin-top: 5px;
+        font-size: 9px;
+    }
     .mobile-filter-toggle-row {
         top: 50%;
         right: 10px;
@@ -4038,6 +4140,7 @@ input:focus-visible {
                                 <input id="searchInput" type="text" placeholder="Search games, genres, or tags..." autocomplete="off" />
                             </div>
                         </div>
+                        <div class="search-guidance" id="heroSearchGuidance">Find the best time to buy any game.</div>
 
                         <div class="search-results-pop" id="searchResultsPop">
                             <div class="search-results-list" id="searchResultsList"></div>
@@ -8254,7 +8357,7 @@ input:focus-visible {
 
             return `
                 <div class="card-action-row">
-                    <button class="card-action-btn ${wishlistActive ? "active" : ""}" type="button" aria-pressed="${wishlistActive}" data-action="wishlist" data-game-name="${escapeHtml(game.game_name || "")}"${gameIdAttr}>
+                    <button class="card-action-btn own ${wishlistActive ? "active" : ""}" type="button" aria-pressed="${wishlistActive}" data-action="wishlist" data-game-name="${escapeHtml(game.game_name || "")}"${gameIdAttr}>
                         ${cardActionLabel("wishlist", wishlistActive)}
                     </button>
                     <button class="card-action-btn watch ${watchlistActive ? "active" : ""}" type="button" aria-pressed="${watchlistActive}" data-action="watchlist" data-game-name="${escapeHtml(game.game_name || "")}"${gameIdAttr}>

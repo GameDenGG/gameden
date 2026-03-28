@@ -494,10 +494,11 @@ select {
 
 .search-results-pop {
     display: none;
-    position: absolute;
-    top: calc(100% + 10px);
+    position: fixed;
+    top: 0;
     left: 0;
-    right: 0;
+    right: auto;
+    width: min(640px, calc(100vw - 20px));
     border-radius: 16px;
     border: 1px solid rgba(121, 168, 255, 0.32);
     background: rgba(7, 14, 27, 0.98);
@@ -505,7 +506,9 @@ select {
     overflow: hidden;
     max-height: 420px;
     overflow-y: auto;
-    z-index: 58;
+    z-index: 220;
+    transform-origin: top left;
+    will-change: top, left, width;
 }
 
 .search-results-pop.open {
@@ -5238,6 +5241,7 @@ input:focus-visible {
         const HERO_LOGO_FADE_DURATION_MS = 340;
         const SEARCH_INPUT_DEBOUNCE_MS = 180;
         const SEARCH_MIN_QUERY_CHARS = 2;
+        const SEARCH_REQUEST_TIMEOUT_MS = 2600;
         const SEARCH_CACHE_TTL_MS = 60 * 1000;
         const SEARCH_INITIAL_VISIBLE_RESULTS = 3;
         const SEARCH_MAX_VISIBLE_RESULTS = 10;
@@ -12190,6 +12194,7 @@ input:focus-visible {
         function openSearchResults() {
             ui.searchResultsPop.classList.add("open");
             if (ui.searchInput) ui.searchInput.setAttribute("aria-expanded", "true");
+            syncSearchResultsOverlayPosition();
         }
 
         function closeSearchResults() {
@@ -12199,6 +12204,35 @@ input:focus-visible {
                 ui.searchInput.setAttribute("aria-expanded", "false");
                 ui.searchInput.removeAttribute("aria-activedescendant");
             }
+        }
+
+        function syncSearchResultsOverlayPosition() {
+            if (!(ui.searchResultsPop instanceof HTMLElement) || !(ui.searchBarWrap instanceof HTMLElement)) return;
+            if (!ui.searchResultsPop.classList.contains("open")) return;
+
+            const anchorRect = ui.searchBarWrap.getBoundingClientRect();
+            const viewportPadding = 10;
+            const width = Math.max(
+                260,
+                Math.min(
+                    Math.round(anchorRect.width || 0),
+                    Math.max(260, window.innerWidth - (viewportPadding * 2)),
+                ),
+            );
+            const left = Math.max(
+                viewportPadding,
+                Math.min(
+                    Math.round(anchorRect.left || viewportPadding),
+                    Math.max(viewportPadding, window.innerWidth - width - viewportPadding),
+                ),
+            );
+            const top = Math.max(viewportPadding, Math.round((anchorRect.bottom || 0) + 10));
+            const availableHeight = Math.max(160, window.innerHeight - top - viewportPadding);
+
+            ui.searchResultsPop.style.left = `${left}px`;
+            ui.searchResultsPop.style.top = `${top}px`;
+            ui.searchResultsPop.style.width = `${width}px`;
+            ui.searchResultsPop.style.maxHeight = `${Math.round(Math.min(420, availableHeight))}px`;
         }
 
         function getVisibleSearchResults() {
@@ -12460,7 +12494,7 @@ input:focus-visible {
             }
 
             const cachedRows = getCachedSearchRows(queryKey);
-            if (!force && cachedRows && cachedRows.length) {
+            if (!force && cachedRows) {
                 clearSearchRequest();
                 clearSearchStagedRenderFrame();
                 state.search.results = normalizeSearchResultRows(cachedRows);
@@ -12481,6 +12515,22 @@ input:focus-visible {
 
             const requestId = Number(state.search.requestId || 0) + 1;
             const controller = new AbortController();
+            let didTimeout = false;
+            let requestTimeoutId = setTimeout(() => {
+                didTimeout = true;
+                if (
+                    state.search.requestId === requestId
+                    && state.search.controller === controller
+                    && !controller.signal.aborted
+                ) {
+                    controller.abort();
+                }
+            }, SEARCH_REQUEST_TIMEOUT_MS);
+            const clearRequestTimeout = () => {
+                if (requestTimeoutId === null) return;
+                clearTimeout(requestTimeoutId);
+                requestTimeoutId = null;
+            };
             state.search.requestId = requestId;
             state.search.controller = controller;
             state.search.lastRequestedQueryKey = queryKey;
@@ -12495,7 +12545,10 @@ input:focus-visible {
                     && state.search.controller === controller
                     && !controller.signal.aborted
                 );
-                if (!isCurrent) return;
+                if (!isCurrent) {
+                    clearRequestTimeout();
+                    return;
+                }
 
                 const remoteRows = normalizeSearchResultRows(payload?.items ?? payload);
                 setCachedSearchRows(queryKey, remoteRows);
@@ -12513,21 +12566,31 @@ input:focus-visible {
                     scheduleSearchFullRender(queryKey, requestId);
                 }
             } catch (error) {
-                if (isAbortLikeError(error)) return;
+                if (isAbortLikeError(error) && !didTimeout) {
+                    clearRequestTimeout();
+                    return;
+                }
                 const isCurrent = (
                     state.search.requestId === requestId
                     && state.search.controller === controller
                 );
-                if (!isCurrent) return;
+                if (!isCurrent) {
+                    clearRequestTimeout();
+                    return;
+                }
 
                 state.search.loading = false;
                 state.search.controller = null;
                 if (!safeArray(state.search.results).length) {
-                    state.search.error = resolveSearchErrorMessage(error);
+                    state.search.error = didTimeout
+                        ? "Search is taking too long. Please refine your query."
+                        : resolveSearchErrorMessage(error);
                 } else {
                     state.search.error = null;
                 }
                 renderSearchResults();
+            } finally {
+                clearRequestTimeout();
             }
         }
 
@@ -15088,6 +15151,19 @@ try {
                 ui.searchInput.setAttribute("aria-controls", "searchResultsList");
                 ui.searchInput.setAttribute("aria-expanded", "false");
                 ui.searchInput.setAttribute("autocomplete", "off");
+            }
+            if (!wireFilters._searchOverlayWired) {
+                let pendingOverlayFrame = null;
+                const scheduleOverlaySync = () => {
+                    if (pendingOverlayFrame !== null) return;
+                    pendingOverlayFrame = requestAnimationFrame(() => {
+                        pendingOverlayFrame = null;
+                        syncSearchResultsOverlayPosition();
+                    });
+                };
+                window.addEventListener("scroll", scheduleOverlaySync, { passive: true });
+                window.addEventListener("resize", scheduleOverlaySync, { passive: true });
+                wireFilters._searchOverlayWired = true;
             }
             const clearQuickFindUiState = ({ clearRequestKeys = true } = {}) => {
                 clearSearchRequest();

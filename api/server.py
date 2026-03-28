@@ -5138,148 +5138,95 @@ def search_games_fast(
         normalized_limit = max(1, min(int(limit), 20))
         query_tokens = _search_tokens(normalized_query)
         tokenized_query = "%".join(query_tokens) if len(query_tokens) > 1 else ""
+        try:
+            session.execute(text("SET LOCAL statement_timeout TO '1400ms'"))
+        except Exception:
+            # Non-Postgres backends do not support statement_timeout.
+            pass
         fast_candidate_limit = min(42, max(18, normalized_limit * 3))
         if len(normalized_query) <= 2:
             fast_candidate_limit = min(30, max(12, normalized_limit * 2))
 
-        rows = session.execute(
-            text(
-                """
-                SELECT
-                    g.id,
-                    g.name AS game_name,
-                    g.developer,
-                    g.publisher,
-                    COALESCE(s.genres, g.genres, '') AS genres_csv,
-                    COALESCE(s.tags, g.tags, '') AS tags_csv,
-                    s.steam_appid,
-                    COALESCE(s.banner_url, 'https://cdn.cloudflare.steamstatic.com/steam/apps/' || g.appid || '/header.jpg') AS image_url,
-                    s.latest_price,
-                    s.latest_discount_percent,
-                    s.deal_score,
-                    COALESCE(s.popularity_score, 0) AS popularity_score,
-                    COALESCE(s.current_players, 0) AS current_players,
-                    COALESCE(s.upcoming_hot_score, 0) AS upcoming_hot_score,
-                    COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
-                    s.worth_buying_score,
-                    COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
-                    COALESCE(s.review_score, g.review_score) AS review_score,
-                    COALESCE(s.review_count, g.review_total_count) AS review_total_count,
-                    s.deal_heat_reason,
-                    s.release_date,
-                    s.is_upcoming,
-                    0.0 AS sim
-                FROM games g
-                LEFT JOIN game_snapshots s ON s.game_id = g.id
-                WHERE
-                    lower(g.name) = :normalized_q
-                    OR lower(g.name) LIKE (:normalized_q || '%')
-                    OR (
-                        :normalized_q_compact <> ''
-                        AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') = :normalized_q_compact
-                    )
-                    OR (
-                        :normalized_q_compact <> ''
-                        AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE (:normalized_q_compact || '%')
-                    )
-                    OR (:tokenized_q <> '' AND lower(g.name) LIKE (:tokenized_q || '%'))
-                ORDER BY
-                    CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
-                    CASE
-                        WHEN :normalized_q_compact <> ''
+        try:
+            rows = session.execute(
+                text(
+                    """
+                    SELECT
+                        g.id,
+                        g.name AS game_name,
+                        g.developer,
+                        g.publisher,
+                        COALESCE(s.genres, g.genres, '') AS genres_csv,
+                        COALESCE(s.tags, g.tags, '') AS tags_csv,
+                        s.steam_appid,
+                        COALESCE(s.banner_url, 'https://cdn.cloudflare.steamstatic.com/steam/apps/' || g.appid || '/header.jpg') AS image_url,
+                        s.latest_price,
+                        s.latest_discount_percent,
+                        s.deal_score,
+                        COALESCE(s.popularity_score, 0) AS popularity_score,
+                        COALESCE(s.current_players, 0) AS current_players,
+                        COALESCE(s.upcoming_hot_score, 0) AS upcoming_hot_score,
+                        COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
+                        s.worth_buying_score,
+                        COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
+                        COALESCE(s.review_score, g.review_score) AS review_score,
+                        COALESCE(s.review_count, g.review_total_count) AS review_total_count,
+                        s.deal_heat_reason,
+                        s.release_date,
+                        s.is_upcoming,
+                        0.0 AS sim
+                    FROM games g
+                    LEFT JOIN game_snapshots s ON s.game_id = g.id
+                    WHERE
+                        lower(g.name) = :normalized_q
+                        OR lower(g.name) LIKE (:normalized_q || '%')
+                        OR (
+                            :normalized_q_compact <> ''
                             AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') = :normalized_q_compact
-                        THEN 0
-                        ELSE 1
-                    END,
-                    CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
-                    CASE
-                        WHEN :normalized_q_compact <> ''
+                        )
+                        OR (
+                            :normalized_q_compact <> ''
                             AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE (:normalized_q_compact || '%')
-                        THEN 0
-                        ELSE 1
-                    END,
-                    length(g.name) ASC,
-                    g.name ASC
-                LIMIT :limit
-                """
-            ),
-            {
-                "normalized_q": normalized_query,
-                "normalized_q_compact": compact_normalized_query,
-                "tokenized_q": tokenized_query,
-                "limit": fast_candidate_limit,
-            },
-        ).mappings().all()
+                        )
+                        OR (:tokenized_q <> '' AND lower(g.name) LIKE (:tokenized_q || '%'))
+                    ORDER BY
+                        CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
+                        CASE
+                            WHEN :normalized_q_compact <> ''
+                                AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') = :normalized_q_compact
+                            THEN 0
+                            ELSE 1
+                        END,
+                        CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+                        CASE
+                            WHEN :normalized_q_compact <> ''
+                                AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE (:normalized_q_compact || '%')
+                            THEN 0
+                            ELSE 1
+                        END,
+                        length(g.name) ASC,
+                        g.name ASC
+                    LIMIT :limit
+                    """
+                ),
+                {
+                    "normalized_q": normalized_query,
+                    "normalized_q_compact": compact_normalized_query,
+                    "tokenized_q": tokenized_query,
+                    "limit": fast_candidate_limit,
+                },
+            ).mappings().all()
+        except Exception:
+            rows = []
 
-        should_run_broad_pass = len(rows) < min(2, normalized_limit)
+        should_run_broad_pass = (
+            len(rows) < min(2, normalized_limit)
+            and len(normalized_query) >= 3
+        )
         if should_run_broad_pass:
             remaining_slots = max(1, normalized_limit - len(rows))
-            candidate_limit = min(64, max(16, remaining_slots * 5))
-            if len(normalized_query) <= 2:
-                candidate_limit = min(40, max(12, remaining_slots * 4))
+            candidate_limit = min(28, max(8, remaining_slots * 3))
             try:
-                broad_rows = session.execute(
-                    text(
-                        """
-                        SELECT
-                            g.id,
-                            g.name AS game_name,
-                            g.developer,
-                            g.publisher,
-                            COALESCE(s.genres, g.genres, '') AS genres_csv,
-                            COALESCE(s.tags, g.tags, '') AS tags_csv,
-                            s.steam_appid,
-                            COALESCE(s.banner_url, 'https://cdn.cloudflare.steamstatic.com/steam/apps/' || g.appid || '/header.jpg') AS image_url,
-                            s.latest_price,
-                            s.latest_discount_percent,
-                            s.deal_score,
-                            COALESCE(s.popularity_score, 0) AS popularity_score,
-                            COALESCE(s.current_players, 0) AS current_players,
-                            COALESCE(s.upcoming_hot_score, 0) AS upcoming_hot_score,
-                            COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
-                            s.worth_buying_score,
-                            COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
-                            COALESCE(s.review_score, g.review_score) AS review_score,
-                            COALESCE(s.review_count, g.review_total_count) AS review_total_count,
-                            s.deal_heat_reason,
-                            s.release_date,
-                            s.is_upcoming,
-                            similarity(lower(g.name), :normalized_q) AS sim
-                        FROM games g
-                        LEFT JOIN game_snapshots s ON s.game_id = g.id
-                        WHERE
-                            g.name ILIKE ('%' || :q || '%')
-                            OR (:tokenized_q <> '' AND lower(g.name) LIKE ('%' || :tokenized_q || '%'))
-                            OR (
-                                :normalized_q_compact <> ''
-                                AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE ('%' || :normalized_q_compact || '%')
-                            )
-                            OR COALESCE(g.developer, '') ILIKE ('%' || :q || '%')
-                            OR COALESCE(g.publisher, '') ILIKE ('%' || :q || '%')
-                            OR COALESCE(s.genres, COALESCE(g.genres, '')) ILIKE ('%' || :q || '%')
-                            OR COALESCE(s.tags, COALESCE(g.tags, '')) ILIKE ('%' || :q || '%')
-                            OR similarity(lower(g.name), :normalized_q) > :sim_threshold
-                        ORDER BY
-                            CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
-                            CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
-                            sim DESC,
-                            CASE WHEN lower(COALESCE(s.genres, COALESCE(g.genres, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
-                            CASE WHEN lower(COALESCE(s.tags, COALESCE(g.tags, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
-                            CASE WHEN lower(g.name) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
-                            g.name ASC
-                        LIMIT :limit
-                        """
-                    ),
-                    {
-                        "q": query_text,
-                        "normalized_q": normalized_query,
-                        "normalized_q_compact": compact_normalized_query,
-                        "tokenized_q": tokenized_query,
-                        "sim_threshold": SEARCH_SIMILARITY_THRESHOLD,
-                        "limit": candidate_limit,
-                    },
-                ).mappings().all()
-            except Exception:
                 broad_rows = session.execute(
                     text(
                         """
@@ -5310,34 +5257,29 @@ def search_games_fast(
                         FROM games g
                         LEFT JOIN game_snapshots s ON s.game_id = g.id
                         WHERE
-                            g.name ILIKE ('%' || :q || '%')
+                            lower(g.name) LIKE ('%' || :normalized_q || '%')
                             OR (:tokenized_q <> '' AND lower(g.name) LIKE ('%' || :tokenized_q || '%'))
                             OR (
                                 :normalized_q_compact <> ''
                                 AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE ('%' || :normalized_q_compact || '%')
                             )
-                            OR COALESCE(g.developer, '') ILIKE ('%' || :q || '%')
-                            OR COALESCE(g.publisher, '') ILIKE ('%' || :q || '%')
-                            OR COALESCE(s.genres, COALESCE(g.genres, '')) ILIKE ('%' || :q || '%')
-                            OR COALESCE(s.tags, COALESCE(g.tags, '')) ILIKE ('%' || :q || '%')
                         ORDER BY
                             CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
                             CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
-                            CASE WHEN lower(COALESCE(s.genres, COALESCE(g.genres, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
-                            CASE WHEN lower(COALESCE(s.tags, COALESCE(g.tags, ''))) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
-                            CASE WHEN lower(g.name) LIKE ('%' || :normalized_q || '%') THEN 0 ELSE 1 END,
+                            length(g.name) ASC,
                             g.name ASC
                         LIMIT :limit
                         """
                     ),
                     {
-                        "q": query_text,
                         "normalized_q": normalized_query,
                         "normalized_q_compact": compact_normalized_query,
                         "tokenized_q": tokenized_query,
                         "limit": candidate_limit,
                     },
                 ).mappings().all()
+            except Exception:
+                broad_rows = []
             if broad_rows:
                 rows.extend(broad_rows)
 

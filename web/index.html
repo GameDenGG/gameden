@@ -917,6 +917,172 @@ input:focus-visible {
     color: rgba(154, 182, 230, 0.72);
 }
 
+#recommendedForYouPanel {
+    border-color: rgba(188, 168, 255, 0.28);
+    background: linear-gradient(180deg, rgba(20, 30, 54, 0.9), rgba(11, 18, 33, 0.96));
+    box-shadow:
+        0 16px 30px rgba(3, 8, 22, 0.26),
+        0 0 0 1px rgba(188, 168, 255, 0.1) inset;
+}
+
+#recommendedForYouPanel .panel-body {
+    padding-top: 8px;
+}
+
+.command-center-best {
+    display: grid;
+    gap: 10px;
+}
+
+.command-center-best .game-card {
+    min-width: 0;
+}
+
+#becauseYouOwnPanel .panel-body {
+    padding-top: 8px;
+}
+
+#becauseYouOwnPanel .panel-title {
+    color: #e8dcff;
+}
+
+#wishlistPanel,
+#becauseYouOwnPanel,
+#watchlistPanel,
+#dailyDigestPanel {
+    border-color: rgba(121, 168, 255, 0.14);
+    background: linear-gradient(180deg, rgba(11, 20, 37, 0.8), rgba(8, 14, 27, 0.9));
+    box-shadow: 0 8px 16px rgba(2, 7, 20, 0.2);
+}
+
+#wishlistPanel .panel-head,
+#becauseYouOwnPanel .panel-head,
+#watchlistPanel .panel-head,
+#dailyDigestPanel .panel-head {
+    padding-top: 12px;
+    padding-bottom: 7px;
+}
+
+#wishlistPanel .panel-title,
+#becauseYouOwnPanel .panel-title,
+#watchlistPanel .panel-title,
+#dailyDigestPanel .panel-title {
+    font-size: 16px;
+    letter-spacing: -0.014em;
+}
+
+#wishlistPanel .panel-subtitle,
+#becauseYouOwnPanel .panel-subtitle,
+#watchlistPanel .panel-subtitle,
+#dailyDigestPanel .panel-subtitle {
+    color: rgba(154, 182, 230, 0.68);
+    font-size: 10.5px;
+}
+
+#wishlistPanel .panel-body,
+#becauseYouOwnPanel .panel-body,
+#watchlistPanel .panel-body,
+#dailyDigestPanel .panel-body {
+    padding-top: 8px;
+    padding-bottom: 10px;
+}
+
+#wishlistPanel .tracked-preview-toggle-wrap,
+#watchlistPanel .tracked-preview-toggle-wrap {
+    display: none;
+}
+
+#wishlistPanel .mini-item,
+#watchlistPanel .mini-item {
+    padding: 10px 11px;
+    border-color: rgba(121, 168, 255, 0.16);
+    background: linear-gradient(180deg, rgba(19, 32, 54, 0.76), rgba(11, 20, 37, 0.9));
+}
+
+#dailyDigestPanel .digest-list {
+    gap: 8px;
+}
+
+#dailyDigestPanel .digest-item {
+    border-color: rgba(126, 214, 255, 0.18);
+    background: linear-gradient(180deg, rgba(19, 36, 58, 0.58), rgba(11, 20, 34, 0.84));
+}
+
+#dailyDigestPanel .digest-item:hover {
+    transform: none;
+    border-color: rgba(126, 214, 255, 0.26);
+    box-shadow: 0 8px 16px rgba(4, 12, 24, 0.18);
+}
+
+.because-owned-list {
+    display: grid;
+    gap: 8px;
+}
+
+.because-owned-item {
+    display: grid;
+    gap: 5px;
+    padding: 10px 11px;
+    border-radius: 12px;
+    border: 1px solid rgba(182, 151, 255, 0.22);
+    background: linear-gradient(180deg, rgba(30, 28, 55, 0.64), rgba(15, 17, 34, 0.88));
+    text-decoration: none;
+    color: inherit;
+    transition:
+        border-color 0.16s ease,
+        background 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.because-owned-item:hover {
+    border-color: rgba(182, 151, 255, 0.34);
+    background: linear-gradient(180deg, rgba(36, 34, 66, 0.72), rgba(17, 20, 39, 0.92));
+    box-shadow: 0 8px 18px rgba(8, 8, 24, 0.22);
+}
+
+.because-owned-title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.because-owned-title {
+    margin: 0;
+    color: #ecf4ff;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: -0.012em;
+    line-height: 1.25;
+}
+
+.because-owned-decision {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(121, 168, 255, 0.24);
+    color: rgba(213, 228, 255, 0.92);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.because-owned-reason {
+    color: rgba(212, 190, 255, 0.9);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.because-owned-meta {
+    color: rgba(154, 182, 230, 0.78);
+    font-size: 11px;
+    line-height: 1.3;
+}
+
 .side-zone-header {
     display: flex;
     align-items: center;
@@ -924,8 +1090,21 @@ input:focus-visible {
     gap: 10px;
 }
 
+.side-zone-context {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
 .side-zone-header .column-zone-label {
     margin-bottom: 0;
+}
+
+.side-zone-note {
+    color: rgba(154, 182, 230, 0.72);
+    font-size: 11px;
+    line-height: 1.3;
+    max-width: 220px;
 }
 
 .alerts-toggle-btn {
@@ -1274,24 +1453,63 @@ input:focus-visible {
 /* Tier 1: Primary decision surfaces */
 #opportunitiesPanel,
 #buyNowPicksPanel {
-    border-color: rgba(170, 204, 255, 0.34);
-    background: linear-gradient(180deg, rgba(16, 30, 52, 0.94), rgba(9, 18, 33, 0.98));
+    border-color: rgba(178, 214, 255, 0.4);
+    background: linear-gradient(180deg, rgba(18, 33, 58, 0.96), rgba(10, 20, 37, 0.99));
     box-shadow:
-        0 30px 60px rgba(2, 8, 24, 0.45),
-        0 0 0 1px rgba(154, 182, 255, 0.12) inset;
+        0 34px 66px rgba(2, 8, 24, 0.5),
+        0 0 0 1px rgba(170, 204, 255, 0.16) inset;
+}
+
+#opportunitiesPanel {
+    margin-top: 4px;
+}
+
+#buyNowPicksPanel {
+    margin-top: 6px;
 }
 
 #opportunitiesPanel .panel-head,
 #buyNowPicksPanel .panel-head {
-    border-bottom-color: rgba(154, 182, 255, 0.2);
-    padding-top: 18px;
-    padding-bottom: 11px;
+    border-bottom-color: rgba(170, 204, 255, 0.24);
+    padding-top: 19px;
+    padding-bottom: 12px;
+}
+
+#opportunitiesPanel .panel-title-wrap,
+#buyNowPicksPanel .panel-title-wrap {
+    display: grid;
+    gap: 4px;
+}
+
+#opportunitiesPanel .panel-title-wrap::before,
+#buyNowPicksPanel .panel-title-wrap::before {
+    display: inline-flex;
+    width: fit-content;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(170, 204, 255, 0.34);
+    background: rgba(170, 204, 255, 0.1);
+    color: rgba(221, 236, 255, 0.94);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1.1;
+}
+
+#opportunitiesPanel .panel-title-wrap::before {
+    content: "Best Opportunities";
+}
+
+#buyNowPicksPanel .panel-title-wrap::before {
+    content: "Buy-Now Focus";
 }
 
 #opportunitiesPanel .panel-title,
 #buyNowPicksPanel .panel-title {
-    font-size: 22px;
-    letter-spacing: -0.018em;
+    font-size: 23px;
+    letter-spacing: -0.016em;
     color: #eef6ff;
 }
 
@@ -1302,16 +1520,16 @@ input:focus-visible {
 
 #opportunitiesPanel .panel-body,
 #buyNowPicksPanel .panel-body {
-    padding-top: 14px;
-    padding-bottom: 18px;
+    padding-top: 15px;
+    padding-bottom: 19px;
 }
 
 /* Tier 2: Secondary decision surfaces */
 #bestDealsPanel,
 #waitForSalePanel {
-    border-color: rgba(121, 168, 255, 0.22);
-    background: linear-gradient(180deg, rgba(13, 24, 43, 0.9), rgba(9, 17, 31, 0.95));
-    box-shadow: 0 20px 44px rgba(2, 7, 20, 0.34);
+    border-color: rgba(121, 168, 255, 0.19);
+    background: linear-gradient(180deg, rgba(12, 22, 40, 0.88), rgba(9, 16, 30, 0.94));
+    box-shadow: 0 16px 34px rgba(2, 7, 20, 0.3);
 }
 
 #bestDealsPanel .panel-title,
@@ -1322,7 +1540,7 @@ input:focus-visible {
 
 #bestDealsPanel .panel-subtitle,
 #waitForSalePanel .panel-subtitle {
-    color: rgba(170, 196, 232, 0.78);
+    color: rgba(162, 189, 227, 0.72);
 }
 
 /* Tier 3: Exploratory/optional surfaces */
@@ -1376,6 +1594,19 @@ input:focus-visible {
 #discoveryTabsShell .discovery-tabs-subtitle {
     color: rgba(154, 182, 230, 0.68);
     font-size: 10.5px;
+}
+
+.main-column > .panel:not(#opportunitiesPanel):not(#buyNowPicksPanel) {
+    border-color: rgba(121, 168, 255, 0.16);
+    box-shadow: 0 12px 26px rgba(2, 7, 20, 0.24);
+}
+
+.main-column > .panel:not(#opportunitiesPanel):not(#buyNowPicksPanel) .panel-title {
+    opacity: 0.92;
+}
+
+.main-column > .panel:not(#opportunitiesPanel):not(#buyNowPicksPanel) .panel-subtitle {
+    color: rgba(154, 182, 230, 0.7);
 }
 
 .panel-deal-radar .panel-title {
@@ -4669,45 +4900,51 @@ input:focus-visible {
 
                     </main>
 
-                    <aside class="homepage-rail side-column homepage-right-rail" aria-label="Your radar rail">
+                    <aside class="homepage-rail side-column homepage-right-rail" aria-label="Personal command center">
                 <div class="side-zone-header">
-                    <div class="column-zone-label side-zone-label">Your Radar</div>
+                    <div class="side-zone-context">
+                        <div class="column-zone-label side-zone-label">Command Center</div>
+                        <div class="side-zone-note">Your best personal opportunities and next actions.</div>
+                    </div>
                     <button
                         class="secondary-btn alerts-toggle-btn"
                         id="alertsToggleBtn"
                         type="button"
                         aria-controls="alertsPanel"
                         aria-expanded="false"
-                        title="Toggle alerts and deal signals"
+                        title="Toggle alert signals"
                     >
                         <span class="alerts-toggle-icon" aria-hidden="true">🔔</span>
-                        Alerts
+                        Signals
                     </button>
                 </div>
                 <section class="panel panel-personalized hidden" id="recommendedForYouPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title" id="yourDealsTodayTitle">Your Deals Today</h2>
-                            <div class="panel-subtitle" id="yourDealsTodaySubtitle">Personalized picks when available, with high-signal fallback deals when you are browsing anonymously.</div>
-                        </div>
-                        <div class="row-nav">
-                            <button class="row-nav-btn" type="button" data-row-left="personalizedDealsGrid">&lt;</button>
-                            <button class="row-nav-btn" type="button" data-row-right="personalizedDealsGrid">&gt;</button>
+                            <h2 class="panel-title" id="yourDealsTodayTitle">Best Personal Opportunity</h2>
+                            <div class="panel-subtitle" id="yourDealsTodaySubtitle">Highest-value next move based on your watchlist, owned library, and live deal quality.</div>
                         </div>
                     </div>
                     <div class="panel-body">
-                        <div class="row-section">
-                            <div class="row-fade-left"></div>
-                            <div class="row-fade-right"></div>
-                            <div id="personalizedDealsGrid" class="row-scroller"></div>
+                        <div id="personalizedDealsGrid" class="command-center-best"></div>
+                    </div>
+                </section>
+                <section class="panel panel-personalized hidden" id="becauseYouOwnPanel" aria-hidden="true">
+                    <div class="panel-head">
+                        <div class="panel-title-wrap">
+                            <h2 class="panel-title" id="becauseYouOwnTitle">Because You Own...</h2>
+                            <div class="panel-subtitle" id="becauseYouOwnSubtitle">Similar sale opportunities from your owned library.</div>
                         </div>
+                    </div>
+                    <div class="panel-body">
+                        <div id="becauseYouOwnList" class="because-owned-list"></div>
                     </div>
                 </section>
                 <section class="panel panel-personal hidden" id="wishlistPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Owned</h2>
-                            <div class="panel-subtitle">Games you already have and want excluded from future-buy intent.</div>
+                            <div class="panel-subtitle">Your owned library and feed exclusion control.</div>
                         </div>
                         <div class="panel-head-actions">
                             <button class="secondary-btn discovery-owned-filter-btn" id="feedOwnedToggleBtn" type="button" aria-pressed="false" data-active="true">
@@ -4730,10 +4967,10 @@ input:focus-visible {
                 <section class="panel panel-personal hidden" id="watchlistPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Watchlist</h2>
-                            <div class="panel-subtitle">Games you want to monitor closely for sale movement.</div>
+                            <h2 class="panel-title">Watch Opportunity</h2>
+                            <div class="panel-subtitle">Best watched game to review right now.</div>
                         </div>
-                        <a class="panel-action" href="/watchlist?tab=watchlist">Open Watchlist</a>
+                        <a class="panel-action" href="/watchlist?tab=watchlist">Open Watch</a>
                     </div>
                     <div class="panel-body">
                         <div id="watchlistList" class="mini-list"></div>
@@ -4749,8 +4986,8 @@ input:focus-visible {
                 <section class="panel panel-digest" id="dailyDigestPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Daily Deal Digest</h2>
-                            <div class="panel-subtitle">Most important market changes from the last 24 hours.</div>
+                            <h2 class="panel-title">Daily Insight</h2>
+                            <div class="panel-subtitle">One short signal worth your attention today.</div>
                         </div>
                     </div>
                     <div class="panel-body">
@@ -5245,6 +5482,7 @@ input:focus-visible {
             { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 15, column: "lower" },
 
             { id: "recommendedForYouPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 10, column: "side" },
+            { id: "becauseYouOwnPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 15, column: "side" },
             { id: "watchlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 20, column: "side" },
             { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 30, column: "side" },
             { id: "dailyDigestPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 40, column: "side" },
@@ -5560,6 +5798,10 @@ input:focus-visible {
             yourDealsTodayTitle: document.getElementById("yourDealsTodayTitle"),
             yourDealsTodaySubtitle: document.getElementById("yourDealsTodaySubtitle"),
             personalizedDealsGrid: document.getElementById("personalizedDealsGrid"),
+            becauseYouOwnPanel: document.getElementById("becauseYouOwnPanel"),
+            becauseYouOwnTitle: document.getElementById("becauseYouOwnTitle"),
+            becauseYouOwnSubtitle: document.getElementById("becauseYouOwnSubtitle"),
+            becauseYouOwnList: document.getElementById("becauseYouOwnList"),
             dealRankedGrid: document.getElementById("dealRankedGrid"),
             worthBuyingGrid: document.getElementById("worthBuyingGrid"),
             trendingDealsGrid: document.getElementById("trendingDealsGrid"),
@@ -5985,12 +6227,14 @@ input:focus-visible {
 
             renderWishlist();
             renderWatchlist();
+            renderBecauseYouOwn();
             rerenderOwnedFilteredFeedSections();
             syncCardActionButtonsFromState();
             if (action === "add") {
                 if (listKey === "wishlist") {
                     void loadUserWishlist().then(() => {
                         renderWishlist();
+                        renderBecauseYouOwn();
                         rerenderOwnedFilteredFeedSections();
                         syncCardActionButtonsFromState();
                     }).catch(() => {});
@@ -6132,11 +6376,13 @@ input:focus-visible {
                 void loadPersonalSummary();
                 void loadUserWishlist().then(() => {
                     renderWishlist();
+                    renderBecauseYouOwn();
                     rerenderOwnedFilteredFeedSections();
                     syncCardActionButtonsFromState();
                 }).catch(() => {});
                 void loadUserWatchlist().then(() => {
                     renderWatchlist();
+                    renderBecauseYouOwn();
                     rerenderOwnedFilteredFeedSections();
                     syncCardActionButtonsFromState();
                 }).catch(() => {});
@@ -6607,6 +6853,18 @@ input:focus-visible {
             }
             const chipClass = mapTimingSignalToChipClass(timingSignal);
             return `<span class="meta-chip ${escapeHtml(chipClass)}">${escapeHtml(label)}</span>`;
+        }
+
+        function resolveTimingDecisionLabel(timingSignal) {
+            if (!timingSignal || typeof timingSignal !== "object") return "";
+            const state = String(timingSignal.state || "").trim().toLowerCase();
+            if (state === "buy_now") return "Buy now";
+            if (state === "good_time_to_buy") return "Good deal";
+            if (state === "wait_for_better_drop") return "Wait";
+            if (state === "watch_for_sale" || state === "low_confidence") return "Watch this";
+            const rawLabel = String(timingSignal.label || "").trim();
+            if (!rawLabel) return "";
+            return rawLabel.length > 22 ? `${rawLabel.slice(0, 19).trimEnd()}...` : rawLabel;
         }
 
         function pickByRecommendation(rows, recommendation, limit = 24) {
@@ -8306,6 +8564,7 @@ input:focus-visible {
             renderOpportunityRadar();
             renderActiveDiscoveryTabPane();
             renderPersonalizedDeals();
+            renderBecauseYouOwn();
             renderNewDeals();
             renderRecommendedDeals();
             scheduleDashboardSnapshotPersist();
@@ -10052,7 +10311,7 @@ input:focus-visible {
             setPanelVisibility(ui.dailyDigestPanel, true);
 
             if (loading) {
-                renderSkeleton(ui.dailyDigestList, "panel-list", 4, { itemClass: "digest-item" });
+                renderSkeleton(ui.dailyDigestList, "panel-list", 1, { itemClass: "digest-item" });
                 return;
             }
             if (hasError) {
@@ -10064,10 +10323,10 @@ input:focus-visible {
             if (!rows.length) {
                 renderEmpty(
                     ui.dailyDigestList,
-                    "No major deal events in the last 24 hours.",
+                    "No high-signal insight right now.",
                     {
                         tone: "neutral",
-                        detail: "New lows, big drops, buy-now signals, and trending shifts will appear here.",
+                        detail: "A concise daily signal appears here as soon as snapshot confidence is high enough.",
                     },
                 );
                 return;
@@ -10080,7 +10339,7 @@ input:focus-visible {
                 if (gameKey && seenGames.has(gameKey)) continue;
                 if (gameKey) seenGames.add(gameKey);
                 deduped.push(row);
-                if (deduped.length >= 8) break;
+                if (deduped.length >= 1) break;
             }
 
             ui.dailyDigestList.innerHTML = deduped.map((item) => {
@@ -10446,22 +10705,276 @@ input:focus-visible {
             return rows.slice(0, 3);
         }
 
+        function findLatestTrackedGameRow(game) {
+            const normalizedTarget = normalizeGameRow(game);
+            return state.latestPrices.find((candidate) => {
+                const normalizedCandidate = normalizeGameRow(candidate);
+                const sameId = Number(normalizedCandidate.game_id) > 0
+                    && Number(normalizedTarget.game_id) > 0
+                    && Number(normalizedCandidate.game_id) === Number(normalizedTarget.game_id);
+                if (sameId) return true;
+                return String(normalizedCandidate.game_name || "").toLowerCase() === String(normalizedTarget.game_name || "").toLowerCase();
+            }) || null;
+        }
+
+        function scoreWatchFocusCandidate(game, timingSignal) {
+            const normalized = normalizeGameRow(game);
+            const discount = Math.max(0, Number(normalized.discount_percent || normalized.latest_discount_percent || 0));
+            const dealScore = Math.max(0, Number(normalized.deal_score || 0));
+            const buyScore = Math.max(0, Number(normalized.buy_score || 0));
+            const timingAdjustment = scoreTimingUrgencyAdjustment(timingSignal, { watched: true });
+            return (
+                discount * 1.45
+                + buyScore * 0.54
+                + dealScore * 0.24
+                + timingAdjustment * 3.2
+            );
+        }
+
+        function formatDiscoveryTokenLabel(token) {
+            return String(token || "")
+                .trim()
+                .replace(/[_-]+/g, " ")
+                .replace(/\s+/g, " ")
+                .replace(/\b\w/g, (character) => character.toUpperCase());
+        }
+
+        function buildBecauseYouOwnRecommendations(limit = 3) {
+            const normalizedLimit = Math.max(1, Number(limit) || 3);
+            const ownedRows = uniqueGamesByIdentity(state.wishlist).map((row) => normalizeGameRow(row));
+            if (!ownedRows.length) {
+                return { items: [], anchorName: "", reason: "no_owned" };
+            }
+
+            const tokenLookup = buildDiscoverySeedTokenLookup();
+            const ownedProfiles = ownedRows
+                .map((row) => {
+                    const key = gameIdentityKey(row);
+                    const tokens = getDiscoveryRowTokens(row, tokenLookup);
+                    return {
+                        key,
+                        row,
+                        tokens,
+                        tokenSet: new Set(tokens),
+                    };
+                })
+                .filter((profile) => !!profile.key && profile.tokens.length > 0);
+            if (!ownedProfiles.length) {
+                return { items: [], anchorName: "", reason: "weak_owned_signals" };
+            }
+
+            const personalizationContext = buildDiscoveryPersonalizationContext();
+            const scoringContext = personalizationContext.enabled
+                ? personalizationContext
+                : buildDiscoveryPersonalizationContext();
+            const ownedKeys = new Set(ownedProfiles.map((profile) => profile.key).filter((key) => !!key));
+            const candidateRows = resolveDiscoveryFeedRows(
+                buildDiscoveryFallbackPool([
+                    ...safeArray(state.personalizedDeals),
+                    ...safeArray(state.buyNowPicks),
+                    ...safeArray(state.opportunitiesNow),
+                    ...safeArray(state.dealRanked),
+                    ...safeArray(state.worthBuyingNow),
+                    ...safeArray(state.newHistoricalLows),
+                    ...safeArray(state.trendingNow),
+                ]),
+                { targetCount: 120 },
+            ).rows;
+
+            const scored = [];
+            candidateRows.forEach((row, index) => {
+                const normalized = normalizeGameRow(row);
+                const key = gameIdentityKey(normalized);
+                if (!key || ownedKeys.has(key)) return;
+
+                const tokens = getDiscoveryRowTokens(normalized, tokenLookup);
+                if (!tokens.length) return;
+
+                let bestOverlap = null;
+                ownedProfiles.forEach((profile) => {
+                    const overlapTokens = tokens.filter((token) => profile.tokenSet.has(token));
+                    if (!overlapTokens.length) return;
+                    const weightedOverlap = overlapTokens.reduce((sum, token) => (
+                        sum + Number(personalizationContext.ownedTokenWeights.get(token) || 0)
+                    ), 0);
+                    const overlapScore = (overlapTokens.length * 10) + (weightedOverlap * 4);
+                    if (!bestOverlap || overlapScore > bestOverlap.overlapScore) {
+                        bestOverlap = {
+                            profile,
+                            overlapTokens,
+                            overlapScore,
+                            weightedOverlap,
+                        };
+                    }
+                });
+                if (!bestOverlap) return;
+
+                const recommendation = normalizeBuyRecommendation(normalized.buy_recommendation);
+                const discount = Math.max(0, Number(normalized.discount_percent || 0));
+                const dealScore = Math.max(0, Number(normalized.deal_score || 0));
+                const buyScore = Math.max(0, Number(normalized.buy_score || 0));
+                const timingSignal = getDealTimingSignalForRow(normalized, {
+                    watched: isInWatchlist(normalized),
+                    mode: isUnreleasedInventoryRow(normalized) ? "unreleased" : "paid",
+                });
+                const timingBoost = scoreTimingUrgencyAdjustment(timingSignal, { watched: false });
+                const baseScore = scoreDiscoveryRowForUserIntent(
+                    normalized,
+                    index,
+                    scoringContext,
+                );
+                const qualityScore = (
+                    discount * 0.55
+                    + dealScore * 0.2
+                    + buyScore * 0.28
+                    + (recommendation === "BUY_NOW" ? 10 : 0)
+                    + (timingBoost * 2.4)
+                );
+                const totalScore = baseScore + qualityScore + bestOverlap.overlapScore;
+                const overlapCount = bestOverlap.overlapTokens.length;
+                const weightedOverlap = bestOverlap.weightedOverlap;
+                const highConfidenceMatch = overlapCount >= 2
+                    || weightedOverlap >= 1.35
+                    || (discount >= 30 && (buyScore >= 65 || recommendation === "BUY_NOW"));
+                if (!highConfidenceMatch) return;
+
+                scored.push({
+                    game: normalized,
+                    totalScore,
+                    overlapCount,
+                    weightedOverlap,
+                    overlapToken: bestOverlap.overlapTokens[0] || "",
+                    anchorName: String(bestOverlap.profile.row.game_name || "").trim(),
+                    decisionLabel: resolveTimingDecisionLabel(timingSignal)
+                        || resolveDealConfidence(normalized)?.confidence_label
+                        || "Good deal",
+                });
+            });
+
+            if (!scored.length) {
+                return { items: [], anchorName: "", reason: "weak_match" };
+            }
+
+            scored.sort((left, right) => right.totalScore - left.totalScore);
+            const selected = scored.slice(0, normalizedLimit);
+            const anchorName = String(selected[0]?.anchorName || "").trim();
+            return {
+                items: selected,
+                anchorName,
+                reason: "ok",
+            };
+        }
+
+        function becauseYouOwnItemHtml(entry) {
+            const game = normalizeGameRow(entry?.game);
+            const discount = Math.max(0, Number(game.discount_percent || 0));
+            const price = game.price ?? game.latest_price ?? null;
+            const reason = entry?.anchorName
+                ? `Because you own ${entry.anchorName}`
+                : "Similar to your library";
+            const sharedSignal = String(entry?.overlapToken || "").trim();
+            const detailParts = [
+                discount > 0 ? `${discount.toFixed(0)}% off` : "No active discount",
+                fmtPrice(price),
+            ];
+            if (sharedSignal) {
+                detailParts.push(`Shared: ${formatDiscoveryTokenLabel(sharedSignal)}`);
+            }
+            return `
+                <a class="because-owned-item" href="${buildGameDetailHref(game)}">
+                    <div class="because-owned-title-row">
+                        <h3 class="because-owned-title">${escapeHtml(game.game_name || "Recommended deal")}</h3>
+                        <span class="because-owned-decision">${escapeHtml(String(entry?.decisionLabel || "Good deal"))}</span>
+                    </div>
+                    <div class="because-owned-reason">${escapeHtml(reason)}</div>
+                    <div class="because-owned-meta">${escapeHtml(detailParts.join(" • "))}</div>
+                </a>
+            `;
+        }
+
+        function renderBecauseYouOwn() {
+            if (!ui.becauseYouOwnPanel || !ui.becauseYouOwnList) return;
+            const knownUser = !isAnonymousOrGuestUserId(CURRENT_USER_ID);
+            const wishlistItems = safeArray(state.wishlist);
+            const wishlistLoading = !!state.personalListStatus?.wishlistLoading;
+            const wishlistError = !!state.personalListStatus?.wishlistError;
+            const hasOwnedItems = wishlistItems.length > 0;
+
+            if (!knownUser && !wishlistLoading) {
+                setPanelVisibility(ui.becauseYouOwnPanel, false);
+                return;
+            }
+
+            setPanelVisibility(
+                ui.becauseYouOwnPanel,
+                knownUser && (hasOwnedItems || wishlistLoading || wishlistError),
+            );
+            if (ui.becauseYouOwnTitle) {
+                ui.becauseYouOwnTitle.textContent = "Because You Own...";
+            }
+            if (ui.becauseYouOwnSubtitle) {
+                ui.becauseYouOwnSubtitle.textContent = "Similar sale opportunities from your owned library.";
+            }
+
+            if (wishlistLoading && !hasOwnedItems) {
+                renderSkeleton(ui.becauseYouOwnList, "mini-list", 2, { itemClass: "mini-item" });
+                return;
+            }
+            if (wishlistError && !hasOwnedItems) {
+                renderError(ui.becauseYouOwnList, "Failed to build owned-based recommendations.");
+                return;
+            }
+            if (!hasOwnedItems) {
+                setPanelVisibility(ui.becauseYouOwnPanel, false);
+                return;
+            }
+
+            const recommendations = buildBecauseYouOwnRecommendations(3);
+            if (recommendations.anchorName && ui.becauseYouOwnTitle) {
+                const anchor = recommendations.anchorName.length > 34
+                    ? `${recommendations.anchorName.slice(0, 31).trimEnd()}...`
+                    : recommendations.anchorName;
+                ui.becauseYouOwnTitle.textContent = `Because you own ${anchor}`;
+            } else if (ui.becauseYouOwnTitle) {
+                ui.becauseYouOwnTitle.textContent = "More Like Your Library";
+            }
+
+            if (!recommendations.items.length) {
+                if (ui.becauseYouOwnSubtitle) {
+                    ui.becauseYouOwnSubtitle.textContent = "Recommendations appear when overlap and deal confidence are strong enough.";
+                }
+                renderEmpty(
+                    ui.becauseYouOwnList,
+                    "No strong owned-based matches yet.",
+                    {
+                        tone: "neutral",
+                        detail: "Keep marking games as Owned and we will surface relevant opportunities as confidence improves.",
+                    },
+                );
+                return;
+            }
+
+            if (ui.becauseYouOwnSubtitle) {
+                ui.becauseYouOwnSubtitle.textContent = "Relevant opportunities with matching library tags and current deal strength.";
+            }
+            ui.becauseYouOwnList.innerHTML = recommendations.items
+                .map((entry) => becauseYouOwnItemHtml(entry))
+                .join("");
+        }
+
         function renderWishlist() {
             const wishlistItems = safeArray(state.wishlist);
             const wishlistLoading = !!state.personalListStatus?.wishlistLoading;
             const wishlistError = !!state.personalListStatus?.wishlistError;
-            const hasOverflow = wishlistItems.length > 3;
-            if (!hasOverflow) {
-                state.trackedPreview.wishlistExpanded = false;
-            }
-            setPanelVisibility(ui.wishlistPanel, wishlistItems.length > 0 || wishlistLoading || wishlistError);
+            const canShowPanel = !isAnonymousOrGuestUserId(CURRENT_USER_ID);
+            setPanelVisibility(ui.wishlistPanel, canShowPanel || wishlistItems.length > 0 || wishlistLoading || wishlistError);
             if (wishlistLoading) {
-                renderSkeleton(ui.wishlistList, "mini-list", 3, { itemClass: "mini-item" });
+                renderSkeleton(ui.wishlistList, "mini-list", 1, { itemClass: "mini-item" });
                 setTrackedPreviewToggleState(
                     ui.wishlistToggleBtn,
                     "wishlist",
-                    wishlistItems.length,
-                    state.trackedPreview.wishlistExpanded,
+                    0,
+                    false,
                 );
                 return;
             }
@@ -10470,13 +10983,20 @@ input:focus-visible {
                 setTrackedPreviewToggleState(
                     ui.wishlistToggleBtn,
                     "wishlist",
-                    wishlistItems.length,
-                    state.trackedPreview.wishlistExpanded,
+                    0,
+                    false,
                 );
                 return;
             }
             if (!wishlistItems.length) {
-                ui.wishlistList.innerHTML = "";
+                renderEmpty(
+                    ui.wishlistList,
+                    "No owned games yet.",
+                    {
+                        tone: "neutral",
+                        detail: "Use Own on any game to keep your main feed focused on what you can still buy.",
+                    },
+                );
                 setTrackedPreviewToggleState(
                     ui.wishlistToggleBtn,
                     "wishlist",
@@ -10485,17 +11005,24 @@ input:focus-visible {
                 );
                 return;
             }
-            const previewRows = getTrackedPreviewRows(wishlistItems, !!state.trackedPreview.wishlistExpanded);
-            ui.wishlistList.innerHTML = previewRows.map((item) => {
-                const latest = state.latestPrices.find((game) => game.game_name === item.game_name);
-                const sub = latest ? `${fmtPrice(latest.price)} • score ${fmtInt(latest.deal_score)}` : "Tracked item";
-                return miniItemHtml(item.game_name, sub, "Owned");
-            }).join("");
+            const primaryOwned = normalizeGameRow(wishlistItems[0]);
+            const ownedCount = wishlistItems.length;
+            const countLabel = ownedCount === 1
+                ? "1 owned game"
+                : `${fmtInt(ownedCount)} owned games`;
+            const subtitle = ownedCount > 1
+                ? `${countLabel} in your library`
+                : "Owned and excluded from discovery by default";
+            ui.wishlistList.innerHTML = miniItemHtml(
+                primaryOwned.game_name || "Owned library",
+                subtitle,
+                "Owned",
+            );
             setTrackedPreviewToggleState(
                 ui.wishlistToggleBtn,
                 "wishlist",
-                wishlistItems.length,
-                state.trackedPreview.wishlistExpanded,
+                0,
+                false,
             );
         }
 
@@ -10503,33 +11030,10 @@ input:focus-visible {
             const watchlistItems = safeArray(state.watchlist);
             const watchlistLoading = !!state.personalListStatus?.watchlistLoading;
             const watchlistError = !!state.personalListStatus?.watchlistError;
-            const hasOverflow = watchlistItems.length > 3;
-            if (!hasOverflow) {
-                state.trackedPreview.watchlistExpanded = false;
-            }
-            setPanelVisibility(ui.watchlistPanel, watchlistItems.length > 0 || watchlistLoading || watchlistError);
+            const canShowPanel = !isAnonymousOrGuestUserId(CURRENT_USER_ID);
+            setPanelVisibility(ui.watchlistPanel, canShowPanel || watchlistItems.length > 0 || watchlistLoading || watchlistError);
             if (watchlistLoading) {
-                renderSkeleton(ui.watchlistList, "mini-list", 3, { itemClass: "mini-item" });
-                setTrackedPreviewToggleState(
-                    ui.watchlistToggleBtn,
-                    "watchlist",
-                    watchlistItems.length,
-                    state.trackedPreview.watchlistExpanded,
-                );
-                return;
-            }
-            if (watchlistError) {
-                renderError(ui.watchlistList, "Failed to load watchlist.");
-                setTrackedPreviewToggleState(
-                    ui.watchlistToggleBtn,
-                    "watchlist",
-                    watchlistItems.length,
-                    state.trackedPreview.watchlistExpanded,
-                );
-                return;
-            }
-            if (!watchlistItems.length) {
-                ui.watchlistList.innerHTML = "";
+                renderSkeleton(ui.watchlistList, "mini-list", 1, { itemClass: "mini-item" });
                 setTrackedPreviewToggleState(
                     ui.watchlistToggleBtn,
                     "watchlist",
@@ -10538,28 +11042,75 @@ input:focus-visible {
                 );
                 return;
             }
-            const previewRows = getTrackedPreviewRows(watchlistItems, !!state.trackedPreview.watchlistExpanded);
-            ui.watchlistList.innerHTML = previewRows.map((item) => {
+            if (watchlistError) {
+                renderError(ui.watchlistList, "Failed to load watchlist.");
+                setTrackedPreviewToggleState(
+                    ui.watchlistToggleBtn,
+                    "watchlist",
+                    0,
+                    false,
+                );
+                return;
+            }
+            if (!watchlistItems.length) {
+                renderEmpty(
+                    ui.watchlistList,
+                    "No watched games yet.",
+                    {
+                        tone: "neutral",
+                        detail: "Use Watch on games you might buy so this panel can surface the strongest moment to act.",
+                    },
+                );
+                setTrackedPreviewToggleState(
+                    ui.watchlistToggleBtn,
+                    "watchlist",
+                    0,
+                    false,
+                );
+                return;
+            }
+            const candidates = watchlistItems.map((item) => {
                 const normalized = normalizeGameRow(item);
-                const latest = state.latestPrices.find((game) => {
-                    const normalizedGame = normalizeGameRow(game);
-                    const sameId = Number(normalizedGame.game_id) > 0
-                        && Number(normalized.game_id) > 0
-                        && Number(normalizedGame.game_id) === Number(normalized.game_id);
-                    if (sameId) return true;
-                    return String(normalizedGame.game_name || "").toLowerCase() === String(normalized.game_name || "").toLowerCase();
+                const latest = findLatestTrackedGameRow(normalized);
+                const merged = normalizeGameRow({
+                    ...(latest || {}),
+                    ...normalized,
                 });
-                const discount = Number(normalized.latest_discount_percent ?? normalized.discount_percent ?? latest?.discount_percent ?? 0);
-                const price = normalized.latest_price ?? normalized.price ?? latest?.price ?? null;
-                const signal = safeArray(normalized.signals).find((entry) => entry && entry.label)?.label || "Watching";
-                const sub = `${discount > 0 ? `${discount}% off` : "No sale"} • ${fmtPrice(price)}`;
-                return miniItemHtml(normalized.game_name, sub, signal);
-            }).join("");
+                const timingSignal = getDealTimingSignalForRow(merged, {
+                    sectionKey: "watchlistPanel",
+                    watched: true,
+                });
+                const score = scoreWatchFocusCandidate(merged, timingSignal);
+                return { merged, timingSignal, score };
+            }).sort((left, right) => right.score - left.score);
+            const focus = candidates[0]?.merged || normalizeGameRow(watchlistItems[0]);
+            const focusTiming = candidates[0]?.timingSignal || getDealTimingSignalForRow(focus, {
+                sectionKey: "watchlistPanel",
+                watched: true,
+            });
+            const decisionLabel = resolveTimingDecisionLabel(focusTiming)
+                || resolveDealConfidence(focus)?.confidence_label
+                || "Watch this";
+            const discount = Number(focus.discount_percent || focus.latest_discount_percent || 0);
+            const price = focus.price ?? focus.latest_price ?? null;
+            const extraCount = Math.max(0, watchlistItems.length - 1);
+            const parts = [
+                discount > 0 ? `${discount.toFixed(0)}% off` : "No active sale",
+                fmtPrice(price),
+            ];
+            if (extraCount > 0) {
+                parts.push(`+${extraCount} more watched`);
+            }
+            ui.watchlistList.innerHTML = miniItemHtml(
+                focus.game_name || "Watchlist focus",
+                parts.join(" • "),
+                decisionLabel,
+            );
             setTrackedPreviewToggleState(
                 ui.watchlistToggleBtn,
                 "watchlist",
-                watchlistItems.length,
-                state.trackedPreview.watchlistExpanded,
+                0,
+                false,
             );
         }
 
@@ -10775,16 +11326,18 @@ input:focus-visible {
 
             setPanelVisibility(ui.recommendedForYouPanel, true);
             if (ui.yourDealsTodayTitle) {
-                ui.yourDealsTodayTitle.textContent = "Your Deals Today";
+                ui.yourDealsTodayTitle.textContent = personalizedActive
+                    ? "Best Personal Opportunity"
+                    : "Best Opportunity Right Now";
             }
             if (ui.yourDealsTodaySubtitle) {
                 ui.yourDealsTodaySubtitle.textContent = personalizedActive
-                    ? "Personalized picks using your watchlist, owned library, and high-signal market movement."
-                    : "Trending and high deal-score picks from live snapshot signals.";
+                    ? "Your highest-value next move from watch, owned, and live timing signals."
+                    : "Highest-confidence opportunity from live snapshot scoring.";
             }
 
             if (loading && !filteredDisplay.rows.length) {
-                renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+                renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 1, { cardClass: "game-card" });
                 return;
             }
             if (error && !filteredDisplay.rows.length) {
@@ -10810,14 +11363,14 @@ input:focus-visible {
 
             renderPagedCards({
                 container: ui.personalizedDealsGrid,
-                items: filteredDisplay.rows,
+                items: filteredDisplay.rows.slice(0, 1),
                 renderer: gameCardHtml,
                 visibleKey: "personalizedDealsGrid",
                 toggleButton: null,
                 showAllButton: null,
-                view: personalizedActive ? "your-deals-today-personalized" : "your-deals-today",
-                title: "Your Deals Today",
-                initialCount: 12,
+                view: personalizedActive ? "command-center-best-personalized" : "command-center-best-fallback",
+                title: "Best Personal Opportunity",
+                initialCount: 1,
             });
         }
 
@@ -11534,6 +12087,7 @@ input:focus-visible {
             renderAlerts();
             renderRecentlyUpdated();
             renderUpcoming();
+            renderBecauseYouOwn();
             renderWishlist();
             renderWatchlist();
             renderSearchResults();
@@ -13350,6 +13904,7 @@ try {
                     if (applied) {
                         renderWishlist();
                         renderWatchlist();
+                        renderBecauseYouOwn();
                         rerenderOwnedFilteredFeedSections();
                         renderAlerts();
                         syncCardActionButtonsFromState();
@@ -13526,6 +14081,7 @@ try {
                 : Promise.resolve(safeArray(state.watchlist));
             watchlistPromise.then(() => {
                 renderWatchlist();
+                renderBecauseYouOwn();
                 syncCardActionButtonsFromState();
             });
 
@@ -13537,6 +14093,7 @@ try {
                 : Promise.resolve(safeArray(state.wishlist));
             wishlistPromise.then(() => {
                 renderWishlist();
+                renderBecauseYouOwn();
                 rerenderOwnedFilteredFeedSections();
                 syncCardActionButtonsFromState();
             });
@@ -13620,6 +14177,7 @@ try {
             }
 
             renderPersonalizedDeals();
+            renderBecauseYouOwn();
             renderWishlist();
             renderWatchlist();
             renderAlerts();
@@ -13805,8 +14363,8 @@ try {
             renderSkeleton(ui.dealRankedGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.opportunitiesGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.opportunityRadarGrid, "deal-cards", 6, { cardClass: "game-card" });
-            renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
-            renderSkeleton(ui.dailyDigestList, "panel-list", 4, { itemClass: "digest-item" });
+            renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 1, { cardClass: "game-card" });
+            renderSkeleton(ui.dailyDigestList, "panel-list", 1, { itemClass: "digest-item" });
             renderSkeleton(ui.dealRadarFeed, "radar-list", 4, { itemClass: "deal-radar-card", thumbClass: "deal-radar-thumb" });
         }
 
@@ -13815,6 +14373,7 @@ try {
             renderOpportunities();
             renderOpportunityRadar();
             renderPersonalizedDeals();
+            renderBecauseYouOwn();
             renderDailyDigest();
             renderDealRadar();
             wireCardActionButtons();
@@ -13872,13 +14431,13 @@ try {
                 && !safeArray(state.personalizedDeals).length
                 && !state.personalizedStatus?.fallbackMode;
             if (showPersonalizedSkeleton) {
-                renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 6, { cardClass: "game-card" });
+                renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 1, { cardClass: "game-card" });
             }
             if (!!state.personalListStatus?.wishlistLoading && !safeArray(state.wishlist).length) {
-                renderSkeleton(ui.wishlistList, "mini-list", 3, { itemClass: "mini-item" });
+                renderSkeleton(ui.wishlistList, "mini-list", 1, { itemClass: "mini-item" });
             }
             if (!!state.personalListStatus?.watchlistLoading && !safeArray(state.watchlist).length) {
-                renderSkeleton(ui.watchlistList, "mini-list", 3, { itemClass: "mini-item" });
+                renderSkeleton(ui.watchlistList, "mini-list", 1, { itemClass: "mini-item" });
             }
         }
 
@@ -14155,6 +14714,7 @@ try {
             await loadUserWishlist();
             renderWishlist();
             renderWatchlist();
+            renderBecauseYouOwn();
             rerenderOwnedFilteredFeedSections();
             syncCardActionButtonsFromState();
             scheduleDashboardSnapshotPersist();
@@ -14227,6 +14787,7 @@ try {
 
             renderWishlist();
             renderWatchlist();
+            renderBecauseYouOwn();
             renderPersonalizedDeals();
             syncCardActionButtonsFromState();
             scheduleDashboardSnapshotPersist();
@@ -15144,6 +15705,7 @@ try {
                     renderRestoredNonCriticalSections();
                     renderWishlist();
                     renderWatchlist();
+                    renderBecauseYouOwn();
                     renderAlerts();
                     void loadPersonalSummary();
                 }
@@ -15219,6 +15781,7 @@ try {
                     renderRestoredNonCriticalSections();
                     renderWishlist();
                     renderWatchlist();
+                    renderBecauseYouOwn();
                     renderAlerts();
                     void loadPersonalSummary();
                 }

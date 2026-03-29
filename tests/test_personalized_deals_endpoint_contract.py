@@ -142,6 +142,7 @@ class PersonalizedDealsEndpointContractTests(unittest.TestCase):
             tags="roguelike,deckbuilder",
             genres="rpg,indie",
         )
+        strong_snapshot.price_vs_low_ratio = float("nan")
         request = _build_request("user_id=acct&limit=12&include_owned=0")
 
         with (
@@ -172,6 +173,7 @@ class PersonalizedDealsEndpointContractTests(unittest.TestCase):
         self.assertIn("items", payload)
         self.assertEqual(payload.get("count"), len(payload.get("items", [])))
         self.assertEqual(payload["items"][0]["release_date"], strong_snapshot.release_date.isoformat())
+        self.assertIsNone(payload["items"][0]["price_vs_low_ratio"])
 
     def test_one_genre_weak_match_is_filtered_when_strong_overlap_exists(self):
         strong_snapshot = _make_snapshot(
@@ -255,7 +257,8 @@ class PersonalizedDealsEndpointContractTests(unittest.TestCase):
         self.assertFalse(payload["personalized"])
         self.assertTrue(payload["fallback_mode"])
         self.assertTrue(isinstance(payload.get("items"), list))
-        self.assertLessEqual(payload["count"], 12)
+        self.assertEqual(payload["count"], 0)
+        self.assertEqual(payload["items"], [])
         self.assertEqual(payload.get("fallback_reason"), "We don't have strong matches yet. Add more owned games and we'll improve this.")
 
     def test_stable_ordering_when_inputs_do_not_change(self):
@@ -277,6 +280,8 @@ class PersonalizedDealsEndpointContractTests(unittest.TestCase):
             buy_score=84.0,
             updated_at=datetime.datetime(2026, 3, 29, 12, 0, tzinfo=datetime.timezone.utc),
         )
+        first_snapshot.updated_at = None
+        second_snapshot.updated_at = None
 
         request_one = _build_request("user_id=acct&limit=12&include_owned=0")
         request_two = _build_request("user_id=acct&limit=12&include_owned=0")

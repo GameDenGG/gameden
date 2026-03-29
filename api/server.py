@@ -1523,6 +1523,15 @@ def _run_quick_find_search_v1(
         except Exception:
             pass
 
+    def recover_after_statement_timeout() -> None:
+        session.rollback()
+        if not quick_mode:
+            return
+        try:
+            session.execute(text(f"SET LOCAL statement_timeout TO '{QUICK_SEARCH_STATEMENT_TIMEOUT_MS}ms'"))
+        except Exception:
+            pass
+
     use_compact_probe = (
         len(query_tokens) == 1
         and len(compact_normalized_query) >= 5
@@ -1722,10 +1731,14 @@ def _run_quick_find_search_v1(
     except Exception as error:
         if not _is_statement_timeout_error(error):
             raise
+        # Postgres marks the transaction as failed after statement timeout;
+        # retry must happen after rollback or it will fail with InFailedSqlTransaction.
+        recover_after_statement_timeout()
         try:
             candidate_ids = run_id_query(timeout_safe_ids_sql, max(8, normalized_limit * 3))
         except Exception as timeout_safe_error:
             if _is_statement_timeout_error(timeout_safe_error):
+                recover_after_statement_timeout()
                 raise HTTPException(status_code=504, detail="search_timeout")
             raise
 
@@ -1736,6 +1749,7 @@ def _run_quick_find_search_v1(
             fallback_ids = run_id_query(fallback_ids_sql, fallback_candidate_limit)
         except Exception as error:
             if _is_statement_timeout_error(error):
+                recover_after_statement_timeout()
                 fallback_ids = []
             else:
                 raise

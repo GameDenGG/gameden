@@ -587,6 +587,9 @@ select {
     align-items: center;
     padding: 14px;
     border-bottom: 1px solid rgba(154, 182, 255, 0.08);
+    transition:
+        background var(--ui-duration-base) var(--ui-ease-standard),
+        box-shadow var(--ui-duration-base) var(--ui-ease-standard);
 }
 
 .search-result-item:last-child {
@@ -594,11 +597,20 @@ select {
 }
 
 .search-result-item:hover {
-    background: rgba(121, 168, 255, 0.1);
+    background: rgba(121, 168, 255, 0.12);
 }
 
 .search-result-item.is-active {
-    background: rgba(121, 168, 255, 0.16);
+    background: rgba(121, 168, 255, 0.2);
+    box-shadow: inset 2px 0 0 rgba(142, 186, 255, 0.72);
+}
+
+.search-result-item:focus-visible {
+    outline: none;
+    background: rgba(121, 168, 255, 0.18);
+    box-shadow:
+        inset 2px 0 0 rgba(142, 186, 255, 0.72),
+        inset 0 0 0 1px rgba(142, 186, 255, 0.36);
 }
 
 .search-result-thumb {
@@ -12640,6 +12652,9 @@ input:focus-visible {
             if (state.search.activeIndex >= visibleResults.length) {
                 state.search.activeIndex = -1;
             }
+            if (state.search.activeIndex < 0 && visibleResults.length > 0) {
+                state.search.activeIndex = 0;
+            }
 
             ui.searchResultsList.innerHTML = visibleResults.map((game, index) => {
                 const bannerUrl = game.header_image || game.banner_url || (game.steam_appid
@@ -15256,8 +15271,13 @@ try {
 
             ui.searchInput.addEventListener("keydown", (event) => {
                 if (event.key === "Escape") {
+                    event.preventDefault();
+                    const dropdownWasOpen = ui.searchResultsPop instanceof HTMLElement
+                        && ui.searchResultsPop.classList.contains("open");
                     closeSearchResults();
-                    ui.searchInput.blur();
+                    if (!dropdownWasOpen) {
+                        ui.searchInput.blur();
+                    }
                     return;
                 }
                 if (!isHomepageSearchContext()) return;
@@ -15284,6 +15304,16 @@ try {
                     const targetIndex = Number(state.search.activeIndex);
                     navigateToSearchResult(Number.isFinite(targetIndex) && targetIndex >= 0 ? targetIndex : 0);
                 }
+            });
+
+            ui.searchResultsList.addEventListener("mousedown", (event) => {
+                if (!isHomepageSearchContext()) return;
+                const option = findSearchResultOptionFromEvent(event);
+                if (!option) return;
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                    return;
+                }
+                event.preventDefault();
             });
 
             ui.searchResultsList.addEventListener("click", (event) => {

@@ -312,6 +312,31 @@ QUICK_SEARCH_ALIAS_MAP: dict[str, str] = {
     "kf2": "killing floor 2",
     "kf3": "killing floor 3",
 }
+ROMAN_NUMERAL_TO_ARABIC_MAP: dict[str, int] = {
+    "i": 1,
+    "ii": 2,
+    "iii": 3,
+    "iv": 4,
+    "v": 5,
+    "vi": 6,
+    "vii": 7,
+    "viii": 8,
+    "ix": 9,
+    "x": 10,
+    "xi": 11,
+    "xii": 12,
+    "xiii": 13,
+    "xiv": 14,
+    "xv": 15,
+    "xvi": 16,
+    "xvii": 17,
+    "xviii": 18,
+    "xix": 19,
+    "xx": 20,
+}
+ARABIC_TO_ROMAN_NUMERAL_MAP: dict[int, str] = {
+    value: numeral for numeral, value in ROMAN_NUMERAL_TO_ARABIC_MAP.items()
+}
 SEO_DISCOVERY_PAGE_DEFINITIONS: dict[str, dict[str, str]] = {
     "best-deals": {
         "slug": "best-deals",
@@ -879,6 +904,56 @@ def _search_tokens(value: str | None, max_tokens: int = 6) -> list[str]:
     return tokens[: max(1, int(max_tokens))]
 
 
+def _normalize_numeral_token_to_arabic(token: str | None) -> str:
+    normalized = _normalize_search_text(token)
+    if not normalized:
+        return ""
+    if normalized.isdigit():
+        return normalized
+    roman_value = ROMAN_NUMERAL_TO_ARABIC_MAP.get(normalized)
+    if roman_value is None:
+        return normalized
+    return str(int(roman_value))
+
+
+def _normalize_search_text_with_numeral_equivalence(value: str | None) -> str:
+    tokens = _search_tokens(value)
+    if not tokens:
+        return ""
+    normalized_tokens = [_normalize_numeral_token_to_arabic(token) for token in tokens]
+    return " ".join(token for token in normalized_tokens if token).strip()
+
+
+def _build_numeral_equivalent_query(normalized_query: str | None) -> str | None:
+    tokens = _search_tokens(normalized_query)
+    if not tokens:
+        return None
+    changed = False
+    transformed_tokens: list[str] = []
+    for token in tokens:
+        if token in ROMAN_NUMERAL_TO_ARABIC_MAP:
+            transformed_tokens.append(str(int(ROMAN_NUMERAL_TO_ARABIC_MAP[token])))
+            changed = True
+            continue
+        if token.isdigit():
+            numeric_value = int(token)
+            roman_variant = ARABIC_TO_ROMAN_NUMERAL_MAP.get(numeric_value)
+            if roman_variant:
+                transformed_tokens.append(roman_variant)
+                changed = True
+                continue
+        transformed_tokens.append(token)
+    if not changed:
+        return None
+    transformed_query = " ".join(transformed_tokens).strip()
+    if not transformed_query:
+        return None
+    normalized_transformed_query = _normalize_search_text(transformed_query)
+    if not normalized_transformed_query or normalized_transformed_query == _normalize_search_text(normalized_query):
+        return None
+    return normalized_transformed_query
+
+
 def _build_catalog_search_predicate(search_text: str, include_similarity: bool):
     trimmed = str(search_text or "").strip()
     if not trimmed:
@@ -1158,12 +1233,14 @@ def _quick_find_rank_key_v1(
     row: dict,
     *,
     normalized_query: str,
+    normalized_equivalent_query: str,
     compact_query: str,
     query_tokens: list[str],
     alias_applied: bool,
-) -> tuple[int, int, int, float, float, int, str]:
+) -> tuple[int, int, int, int, float, float, int, str]:
     normalized_name = _normalize_search_text(row.get("game_name"))
     compact_name = _compact_search_text(normalized_name)
+    normalized_name_numeral_equivalent = _normalize_search_text_with_numeral_equivalence(normalized_name)
     name_tokens = [token for token in normalized_name.split(" ") if token]
 
     exact_match = bool(normalized_query and normalized_name == normalized_query)
@@ -1195,6 +1272,12 @@ def _quick_find_rank_key_v1(
         )
     )
     alias_match = bool(alias_applied and strong_prefix_match)
+    numeral_equivalent_exact_match = bool(
+        normalized_equivalent_query
+        and normalized_name_numeral_equivalent == normalized_equivalent_query
+        and not exact_match
+        and not compact_exact_match
+    )
     prefix_word_boundary = bool(
         normalized_query
         and normalized_name.startswith(f"{normalized_query} ")
@@ -1204,24 +1287,27 @@ def _quick_find_rank_key_v1(
         rank_tier = 0
     elif compact_exact_match:
         rank_tier = 1
-    elif alias_match:
+    elif numeral_equivalent_exact_match:
         rank_tier = 2
-    elif strong_prefix_match:
+    elif alias_match:
         rank_tier = 3
-    elif strong_token_prefix_match:
+    elif strong_prefix_match:
         rank_tier = 4
-    elif partial_match:
+    elif strong_token_prefix_match:
         rank_tier = 5
-    else:
+    elif partial_match:
         rank_tier = 6
+    else:
+        rank_tier = 7
 
     name_length_delta = abs(len(normalized_name) - len(normalized_query))
     popularity = max(0.0, safe_num(row.get("popularity_score"), 0.0))
     current_players = max(0.0, safe_num(row.get("current_players"), 0.0))
-    prefix_boundary_penalty = 0 if (exact_match or compact_exact_match or prefix_word_boundary) else 1
+    prefix_boundary_penalty = 0 if (exact_match or compact_exact_match or numeral_equivalent_exact_match or prefix_word_boundary) else 1
 
     return (
         rank_tier,
+        0 if numeral_equivalent_exact_match else 1,
         0 if alias_match else 1,
         prefix_boundary_penalty,
         -popularity,
@@ -1242,12 +1328,14 @@ def _rank_quick_find_rows_v1(
         return []
 
     compact_query = _compact_search_text(normalized_query)
+    normalized_equivalent_query = _normalize_search_text_with_numeral_equivalence(normalized_query)
     query_tokens = _search_tokens(normalized_query)
-    scored_rows: list[tuple[tuple[int, int, int, float, float, int, str], dict]] = []
+    scored_rows: list[tuple[tuple[int, int, int, int, float, float, int, str], dict]] = []
     for row in rows:
         rank_key = _quick_find_rank_key_v1(
             row,
             normalized_query=normalized_query,
+            normalized_equivalent_query=normalized_equivalent_query,
             compact_query=compact_query,
             query_tokens=query_tokens,
             alias_applied=alias_applied,
@@ -1256,7 +1344,7 @@ def _rank_quick_find_rows_v1(
 
     scored_rows.sort(key=lambda entry: entry[0])
     if len(query_tokens) >= 2:
-        strong_intent_rows = [entry for entry in scored_rows if int(entry[0][0]) <= 4]
+        strong_intent_rows = [entry for entry in scored_rows if int(entry[0][0]) <= 5]
         if strong_intent_rows:
             scored_rows = strong_intent_rows
     deduped: list[dict] = []
@@ -1333,6 +1421,9 @@ def _run_quick_find_search_v1(
     compact_normalized_query = _compact_search_text(normalized_query)
     query_tokens = _search_tokens(normalized_query)
     tokenized_query = "%".join(query_tokens) if query_tokens else ""
+    numeral_equivalent_query = _build_numeral_equivalent_query(normalized_query) or ""
+    numeral_equivalent_tokens = _search_tokens(numeral_equivalent_query)
+    tokenized_numeral_equivalent_query = "%".join(numeral_equivalent_tokens) if numeral_equivalent_tokens else ""
 
     strong_candidate_limit = min(64, max(18, normalized_limit * 6))
     fallback_candidate_limit = min(72, max(20, normalized_limit * 8))
@@ -1365,12 +1456,22 @@ def _run_quick_find_search_v1(
             lower(g.name) = :normalized_q
             OR lower(g.name) LIKE (:normalized_q || '%')
             OR (:tokenized_q <> '' AND lower(g.name) LIKE (:tokenized_q || '%'))
+            OR (:normalized_q_numeral <> '' AND lower(g.name) = :normalized_q_numeral)
+            OR (:normalized_q_numeral <> '' AND lower(g.name) LIKE (:normalized_q_numeral || '%'))
+            OR (:tokenized_q_numeral <> '' AND lower(g.name) LIKE (:tokenized_q_numeral || '%'))
             OR (:compact_probe <> '' AND lower(g.name) LIKE (:compact_probe || '%'))
         ORDER BY
             CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
+            CASE WHEN :normalized_q_numeral <> '' AND lower(g.name) = :normalized_q_numeral THEN 0 ELSE 1 END,
             CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+            CASE WHEN :normalized_q_numeral <> '' AND lower(g.name) LIKE (:normalized_q_numeral || '%') THEN 0 ELSE 1 END,
             CASE
                 WHEN :tokenized_q <> '' AND lower(g.name) LIKE (:tokenized_q || '%')
+                THEN 0
+                ELSE 1
+            END,
+            CASE
+                WHEN :tokenized_q_numeral <> '' AND lower(g.name) LIKE (:tokenized_q_numeral || '%')
                 THEN 0
                 ELSE 1
             END,
@@ -1383,10 +1484,14 @@ def _run_quick_find_search_v1(
         FROM games g
         WHERE
             lower(g.name) = :normalized_q
+            OR (:normalized_q_numeral <> '' AND lower(g.name) = :normalized_q_numeral)
             OR lower(g.name) LIKE (:normalized_q || '%')
+            OR (:normalized_q_numeral <> '' AND lower(g.name) LIKE (:normalized_q_numeral || '%'))
         ORDER BY
             CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
+            CASE WHEN :normalized_q_numeral <> '' AND lower(g.name) = :normalized_q_numeral THEN 0 ELSE 1 END,
             CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+            CASE WHEN :normalized_q_numeral <> '' AND lower(g.name) LIKE (:normalized_q_numeral || '%') THEN 0 ELSE 1 END,
             length(g.name) ASC,
             g.name ASC
         LIMIT :limit
@@ -1397,11 +1502,19 @@ def _run_quick_find_search_v1(
         WHERE
             lower(g.name) LIKE ('%' || :normalized_q || '%')
             OR (:tokenized_q <> '' AND lower(g.name) LIKE ('%' || :tokenized_q || '%'))
+            OR (:normalized_q_numeral <> '' AND lower(g.name) LIKE ('%' || :normalized_q_numeral || '%'))
+            OR (:tokenized_q_numeral <> '' AND lower(g.name) LIKE ('%' || :tokenized_q_numeral || '%'))
             OR (:compact_probe <> '' AND lower(g.name) LIKE ('%' || :compact_probe || '%'))
         ORDER BY
             CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+            CASE WHEN :normalized_q_numeral <> '' AND lower(g.name) LIKE (:normalized_q_numeral || '%') THEN 0 ELSE 1 END,
             CASE
                 WHEN :tokenized_q <> '' AND lower(g.name) LIKE (:tokenized_q || '%')
+                THEN 0
+                ELSE 1
+            END,
+            CASE
+                WHEN :tokenized_q_numeral <> '' AND lower(g.name) LIKE (:tokenized_q_numeral || '%')
                 THEN 0
                 ELSE 1
             END,
@@ -1413,6 +1526,8 @@ def _run_quick_find_search_v1(
     id_query_params = {
         "normalized_q": normalized_query,
         "tokenized_q": tokenized_query,
+        "normalized_q_numeral": numeral_equivalent_query,
+        "tokenized_q_numeral": tokenized_numeral_equivalent_query,
         "compact_probe": compact_probe,
     }
 
@@ -1496,6 +1611,7 @@ def _run_quick_find_search_v1(
         return ordered_rows
 
     def has_strong_title_match(candidates: list[dict]) -> bool:
+        normalized_equivalent = _normalize_search_text_with_numeral_equivalence(normalized_query)
         for candidate in candidates:
             candidate_name = _normalize_search_text(candidate.get("game_name"))
             if not candidate_name:
@@ -1510,6 +1626,11 @@ def _run_quick_find_search_v1(
             if candidate_compact_name == compact_normalized_query:
                 return True
             if candidate_compact_name.startswith(compact_normalized_query):
+                return True
+            candidate_equivalent_name = _normalize_search_text_with_numeral_equivalence(candidate_name)
+            if normalized_equivalent and candidate_equivalent_name == normalized_equivalent:
+                return True
+            if normalized_equivalent and candidate_equivalent_name.startswith(normalized_equivalent):
                 return True
         return False
 

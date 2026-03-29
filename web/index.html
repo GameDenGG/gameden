@@ -605,6 +605,35 @@ select {
     box-shadow: inset 2px 0 0 rgba(142, 186, 255, 0.72);
 }
 
+.search-result-item.is-top-match {
+    background: linear-gradient(
+        90deg,
+        rgba(255, 196, 111, 0.12),
+        rgba(121, 168, 255, 0.08) 45%,
+        rgba(121, 168, 255, 0.02)
+    );
+    box-shadow: inset 2px 0 0 rgba(255, 196, 111, 0.58);
+}
+
+.search-result-item.is-top-match:hover {
+    background: linear-gradient(
+        90deg,
+        rgba(255, 196, 111, 0.16),
+        rgba(121, 168, 255, 0.12) 45%,
+        rgba(121, 168, 255, 0.04)
+    );
+}
+
+.search-result-item.is-top-match.is-active {
+    background: linear-gradient(
+        90deg,
+        rgba(255, 196, 111, 0.2),
+        rgba(121, 168, 255, 0.2) 45%,
+        rgba(121, 168, 255, 0.1)
+    );
+    box-shadow: inset 2px 0 0 rgba(255, 211, 144, 0.86);
+}
+
 .search-result-item:focus-visible {
     outline: none;
     background: rgba(121, 168, 255, 0.18);
@@ -645,6 +674,22 @@ select {
 .search-result-title-row .search-result-title {
     min-width: 0;
     flex: 1 1 auto;
+}
+
+.search-result-top-hint {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 196, 111, 0.34);
+    background: rgba(255, 196, 111, 0.14);
+    color: #ffe6bf;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 .search-result-sub {
@@ -4235,6 +4280,10 @@ input:focus-visible {
     }
     .search-result-sub {
         font-size: 11px;
+    }
+    .search-result-top-hint {
+        font-size: 9px;
+        padding: 2px 5px;
     }
     #wishlistPanel .panel-head {
         row-gap: 4px;
@@ -12228,6 +12277,35 @@ input:focus-visible {
             return results.slice(0, visibleLimit);
         }
 
+        function getSearchResultMatchTier(row) {
+            const tier = Number(row?.quick_find_match_tier);
+            if (!Number.isFinite(tier)) return 99;
+            return Math.max(0, Math.floor(tier));
+        }
+
+        function getSearchResultConfidence(row) {
+            const confidence = String(row?.quick_find_confidence || "").trim().toLowerCase();
+            if (confidence === "high" || confidence === "medium" || confidence === "low") {
+                return confidence;
+            }
+            const tier = getSearchResultMatchTier(row);
+            if (tier <= 4) return "high";
+            if (tier <= 5) return "medium";
+            return "low";
+        }
+
+        function isSearchResultInstantActionCandidate(row) {
+            if (!row || typeof row !== "object") return false;
+            if (row.quick_find_instant_action === true) return true;
+            return getSearchResultConfidence(row) === "high" && getSearchResultMatchTier(row) <= 3;
+        }
+
+        function getSearchDefaultEnterIndex(visibleResults = getVisibleSearchResults()) {
+            const results = safeArray(visibleResults);
+            if (!results.length) return -1;
+            return isSearchResultInstantActionCandidate(results[0]) ? 0 : -1;
+        }
+
         function syncSearchActiveOptionDom(options = {}) {
             const visibleResults = getVisibleSearchResults();
             if (!visibleResults.length) {
@@ -12649,11 +12727,12 @@ input:focus-visible {
             }
 
             const visibleResults = getVisibleSearchResults();
+            const defaultEnterIndex = getSearchDefaultEnterIndex(visibleResults);
             if (state.search.activeIndex >= visibleResults.length) {
                 state.search.activeIndex = -1;
             }
-            if (state.search.activeIndex < 0 && visibleResults.length > 0) {
-                state.search.activeIndex = 0;
+            if (state.search.activeIndex < 0 && visibleResults.length > 0 && defaultEnterIndex >= 0) {
+                state.search.activeIndex = defaultEnterIndex;
             }
 
             ui.searchResultsList.innerHTML = visibleResults.map((game, index) => {
@@ -12670,12 +12749,16 @@ input:focus-visible {
                     className: "deal-confidence-badge",
                 });
                 const isActive = index === state.search.activeIndex;
+                const isTopMatch = index === 0 && defaultEnterIndex === 0 && isSearchResultInstantActionCandidate(game);
                 const resultId = `search-result-option-${index}`;
+                const topMatchHint = isTopMatch
+                    ? `<span class="search-result-top-hint">Top match - Enter opens</span>`
+                    : "";
 
                 return `
                     <a
                         id="${resultId}"
-                        class="search-result-item${isActive ? " is-active" : ""}"
+                        class="search-result-item${isActive ? " is-active" : ""}${isTopMatch ? " is-top-match" : ""}"
                         href="${escapeHtml(resolveSearchResultHref(game))}"
                         role="option"
                         aria-selected="${isActive ? "true" : "false"}"
@@ -12695,6 +12778,7 @@ input:focus-visible {
                             <div class="search-result-title-row">
                                 <div class="search-result-title">${escapeHtml(game.game_name)}</div>
                                 ${confidenceBadge}
+                                ${topMatchHint}
                             </div>
                             <div class="search-result-sub">${escapeHtml(sub)}</div>
                         </div>
@@ -15300,9 +15384,13 @@ try {
                     if (!query) return;
                     const visibleResults = getVisibleSearchResults();
                     if (!visibleResults.length) return;
-                    event.preventDefault();
                     const targetIndex = Number(state.search.activeIndex);
-                    navigateToSearchResult(Number.isFinite(targetIndex) && targetIndex >= 0 ? targetIndex : 0);
+                    const hasExplicitActive = Number.isFinite(targetIndex) && targetIndex >= 0;
+                    const defaultEnterIndex = getSearchDefaultEnterIndex(visibleResults);
+                    const indexToNavigate = hasExplicitActive ? targetIndex : defaultEnterIndex;
+                    if (indexToNavigate < 0) return;
+                    event.preventDefault();
+                    navigateToSearchResult(indexToNavigate);
                 }
             });
 

@@ -1241,7 +1241,17 @@ def _quick_find_rank_key_v1(
     normalized_name = _normalize_search_text(row.get("game_name"))
     compact_name = _compact_search_text(normalized_name)
     normalized_name_numeral_equivalent = _normalize_search_text_with_numeral_equivalence(normalized_name)
+    compact_name_numeral_equivalent = _compact_search_text(normalized_name_numeral_equivalent)
     name_tokens = [token for token in normalized_name.split(" ") if token]
+    equivalent_name_tokens = [token for token in normalized_name_numeral_equivalent.split(" ") if token]
+    query_has_numeric_token = any(token.isdigit() for token in query_tokens)
+    query_has_roman_token = any(token in ROMAN_NUMERAL_TO_ARABIC_MAP for token in query_tokens)
+    name_has_numeric_token = any(token.isdigit() for token in name_tokens)
+    name_has_roman_token = any(token in ROMAN_NUMERAL_TO_ARABIC_MAP for token in name_tokens)
+    numeral_intent = bool(
+        (query_has_numeric_token or query_has_roman_token)
+        and (name_has_numeric_token or name_has_roman_token)
+    )
 
     exact_match = bool(normalized_query and normalized_name == normalized_query)
     compact_exact_match = bool(
@@ -1256,13 +1266,22 @@ def _quick_find_rank_key_v1(
             or (compact_query and compact_name.startswith(compact_query))
         )
     )
-    token_prefix_match = bool(
-        query_tokens
-        and name_tokens
-        and all(any(name_token.startswith(token) for name_token in name_tokens) for token in query_tokens)
-    )
+    token_prefix_match = False
+    if query_tokens and name_tokens:
+        token_prefix_match = all(any(name_token.startswith(token) for name_token in name_tokens) for token in query_tokens)
+    if not token_prefix_match and numeral_intent and query_tokens and equivalent_name_tokens:
+        token_prefix_match = all(
+            any(name_token.startswith(token) for name_token in equivalent_name_tokens)
+            for token in query_tokens
+        )
     first_query_token = query_tokens[0] if query_tokens else ""
-    first_token_exact = bool(first_query_token and first_query_token in name_tokens)
+    first_token_exact = bool(
+        first_query_token
+        and (
+            first_query_token in name_tokens
+            or (numeral_intent and first_query_token in equivalent_name_tokens)
+        )
+    )
     strong_token_prefix_match = bool(token_prefix_match and first_token_exact)
     partial_match = bool(
         normalized_query
@@ -1278,9 +1297,38 @@ def _quick_find_rank_key_v1(
         and not exact_match
         and not compact_exact_match
     )
+    numeral_equivalent_phrase_match = bool(
+        numeral_intent
+        and normalized_equivalent_query
+        and (
+            normalized_name_numeral_equivalent.startswith(normalized_equivalent_query)
+            or normalized_name_numeral_equivalent.endswith(f" {normalized_equivalent_query}")
+            or f" {normalized_equivalent_query} " in normalized_name_numeral_equivalent
+        )
+        and not numeral_equivalent_exact_match
+    )
+    numeral_equivalent_partial_match = bool(
+        numeral_intent
+        and normalized_equivalent_query
+        and (
+            normalized_equivalent_query in normalized_name_numeral_equivalent
+            or (
+                compact_query
+                and compact_query in compact_name_numeral_equivalent
+            )
+        )
+        and not numeral_equivalent_exact_match
+    )
     prefix_word_boundary = bool(
-        normalized_query
-        and normalized_name.startswith(f"{normalized_query} ")
+        (
+            normalized_query
+            and normalized_name.startswith(f"{normalized_query} ")
+        )
+        or (
+            numeral_intent
+            and normalized_equivalent_query
+            and normalized_name_numeral_equivalent.startswith(f"{normalized_equivalent_query} ")
+        )
     )
 
     if exact_match:
@@ -1291,11 +1339,11 @@ def _quick_find_rank_key_v1(
         rank_tier = 2
     elif alias_match:
         rank_tier = 3
-    elif strong_prefix_match:
+    elif strong_prefix_match or numeral_equivalent_phrase_match:
         rank_tier = 4
     elif strong_token_prefix_match:
         rank_tier = 5
-    elif partial_match:
+    elif partial_match or numeral_equivalent_partial_match:
         rank_tier = 6
     else:
         rank_tier = 7
@@ -1303,7 +1351,13 @@ def _quick_find_rank_key_v1(
     name_length_delta = abs(len(normalized_name) - len(normalized_query))
     popularity = max(0.0, safe_num(row.get("popularity_score"), 0.0))
     current_players = max(0.0, safe_num(row.get("current_players"), 0.0))
-    prefix_boundary_penalty = 0 if (exact_match or compact_exact_match or numeral_equivalent_exact_match or prefix_word_boundary) else 1
+    prefix_boundary_penalty = 0 if (
+        exact_match
+        or compact_exact_match
+        or numeral_equivalent_exact_match
+        or numeral_equivalent_phrase_match
+        or prefix_word_boundary
+    ) else 1
 
     return (
         rank_tier,
@@ -1349,14 +1403,35 @@ def _rank_quick_find_rows_v1(
             scored_rows = strong_intent_rows
     deduped: list[dict] = []
     seen_game_ids: set[int] = set()
-    for _, row in scored_rows:
+    for rank_key, row in scored_rows:
         game_id = int(safe_num(row.get("id"), 0.0))
         if game_id <= 0 or game_id in seen_game_ids:
             continue
         seen_game_ids.add(game_id)
-        deduped.append(row)
+        enriched_row = dict(row)
+        enriched_row["_quick_rank_tier"] = int(rank_key[0])
+        deduped.append(enriched_row)
         if len(deduped) >= max(1, int(limit)):
             break
+
+    if deduped:
+        top_tier = int(safe_num(deduped[0].get("_quick_rank_tier"), 99.0))
+        second_tier = int(safe_num(deduped[1].get("_quick_rank_tier"), 99.0)) if len(deduped) > 1 else 99
+        top_instant_action = False
+        if top_tier <= 3:
+            top_instant_action = True
+        elif top_tier == 4 and second_tier > 4:
+            top_instant_action = True
+        for index, row in enumerate(deduped):
+            rank_tier = int(safe_num(row.get("_quick_rank_tier"), 99.0))
+            if rank_tier <= 4:
+                row["_quick_confidence"] = "high"
+            elif rank_tier <= 5:
+                row["_quick_confidence"] = "medium"
+            else:
+                row["_quick_confidence"] = "low"
+            row["_quick_is_top_match"] = index == 0 and top_instant_action
+            row["_quick_instant_action"] = index == 0 and top_instant_action
     return deduped
 
 
@@ -1364,6 +1439,10 @@ def _serialize_quick_find_row(row: dict) -> dict:
     game_id = int(safe_num(row.get("id"), 0.0))
     game_name = row.get("game_name")
     review_label = _normalize_review_label(row.get("review_score_label"), row.get("review_score"))
+    quick_match_tier = int(safe_num(row.get("_quick_rank_tier"), 99.0))
+    quick_confidence = str(row.get("_quick_confidence") or "low").strip().lower()
+    if quick_confidence not in {"high", "medium", "low"}:
+        quick_confidence = "low"
     return {
         "id": game_id,
         "game_id": game_id,
@@ -1397,6 +1476,10 @@ def _serialize_quick_find_row(row: dict) -> dict:
         "deal_heat_reason": row.get("deal_heat_reason"),
         "release_date": row.get("release_date").isoformat() if row.get("release_date") else None,
         "is_upcoming": bool(row.get("is_upcoming")) if row.get("is_upcoming") is not None else False,
+        "quick_find_match_tier": quick_match_tier,
+        "quick_find_confidence": quick_confidence,
+        "quick_find_is_top_match": bool(row.get("_quick_is_top_match")),
+        "quick_find_instant_action": bool(row.get("_quick_instant_action")),
     }
 
 

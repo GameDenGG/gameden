@@ -298,10 +298,19 @@ _search_sequence_lock = threading.Lock()
 _search_sequence_by_scope: dict[str, tuple[int, float]] = {}
 QUICK_SEARCH_STATEMENT_TIMEOUT_MS = 3000
 QUICK_SEARCH_ALIAS_MAP: dict[str, str] = {
+    "cs": "counter strike",
     "cs2": "counter strike 2",
+    "counter strike": "counter strike",
     "counterstrike": "counter strike",
     "counterstrike2": "counter strike 2",
     "csgo": "counter strike global offensive",
+    "red dead": "red dead redemption",
+    "reddead": "red dead redemption",
+    "rdr": "red dead redemption",
+    "rdr2": "red dead redemption 2",
+    "kf": "killing floor",
+    "kf2": "killing floor 2",
+    "kf3": "killing floor 3",
 }
 SEO_DISCOVERY_PAGE_DEFINITIONS: dict[str, dict[str, str]] = {
     "best-deals": {
@@ -848,7 +857,10 @@ def _resolve_quick_search_alias(normalized_query: str) -> str | None:
     key = _normalize_search_text(normalized_query)
     if not key:
         return None
+    compact_key = _compact_search_text(key)
     alias = QUICK_SEARCH_ALIAS_MAP.get(key)
+    if not alias and compact_key:
+        alias = QUICK_SEARCH_ALIAS_MAP.get(compact_key)
     if not alias:
         return None
     resolved = _normalize_search_text(alias)
@@ -1172,6 +1184,9 @@ def _quick_find_rank_key_v1(
         and name_tokens
         and all(any(name_token.startswith(token) for name_token in name_tokens) for token in query_tokens)
     )
+    first_query_token = query_tokens[0] if query_tokens else ""
+    first_token_exact = bool(first_query_token and first_query_token in name_tokens)
+    strong_token_prefix_match = bool(token_prefix_match and first_token_exact)
     partial_match = bool(
         normalized_query
         and (
@@ -1189,14 +1204,16 @@ def _quick_find_rank_key_v1(
         rank_tier = 0
     elif compact_exact_match:
         rank_tier = 1
-    elif strong_prefix_match and not alias_match:
+    elif alias_match:
         rank_tier = 2
-    elif alias_match or token_prefix_match:
+    elif strong_prefix_match:
         rank_tier = 3
-    elif partial_match:
+    elif strong_token_prefix_match:
         rank_tier = 4
-    else:
+    elif partial_match:
         rank_tier = 5
+    else:
+        rank_tier = 6
 
     name_length_delta = abs(len(normalized_name) - len(normalized_query))
     popularity = max(0.0, safe_num(row.get("popularity_score"), 0.0))
@@ -1238,6 +1255,10 @@ def _rank_quick_find_rows_v1(
         scored_rows.append((rank_key, row))
 
     scored_rows.sort(key=lambda entry: entry[0])
+    if len(query_tokens) >= 2:
+        strong_intent_rows = [entry for entry in scored_rows if int(entry[0][0]) <= 4]
+        if strong_intent_rows:
+            scored_rows = strong_intent_rows
     deduped: list[dict] = []
     seen_game_ids: set[int] = set()
     for _, row in scored_rows:

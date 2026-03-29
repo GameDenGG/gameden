@@ -296,6 +296,7 @@ SEARCH_SEQUENCE_MAX_TRACKED = 4096
 SEARCH_SEQUENCE_TTL_SECONDS = 5 * 60
 _search_sequence_lock = threading.Lock()
 _search_sequence_by_scope: dict[str, tuple[int, float]] = {}
+QUICK_SEARCH_STATEMENT_TIMEOUT_MS = 2400
 QUICK_SEARCH_ALIAS_MAP: dict[str, str] = {
     "cs2": "counter strike 2",
     "counterstrike2": "counter strike 2",
@@ -470,7 +471,8 @@ def _run_quick_timeout_fallback_query(
     session,
     *,
     normalized_query: str,
-    tokenized_query: str,
+    normalized_query_compact: str,
+    first_query_token: str,
     limit: int,
 ):
     safe_limit = max(1, min(int(limit), 20))
@@ -506,10 +508,31 @@ def _run_quick_timeout_fallback_query(
             WHERE
                 lower(g.name) = :normalized_q
                 OR lower(g.name) LIKE (:normalized_q || '%')
-                OR (:tokenized_q <> '' AND lower(g.name) LIKE (:tokenized_q || '%'))
+                OR (
+                    :normalized_q_compact <> ''
+                    AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') = :normalized_q_compact
+                )
+                OR (
+                    :normalized_q_compact <> ''
+                    AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE (:normalized_q_compact || '%')
+                )
+                OR (:first_query_token <> '' AND lower(g.name) LIKE (:first_query_token || '%'))
             ORDER BY
                 CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
+                CASE
+                    WHEN :normalized_q_compact <> ''
+                        AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') = :normalized_q_compact
+                    THEN 0
+                    ELSE 1
+                END,
                 CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+                CASE
+                    WHEN :normalized_q_compact <> ''
+                        AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE (:normalized_q_compact || '%')
+                    THEN 0
+                    ELSE 1
+                END,
+                CASE WHEN :first_query_token <> '' AND lower(g.name) LIKE (:first_query_token || '%') THEN 0 ELSE 1 END,
                 length(g.name) ASC,
                 g.name ASC
             LIMIT :limit
@@ -517,7 +540,8 @@ def _run_quick_timeout_fallback_query(
         ),
         {
             "normalized_q": normalized_query,
-            "tokenized_q": tokenized_query,
+            "normalized_q_compact": normalized_query_compact,
+            "first_query_token": first_query_token,
             "limit": safe_limit,
         },
     ).mappings().all()
@@ -5307,6 +5331,7 @@ def search_games_fast(
         use_compact_match = " " not in normalized_query and len(compact_normalized_query) >= 4
         normalized_limit = max(1, min(int(limit), 20))
         query_tokens = _search_tokens(normalized_query)
+        first_query_token = query_tokens[0] if query_tokens else ""
         tokenized_query = "%".join(query_tokens) if len(query_tokens) > 1 else ""
         search_sequence = max(0, int(seq or 0))
         header_search_sequence = str(request.headers.get("x-search-seq") or "").strip()
@@ -5314,9 +5339,10 @@ def search_games_fast(
             search_sequence = max(search_sequence, int(header_search_sequence))
         normalized_mode = str(mode or "").strip().lower()
         quick_mode = normalized_mode in {"", "quick", "quick-find", "homepage"}
+        fast_pass_timed_out = False
         if quick_mode:
             try:
-                session.execute(text("SET LOCAL statement_timeout TO '1800ms'"))
+                session.execute(text(f"SET LOCAL statement_timeout TO '{QUICK_SEARCH_STATEMENT_TIMEOUT_MS}ms'"))
             except Exception:
                 pass
         search_scope_key = ""
@@ -5368,10 +5394,29 @@ def search_games_fast(
                         WHERE
                             lower(g.name) = :normalized_q
                             OR lower(g.name) LIKE (:normalized_q || '%')
-                            OR (:tokenized_q <> '' AND lower(g.name) LIKE (:tokenized_q || '%'))
+                            OR (
+                                :normalized_q_compact <> ''
+                                AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') = :normalized_q_compact
+                            )
+                            OR (
+                                :normalized_q_compact <> ''
+                                AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE (:normalized_q_compact || '%')
+                            )
                         ORDER BY
                             CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
+                            CASE
+                                WHEN :normalized_q_compact <> ''
+                                    AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') = :normalized_q_compact
+                                THEN 0
+                                ELSE 1
+                            END,
                             CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+                            CASE
+                                WHEN :normalized_q_compact <> ''
+                                    AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE (:normalized_q_compact || '%')
+                                THEN 0
+                                ELSE 1
+                            END,
                             length(g.name) ASC,
                             g.name ASC
                         LIMIT :limit
@@ -5379,17 +5424,19 @@ def search_games_fast(
                     ),
                     {
                         "normalized_q": normalized_query,
-                        "tokenized_q": tokenized_query,
+                        "normalized_q_compact": compact_normalized_query,
                         "limit": fast_candidate_limit,
                     },
                 ).mappings().all()
             except Exception as error:
                 if quick_mode and _is_statement_timeout_error(error):
+                    fast_pass_timed_out = True
                     rows = _run_quick_timeout_fallback_query(
                         session,
                         normalized_query=normalized_query,
-                        tokenized_query=tokenized_query,
-                        limit=normalized_limit,
+                        normalized_query_compact=compact_normalized_query,
+                        first_query_token=first_query_token,
+                        limit=max(6, normalized_limit * 2),
                     )
                 else:
                     raise
@@ -5466,7 +5513,66 @@ def search_games_fast(
         if quick_mode and search_sequence > 0 and _is_search_sequence_stale(search_scope_key, int(search_sequence)):
             return []
 
-        if quick_mode and use_compact_match and len(rows) < min(2, normalized_limit):
+        if (
+            quick_mode
+            and not fast_pass_timed_out
+            and tokenized_query
+            and len(rows) < min(2, normalized_limit)
+        ):
+            token_candidate_limit = min(24, max(6, normalized_limit * 4))
+            try:
+                token_prefix_rows = session.execute(
+                    text(
+                        """
+                        SELECT
+                            g.id,
+                            g.name AS game_name,
+                            g.developer,
+                            g.publisher,
+                            COALESCE(s.genres, g.genres, '') AS genres_csv,
+                            COALESCE(s.tags, g.tags, '') AS tags_csv,
+                            s.steam_appid,
+                            COALESCE(s.banner_url, 'https://cdn.cloudflare.steamstatic.com/steam/apps/' || g.appid || '/header.jpg') AS image_url,
+                            s.latest_price,
+                            s.latest_discount_percent,
+                            s.deal_score,
+                            COALESCE(s.popularity_score, 0) AS popularity_score,
+                            COALESCE(s.current_players, 0) AS current_players,
+                            COALESCE(s.upcoming_hot_score, 0) AS upcoming_hot_score,
+                            COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
+                            s.worth_buying_score,
+                            COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
+                            COALESCE(s.review_score, g.review_score) AS review_score,
+                            COALESCE(s.review_count, g.review_total_count) AS review_total_count,
+                            s.deal_heat_reason,
+                            s.release_date,
+                            s.is_upcoming,
+                            0.0 AS sim
+                        FROM games g
+                        LEFT JOIN game_snapshots s ON s.game_id = g.id
+                        WHERE lower(g.name) LIKE (:tokenized_q || '%')
+                        ORDER BY
+                            CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+                            length(g.name) ASC,
+                            g.name ASC
+                        LIMIT :limit
+                        """
+                    ),
+                    {
+                        "tokenized_q": tokenized_query,
+                        "normalized_q": normalized_query,
+                        "limit": token_candidate_limit,
+                    },
+                ).mappings().all()
+            except Exception as error:
+                if _is_statement_timeout_error(error):
+                    token_prefix_rows = []
+                else:
+                    raise
+            if token_prefix_rows:
+                rows = _extend_search_row_candidates(rows, token_prefix_rows)
+
+        if quick_mode and use_compact_match and not fast_pass_timed_out and len(rows) < min(2, normalized_limit):
             compact_probe = compact_normalized_query[: max(3, min(5, len(compact_normalized_query)))]
             compact_candidate_limit = min(90, max(24, normalized_limit * 12))
             try:
@@ -5530,6 +5636,7 @@ def search_games_fast(
 
         should_run_broad_pass = (
             not alias_applied
+            and not fast_pass_timed_out
             and len(rows) < min(2, normalized_limit)
             and len(normalized_query) >= 3
         )

@@ -5239,7 +5239,7 @@ input:focus-visible {
         const HERO_LOGO_FADE_DURATION_MS = 340;
         const SEARCH_INPUT_DEBOUNCE_MS = 180;
         const SEARCH_MIN_QUERY_CHARS = 2;
-        const SEARCH_REQUEST_TIMEOUT_MS = 2600;
+        const SEARCH_REQUEST_TIMEOUT_MS = 3600;
         const SEARCH_CACHE_TTL_MS = 60 * 1000;
         const SEARCH_INITIAL_VISIBLE_RESULTS = 3;
         const SEARCH_MAX_VISIBLE_RESULTS = 10;
@@ -5697,6 +5697,7 @@ input:focus-visible {
                 resultsQueryKey: "",
                 loading: false,
                 error: null,
+                status: "idle",
                 activeIndex: -1,
                 renderLimit: SEARCH_MAX_VISIBLE_RESULTS,
                 stagedRenderFrame: null,
@@ -5705,6 +5706,7 @@ input:focus-visible {
                 cache: new Map(),
                 lastRequestedQueryKey: "",
                 lastAppliedQueryKey: "",
+                timeoutQueryKey: "",
             },
             catalog: {
                 loading: false,
@@ -12415,8 +12417,10 @@ input:focus-visible {
                 state.search.resultsQueryKey = "";
                 state.search.loading = false;
                 state.search.error = null;
+                state.search.status = "idle";
                 state.search.lastRequestedQueryKey = "";
                 state.search.lastAppliedQueryKey = "";
+                state.search.timeoutQueryKey = "";
                 state.search.activeIndex = -1;
                 state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
                 renderSearchResults();
@@ -12433,8 +12437,10 @@ input:focus-visible {
                 state.search.resultsQueryKey = "";
                 state.search.loading = false;
                 state.search.error = null;
+                state.search.status = "idle";
                 state.search.lastRequestedQueryKey = "";
                 state.search.lastAppliedQueryKey = "";
+                state.search.timeoutQueryKey = "";
                 state.search.activeIndex = -1;
                 state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
                 renderSearchResults();
@@ -12448,6 +12454,7 @@ input:focus-visible {
                 state.search.resultsQueryKey = "";
                 state.search.loading = false;
                 state.search.error = null;
+                state.search.status = "idle";
                 state.search.activeIndex = -1;
                 state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
                 renderSearchResults();
@@ -12456,10 +12463,8 @@ input:focus-visible {
 
             state.search.error = null;
             state.search.activeIndex = -1;
-            if (state.search.resultsQueryKey && state.search.resultsQueryKey !== queryKey) {
-                state.search.results = [];
-                state.search.resultsQueryKey = "";
-                state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
+            if (state.search.timeoutQueryKey && state.search.timeoutQueryKey !== queryKey) {
+                state.search.timeoutQueryKey = "";
             }
             if (!force && state.search.loading && state.search.lastRequestedQueryKey === queryKey) {
                 renderSearchResults();
@@ -12483,6 +12488,8 @@ input:focus-visible {
                 state.search.resultsQueryKey = queryKey;
                 state.search.loading = false;
                 state.search.error = null;
+                state.search.status = "success";
+                state.search.timeoutQueryKey = "";
                 state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
                 renderSearchResults();
                 state.search.controller = null;
@@ -12494,6 +12501,7 @@ input:focus-visible {
             clearSearchRequest();
             clearSearchStagedRenderFrame();
             state.search.loading = true;
+            state.search.status = "loading";
             renderSearchResults();
 
             const requestId = Number(state.search.requestId || 0) + 1;
@@ -12523,6 +12531,7 @@ input:focus-visible {
                 params.set("q", trimmed);
                 params.set("limit", String(SEARCH_INITIAL_VISIBLE_RESULTS));
                 params.set("mode", "quick");
+                params.set("seq", String(requestId));
                 const payload = await fetchJson(`/search?${params.toString()}`, {
                     signal: controller.signal,
                     headers: {
@@ -12545,8 +12554,10 @@ input:focus-visible {
                 state.search.resultsQueryKey = queryKey;
                 state.search.loading = false;
                 state.search.error = null;
+                state.search.status = remoteRows.length ? "success" : "empty";
                 state.search.controller = null;
                 state.search.lastAppliedQueryKey = queryKey;
+                state.search.timeoutQueryKey = "";
                 state.search.renderLimit = Math.max(
                     1,
                     Math.min(SEARCH_INITIAL_VISIBLE_RESULTS, SEARCH_MAX_VISIBLE_RESULTS, remoteRows.length || 1),
@@ -12557,6 +12568,12 @@ input:focus-visible {
                 }
             } catch (error) {
                 if (isAbortLikeError(error) && !didTimeout) {
+                    if (
+                        state.search.requestId === requestId
+                        && state.search.controller === controller
+                    ) {
+                        state.search.status = "aborted";
+                    }
                     clearRequestTimeout();
                     return;
                 }
@@ -12571,16 +12588,19 @@ input:focus-visible {
 
                 state.search.loading = false;
                 state.search.controller = null;
-                const hasCurrentQueryResults = (
-                    state.search.resultsQueryKey === queryKey
-                    && safeArray(state.search.results).length > 0
-                );
-                if (!hasCurrentQueryResults) {
+                const hasVisibleResults = safeArray(state.search.results).length > 0;
+                if (!hasVisibleResults) {
                     state.search.error = didTimeout
                         ? "Search is taking too long. Please refine your query."
                         : resolveSearchErrorMessage(error);
                 } else {
                     state.search.error = null;
+                }
+                if (didTimeout) {
+                    state.search.status = hasVisibleResults ? "partial-timeout" : "timeout";
+                    state.search.timeoutQueryKey = queryKey;
+                } else {
+                    state.search.status = hasVisibleResults ? "partial-error" : "error";
                 }
                 renderSearchResults();
             } finally {
@@ -12607,6 +12627,12 @@ input:focus-visible {
 
             if (state.search.loading && !results.length) {
                 renderSkeleton(ui.searchResultsList, "search-results", 4);
+                openSearchResults();
+                return;
+            }
+
+            if (state.search.status === "aborted" && !results.length) {
+                renderSkeleton(ui.searchResultsList, "search-results", 3);
                 openSearchResults();
                 return;
             }
@@ -15153,8 +15179,10 @@ try {
                 state.search.resultsQueryKey = "";
                 state.search.loading = false;
                 state.search.error = null;
+                state.search.status = "idle";
                 state.search.activeIndex = -1;
                 state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
+                state.search.timeoutQueryKey = "";
                 if (clearRequestKeys) {
                     state.search.lastRequestedQueryKey = "";
                     state.search.lastAppliedQueryKey = "";
@@ -15189,6 +15217,9 @@ try {
                 catalogQueryState.query = String(value || "");
                 const queryKey = normalizeSearchQueryKey(catalogQueryState.query);
                 const trimmedSearch = String(catalogQueryState.query || "").trim();
+                if (state.search.timeoutQueryKey && state.search.timeoutQueryKey !== queryKey) {
+                    state.search.timeoutQueryKey = "";
+                }
                 state.search.activeIndex = -1;
                 state.search.error = null;
                 if (searchInputTimer) clearTimeout(searchInputTimer);
@@ -15233,11 +15264,28 @@ try {
                     return;
                 }
                 const queryKey = normalizeSearchQueryKey(query);
-                if (!queryKey || state.search.lastRequestedQueryKey === queryKey || state.search.lastAppliedQueryKey === queryKey) {
+                const searchStatus = String(state.search.status || "");
+                const canRetryTimedOutQuery = state.search.timeoutQueryKey === queryKey;
+                const shouldForceRetry = (
+                    canRetryTimedOutQuery
+                    || searchStatus === "timeout"
+                    || searchStatus === "partial-timeout"
+                    || (searchStatus === "error" && state.search.lastRequestedQueryKey === queryKey)
+                );
+                if (
+                    !queryKey
+                    || (
+                        !shouldForceRetry
+                        && (
+                            state.search.lastRequestedQueryKey === queryKey
+                            || state.search.lastAppliedQueryKey === queryKey
+                        )
+                    )
+                ) {
                     renderSearchResults();
                     return;
                 }
-                void refreshSearchResults({ force: true });
+                void refreshSearchResults({ force: shouldForceRetry });
             });
 
             ui.searchInput.addEventListener("blur", () => {

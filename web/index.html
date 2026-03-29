@@ -484,6 +484,12 @@ select {
     color: rgba(158, 194, 238, 0.78);
 }
 
+.search-bar input:focus,
+.search-bar input:focus-visible {
+    outline: none;
+    box-shadow: none;
+}
+
 .search-results-pop {
     display: none;
     position: absolute;
@@ -5101,8 +5107,7 @@ input:focus-visible {
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Daily Insight</h2>
-                            <div class="panel-subtitle">One short signal worth your attention today.</div>
-                        </div>
+                            <div class="panel-subtitle">
                     </div>
                     <div class="panel-body">
                         <div id="dailyDigestList" class="digest-list"></div>
@@ -11044,7 +11049,7 @@ input:focus-visible {
             }
 
             if (ui.becauseYouOwnSubtitle) {
-                ui.becauseYouOwnSubtitle.textContent = "Relevant opportunities with matching library tags and current deal strength.";
+                ui.becauseYouOwnSubtitle.textContent = "WIP.";
             }
             ui.becauseYouOwnList.innerHTML = recommendations.items
                 .map((entry) => becauseYouOwnItemHtml(entry))
@@ -11422,7 +11427,7 @@ input:focus-visible {
             if (ui.yourDealsTodaySubtitle) {
                 ui.yourDealsTodaySubtitle.textContent = personalizedActive
                     ? "Your highest-value next move from watch, owned, and live timing signals."
-                    : "Highest-confidence opportunity from live snapshot scoring.";
+                    : "Best thing for now, or not, but i hope it is.";
             }
 
             if (loading && !filteredDisplay.rows.length) {

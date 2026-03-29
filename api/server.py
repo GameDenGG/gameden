@@ -220,6 +220,7 @@ TOP_PLAYED_CACHE_KEY = "home:top_played"
 LEADERBOARD_CACHE_KEY = "home:leaderboard"
 CATALOG_SEED_CACHE_KEY = "home:catalog_seed"
 HOMEPAGE_CRITICAL_LIMIT = 8
+DASHBOARD_HOME_DEAL_RAIL_LIMIT = 60
 OPPORTUNITY_QUERY_MULTIPLIER = 8
 OPPORTUNITY_MIN_CANDIDATES = 96
 OPPORTUNITY_MAX_CANDIDATES = 320
@@ -7543,7 +7544,7 @@ def _trim_dashboard_home_payload(payload: dict, mode: str) -> dict:
 def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
     payload = dict(raw_payload)
 
-    rail_limit = 24
+    rail_limit = DASHBOARD_HOME_DEAL_RAIL_LIMIT
     worth_buying_now = _released_deal_dashboard_rows(_dashboard_rows(payload, "worth_buying_now", "worthBuyingNow"))
     biggest_discounts = _released_deal_dashboard_rows(_dashboard_rows(payload, "biggest_discounts", "biggestDeals"))
     trending_now = _released_dashboard_rows(_dashboard_rows(payload, "trending_now", "trending", "trendingDeals"))
@@ -9011,17 +9012,16 @@ def list_deal_opportunities(
     limit: int = Query(default=24, ge=1, le=120),
 ):
     started = _start_timer()
+    bounded_limit = max(1, int(limit))
     session = ReadSessionLocal()
     try:
-        cached_items = _read_cached_section_items(session, "home:deal_opportunities", limit=limit)
-        if cached_items:
-            items = _filter_valid_deal_payload_rows(cached_items, limit=limit)
-            return {
-                "count": len(items),
-                "items": items,
-                "generated_at": utc_now().isoformat(),
-            }
-        items = _collect_deal_opportunity_items(session, limit)
+        cached_items = _read_cached_section_items(session, "home:deal_opportunities", limit=bounded_limit)
+        cached_valid = _filter_valid_deal_payload_rows(cached_items, limit=None) if cached_items else []
+        if len(cached_valid) >= bounded_limit:
+            items = cached_valid[:bounded_limit]
+        else:
+            fresh_items = _collect_deal_opportunity_items(session, bounded_limit)
+            items = _filter_valid_deal_payload_rows([*cached_valid, *fresh_items], limit=bounded_limit)
         return {
             "count": len(items),
             "items": items,
@@ -9040,17 +9040,16 @@ def list_opportunity_radar(
     limit: int = Query(default=24, ge=1, le=120),
 ):
     started = _start_timer()
+    bounded_limit = max(1, int(limit))
     session = ReadSessionLocal()
     try:
-        cached_items = _read_cached_section_items(session, "home:opportunity_radar", limit=limit)
-        if cached_items:
-            items = _filter_valid_deal_payload_rows(cached_items, limit=limit)
-            return {
-                "count": len(items),
-                "items": items,
-                "generated_at": utc_now().isoformat(),
-            }
-        items = _collect_opportunity_radar_items(session, limit)
+        cached_items = _read_cached_section_items(session, "home:opportunity_radar", limit=bounded_limit)
+        cached_valid = _filter_valid_deal_payload_rows(cached_items, limit=None) if cached_items else []
+        if len(cached_valid) >= bounded_limit:
+            items = cached_valid[:bounded_limit]
+        else:
+            fresh_items = _collect_opportunity_radar_items(session, bounded_limit)
+            items = _filter_valid_deal_payload_rows([*cached_valid, *fresh_items], limit=bounded_limit)
         return {
             "count": len(items),
             "items": items,

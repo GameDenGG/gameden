@@ -36,7 +36,7 @@
   "@id": "https://gameden.gg/game#page",
   "url": "https://gameden.gg/game",
   "name": "Game Deals & Price Tracker | GameDen.gg",
-  "description": "Track game prices, compare active discounts, and follow momentum signals across stores with snapshot-backed deal intelligence."
+  "description": "Track game prices, compare discounts, and decide when to buy."
 }
 </script>
 <script id="gameStructuredData" type="application/ld+json">
@@ -1901,7 +1901,7 @@ a {
     <section class="panel panel-secondary decision-store-section" id="storeSection">
         <div class="panel-head">
             <h2 class="panel-title">Where To Buy</h2>
-            <div class="panel-subtitle">Best option first.</div>
+            <div class="panel-subtitle">Top option first.</div>
         </div>
         <div class="panel-body decision-store-grid">
             <article class="decision-best-deal" id="bestDealCard">
@@ -1946,7 +1946,7 @@ a {
                         <section class="panel panel-primary decision-chart-panel" id="priceHistoryPanel">
                             <div class="panel-head">
                                 <h2 class="panel-title" id="priceHistoryTitle">Price History</h2>
-                                <div class="panel-subtitle" id="priceHistorySubtitle">Optional detail.</div>
+                                <div class="panel-subtitle" id="priceHistorySubtitle">Price trend over time.</div>
                             </div>
                             <div class="panel-body">
                                 <div class="range-row">
@@ -1965,7 +1965,7 @@ a {
                         <section class="panel panel-secondary decision-chart-panel" id="playerHistoryPanel">
                             <div class="panel-head">
                                 <h2 class="panel-title" id="playerHistoryTitle">Player Activity</h2>
-                                <div class="panel-subtitle" id="playerHistorySubtitle">Optional detail.</div>
+                                <div class="panel-subtitle" id="playerHistorySubtitle">Recent player trend.</div>
                             </div>
                             <div class="panel-body">
                                 <div class="range-row player-range-row" role="group" aria-label="Player history time range">
@@ -1992,7 +1992,7 @@ a {
                         <section class="panel panel-secondary" id="marketSnapshotPanel">
                             <div class="panel-head">
                                 <h2 class="panel-title">Quick Facts</h2>
-                                <div class="panel-subtitle" id="marketSnapshotSubtitle">Optional detail.</div>
+                                <div class="panel-subtitle" id="marketSnapshotSubtitle">Key stats at a glance.</div>
                             </div>
                             <div class="panel-body">
                                 <div class="info-list" id="marketInfo"></div>
@@ -2002,7 +2002,7 @@ a {
                         <section class="panel discovery-panel panel-tertiary">
                             <div class="panel-head">
                                 <h2 class="panel-title">Related games</h2>
-                                <div class="panel-subtitle">Optional related titles.</div>
+                                <div class="panel-subtitle">Similar games you may like.</div>
                             </div>
                             <div class="panel-body">
                                 <div class="related-grid" id="relatedGames"></div>
@@ -2810,7 +2810,7 @@ function buildShareExplanationLine(payload) {
         const line = normalizeReasonSnippet(candidate);
         if (line) return line;
     }
-    return "Snapshot-backed deal signal";
+    return "Notable deal update";
 }
 
 function buildShareSummary(payload) {
@@ -3131,7 +3131,7 @@ function getEngagementText(payload) {
     if (Number.isFinite(popularity) && popularity > 0) {
         return `Popularity ${Math.round(popularity)}/100`;
     }
-    return "Signal calibrating";
+    return "Trend still forming";
 }
 
 function getReviewLabel(payload) {
@@ -3236,13 +3236,13 @@ function buildGameContextSummary(payload, context) {
     if (timingState === "low_confidence") {
         return {
             title: "Decision",
-            text: timingReason || "Timing signal is still calibrating.",
+            text: timingReason || "Timing is still unclear.",
             heroSub: "Low confidence. Watch this one.",
         };
     }
     return {
         title: "Decision",
-        text: timingReason || "Signals are mixed right now.",
+        text: timingReason || "Current signals are mixed.",
         heroSub: timingLabel,
     };
 }
@@ -3557,7 +3557,7 @@ function buildRecommendationHeadline(payload, insights) {
     const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
     const buyReason = normalizeReasonSnippet(payload?.buy_reason);
     if (recommendation === "BUY_NOW") {
-        return `BUY — ${buyReason || "Current value and player signal align."}`;
+        return `BUY — ${buyReason || "Current value and player trend align."}`;
     }
     if (recommendation === "WAIT") {
         if (insights?.state === "declining" || insights?.state === "launch_hype_dropoff") {
@@ -3566,9 +3566,9 @@ function buildRecommendationHeadline(payload, insights) {
         if (insights?.state === "one_off_spike") {
             return "WAIT — Recent spike looks temporary; a better entry may appear.";
         }
-        return `WAIT — ${buyReason || "Timing signal suggests better value later."}`;
+        return `WAIT — ${buyReason || "Timing suggests better value later."}`;
     }
-    return buyReason || "Recommendation signal is still calibrating.";
+    return buyReason || "Recommendation is still forming.";
 }
 
 function resolveDealConfidence(payload) {
@@ -3646,7 +3646,7 @@ function renderDealConfidence(payload) {
             </div>
             <div class="prediction-item">
                 <div class="prediction-title">Explanation</div>
-                <div class="prediction-value info-value-compact">Confidence will appear once more snapshot signals are available.</div>
+                <div class="prediction-value info-value-compact">Confidence appears once enough data is available.</div>
             </div>
         `;
         return;
@@ -3657,7 +3657,7 @@ function renderDealConfidence(payload) {
     const reasonLines = buildDealConfidenceReasonLines(payload);
     const reasonText = reasonLines.length
         ? reasonLines.join(" • ")
-        : "Signals are mixed and a better entry may appear later.";
+        : "Signals are mixed, so waiting may be better.";
     const recommendationHeadline = buildRecommendationHeadline(payload, insights);
     const confidenceSummary = getAuthoritativePlayerConfidenceText(payload);
     const scoreText = Number.isFinite(Number(confidence.score))
@@ -3678,7 +3678,7 @@ function renderDealConfidence(payload) {
             <div class="prediction-value info-value-compact">${escapeHtml(recommendationHeadline)}</div>
         </div>
         <div class="prediction-item">
-            <div class="prediction-title">Player Signal Confidence</div>
+            <div class="prediction-title">Player Data Confidence</div>
             <div class="prediction-value info-value-compact">${escapeHtml(confidenceSummary)}</div>
         </div>
         <div class="prediction-item key-metric">
@@ -3917,21 +3917,21 @@ function applyAdaptiveGameLayout(payload, context) {
 
     if (context.mode === "paid") {
         if (priceHistoryTitle) priceHistoryTitle.innerText = "Price History";
-        if (priceHistorySubtitle) priceHistorySubtitle.innerText = "Optional detail.";
+        if (priceHistorySubtitle) priceHistorySubtitle.innerText = "Price trend over time.";
         if (playerHistoryTitle) playerHistoryTitle.innerText = "Player Activity";
-        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Optional detail.";
-        if (marketSnapshotSubtitle) marketSnapshotSubtitle.innerText = "Optional detail.";
+        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Recent player trend.";
+        if (marketSnapshotSubtitle) marketSnapshotSubtitle.innerText = "Key stats at a glance.";
     } else if (context.mode === "free") {
         if (playerHistoryTitle) playerHistoryTitle.innerText = "Engagement History";
-        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Optional detail.";
+        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "How player activity is changing.";
         if (marketSnapshotSubtitle) {
-            marketSnapshotSubtitle.innerText = "Optional detail.";
+            marketSnapshotSubtitle.innerText = "Key stats at a glance.";
         }
     } else {
         if (playerHistoryTitle) playerHistoryTitle.innerText = "Pre-Launch Activity";
-        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Optional detail.";
+        if (playerHistorySubtitle) playerHistorySubtitle.innerText = "Pre-launch interest trend.";
         if (marketSnapshotSubtitle) {
-            marketSnapshotSubtitle.innerText = "Optional detail.";
+            marketSnapshotSubtitle.innerText = "Key launch details.";
         }
     }
 }
@@ -4673,7 +4673,7 @@ if (!payload || payload.error) {
             console.warn("Price history unavailable for game detail", error);
             renderPriceChart({ points: [], history: [] });
         });
-        renderRelatedFallback("Related discovery requires a valid game id.");
+        renderRelatedFallback("Related games need a valid game id.");
     }
 }
 
@@ -4773,7 +4773,7 @@ function renderRelatedFallback(message) {
     if (!relatedGamesEl) return;
     relatedGamesEl.innerHTML = `
         <section class="related-block">
-            <h3 class="related-title">Discovery Loops</h3>
+            <h3 class="related-title">Related Games</h3>
             <div class="related-items">
                 <div class="related-item"><span>${escapeHtml(message)}</span></div>
             </div>
@@ -4814,7 +4814,7 @@ function renderMarketInfo(data, context = currentGameContext) {
             { label: "Engagement", value: getEngagementText(data), compact: true, keyMetric: true },
             { label: "Trend", value: normalizeReasonSnippet(data.trend_reason_summary ?? data.momentum?.reason) || "—", compact: true },
             { label: "Trend State", value: playerTrendState, compact: true },
-            { label: "Signal Confidence", value: playerTrendConfidence, compact: true },
+            { label: "Data Confidence", value: playerTrendConfidence, compact: true },
             { label: "Genres", value: genres.slice(0, 3).join(", ") || "—", compact: true },
             { label: "Platforms", value: platforms.slice(0, 3).join(", ") || "—", compact: true },
         ];
@@ -4834,7 +4834,7 @@ function renderMarketInfo(data, context = currentGameContext) {
             { label: "Launch Interest", value: Number.isFinite(Number(data.upcoming_hot_score)) ? `${Math.round(Number(data.upcoming_hot_score))}/100` : "—", compact: false },
             { label: "Engagement", value: getEngagementText(data), compact: true },
             { label: "Trend State", value: playerTrendState, compact: true },
-            { label: "Signal Confidence", value: playerTrendConfidence, compact: true },
+            { label: "Data Confidence", value: playerTrendConfidence, compact: true },
             { label: "Store", value: resolveStoreUrl(data) ? "Available to follow on store" : "Store page unavailable", compact: true },
             { label: "Genres", value: genres.slice(0, 3).join(", ") || "—", compact: true },
             { label: "Platforms", value: platforms.slice(0, 3).join(", ") || "—", compact: true },
@@ -4856,7 +4856,7 @@ function renderMarketInfo(data, context = currentGameContext) {
             { label: "Engagement", value: getEngagementText(data), compact: true },
             { label: "Buy Score", value: Number.isFinite(Number(data.buy_score)) ? Number(data.buy_score).toFixed(1) : "—", compact: false },
             { label: "Trend State", value: playerTrendState, compact: true, keyMetric: true },
-            { label: "Signal Confidence", value: playerTrendConfidence, compact: true },
+            { label: "Data Confidence", value: playerTrendConfidence, compact: true },
             { label: "Genres", value: genres.slice(0, 3).join(", ") || "—", compact: true },
             { label: "Platforms", value: platforms.slice(0, 3).join(", ") || "—", compact: true },
         ];
@@ -4916,7 +4916,7 @@ function renderDealExplanation(payload, context = currentGameContext) {
         .slice(0, 4);
 
     if (!finalLines.length) {
-        el.innerHTML = "<li>Snapshot signals are still building confidence.</li>";
+        el.innerHTML = "<li>More data is needed before we can explain this clearly.</li>";
         return;
     }
 

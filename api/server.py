@@ -221,6 +221,17 @@ LEADERBOARD_CACHE_KEY = "home:leaderboard"
 CATALOG_SEED_CACHE_KEY = "home:catalog_seed"
 HOMEPAGE_CRITICAL_LIMIT = 8
 DASHBOARD_HOME_DEAL_RAIL_LIMIT = 60
+DASHBOARD_CROSS_RAIL_UNIQUENESS_WINDOW = max(8, min(12, DASHBOARD_HOME_DEAL_RAIL_LIMIT))
+DASHBOARD_CROSS_RAIL_ORDER = (
+    "deal_opportunities",
+    "dealRanked",
+    "buy_now_picks",
+    "biggest_discounts",
+    "worth_buying_now",
+    "trending_now",
+    "opportunity_radar",
+    "wait_picks",
+)
 OPPORTUNITY_QUERY_MULTIPLIER = 8
 OPPORTUNITY_MIN_CANDIDATES = 96
 OPPORTUNITY_MAX_CANDIDATES = 320
@@ -6769,6 +6780,16 @@ def get_dashboard_catalog_seed(
         if isinstance(home_payload, dict):
             home_payload = _augment_dashboard_home_payload(home_payload)
             for key in (
+                "releasedGames",
+                "released",
+                "deal_opportunities",
+                "dealOpportunities",
+                "opportunity_radar",
+                "opportunityRadar",
+                "buy_now_picks",
+                "buyNowPicks",
+                "wait_picks",
+                "waitPicks",
                 "dealRanked",
                 "topDealsToday",
                 "worth_buying_now",
@@ -7625,6 +7646,126 @@ def _dashboard_sort_game_id(row: dict) -> int:
     return int(safe_num((row or {}).get("game_id") or (row or {}).get("id"), 0.0))
 
 
+def _is_exceptional_dashboard_repeat_row(row: dict) -> bool:
+    if not isinstance(row, dict):
+        return False
+    discount = safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0))
+    deal_score = safe_num(row.get("deal_score"), 0.0)
+    buy_score = safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0))
+    opportunity_score = safe_num(row.get("deal_opportunity_score"), 0.0)
+    momentum_score = safe_num(row.get("momentum_score"), 0.0)
+    historical_status = str(row.get("historical_status") or "").strip().lower()
+    historical_elite = historical_status in {"new_historical_low", "matches_historical_low"}
+
+    return bool(
+        (discount >= 82 and deal_score >= 90)
+        or (buy_score >= 93 and deal_score >= 88)
+        or (opportunity_score >= 93 and momentum_score >= 88 and discount >= 40)
+        or (historical_elite and discount >= 55 and deal_score >= 84)
+    )
+
+
+def _compose_cross_rail_dashboard_rows(
+    primary_rows: list[dict],
+    fallback_rows: list[dict],
+    *,
+    exposure_counts: dict[str, int],
+    limit: int,
+    uniqueness_window: int,
+) -> list[dict]:
+    bounded_limit = max(1, int(limit))
+    bounded_window = max(1, min(int(uniqueness_window), bounded_limit))
+    selected: list[dict] = []
+    seen_keys: set[str] = set()
+    deferred_repeats: list[dict] = []
+
+    for source_rows in (primary_rows, fallback_rows):
+        for idx, row in enumerate(_dedupe_dashboard_rows(source_rows)):
+            if not isinstance(row, dict):
+                continue
+            row_key = _dashboard_identity_key(row, idx)
+            if not row_key or row_key in seen_keys:
+                continue
+
+            repeat_count = int(exposure_counts.get(row_key, 0))
+            is_exceptional_repeat = repeat_count > 0 and _is_exceptional_dashboard_repeat_row(row)
+
+            if repeat_count > 0 and not is_exceptional_repeat:
+                deferred_repeats.append(row)
+                seen_keys.add(row_key)
+                continue
+
+            if repeat_count >= 2:
+                seen_keys.add(row_key)
+                continue
+
+            selected.append(row)
+            seen_keys.add(row_key)
+            if len(selected) >= bounded_limit:
+                break
+        if len(selected) >= bounded_limit:
+            break
+
+    if len(selected) < bounded_limit:
+        for idx, row in enumerate(deferred_repeats):
+            row_key = _dashboard_identity_key(row, idx)
+            if not row_key:
+                continue
+            if len(selected) < bounded_window and len(selected) > 0:
+                continue
+            selected.append(row)
+            if len(selected) >= bounded_limit:
+                break
+
+    if len(selected) < bounded_limit and len(selected) < bounded_window:
+        for row in deferred_repeats:
+            if row in selected:
+                continue
+            selected.append(row)
+            if len(selected) >= bounded_limit:
+                break
+
+    for idx, row in enumerate(selected):
+        row_key = _dashboard_identity_key(row, idx)
+        if not row_key:
+            continue
+        exposure_counts[row_key] = int(exposure_counts.get(row_key, 0)) + 1
+
+    return selected
+
+
+def _diversify_dashboard_cross_rails(
+    rails: dict[str, list[dict]],
+    *,
+    fallback_rows: list[dict],
+    rail_order: tuple[str, ...],
+    limit: int,
+    uniqueness_window: int,
+) -> tuple[dict[str, list[dict]], dict[str, int]]:
+    normalized_limit = max(1, int(limit))
+    normalized_window = max(1, int(uniqueness_window))
+    fallback_pool = _dedupe_dashboard_rows(fallback_rows)
+    exposure_counts: dict[str, int] = {}
+    diversified: dict[str, list[dict]] = {}
+
+    for rail_key in rail_order:
+        primary_rows = _dedupe_dashboard_rows(rails.get(rail_key, []))
+        diversified[rail_key] = _compose_cross_rail_dashboard_rows(
+            primary_rows,
+            fallback_pool,
+            exposure_counts=exposure_counts,
+            limit=normalized_limit,
+            uniqueness_window=normalized_window,
+        )
+
+    for rail_key, rows in rails.items():
+        if rail_key in diversified:
+            continue
+        diversified[rail_key] = _dedupe_dashboard_rows(rows)
+
+    return diversified, exposure_counts
+
+
 def _score_dashboard_opportunity_row(row: dict) -> float:
     buy_score = safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0))
     discount = safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0))
@@ -7778,6 +7919,10 @@ def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
     deal_opportunities = _released_deal_dashboard_rows(_dashboard_rows(payload, "deal_opportunities", "dealOpportunities"))
     opportunity_radar = _released_deal_dashboard_rows(_dashboard_rows(payload, "opportunity_radar", "opportunityRadar"))
     deal_ranked = _released_deal_dashboard_rows(_dashboard_rows(payload, "dealRanked", "topDealsToday"))
+    top_reviewed = _released_dashboard_rows(_dashboard_rows(payload, "topReviewed", "top_reviewed"))
+    top_played = _released_dashboard_rows(_dashboard_rows(payload, "topPlayed", "top_played"))
+    leaderboard = _released_dashboard_rows(_dashboard_rows(payload, "leaderboard"))
+    trending = _released_dashboard_rows(_dashboard_rows(payload, "trending"))
 
     canonical_deal_pool = _released_deal_dashboard_rows(
         [
@@ -7820,6 +7965,67 @@ def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
         set(),
         rail_limit,
     )
+    diversified_cross_rails, cross_rail_exposure_counts = _diversify_dashboard_cross_rails(
+        {
+            "deal_opportunities": deal_opportunities,
+            "buy_now_picks": buy_now_picks,
+            "biggest_discounts": biggest_discounts,
+            "worth_buying_now": worth_buying_now,
+            "trending_now": trending_now,
+            "opportunity_radar": opportunity_radar,
+            "dealRanked": deal_ranked,
+            "wait_picks": wait_picks,
+        },
+        fallback_rows=_released_deal_dashboard_rows(
+            [
+                *canonical_deal_pool,
+                *deal_opportunities,
+                *opportunity_radar,
+                *buy_now_picks,
+                *biggest_discounts,
+                *worth_buying_now,
+                *trending_now,
+                *deal_ranked,
+                *wait_picks,
+                *new_historical_lows,
+            ]
+        ),
+        rail_order=DASHBOARD_CROSS_RAIL_ORDER,
+        limit=rail_limit,
+        uniqueness_window=DASHBOARD_CROSS_RAIL_UNIQUENESS_WINDOW,
+    )
+    deal_opportunities = diversified_cross_rails.get("deal_opportunities", [])
+    buy_now_picks = diversified_cross_rails.get("buy_now_picks", [])
+    biggest_discounts = diversified_cross_rails.get("biggest_discounts", [])
+    worth_buying_now = diversified_cross_rails.get("worth_buying_now", [])
+    trending_now = diversified_cross_rails.get("trending_now", [])
+    opportunity_radar = diversified_cross_rails.get("opportunity_radar", [])
+    deal_ranked = diversified_cross_rails.get("dealRanked", [])
+    wait_picks = diversified_cross_rails.get("wait_picks", [])
+
+    released_seed_candidates = _released_dashboard_rows(
+        [
+            *top_reviewed,
+            *top_played,
+            *leaderboard,
+            *trending,
+            *deal_ranked,
+            *worth_buying_now,
+            *biggest_discounts,
+            *trending_now,
+            *new_historical_lows,
+            *buy_now_picks,
+            *wait_picks,
+            *_dashboard_rows(payload, "releasedGames", "released"),
+        ]
+    )
+    released_seed_rows = _compose_cross_rail_dashboard_rows(
+        released_seed_candidates,
+        _released_dashboard_rows([*released_seed_candidates, *canonical_deal_pool]),
+        exposure_counts=dict(cross_rail_exposure_counts),
+        limit=24,
+        uniqueness_window=24,
+    )
 
     player_surges = _dedupe_dashboard_rows(_dashboard_rows(payload, "player_surges"))
     if not player_surges:
@@ -7853,6 +8059,8 @@ def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
     payload["marketRadar"] = deal_radar
     payload["dealOpportunities"] = deal_opportunities
     payload["opportunityRadar"] = opportunity_radar
+    payload["releasedGames"] = released_seed_rows
+    payload["released"] = released_seed_rows
     payload["decision_dashboard"] = {
         "worth_buying_now": worth_buying_now,
         "biggest_discounts": biggest_discounts,

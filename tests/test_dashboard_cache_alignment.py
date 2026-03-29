@@ -240,6 +240,133 @@ class DashboardCacheAlignmentTests(unittest.TestCase):
         finally:
             session.close()
 
+    def test_rebuild_dashboard_cache_limits_cross_rail_repeat_exposure(self):
+        session = _build_session()
+        try:
+            for idx in range(1, 120):
+                session.add(
+                    GameSnapshot(
+                        game_id=idx,
+                        game_name=f"Exposure {idx}",
+                        steam_appid=str(idx),
+                        latest_price=7.99 + (idx / 100.0),
+                        latest_original_price=59.99 + (idx / 100.0),
+                        latest_discount_percent=max(1, 99 - idx),
+                        review_score=70 + (idx % 25),
+                        review_score_label="Very Positive",
+                        review_count=3000 + idx,
+                        current_players=max(100, 26000 - idx * 150),
+                        avg_player_count=max(90, 22000 - idx * 130),
+                        player_change=max(1, 2800 - idx * 20),
+                        daily_peak=max(120, 32000 - idx * 190),
+                        momentum_score=float(450 - idx),
+                        worth_buying_score=float(470 - idx),
+                        recommended_score=float(460 - idx),
+                        deal_score=float(520 - idx),
+                        buy_score=float(460 - idx),
+                        deal_opportunity_score=float(440 - idx),
+                        is_upcoming=False,
+                        is_released=1,
+                    )
+                )
+            session.commit()
+
+            rebuild_dashboard_cache(session)
+            session.commit()
+            payload = json.loads(session.query(DashboardCache).filter(DashboardCache.cache_key == "home").first().payload)
+
+            rail_keys = (
+                "deal_opportunities",
+                "buyNowPicks",
+                "biggest_discounts",
+                "worth_buying_now",
+                "trending_now",
+                "opportunity_radar",
+                "dealRanked",
+                "wait_picks",
+            )
+            top_window = 8
+            exposure_counter: Counter[int] = Counter()
+            total_slots = 0
+
+            for key in rail_keys:
+                rows = payload.get(key, [])[:top_window]
+                for row in rows:
+                    game_id = int(row.get("game_id") or 0)
+                    if game_id <= 0:
+                        continue
+                    total_slots += 1
+                    exposure_counter[game_id] += 1
+
+            self.assertGreater(total_slots, 0)
+            self.assertTrue(exposure_counter)
+            self.assertLessEqual(max(exposure_counter.values()), 2)
+            unique_ratio = len(exposure_counter) / float(total_slots)
+            self.assertGreaterEqual(unique_ratio, 0.55)
+        finally:
+            session.close()
+
+    def test_rebuild_dashboard_cache_catalog_seed_prioritizes_non_rail_inventory(self):
+        session = _build_session()
+        try:
+            for idx in range(1, 110):
+                session.add(
+                    GameSnapshot(
+                        game_id=idx,
+                        game_name=f"Catalog Seed {idx}",
+                        steam_appid=str(idx),
+                        latest_price=8.99 + (idx / 100.0),
+                        latest_original_price=49.99 + (idx / 100.0),
+                        latest_discount_percent=max(1, 98 - idx),
+                        review_score=72 + (idx % 22),
+                        review_score_label="Very Positive",
+                        review_count=2500 + idx,
+                        current_players=max(80, 18000 - idx * 110),
+                        avg_player_count=max(70, 16000 - idx * 95),
+                        player_change=max(1, 2200 - idx * 14),
+                        daily_peak=max(90, 23000 - idx * 140),
+                        momentum_score=float(360 - idx),
+                        worth_buying_score=float(390 - idx),
+                        recommended_score=float(380 - idx),
+                        deal_score=float(430 - idx),
+                        buy_score=float(370 - idx),
+                        deal_opportunity_score=float(350 - idx),
+                        is_upcoming=False,
+                        is_released=1,
+                    )
+                )
+            session.commit()
+
+            rebuild_dashboard_cache(session)
+            session.commit()
+            payload = json.loads(session.query(DashboardCache).filter(DashboardCache.cache_key == "home").first().payload)
+
+            lead_rail_ids: set[int] = set()
+            for key in (
+                "deal_opportunities",
+                "buyNowPicks",
+                "biggest_discounts",
+                "worth_buying_now",
+                "trending_now",
+                "opportunity_radar",
+                "dealRanked",
+            ):
+                for row in payload.get(key, [])[:8]:
+                    game_id = int(row.get("game_id") or 0)
+                    if game_id > 0:
+                        lead_rail_ids.add(game_id)
+
+            released_seed_ids = [
+                int(row.get("game_id") or 0)
+                for row in payload.get("releasedGames", [])[:24]
+                if int(row.get("game_id") or 0) > 0
+            ]
+            self.assertTrue(released_seed_ids)
+            overlap = [game_id for game_id in released_seed_ids if game_id in lead_rail_ids]
+            self.assertLessEqual(len(overlap), 8)
+        finally:
+            session.close()
+
     def test_deal_radar_feed_limits_duplicate_games_and_balances_signals(self):
         session = _build_session()
         try:

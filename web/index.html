@@ -5279,6 +5279,7 @@ input:focus-visible {
             dealOpportunities: 72,
             opportunityRadar: 72,
             dealRailDepth: 72,
+            releasedGames: 24,
             upcoming: 24,
             personalizedDeals: 12,
             alertSignals: 40,
@@ -5288,6 +5289,8 @@ input:focus-visible {
         const HOMEPAGE_RAIL_CONTINUATION_STEP = 6;
         const HOMEPAGE_RAIL_CONTINUATION_THRESHOLD_PX = 320;
         const HOMEPAGE_RAIL_DIVERSITY_WINDOW = 16;
+        const HOMEPAGE_BOTTOM_RAIL_PICK_COUNT = 2;
+        const HOMEPAGE_BOTTOM_RAIL_EXPOSURE_WINDOW = 8;
         const HOMEPAGE_PRIORITY_IMAGE_SECTIONS = new Set([
             "dealRankedGrid",
             "opportunitiesGrid",
@@ -9552,9 +9555,53 @@ input:focus-visible {
             return playerSignal + popularitySignal + momentumSignal + reviewSignal + dealSignal;
         }
 
+        function isExceptionalHomepageRepeatGame(game) {
+            const discount = Math.max(
+                0,
+                Number(game?.discount_percent ?? game?.latest_discount_percent ?? 0),
+            );
+            const dealScore = Math.max(0, Number(game?.deal_score ?? 0));
+            const buyScore = Math.max(0, Number(game?.buy_score ?? game?.worth_buying_score ?? 0));
+            const opportunityScore = Math.max(0, Number(game?.deal_opportunity_score ?? 0));
+            const momentumScore = Math.max(0, Number(game?.momentum_score ?? 0));
+            const historicalStatus = String(game?.historical_status || "").trim().toLowerCase();
+            const historicalElite = historicalStatus === "new_historical_low" || historicalStatus === "matches_historical_low";
+
+            return (
+                (discount >= 82 && dealScore >= 90)
+                || (buyScore >= 93 && dealScore >= 88)
+                || (opportunityScore >= 93 && momentumScore >= 88 && discount >= 40)
+                || (historicalElite && discount >= 55 && dealScore >= 84)
+            );
+        }
+
+        function buildPrimaryRailExposureKeys(windowSize = HOMEPAGE_BOTTOM_RAIL_EXPOSURE_WINDOW) {
+            const normalizedWindow = Math.max(1, Number(windowSize) || HOMEPAGE_BOTTOM_RAIL_EXPOSURE_WINDOW);
+            const seen = new Set();
+            const railSources = [
+                safeArray(state.opportunitiesNow),
+                safeArray(state.buyNowPicks),
+                safeArray(state.biggestDiscounts),
+                safeArray(state.worthBuyingNow),
+                safeArray(state.trendingNow),
+                safeArray(state.opportunityRadar),
+                safeArray(state.dealRanked),
+                safeArray(state.waitPicks),
+            ];
+            for (const railRows of railSources) {
+                for (const row of railRows.slice(0, normalizedWindow)) {
+                    const key = gameIdentityKey(row);
+                    if (!key) continue;
+                    seen.add(key);
+                }
+            }
+            return seen;
+        }
+
         function getFeaturedAllGames() {
             const candidates = uniqueGamesByIdentity([
                 ...safeArray(state.allGames),
+                ...safeArray(state.releasedGames),
                 ...safeArray(state.topPlayed),
                 ...safeArray(state.leaderboard),
                 ...safeArray(state.latestPrices),
@@ -9566,26 +9613,45 @@ input:focus-visible {
                 .sort((a, b) => {
                     const scoreDiff = scoreTopSellerCandidate(b) - scoreTopSellerCandidate(a);
                     if (scoreDiff !== 0) return scoreDiff;
-                    return String(a.game_name || "").localeCompare(String(b.game_name || ""));
+                    const nameDiff = String(a.game_name || "").localeCompare(String(b.game_name || ""));
+                    if (nameDiff !== 0) return nameDiff;
+                    return Number(a.game_id || a.id || 0) - Number(b.game_id || b.id || 0);
                 });
 
             if (!candidates.length) return [];
 
             const pool = candidates.slice(0, Math.min(24, candidates.length));
-            const windowMs = 6 * 60 * 60 * 1000;
-            const windowIndex = Math.floor(Date.now() / windowMs);
-            const start = pool.length ? (windowIndex % pool.length) : 0;
+            const exposedKeys = buildPrimaryRailExposureKeys();
 
             const selected = [];
             const seen = new Set();
-            for (let offset = 0; offset < pool.length && selected.length < 2; offset += 1) {
-                const candidate = pool[(start + offset) % pool.length];
+            for (const candidate of pool) {
                 const key = gameIdentityKey(candidate);
                 if (!key || seen.has(key)) continue;
+                if (exposedKeys.has(key) && !isExceptionalHomepageRepeatGame(candidate)) continue;
                 seen.add(key);
                 selected.push(candidate);
+                if (selected.length >= HOMEPAGE_BOTTOM_RAIL_PICK_COUNT) break;
             }
-            return selected;
+            if (selected.length < HOMEPAGE_BOTTOM_RAIL_PICK_COUNT) {
+                for (const candidate of pool) {
+                    const key = gameIdentityKey(candidate);
+                    if (!key || seen.has(key)) continue;
+                    seen.add(key);
+                    selected.push(candidate);
+                    if (selected.length >= HOMEPAGE_BOTTOM_RAIL_PICK_COUNT) break;
+                }
+            }
+            if (selected.length < HOMEPAGE_BOTTOM_RAIL_PICK_COUNT) {
+                for (const candidate of candidates.slice(pool.length)) {
+                    const key = gameIdentityKey(candidate);
+                    if (!key || seen.has(key)) continue;
+                    seen.add(key);
+                    selected.push(candidate);
+                    if (selected.length >= HOMEPAGE_BOTTOM_RAIL_PICK_COUNT) break;
+                }
+            }
+            return selected.slice(0, HOMEPAGE_BOTTOM_RAIL_PICK_COUNT);
         }
 
         function updateAllGamesDirectoryLink() {
@@ -13955,30 +14021,34 @@ try {
         dashboardData?.seasonalSale || dashboardData?.seasonal_summary || null
     );
 
-    const dashboardReleasedSeed = uniqueGamesByName([
+    const releasedSeedFromDashboard = uniqueGamesByName([
         ...safeArray(dashboardData?.releasedGames),
         ...safeArray(dashboardData?.released),
-        ...safeArray(dashboardData?.dealRanked),
-        ...safeArray(dashboardData?.topDealsToday),
-        ...safeArray(dashboardData?.worthBuyingNow),
-        ...safeArray(dashboardData?.worth_buying_now),
-        ...safeArray(dashboardData?.biggestDeals),
-        ...safeArray(dashboardData?.biggest_discounts),
-        ...safeArray(dashboardData?.biggest_deals),
-        ...safeArray(dashboardData?.topReviewed),
-        ...safeArray(dashboardData?.top_reviewed),
-        ...safeArray(dashboardData?.trendingDeals),
-        ...safeArray(dashboardData?.trending_deals),
-        ...safeArray(dashboardData?.trending_now),
-        ...safeArray(dashboardData?.buy_now_picks),
-        ...safeArray(dashboardData?.wait_picks),
-        ...safeArray(dashboardData?.topPlayed),
-        ...safeArray(dashboardData?.top_played),
-        ...safeArray(dashboardData?.historicalLows),
-        ...safeArray(dashboardData?.historical_lows),
-        ...safeArray(dashboardData?.new_historical_lows),
-        ...safeArray(dashboardData?.upcoming),
     ]);
+    const dashboardReleasedSeed = releasedSeedFromDashboard.length
+        ? releasedSeedFromDashboard
+        : uniqueGamesByName([
+            ...safeArray(dashboardData?.dealRanked),
+            ...safeArray(dashboardData?.topDealsToday),
+            ...safeArray(dashboardData?.worthBuyingNow),
+            ...safeArray(dashboardData?.worth_buying_now),
+            ...safeArray(dashboardData?.biggestDeals),
+            ...safeArray(dashboardData?.biggest_discounts),
+            ...safeArray(dashboardData?.biggest_deals),
+            ...safeArray(dashboardData?.topReviewed),
+            ...safeArray(dashboardData?.top_reviewed),
+            ...safeArray(dashboardData?.trendingDeals),
+            ...safeArray(dashboardData?.trending_deals),
+            ...safeArray(dashboardData?.trending_now),
+            ...safeArray(dashboardData?.buy_now_picks),
+            ...safeArray(dashboardData?.wait_picks),
+            ...safeArray(dashboardData?.topPlayed),
+            ...safeArray(dashboardData?.top_played),
+            ...safeArray(dashboardData?.historicalLows),
+            ...safeArray(dashboardData?.historical_lows),
+            ...safeArray(dashboardData?.new_historical_lows),
+            ...safeArray(dashboardData?.upcoming),
+        ]);
     const hasReleasedSeed = dashboardReleasedSeed.length > 0;
     releasedData = hasReleasedSeed ? { items: dashboardReleasedSeed } : emptyReleased;
 

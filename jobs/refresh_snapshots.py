@@ -124,6 +124,18 @@ HOMEPAGE_VISIBLE_DIVERSITY_RAIL_ORDER = (
     "worth_buying_now",
     "trending_now",
 )
+HOMEPAGE_CROSS_RAIL_ORDER = (
+    "deal_opportunities",
+    "deal_ranked",
+    "buy_now_picks",
+    "biggest_discounts",
+    "worth_buying_now",
+    "trending_now",
+    "opportunity_radar",
+    "wait_picks",
+)
+HOMEPAGE_CROSS_RAIL_UNIQUENESS_WINDOW = max(8, min(12, HOMEPAGE_RAIL_LIMIT))
+HOMEPAGE_CATALOG_SEED_LIMIT = 24
 EXTENDED_PLATFORM_FILTER_OPTIONS = ("Steam Deck", "VR Compatibility")
 UTC = datetime.timezone.utc
 DEAL_EVENT_NEW_SALE = "NEW_SALE"
@@ -3620,6 +3632,127 @@ def _snapshot_sort_game_id(row: dict) -> int:
     return int(safe_num((row or {}).get("game_id") or (row or {}).get("id"), 0.0))
 
 
+def _is_exceptional_homepage_repeat_row(row: dict) -> bool:
+    if not isinstance(row, dict):
+        return False
+    discount = safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0))
+    deal_score = safe_num(row.get("deal_score"), 0.0)
+    buy_score = safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0))
+    opportunity_score = safe_num(row.get("deal_opportunity_score"), 0.0)
+    momentum_score = safe_num(row.get("momentum_score"), 0.0)
+    historical_status = str(row.get("historical_status") or "").strip().lower()
+    historical_elite = historical_status in {"new_historical_low", "matches_historical_low"}
+
+    return bool(
+        (discount >= 82 and deal_score >= 90)
+        or (buy_score >= 93 and deal_score >= 88)
+        or (opportunity_score >= 93 and momentum_score >= 88 and discount >= 40)
+        or (historical_elite and discount >= 55 and deal_score >= 84)
+    )
+
+
+def _compose_cross_rail_snapshot_rows(
+    primary_rows: list[dict],
+    fallback_rows: list[dict],
+    *,
+    exposure_counts: dict[str, int],
+    limit: int,
+    uniqueness_window: int,
+) -> list[dict]:
+    bounded_limit = max(1, int(limit))
+    bounded_window = max(1, min(int(uniqueness_window), bounded_limit))
+    selected: list[dict] = []
+    seen_keys: set[str] = set()
+    deferred_repeats: list[dict] = []
+
+    for source_rows in (primary_rows, fallback_rows):
+        for idx, row in enumerate(_dedupe_snapshot_rows(source_rows)):
+            if not isinstance(row, dict):
+                continue
+            row_key = _snapshot_identity_key(row, idx)
+            if not row_key or row_key in seen_keys:
+                continue
+
+            repeat_count = int(exposure_counts.get(row_key, 0))
+            is_exceptional_repeat = repeat_count > 0 and _is_exceptional_homepage_repeat_row(row)
+
+            if repeat_count > 0 and not is_exceptional_repeat:
+                deferred_repeats.append(row)
+                seen_keys.add(row_key)
+                continue
+
+            if repeat_count >= 2:
+                seen_keys.add(row_key)
+                continue
+
+            selected.append(row)
+            seen_keys.add(row_key)
+            if len(selected) >= bounded_limit:
+                break
+        if len(selected) >= bounded_limit:
+            break
+
+    if len(selected) < bounded_limit:
+        for idx, row in enumerate(deferred_repeats):
+            row_key = _snapshot_identity_key(row, idx)
+            if not row_key:
+                continue
+            if len(selected) < bounded_window and len(selected) > 0:
+                # Keep lead slots as unique as possible unless the rail is underfilled.
+                continue
+            selected.append(row)
+            if len(selected) >= bounded_limit:
+                break
+
+    if len(selected) < bounded_limit and len(selected) < bounded_window:
+        for row in deferred_repeats:
+            if row in selected:
+                continue
+            selected.append(row)
+            if len(selected) >= bounded_limit:
+                break
+
+    for idx, row in enumerate(selected):
+        row_key = _snapshot_identity_key(row, idx)
+        if not row_key:
+            continue
+        exposure_counts[row_key] = int(exposure_counts.get(row_key, 0)) + 1
+
+    return selected
+
+
+def _diversify_homepage_cross_rails(
+    rails: dict[str, list[dict]],
+    *,
+    fallback_rows: list[dict],
+    rail_order: tuple[str, ...],
+    limit: int,
+    uniqueness_window: int,
+) -> tuple[dict[str, list[dict]], dict[str, int]]:
+    normalized_limit = max(1, int(limit))
+    normalized_window = max(1, int(uniqueness_window))
+    fallback_pool = _dedupe_snapshot_rows(fallback_rows)
+    exposure_counts: dict[str, int] = {}
+    diversified: dict[str, list[dict]] = {}
+
+    for rail_key in rail_order:
+        primary_rows = _dedupe_snapshot_rows(rails.get(rail_key, []))
+        diversified[rail_key] = _compose_cross_rail_snapshot_rows(
+            primary_rows,
+            fallback_pool,
+            exposure_counts=exposure_counts,
+            limit=normalized_limit,
+            uniqueness_window=normalized_window,
+        )
+
+    for rail_key, rows in rails.items():
+        if rail_key in diversified:
+            continue
+        diversified[rail_key] = _dedupe_snapshot_rows(rows)
+
+    return diversified, exposure_counts
+
+
 def _allocate_homepage_protected_deal_rails(
     candidate_pool: list[dict],
     limit: int,
@@ -4000,19 +4133,77 @@ def rebuild_dashboard_cache(session: Session) -> None:
         set(),
         HOMEPAGE_RAIL_LIMIT,
     )
-    decision_pool = canonical_deal_pool
+    diversified_cross_rails, cross_rail_exposure_counts = _diversify_homepage_cross_rails(
+        {
+            "deal_opportunities": deal_opportunities_rows,
+            "buy_now_picks": buy_now_picks,
+            "biggest_discounts": biggest_discounts_rows,
+            "worth_buying_now": worth_buying_rows,
+            "trending_now": trending_now_rows,
+            "opportunity_radar": opportunity_radar_rows,
+            "deal_ranked": deal_ranked_rows,
+            "wait_picks": wait_picks,
+        },
+        fallback_rows=_released_deal_snapshot_rows(
+            [
+                *canonical_deal_pool,
+                *trending_now_rows,
+                *new_historical_lows_rows,
+                *worth_buying_rows,
+                *biggest_discounts_rows,
+                *deal_ranked_rows,
+                *buy_now_picks,
+                *wait_picks,
+            ]
+        ),
+        rail_order=HOMEPAGE_CROSS_RAIL_ORDER,
+        limit=HOMEPAGE_RAIL_LIMIT,
+        uniqueness_window=HOMEPAGE_CROSS_RAIL_UNIQUENESS_WINDOW,
+    )
+    deal_opportunities_rows = diversified_cross_rails.get("deal_opportunities", [])
+    buy_now_picks = diversified_cross_rails.get("buy_now_picks", [])
+    biggest_discounts_rows = diversified_cross_rails.get("biggest_discounts", [])
+    worth_buying_rows = diversified_cross_rails.get("worth_buying_now", [])
+    trending_now_rows = diversified_cross_rails.get("trending_now", [])
+    opportunity_radar_rows = diversified_cross_rails.get("opportunity_radar", [])
+    deal_ranked_rows = diversified_cross_rails.get("deal_ranked", [])
+    wait_picks = diversified_cross_rails.get("wait_picks", [])
+    decision_pool = _released_deal_snapshot_rows(
+        [
+            *deal_opportunities_rows,
+            *buy_now_picks,
+            *biggest_discounts_rows,
+            *worth_buying_rows,
+            *trending_now_rows,
+            *opportunity_radar_rows,
+            *deal_ranked_rows,
+            *wait_picks,
+            *canonical_deal_pool,
+        ]
+    )
     player_surges = _build_player_surges(alert_signals, trending_rows)
     seasonal_summary = _build_cached_seasonal_summary(decision_pool, limit=24)
+    catalog_seed_candidates = _released_snapshot_rows(
+        [
+            *top_reviewed_rows,
+            *top_played_rows,
+            *leaderboard_rows,
+            *trending_rows,
+            *historical_lows_rows,
+            *decision_pool,
+            *canonical_deal_pool,
+        ]
+    )
+    catalog_seed_rows_source = _compose_cross_rail_snapshot_rows(
+        catalog_seed_candidates,
+        _released_snapshot_rows([*catalog_seed_candidates, *upcoming_rows]),
+        exposure_counts=dict(cross_rail_exposure_counts),
+        limit=HOMEPAGE_CATALOG_SEED_LIMIT,
+        uniqueness_window=HOMEPAGE_CATALOG_SEED_LIMIT,
+    )
     catalog_seed_rows = [
         _compact_catalog_seed_row(row)
-        for row in _dedupe_snapshot_rows([
-            *deal_ranked_rows,
-            *deal_opportunities_rows,
-            *opportunity_radar_rows,
-            *worth_buying_rows,
-            *biggest_discounts_rows,
-            *trending_now_rows,
-        ])[:24]
+        for row in catalog_seed_rows_source[:HOMEPAGE_CATALOG_SEED_LIMIT]
     ]
     catalog_seed_rows = [row for row in catalog_seed_rows if row]
     biggest_price_drops_rows: list[dict] = []
@@ -4106,6 +4297,8 @@ def rebuild_dashboard_cache(session: Session) -> None:
         "alertSignals": alert_signals,
         "player_surges": player_surges,
         "seasonal_summary": seasonal_summary,
+        "releasedGames": catalog_seed_rows,
+        "released": catalog_seed_rows,
         "generated_at": utcnow().isoformat(),
     }
 

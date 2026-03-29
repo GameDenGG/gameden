@@ -5239,10 +5239,15 @@ input:focus-visible {
         const HERO_LOGO_FADE_DURATION_MS = 340;
         const SEARCH_INPUT_DEBOUNCE_MS = 180;
         const SEARCH_MIN_QUERY_CHARS = 2;
-        const SEARCH_REQUEST_TIMEOUT_MS = 3600;
+        const SEARCH_REQUEST_TIMEOUT_MS = 3400;
         const SEARCH_CACHE_TTL_MS = 60 * 1000;
         const SEARCH_INITIAL_VISIBLE_RESULTS = 3;
         const SEARCH_MAX_VISIBLE_RESULTS = 10;
+        const SEARCH_PHASE_IDLE = "idle";
+        const SEARCH_PHASE_LOADING = "loading";
+        const SEARCH_PHASE_RESULTS = "results";
+        const SEARCH_PHASE_NO_RESULTS = "no_results";
+        const SEARCH_PHASE_ERROR = "error_or_timeout";
         const HOMEPAGE_SECTION_LIMITS = Object.freeze({
             marketRadar: 24,
             dealOpportunities: 24,
@@ -5693,20 +5698,16 @@ input:focus-visible {
             },
             recentlyUpdatedExpanded: false,
             search: {
+                phase: SEARCH_PHASE_IDLE,
                 results: [],
                 resultsQueryKey: "",
                 loading: false,
                 error: null,
-                status: "idle",
                 activeIndex: -1,
                 renderLimit: SEARCH_MAX_VISIBLE_RESULTS,
-                stagedRenderFrame: null,
                 requestId: 0,
                 controller: null,
                 cache: new Map(),
-                lastRequestedQueryKey: "",
-                lastAppliedQueryKey: "",
-                timeoutQueryKey: "",
             },
             catalog: {
                 loading: false,
@@ -11923,9 +11924,7 @@ input:focus-visible {
             state.discoveryTabs.activeKey = key;
             syncCatalogQueryContext();
             if (isCatalogContextActive()) {
-                clearSearchRequest();
-                clearSearchStagedRenderFrame();
-                state.search.loading = false;
+                resetSearchState();
                 closeSearchResults();
                 scheduleCatalogReloadFromInteraction();
             } else {
@@ -12360,6 +12359,50 @@ input:focus-visible {
             return "Search failed. Please try again.";
         }
 
+        function setSearchPhase(phase, options = {}) {
+            const nextPhase = String(phase || SEARCH_PHASE_IDLE);
+            state.search.phase = nextPhase;
+            state.search.loading = nextPhase === SEARCH_PHASE_LOADING;
+
+            if (Object.prototype.hasOwnProperty.call(options, "results")) {
+                state.search.results = normalizeSearchResultRows(options.results);
+            }
+            if (Object.prototype.hasOwnProperty.call(options, "queryKey")) {
+                state.search.resultsQueryKey = String(options.queryKey || "");
+            }
+            if (Object.prototype.hasOwnProperty.call(options, "errorMessage")) {
+                const message = String(options.errorMessage || "").trim();
+                state.search.error = message || null;
+            } else if (nextPhase !== SEARCH_PHASE_ERROR) {
+                state.search.error = null;
+            }
+            if (nextPhase === SEARCH_PHASE_RESULTS) {
+                state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
+            }
+        }
+
+        function resetSearchState() {
+            clearSearchRequest();
+            state.search.requestId = Number(state.search.requestId || 0) + 1;
+            setSearchPhase(SEARCH_PHASE_IDLE, {
+                results: [],
+                queryKey: "",
+                errorMessage: "",
+            });
+            state.search.activeIndex = -1;
+            state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
+        }
+
+        function isActiveSearchRequest(requestId, controller, queryKey) {
+            return (
+                state.search.requestId === requestId
+                && state.search.controller === controller
+                && state.search.resultsQueryKey === queryKey
+                && controller
+                && !controller.signal.aborted
+            );
+        }
+
         function normalizeSearchQueryKey(query) {
             return String(query || "")
                 .toLowerCase()
@@ -12375,7 +12418,7 @@ input:focus-visible {
             return state.search.cache;
         }
 
-        function getCachedSearchRows(query) {
+        function getCachedSearchEntry(query) {
             const key = normalizeSearchQueryKey(query);
             if (!key) return null;
             const cache = getSearchCacheMap();
@@ -12386,20 +12429,29 @@ input:focus-visible {
                 cache.delete(key);
                 return null;
             }
-            return normalizeSearchResultRows(entry.rows);
+            const phase = String(entry.phase || SEARCH_PHASE_RESULTS);
+            if (phase !== SEARCH_PHASE_RESULTS && phase !== SEARCH_PHASE_NO_RESULTS) {
+                cache.delete(key);
+                return null;
+            }
+            return {
+                phase,
+                rows: normalizeSearchResultRows(entry.rows),
+            };
         }
 
-        function setCachedSearchRows(query, rows) {
+        function setCachedSearchEntry(query, phase, rows) {
             const key = normalizeSearchQueryKey(query);
             if (!key) return;
-            const cache = getSearchCacheMap();
-            const normalizedRows = normalizeSearchResultRows(rows);
-            if (!normalizedRows.length) {
-                cache.delete(key);
+            const safePhase = String(phase || "");
+            if (safePhase !== SEARCH_PHASE_RESULTS && safePhase !== SEARCH_PHASE_NO_RESULTS) {
                 return;
             }
+            const cache = getSearchCacheMap();
+            const normalizedRows = normalizeSearchResultRows(rows);
             cache.set(key, {
                 cachedAt: Date.now(),
+                phase: safePhase,
                 rows: normalizedRows,
             });
             if (cache.size > 80) {
@@ -12411,18 +12463,7 @@ input:focus-visible {
         async function refreshSearchResults(options = {}) {
             const force = options.force === true;
             if (!isHomepageSearchContext()) {
-                clearSearchRequest();
-                clearSearchStagedRenderFrame();
-                state.search.results = [];
-                state.search.resultsQueryKey = "";
-                state.search.loading = false;
-                state.search.error = null;
-                state.search.status = "idle";
-                state.search.lastRequestedQueryKey = "";
-                state.search.lastAppliedQueryKey = "";
-                state.search.timeoutQueryKey = "";
-                state.search.activeIndex = -1;
-                state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
+                resetSearchState();
                 renderSearchResults();
                 return;
             }
@@ -12431,89 +12472,51 @@ input:focus-visible {
             const queryKey = normalizeSearchQueryKey(trimmed);
 
             if (!trimmed) {
-                clearSearchRequest();
-                clearSearchStagedRenderFrame();
-                state.search.results = [];
-                state.search.resultsQueryKey = "";
-                state.search.loading = false;
-                state.search.error = null;
-                state.search.status = "idle";
-                state.search.lastRequestedQueryKey = "";
-                state.search.lastAppliedQueryKey = "";
-                state.search.timeoutQueryKey = "";
-                state.search.activeIndex = -1;
-                state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
+                resetSearchState();
                 renderSearchResults();
                 return;
             }
 
             if (queryKey.length < SEARCH_MIN_QUERY_CHARS) {
-                clearSearchRequest();
-                clearSearchStagedRenderFrame();
-                state.search.results = [];
-                state.search.resultsQueryKey = "";
-                state.search.loading = false;
-                state.search.error = null;
-                state.search.status = "idle";
+                setSearchPhase(SEARCH_PHASE_IDLE, {
+                    results: [],
+                    queryKey: "",
+                    errorMessage: "",
+                });
                 state.search.activeIndex = -1;
                 state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
                 renderSearchResults();
                 return;
             }
 
-            state.search.error = null;
-            state.search.activeIndex = -1;
-            if (state.search.timeoutQueryKey && state.search.timeoutQueryKey !== queryKey) {
-                state.search.timeoutQueryKey = "";
-            }
-            if (!force && state.search.loading && state.search.lastRequestedQueryKey === queryKey) {
-                renderSearchResults();
-                return;
-            }
-            if (
-                !force
-                && !state.search.loading
-                && state.search.lastAppliedQueryKey === queryKey
-                && !state.search.error
-            ) {
+            if (!force && state.search.loading && state.search.resultsQueryKey === queryKey) {
                 renderSearchResults();
                 return;
             }
 
-            const cachedRows = getCachedSearchRows(queryKey);
-            if (!force && cachedRows && cachedRows.length) {
-                clearSearchRequest();
-                clearSearchStagedRenderFrame();
-                state.search.results = normalizeSearchResultRows(cachedRows);
-                state.search.resultsQueryKey = queryKey;
-                state.search.loading = false;
-                state.search.error = null;
-                state.search.status = "success";
-                state.search.timeoutQueryKey = "";
+            const cachedEntry = !force ? getCachedSearchEntry(queryKey) : null;
+            if (cachedEntry) {
+                setSearchPhase(cachedEntry.phase, {
+                    results: cachedEntry.rows,
+                    queryKey,
+                    errorMessage: "",
+                });
+                state.search.activeIndex = -1;
                 state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
                 renderSearchResults();
-                state.search.controller = null;
-                state.search.lastRequestedQueryKey = queryKey;
-                state.search.lastAppliedQueryKey = queryKey;
                 return;
             }
 
+            const previousQueryResults = state.search.resultsQueryKey === queryKey
+                ? normalizeSearchResultRows(state.search.results)
+                : [];
             clearSearchRequest();
-            clearSearchStagedRenderFrame();
-            state.search.loading = true;
-            state.search.status = "loading";
-            renderSearchResults();
-
             const requestId = Number(state.search.requestId || 0) + 1;
             const controller = new AbortController();
             let didTimeout = false;
             let requestTimeoutId = setTimeout(() => {
                 didTimeout = true;
-                if (
-                    state.search.requestId === requestId
-                    && state.search.controller === controller
-                    && !controller.signal.aborted
-                ) {
+                if (isActiveSearchRequest(requestId, controller, queryKey)) {
                     controller.abort();
                 }
             }, SEARCH_REQUEST_TIMEOUT_MS);
@@ -12522,86 +12525,70 @@ input:focus-visible {
                 clearTimeout(requestTimeoutId);
                 requestTimeoutId = null;
             };
+
             state.search.requestId = requestId;
             state.search.controller = controller;
-            state.search.lastRequestedQueryKey = queryKey;
+            setSearchPhase(SEARCH_PHASE_LOADING, {
+                results: previousQueryResults,
+                queryKey,
+                errorMessage: "",
+            });
+            state.search.activeIndex = -1;
+            state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
+            renderSearchResults();
 
             try {
                 const params = new URLSearchParams();
                 params.set("q", trimmed);
                 params.set("limit", String(SEARCH_INITIAL_VISIBLE_RESULTS));
                 params.set("mode", "quick");
-                params.set("seq", String(requestId));
                 const payload = await fetchJson(`/search?${params.toString()}`, {
                     signal: controller.signal,
-                    headers: {
-                        "x-search-seq": String(requestId),
-                    },
                 });
-                const isCurrent = (
-                    state.search.requestId === requestId
-                    && state.search.controller === controller
-                    && !controller.signal.aborted
-                );
-                if (!isCurrent) {
+                if (!isActiveSearchRequest(requestId, controller, queryKey)) {
                     clearRequestTimeout();
                     return;
                 }
 
                 const remoteRows = normalizeSearchResultRows(payload?.items ?? payload);
-                setCachedSearchRows(queryKey, remoteRows);
-                state.search.results = remoteRows;
-                state.search.resultsQueryKey = queryKey;
-                state.search.loading = false;
-                state.search.error = null;
-                state.search.status = remoteRows.length ? "success" : "empty";
+                const phase = remoteRows.length ? SEARCH_PHASE_RESULTS : SEARCH_PHASE_NO_RESULTS;
+                setSearchPhase(phase, {
+                    results: remoteRows,
+                    queryKey,
+                    errorMessage: "",
+                });
                 state.search.controller = null;
-                state.search.lastAppliedQueryKey = queryKey;
-                state.search.timeoutQueryKey = "";
-                state.search.renderLimit = Math.max(
-                    1,
-                    Math.min(SEARCH_INITIAL_VISIBLE_RESULTS, SEARCH_MAX_VISIBLE_RESULTS, remoteRows.length || 1),
-                );
+                state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
+                setCachedSearchEntry(queryKey, phase, remoteRows);
                 renderSearchResults();
-                if (remoteRows.length > state.search.renderLimit) {
-                    scheduleSearchFullRender(queryKey, requestId);
-                }
             } catch (error) {
                 if (isAbortLikeError(error) && !didTimeout) {
-                    if (
-                        state.search.requestId === requestId
-                        && state.search.controller === controller
-                    ) {
-                        state.search.status = "aborted";
-                    }
                     clearRequestTimeout();
                     return;
                 }
-                const isCurrent = (
-                    state.search.requestId === requestId
-                    && state.search.controller === controller
-                );
-                if (!isCurrent) {
+                if (state.search.requestId !== requestId || state.search.controller !== controller) {
                     clearRequestTimeout();
                     return;
                 }
 
-                state.search.loading = false;
                 state.search.controller = null;
-                const hasVisibleResults = safeArray(state.search.results).length > 0;
-                if (!hasVisibleResults) {
-                    state.search.error = didTimeout
-                        ? "Search is taking too long. Please refine your query."
-                        : resolveSearchErrorMessage(error);
-                } else {
-                    state.search.error = null;
+                if (didTimeout && previousQueryResults.length) {
+                    setSearchPhase(SEARCH_PHASE_RESULTS, {
+                        results: previousQueryResults,
+                        queryKey,
+                        errorMessage: "",
+                    });
+                    state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
+                    renderSearchResults();
+                    return;
                 }
-                if (didTimeout) {
-                    state.search.status = hasVisibleResults ? "partial-timeout" : "timeout";
-                    state.search.timeoutQueryKey = queryKey;
-                } else {
-                    state.search.status = hasVisibleResults ? "partial-error" : "error";
-                }
+                setSearchPhase(SEARCH_PHASE_ERROR, {
+                    results: [],
+                    queryKey,
+                    errorMessage: didTimeout
+                        ? "Search timed out. Please try again."
+                        : resolveSearchErrorMessage(error),
+                });
                 renderSearchResults();
             } finally {
                 clearRequestTimeout();
@@ -12631,21 +12618,21 @@ input:focus-visible {
                 return;
             }
 
-            if (state.search.status === "aborted" && !results.length) {
-                renderSkeleton(ui.searchResultsList, "search-results", 3);
-                openSearchResults();
-                return;
-            }
-
-            if (state.search.error && !results.length) {
+            if (state.search.phase === SEARCH_PHASE_ERROR) {
                 ui.searchResultsList.innerHTML = `<div class="search-result-empty">${escapeHtml(state.search.error)}</div>`;
                 openSearchResults();
                 return;
             }
 
-            if (!results.length) {
+            if (state.search.phase === SEARCH_PHASE_NO_RESULTS) {
                 ui.searchResultsList.innerHTML = `<div class="search-result-empty">No matching games found.</div>`;
                 openSearchResults();
+                return;
+            }
+
+            if (state.search.phase !== SEARCH_PHASE_RESULTS || !results.length) {
+                closeSearchResults();
+                ui.searchResultsList.innerHTML = "";
                 return;
             }
 
@@ -12654,7 +12641,7 @@ input:focus-visible {
                 state.search.activeIndex = -1;
             }
 
-ui.searchResultsList.innerHTML = visibleResults.map((game, index) => {
+            ui.searchResultsList.innerHTML = visibleResults.map((game, index) => {
                 const bannerUrl = game.header_image || game.banner_url || (game.steam_appid
                     ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`
                     : null);
@@ -12778,26 +12765,6 @@ ui.searchResultsList.innerHTML = visibleResults.map((game, index) => {
                 state.search.controller.abort();
                 state.search.controller = null;
             }
-        }
-
-        function clearSearchStagedRenderFrame() {
-            if (state.search.stagedRenderFrame === null || state.search.stagedRenderFrame === undefined) return;
-            cancelAnimationFrame(state.search.stagedRenderFrame);
-            state.search.stagedRenderFrame = null;
-        }
-
-        function scheduleSearchFullRender(queryKey, requestId) {
-            clearSearchStagedRenderFrame();
-            state.search.stagedRenderFrame = requestAnimationFrame(() => {
-                state.search.stagedRenderFrame = null;
-                if (!isHomepageSearchContext()) return;
-                if (normalizeSearchQueryKey(catalogQueryState.query) !== queryKey) return;
-                if (Number(state.search.requestId) !== Number(requestId)) return;
-                const currentResults = safeArray(state.search.results);
-                if (!currentResults.length) return;
-                state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
-                renderSearchResults();
-            });
         }
 
         function abortCatalogInFlightControllers() {
@@ -15172,21 +15139,8 @@ try {
                 ui.searchInput.setAttribute("aria-expanded", "false");
                 ui.searchInput.setAttribute("autocomplete", "off");
             }
-            const clearQuickFindUiState = ({ clearRequestKeys = true } = {}) => {
-                clearSearchRequest();
-                clearSearchStagedRenderFrame();
-                state.search.results = [];
-                state.search.resultsQueryKey = "";
-                state.search.loading = false;
-                state.search.error = null;
-                state.search.status = "idle";
-                state.search.activeIndex = -1;
-                state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
-                state.search.timeoutQueryKey = "";
-                if (clearRequestKeys) {
-                    state.search.lastRequestedQueryKey = "";
-                    state.search.lastAppliedQueryKey = "";
-                }
+            const clearQuickFindUiState = () => {
+                resetSearchState();
                 renderSearchResults();
             };
 
@@ -15217,11 +15171,7 @@ try {
                 catalogQueryState.query = String(value || "");
                 const queryKey = normalizeSearchQueryKey(catalogQueryState.query);
                 const trimmedSearch = String(catalogQueryState.query || "").trim();
-                if (state.search.timeoutQueryKey && state.search.timeoutQueryKey !== queryKey) {
-                    state.search.timeoutQueryKey = "";
-                }
                 state.search.activeIndex = -1;
-                state.search.error = null;
                 if (searchInputTimer) clearTimeout(searchInputTimer);
                 triggerSearchReaction();
 
@@ -15239,16 +15189,26 @@ try {
                 }
 
                 if (queryKey.length < SEARCH_MIN_QUERY_CHARS) {
-                    clearQuickFindUiState({ clearRequestKeys: false });
+                    setSearchPhase(SEARCH_PHASE_IDLE, {
+                        results: [],
+                        queryKey: "",
+                        errorMessage: "",
+                    });
+                    state.search.activeIndex = -1;
+                    state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
+                    renderSearchResults();
                     syncQuickFilterVisualState();
                     return;
                 }
 
-                if (safeArray(state.search.results).length) {
-                    state.search.loading = false;
-                }
+                setSearchPhase(SEARCH_PHASE_IDLE, {
+                    results: [],
+                    queryKey,
+                    errorMessage: "",
+                });
                 renderSearchResults();
                 searchInputTimer = setTimeout(() => {
+                    searchInputTimer = null;
                     onSearchMutation();
                 }, SEARCH_INPUT_DEBOUNCE_MS);
                 syncQuickFilterVisualState();
@@ -15259,33 +15219,20 @@ try {
                 syncSearchInteractionVisualState();
                 const query = String(catalogQueryState.query || "").trim();
                 if (!query) return;
-                if (safeArray(state.search.results).length) {
-                    renderSearchResults();
-                    return;
-                }
                 const queryKey = normalizeSearchQueryKey(query);
-                const searchStatus = String(state.search.status || "");
-                const canRetryTimedOutQuery = state.search.timeoutQueryKey === queryKey;
-                const shouldForceRetry = (
-                    canRetryTimedOutQuery
-                    || searchStatus === "timeout"
-                    || searchStatus === "partial-timeout"
-                    || (searchStatus === "error" && state.search.lastRequestedQueryKey === queryKey)
-                );
-                if (
-                    !queryKey
-                    || (
-                        !shouldForceRetry
-                        && (
-                            state.search.lastRequestedQueryKey === queryKey
-                            || state.search.lastAppliedQueryKey === queryKey
-                        )
-                    )
-                ) {
+                if (state.search.phase === SEARCH_PHASE_RESULTS || state.search.phase === SEARCH_PHASE_NO_RESULTS) {
                     renderSearchResults();
                     return;
                 }
-                void refreshSearchResults({ force: shouldForceRetry });
+                if (!queryKey || queryKey.length < SEARCH_MIN_QUERY_CHARS) {
+                    renderSearchResults();
+                    return;
+                }
+                if (searchInputTimer) {
+                    clearTimeout(searchInputTimer);
+                    searchInputTimer = null;
+                }
+                void refreshSearchResults({ force: state.search.phase === SEARCH_PHASE_ERROR });
             });
 
             ui.searchInput.addEventListener("blur", () => {
@@ -15297,6 +15244,14 @@ try {
                     ui.searchBar.classList.remove("is-reacting");
                 }
                 syncSearchInteractionVisualState();
+                setTimeout(() => {
+                    const activeNode = document.activeElement;
+                    if (activeNode instanceof Node) {
+                        if (ui.searchInput && activeNode === ui.searchInput) return;
+                        if (ui.searchResultsPop && ui.searchResultsPop.contains(activeNode)) return;
+                    }
+                    closeSearchResults();
+                }, 80);
             });
 
             ui.searchInput.addEventListener("keydown", (event) => {

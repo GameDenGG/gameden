@@ -296,9 +296,10 @@ SEARCH_SEQUENCE_MAX_TRACKED = 4096
 SEARCH_SEQUENCE_TTL_SECONDS = 5 * 60
 _search_sequence_lock = threading.Lock()
 _search_sequence_by_scope: dict[str, tuple[int, float]] = {}
-QUICK_SEARCH_STATEMENT_TIMEOUT_MS = 2400
+QUICK_SEARCH_STATEMENT_TIMEOUT_MS = 3000
 QUICK_SEARCH_ALIAS_MAP: dict[str, str] = {
     "cs2": "counter strike 2",
+    "counterstrike": "counter strike",
     "counterstrike2": "counter strike 2",
     "csgo": "counter strike global offensive",
 }
@@ -1139,6 +1140,400 @@ def _extend_search_row_candidates(base_rows: list[dict], extra_rows: list[dict],
         if len(merged) >= max(1, int(max_pool_size)):
             break
     return merged
+
+
+def _quick_find_rank_key_v1(
+    row: dict,
+    *,
+    normalized_query: str,
+    compact_query: str,
+    query_tokens: list[str],
+    alias_applied: bool,
+) -> tuple[int, int, int, float, float, int, str]:
+    normalized_name = _normalize_search_text(row.get("game_name"))
+    compact_name = _compact_search_text(normalized_name)
+    name_tokens = [token for token in normalized_name.split(" ") if token]
+
+    exact_match = bool(normalized_query and normalized_name == normalized_query)
+    compact_exact_match = bool(
+        compact_query
+        and compact_name == compact_query
+        and not exact_match
+    )
+    strong_prefix_match = bool(
+        normalized_query
+        and (
+            normalized_name.startswith(normalized_query)
+            or (compact_query and compact_name.startswith(compact_query))
+        )
+    )
+    token_prefix_match = bool(
+        query_tokens
+        and name_tokens
+        and all(any(name_token.startswith(token) for name_token in name_tokens) for token in query_tokens)
+    )
+    partial_match = bool(
+        normalized_query
+        and (
+            normalized_query in normalized_name
+            or (compact_query and compact_query in compact_name)
+        )
+    )
+    alias_match = bool(alias_applied and strong_prefix_match)
+    prefix_word_boundary = bool(
+        normalized_query
+        and normalized_name.startswith(f"{normalized_query} ")
+    )
+
+    if exact_match:
+        rank_tier = 0
+    elif compact_exact_match:
+        rank_tier = 1
+    elif strong_prefix_match and not alias_match:
+        rank_tier = 2
+    elif alias_match or token_prefix_match:
+        rank_tier = 3
+    elif partial_match:
+        rank_tier = 4
+    else:
+        rank_tier = 5
+
+    name_length_delta = abs(len(normalized_name) - len(normalized_query))
+    popularity = max(0.0, safe_num(row.get("popularity_score"), 0.0))
+    current_players = max(0.0, safe_num(row.get("current_players"), 0.0))
+    prefix_boundary_penalty = 0 if (exact_match or compact_exact_match or prefix_word_boundary) else 1
+
+    return (
+        rank_tier,
+        0 if alias_match else 1,
+        prefix_boundary_penalty,
+        -popularity,
+        -current_players,
+        name_length_delta,
+        normalized_name,
+    )
+
+
+def _rank_quick_find_rows_v1(
+    rows: list[dict],
+    *,
+    normalized_query: str,
+    alias_applied: bool,
+    limit: int,
+) -> list[dict]:
+    if not rows:
+        return []
+
+    compact_query = _compact_search_text(normalized_query)
+    query_tokens = _search_tokens(normalized_query)
+    scored_rows: list[tuple[tuple[int, int, int, float, float, int, str], dict]] = []
+    for row in rows:
+        rank_key = _quick_find_rank_key_v1(
+            row,
+            normalized_query=normalized_query,
+            compact_query=compact_query,
+            query_tokens=query_tokens,
+            alias_applied=alias_applied,
+        )
+        scored_rows.append((rank_key, row))
+
+    scored_rows.sort(key=lambda entry: entry[0])
+    deduped: list[dict] = []
+    seen_game_ids: set[int] = set()
+    for _, row in scored_rows:
+        game_id = int(safe_num(row.get("id"), 0.0))
+        if game_id <= 0 or game_id in seen_game_ids:
+            continue
+        seen_game_ids.add(game_id)
+        deduped.append(row)
+        if len(deduped) >= max(1, int(limit)):
+            break
+    return deduped
+
+
+def _serialize_quick_find_row(row: dict) -> dict:
+    game_id = int(safe_num(row.get("id"), 0.0))
+    game_name = row.get("game_name")
+    review_label = _normalize_review_label(row.get("review_score_label"), row.get("review_score"))
+    return {
+        "id": game_id,
+        "game_id": game_id,
+        "game_name": game_name,
+        "slug": _canonical_game_slug(game_name, game_id),
+        "game_slug": _canonical_game_slug(game_name, game_id),
+        "canonical_path": _canonical_game_detail_path(game_name, game_id),
+        "canonical_url": _build_canonical_url(_canonical_game_detail_path(game_name, game_id)),
+        "developer": row.get("developer"),
+        "publisher": row.get("publisher"),
+        "genres": parse_csv_field(row.get("genres_csv")),
+        "tags": parse_csv_field(row.get("tags_csv")),
+        "steam_appid": row.get("steam_appid"),
+        "banner_url": row.get("image_url"),
+        "image_url": row.get("image_url"),
+        "price": row.get("latest_price"),
+        "latest_price": row.get("latest_price"),
+        "discount_percent": row.get("latest_discount_percent"),
+        "latest_discount_percent": row.get("latest_discount_percent"),
+        "deal_score": row.get("deal_score"),
+        "popularity_score": row.get("popularity_score"),
+        "current_players": row.get("current_players"),
+        "upcoming_hot_score": row.get("upcoming_hot_score"),
+        "buy_score": row.get("buy_score") if row.get("buy_score") is not None else row.get("worth_buying_score"),
+        "worth_buying_score": row.get("worth_buying_score"),
+        "review_score": row.get("review_score"),
+        "review_total_count": row.get("review_total_count"),
+        "review_score_label": review_label,
+        "review_label": review_label,
+        "review_summary": review_label,
+        "deal_heat_reason": row.get("deal_heat_reason"),
+        "release_date": row.get("release_date").isoformat() if row.get("release_date") else None,
+        "is_upcoming": bool(row.get("is_upcoming")) if row.get("is_upcoming") is not None else False,
+    }
+
+
+def _run_quick_find_search_v1(
+    session,
+    *,
+    query_text: str,
+    limit: int,
+    mode: str,
+) -> list[dict]:
+    normalized_limit = max(1, min(int(limit), 20))
+    normalized_mode = str(mode or "").strip().lower()
+    quick_mode = normalized_mode in {"", "quick", "quick-find", "homepage"}
+
+    requested_normalized_query = _normalize_search_text(query_text)
+    alias_query = _resolve_quick_search_alias(requested_normalized_query)
+    normalized_query = alias_query or requested_normalized_query
+    if not normalized_query:
+        return []
+
+    alias_applied = bool(alias_query)
+    compact_normalized_query = _compact_search_text(normalized_query)
+    query_tokens = _search_tokens(normalized_query)
+    tokenized_query = "%".join(query_tokens) if query_tokens else ""
+
+    strong_candidate_limit = min(64, max(18, normalized_limit * 6))
+    fallback_candidate_limit = min(72, max(20, normalized_limit * 8))
+    if len(normalized_query) <= 2:
+        strong_candidate_limit = min(24, max(8, normalized_limit * 3))
+        fallback_candidate_limit = min(28, max(10, normalized_limit * 4))
+    if not quick_mode:
+        strong_candidate_limit = min(80, max(24, normalized_limit * 6))
+        fallback_candidate_limit = min(96, max(28, normalized_limit * 8))
+
+    if quick_mode:
+        try:
+            session.execute(text(f"SET LOCAL statement_timeout TO '{QUICK_SEARCH_STATEMENT_TIMEOUT_MS}ms'"))
+        except Exception:
+            pass
+
+    use_compact_probe = (
+        len(query_tokens) == 1
+        and len(compact_normalized_query) >= 5
+        and not alias_applied
+    )
+    compact_probe = ""
+    if use_compact_probe:
+        compact_probe = compact_normalized_query[: max(3, min(5, len(compact_normalized_query)))]
+
+    strong_ids_sql = """
+        SELECT g.id
+        FROM games g
+        WHERE
+            lower(g.name) = :normalized_q
+            OR lower(g.name) LIKE (:normalized_q || '%')
+            OR (:tokenized_q <> '' AND lower(g.name) LIKE (:tokenized_q || '%'))
+            OR (:compact_probe <> '' AND lower(g.name) LIKE (:compact_probe || '%'))
+        ORDER BY
+            CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
+            CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+            CASE
+                WHEN :tokenized_q <> '' AND lower(g.name) LIKE (:tokenized_q || '%')
+                THEN 0
+                ELSE 1
+            END,
+            length(g.name) ASC,
+            g.name ASC
+        LIMIT :limit
+    """
+    timeout_safe_ids_sql = """
+        SELECT g.id
+        FROM games g
+        WHERE
+            lower(g.name) = :normalized_q
+            OR lower(g.name) LIKE (:normalized_q || '%')
+        ORDER BY
+            CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
+            CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+            length(g.name) ASC,
+            g.name ASC
+        LIMIT :limit
+    """
+    fallback_ids_sql = """
+        SELECT g.id
+        FROM games g
+        WHERE
+            lower(g.name) LIKE ('%' || :normalized_q || '%')
+            OR (:tokenized_q <> '' AND lower(g.name) LIKE ('%' || :tokenized_q || '%'))
+            OR (:compact_probe <> '' AND lower(g.name) LIKE ('%' || :compact_probe || '%'))
+        ORDER BY
+            CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+            CASE
+                WHEN :tokenized_q <> '' AND lower(g.name) LIKE (:tokenized_q || '%')
+                THEN 0
+                ELSE 1
+            END,
+            length(g.name) ASC,
+            g.name ASC
+        LIMIT :limit
+    """
+
+    id_query_params = {
+        "normalized_q": normalized_query,
+        "tokenized_q": tokenized_query,
+        "compact_probe": compact_probe,
+    }
+
+    def run_id_query(query_sql: str, candidate_limit: int) -> list[int]:
+        query_params = dict(id_query_params)
+        query_params["limit"] = max(1, int(candidate_limit))
+        return [int(row[0]) for row in session.execute(text(query_sql), query_params).fetchall()]
+
+    def load_candidate_rows(game_ids: list[int]) -> list[dict]:
+        if not game_ids:
+            return []
+        rows = (
+            session.query(Game, GameSnapshot)
+            .outerjoin(GameSnapshot, GameSnapshot.game_id == Game.id)
+            .filter(Game.id.in_(game_ids))
+            .all()
+        )
+        row_by_id: dict[int, dict] = {}
+        for game, snapshot in rows:
+            game_id = int(safe_num(game.id, 0.0))
+            if game_id <= 0:
+                continue
+            image_url = (
+                snapshot.banner_url
+                if snapshot and snapshot.banner_url
+                else (
+                    f"https://cdn.cloudflare.steamstatic.com/steam/apps/{game.appid}/header.jpg"
+                    if game.appid
+                    else None
+                )
+            )
+            row_by_id[game_id] = {
+                "id": game_id,
+                "game_name": game.name,
+                "developer": game.developer,
+                "publisher": game.publisher,
+                "genres_csv": (
+                    snapshot.genres
+                    if snapshot and snapshot.genres is not None
+                    else game.genres
+                ) or "",
+                "tags_csv": (
+                    snapshot.tags
+                    if snapshot and snapshot.tags is not None
+                    else game.tags
+                ) or "",
+                "steam_appid": snapshot.steam_appid if snapshot else None,
+                "image_url": image_url,
+                "latest_price": snapshot.latest_price if snapshot else None,
+                "latest_discount_percent": snapshot.latest_discount_percent if snapshot else None,
+                "deal_score": snapshot.deal_score if snapshot else None,
+                "popularity_score": snapshot.popularity_score if snapshot else 0,
+                "current_players": snapshot.current_players if snapshot else 0,
+                "upcoming_hot_score": snapshot.upcoming_hot_score if snapshot else 0,
+                "buy_score": (snapshot.buy_score if snapshot else None),
+                "worth_buying_score": (snapshot.worth_buying_score if snapshot else None),
+                "review_score_label": (
+                    snapshot.review_score_label
+                    if snapshot and snapshot.review_score_label is not None
+                    else game.review_score_label
+                ),
+                "review_score": (
+                    snapshot.review_score
+                    if snapshot and snapshot.review_score is not None
+                    else game.review_score
+                ),
+                "review_total_count": (
+                    snapshot.review_count
+                    if snapshot and snapshot.review_count is not None
+                    else game.review_total_count
+                ),
+                "deal_heat_reason": snapshot.deal_heat_reason if snapshot else None,
+                "release_date": snapshot.release_date if snapshot else None,
+                "is_upcoming": snapshot.is_upcoming if snapshot else None,
+            }
+        ordered_rows: list[dict] = []
+        for game_id in game_ids:
+            row = row_by_id.get(int(game_id))
+            if row:
+                ordered_rows.append(row)
+        return ordered_rows
+
+    def has_strong_title_match(candidates: list[dict]) -> bool:
+        for candidate in candidates:
+            candidate_name = _normalize_search_text(candidate.get("game_name"))
+            if not candidate_name:
+                continue
+            if candidate_name == normalized_query:
+                return True
+            if candidate_name.startswith(normalized_query):
+                return True
+            candidate_compact_name = _compact_search_text(candidate_name)
+            if not compact_normalized_query:
+                continue
+            if candidate_compact_name == compact_normalized_query:
+                return True
+            if candidate_compact_name.startswith(compact_normalized_query):
+                return True
+        return False
+
+    try:
+        candidate_ids = run_id_query(strong_ids_sql, strong_candidate_limit)
+    except Exception as error:
+        if not _is_statement_timeout_error(error):
+            raise
+        try:
+            candidate_ids = run_id_query(timeout_safe_ids_sql, max(8, normalized_limit * 3))
+        except Exception as timeout_safe_error:
+            if _is_statement_timeout_error(timeout_safe_error):
+                raise HTTPException(status_code=504, detail="search_timeout")
+            raise
+
+    rows = load_candidate_rows(candidate_ids)
+
+    if len(rows) < normalized_limit and not has_strong_title_match(rows):
+        try:
+            fallback_ids = run_id_query(fallback_ids_sql, fallback_candidate_limit)
+        except Exception as error:
+            if _is_statement_timeout_error(error):
+                fallback_ids = []
+            else:
+                raise
+        if fallback_ids:
+            merged_ids: list[int] = []
+            seen_ids: set[int] = set()
+            for game_id in [*candidate_ids, *fallback_ids]:
+                normalized_game_id = int(safe_num(game_id, 0.0))
+                if normalized_game_id <= 0 or normalized_game_id in seen_ids:
+                    continue
+                seen_ids.add(normalized_game_id)
+                merged_ids.append(normalized_game_id)
+                if len(merged_ids) >= max(strong_candidate_limit, fallback_candidate_limit):
+                    break
+            rows = load_candidate_rows(merged_ids)
+
+    ranked_rows = _rank_quick_find_rows_v1(
+        rows,
+        normalized_query=normalized_query,
+        alias_applied=alias_applied,
+        limit=normalized_limit,
+    )
+    return [_serialize_quick_find_row(row) for row in ranked_rows]
 
 
 def serialize_game_metadata(game: Optional[Game]) -> dict:
@@ -5322,6 +5717,12 @@ def search_games_fast(
         query_text = q.strip()
         if not query_text:
             return []
+        return _run_quick_find_search_v1(
+            session,
+            query_text=query_text,
+            limit=limit,
+            mode=mode,
+        )
 
         requested_normalized_query = _normalize_search_text(query_text)
         alias_query = _resolve_quick_search_alias(requested_normalized_query)

@@ -829,9 +829,24 @@ def _log_timing(endpoint_name: str, started: float) -> None:
 
 
 def parse_csv_field(value):
-    if not value:
+    if value is None:
         return []
-    return [part.strip() for part in value.split(",") if part.strip()]
+    if isinstance(value, (list, tuple, set)):
+        return [str(part).strip() for part in value if str(part).strip()]
+
+    raw = str(value).strip()
+    if not raw:
+        return []
+
+    if raw.startswith("[") and raw.endswith("]"):
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, (list, tuple, set)):
+                return [str(part).strip() for part in parsed if str(part).strip()]
+        except Exception:
+            pass
+
+    return [part.strip() for part in raw.split(",") if part.strip()]
 
 
 def _normalize_token(value: str | None) -> str:
@@ -3111,6 +3126,20 @@ def _build_personalization_token_weights(
                 continue
             token_weights[token] = token_weights.get(token, 0.0) + base_weight
     return token_weights
+
+
+def _safe_build_personalized_deal_item(
+    snapshot: FeedProjectionRow,
+    **kwargs,
+) -> dict | None:
+    try:
+        return _build_personalized_deal_item(snapshot, **kwargs)
+    except Exception:
+        logger.exception(
+            "Skipping malformed personalized candidate for game_id=%s",
+            getattr(snapshot, "game_id", None),
+        )
+        return None
 
 
 def _compute_personalization_similarity_bonus(
@@ -9822,7 +9851,7 @@ def list_personalized_deals(
             for snapshot in seed_rows:
                 if exclude_owned and int(snapshot.game_id) in owned_game_ids:
                     continue
-                item = _build_personalized_deal_item(
+                item = _safe_build_personalized_deal_item(
                     snapshot,
                     owned_game_ids=owned_game_ids,
                     exclude_owned=exclude_owned,
@@ -10008,7 +10037,7 @@ def list_personalized_deals(
             game_id = int(snapshot.game_id)
             if game_id in protected_deal_ids or (exclude_owned and game_id in owned_game_ids):
                 continue
-            item = _build_personalized_deal_item(
+            item = _safe_build_personalized_deal_item(
                 snapshot,
                 owned_game_ids=owned_game_ids,
                 exclude_owned=exclude_owned,
@@ -10080,7 +10109,7 @@ def list_personalized_deals(
                 game_id = int(snapshot.game_id)
                 if game_id in seen_game_ids or game_id in protected_deal_ids or (exclude_owned and game_id in owned_game_ids):
                     continue
-                item = _build_personalized_deal_item(
+                item = _safe_build_personalized_deal_item(
                     snapshot,
                     owned_game_ids=owned_game_ids,
                     exclude_owned=exclude_owned,

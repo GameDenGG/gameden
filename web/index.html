@@ -12523,8 +12523,12 @@ input:focus-visible {
                 params.set("q", trimmed);
                 params.set("limit", String(SEARCH_INITIAL_VISIBLE_RESULTS));
                 params.set("mode", "quick");
-                params.set("seq", String(requestId));
-                const payload = await fetchJson(`/search?${params.toString()}`, { signal: controller.signal });
+                const payload = await fetchJson(`/search?${params.toString()}`, {
+                    signal: controller.signal,
+                    headers: {
+                        "x-search-seq": String(requestId),
+                    },
+                });
                 const isCurrent = (
                     state.search.requestId === requestId
                     && state.search.controller === controller

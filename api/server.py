@@ -3100,6 +3100,14 @@ def _coerce_utc_datetime(value: datetime.datetime | None) -> datetime.datetime |
     return value
 
 
+def _json_safe_temporal_value(value):
+    if isinstance(value, datetime.datetime):
+        return _coerce_utc_datetime(value).isoformat()
+    if isinstance(value, datetime.date):
+        return value.isoformat()
+    return value
+
+
 def _build_personalization_token_weights(
     seed_rows: list[tuple[int, str | None, str | None]],
     *,
@@ -3120,12 +3128,66 @@ def _build_personalization_token_weights(
         if game_id in recent_game_ids:
             base_weight += 0.45
 
-        tokens = {str(token).strip().lower() for token in [*parse_csv_field(tags), *parse_csv_field(genres)]}
+        try:
+            tokens = {str(token).strip().lower() for token in [*parse_csv_field(tags), *parse_csv_field(genres)]}
+        except Exception:
+            logger.exception("Skipping malformed personalization seed metadata for game_id=%s", game_id)
+            continue
         for token in tokens:
             if len(token) < 2:
                 continue
             token_weights[token] = token_weights.get(token, 0.0) + base_weight
     return token_weights
+
+
+def _compute_personalization_overlap_profile(
+    snapshot: GameSnapshot,
+    token_weights: dict[str, float],
+) -> dict[str, float | int]:
+    if not token_weights:
+        return {
+            "overlap_count": 0,
+            "overlap_weight_sum": 0.0,
+            "max_overlap_weight": 0.0,
+        }
+
+    try:
+        snapshot_tokens = {
+            str(token).strip().lower()
+            for token in [*parse_csv_field(snapshot.tags), *parse_csv_field(snapshot.genres)]
+            if token
+        }
+    except Exception:
+        logger.exception(
+            "Failed to parse personalization overlap tokens for game_id=%s",
+            getattr(snapshot, "game_id", None),
+        )
+        return {
+            "overlap_count": 0,
+            "overlap_weight_sum": 0.0,
+            "max_overlap_weight": 0.0,
+        }
+
+    if not snapshot_tokens:
+        return {
+            "overlap_count": 0,
+            "overlap_weight_sum": 0.0,
+            "max_overlap_weight": 0.0,
+        }
+
+    overlap_weights = [token_weights[token] for token in snapshot_tokens if token in token_weights]
+    if not overlap_weights:
+        return {
+            "overlap_count": 0,
+            "overlap_weight_sum": 0.0,
+            "max_overlap_weight": 0.0,
+        }
+
+    return {
+        "overlap_count": int(len(overlap_weights)),
+        "overlap_weight_sum": float(sum(overlap_weights)),
+        "max_overlap_weight": float(max(overlap_weights)),
+    }
 
 
 def _safe_build_personalized_deal_item(
@@ -3146,23 +3208,12 @@ def _compute_personalization_similarity_bonus(
     snapshot: GameSnapshot,
     token_weights: dict[str, float],
 ) -> tuple[float, int]:
-    if not token_weights:
+    overlap_profile = _compute_personalization_overlap_profile(snapshot, token_weights)
+    overlap_count = int(overlap_profile.get("overlap_count") or 0)
+    overlap_weight_sum = safe_num(overlap_profile.get("overlap_weight_sum"), 0.0)
+    if overlap_count <= 0 or overlap_weight_sum <= 0:
         return 0.0, 0
-
-    snapshot_tokens = {
-        str(token).strip().lower()
-        for token in [*parse_csv_field(snapshot.tags), *parse_csv_field(snapshot.genres)]
-        if token
-    }
-    if not snapshot_tokens:
-        return 0.0, 0
-
-    overlap_weights = [token_weights[token] for token in snapshot_tokens if token in token_weights]
-    if not overlap_weights:
-        return 0.0, 0
-
-    overlap_count = len(overlap_weights)
-    bonus = min(22.0, sum(overlap_weights) * 1.85)
+    bonus = min(22.0, overlap_weight_sum * 1.85)
     return round(bonus, 2), overlap_count
 
 
@@ -3399,6 +3450,7 @@ def _build_personalized_deal_item(
     in_watchlist = game_id in watchlist_game_ids
     in_target_watch = game_id in target_game_ids
     recently_tracked = game_id in recent_game_ids
+    has_direct_personal_signal = in_watchlist or in_target_watch or recently_tracked
 
     discount = max(0, int(round(safe_num(snapshot.latest_discount_percent, 0.0))))
     deal_score = safe_num(snapshot.deal_score, 0.0)
@@ -3494,12 +3546,34 @@ def _build_personalized_deal_item(
 
     similarity_bonus = 0.0
     overlap_count = 0
+    max_overlap_weight = 0.0
+    strong_overlap_match = False
+    weak_similarity_only = False
     if use_personal_context:
-        similarity_bonus, overlap_count = _compute_personalization_similarity_bonus(snapshot, token_weights)
+        overlap_profile = _compute_personalization_overlap_profile(snapshot, token_weights)
+        overlap_count = int(overlap_profile.get("overlap_count") or 0)
+        max_overlap_weight = safe_num(overlap_profile.get("max_overlap_weight"), 0.0)
+        overlap_weight_sum = safe_num(overlap_profile.get("overlap_weight_sum"), 0.0)
+        if overlap_count > 0 and overlap_weight_sum > 0:
+            similarity_bonus = round(min(22.0, overlap_weight_sum * 1.85), 2)
+        elite_deal_signal = (
+            discount >= 65
+            or deal_score >= 82
+            or deal_opportunity_score >= 80
+            or buy_score >= 80
+        )
+        strong_overlap_match = overlap_count >= 2 or (
+            overlap_count == 1 and max_overlap_weight >= 2.8 and elite_deal_signal
+        )
+        weak_similarity_only = overlap_count == 1 and not strong_overlap_match and not has_direct_personal_signal
+        if not has_direct_personal_signal and overlap_count <= 0:
+            return None
     if use_personal_context and similarity_bonus > 0:
         score += min(14.0, similarity_bonus * 0.7)
         if overlap_count >= 2 and deal_score >= 60:
             _append_unique_reason(reasons, "Similar to your owned and tracked games")
+        elif strong_overlap_match and overlap_count == 1:
+            _append_unique_reason(reasons, "Matches a strong interest in your library")
         elif overlap_count >= 1:
             _append_unique_reason(reasons, "Matches your library interests")
 
@@ -3517,7 +3591,7 @@ def _build_personalized_deal_item(
         _append_unique_reason(reasons, "High deal score")
 
     has_strong_signal = (
-        (use_personal_context and (in_watchlist or in_target_watch or recently_tracked))
+        (use_personal_context and (has_direct_personal_signal or strong_overlap_match or weak_similarity_only))
         or recent_event_count > 0
         or discount >= 20
         or near_historical_low
@@ -3529,6 +3603,8 @@ def _build_personalized_deal_item(
         or buy_score >= 58
     )
     if not has_strong_signal:
+        return None
+    if use_personal_context and not has_direct_personal_signal and not strong_overlap_match and not weak_similarity_only:
         return None
 
     normalized_score = _normalize_personalization_score(
@@ -3584,6 +3660,11 @@ def _build_personalized_deal_item(
         "confidence_color": confidence_badge["confidence_color"] if confidence_badge else None,
         "confidence_class": confidence_badge["confidence_class"] if confidence_badge else None,
         "personalization_score": normalized_score,
+        "overlap_count": overlap_count,
+        "max_overlap_weight": round(max_overlap_weight, 3),
+        "strong_similarity": bool(use_personal_context and (has_direct_personal_signal or strong_overlap_match)),
+        "weak_similarity_only": bool(use_personal_context and weak_similarity_only),
+        "personal_context_used": bool(use_personal_context),
         "personalization_reasons": reason_lines,
         "personalization_reason": explanation_text,
         "explanation_lines": reason_lines,
@@ -9668,7 +9749,7 @@ def _compact_personalized_feed_item(row: dict) -> dict:
         "discount_percent": row.get("discount_percent", row.get("latest_discount_percent")),
         "is_released": is_released,
         "is_upcoming": is_upcoming,
-        "release_date": row.get("release_date"),
+        "release_date": _json_safe_temporal_value(row.get("release_date")),
         "historical_status": row.get("historical_status"),
         "deal_score": row.get("deal_score"),
         "buy_score": row.get("buy_score", row.get("worth_buying_score")),
@@ -9686,7 +9767,7 @@ def _compact_personalized_feed_item(row: dict) -> dict:
         "review_score": row.get("review_score"),
         "review_score_label": row.get("review_score_label"),
         "current_players": row.get("current_players"),
-        "deal_detected_at": row.get("deal_detected_at"),
+        "deal_detected_at": _json_safe_temporal_value(row.get("deal_detected_at")),
         "personalization_score": safe_num(row.get("personalization_score"), 0.0),
     }
     if compact["game_id"] <= 0:
@@ -10032,7 +10113,7 @@ def list_personalized_deals(
                 if game_id is not None
             }
 
-        scored_rows: list[tuple[float, datetime.datetime, dict]] = []
+        scored_rows: list[tuple[float, datetime.datetime, int, dict]] = []
         for snapshot in candidate_rows:
             game_id = int(snapshot.game_id)
             if game_id in protected_deal_ids or (exclude_owned and game_id in owned_game_ids):
@@ -10052,9 +10133,7 @@ def list_personalized_deals(
             if item is None:
                 continue
             updated_at = _coerce_utc_datetime(snapshot.updated_at) or now
-            scored_rows.append((safe_num(item.get("personalization_score"), 0.0), updated_at, item))
-        personalized_scored_count = len(scored_rows)
-
+            scored_rows.append((safe_num(item.get("personalization_score"), 0.0), updated_at, game_id, item))
         if len(scored_rows) < normalized_limit:
             fallback_rows = _query_release_feed_rows(
                 session,
@@ -10104,7 +10183,7 @@ def list_personalized_deals(
                     GameSnapshot.game_id.asc(),
                 ],
             )
-            seen_game_ids = {int(safe_num(item.get("game_id"), 0.0)) for _, _, item in scored_rows}
+            seen_game_ids = {int(safe_num(item.get("game_id"), 0.0)) for _, _, _, item in scored_rows}
             for snapshot in fallback_rows:
                 game_id = int(snapshot.game_id)
                 if game_id in seen_game_ids or game_id in protected_deal_ids or (exclude_owned and game_id in owned_game_ids):
@@ -10124,16 +10203,33 @@ def list_personalized_deals(
                 if item is None:
                     continue
                 updated_at = _coerce_utc_datetime(snapshot.updated_at) or now
-                scored_rows.append((safe_num(item.get("personalization_score"), 0.0), updated_at, item))
+                scored_rows.append((safe_num(item.get("personalization_score"), 0.0), updated_at, game_id, item))
                 seen_game_ids.add(game_id)
                 if len(scored_rows) >= max(normalized_limit * 2, normalized_limit + 16):
                     break
 
-        scored_rows.sort(key=lambda entry: (entry[0], entry[1]), reverse=True)
+        scored_rows.sort(key=lambda entry: (entry[0], entry[1], -entry[2]), reverse=True)
+        strong_personalized_rows: list[dict] = []
+        weak_personalized_rows: list[dict] = []
+        fallback_scored_rows: list[dict] = []
+        for _, _, _, item in scored_rows:
+            personal_context_used = bool(item.get("personal_context_used"))
+            if personal_context_used:
+                if bool(item.get("weak_similarity_only")):
+                    weak_personalized_rows.append(item)
+                    continue
+                if bool(item.get("strong_similarity")):
+                    strong_personalized_rows.append(item)
+                    continue
+                continue
+            fallback_scored_rows.append(item)
+
         items: list[dict] = []
         seen_items: set[int] = set()
-        for _, _, item in scored_rows:
-            compact_item = _compact_personalized_feed_item(item)
+        used_weak_similarity_fallback = False
+
+        def _append_compact_item(row: dict) -> None:
+            compact_item = _compact_personalized_feed_item(row)
             game_id = int(safe_num(compact_item.get("game_id") or compact_item.get("id"), 0.0))
             if (
                 game_id <= 0
@@ -10141,22 +10237,44 @@ def list_personalized_deals(
                 or game_id in protected_deal_ids
                 or (exclude_owned and game_id in owned_game_ids)
             ):
-                continue
+                return
             items.append(compact_item)
             seen_items.add(game_id)
+        for item in strong_personalized_rows:
             if len(items) >= normalized_limit:
                 break
-        personalized_feed = personalization_enabled and has_personal_seed_data and personalized_scored_count > 0
+            _append_compact_item(item)
+        if not items and weak_personalized_rows:
+            used_weak_similarity_fallback = True
+            for item in weak_personalized_rows:
+                if len(items) >= normalized_limit:
+                    break
+                _append_compact_item(item)
+        if items and not used_weak_similarity_fallback and len(items) < normalized_limit:
+            for item in fallback_scored_rows:
+                if len(items) >= normalized_limit:
+                    break
+                _append_compact_item(item)
+
+        strong_personalized_count = len(strong_personalized_rows)
+        personalized_feed = (
+            personalization_enabled
+            and has_personal_seed_data
+            and strong_personalized_count > 0
+        )
+        fallback_reason: str | None
+        if personalized_feed:
+            fallback_reason = None
+        elif personalization_enabled and has_personal_seed_data:
+            fallback_reason = "We don't have strong matches yet. Add more owned games and we'll improve this."
+        else:
+            fallback_reason = "Using trending and high deal-score ranking until more personal signals are available."
 
         return {
             "user_id": normalized_user_id,
             "personalized": personalized_feed,
             "fallback_mode": not personalized_feed,
-            "fallback_reason": (
-                None
-                if personalized_feed
-                else "Using trending and high deal-score ranking until more personal signals are available."
-            ),
+            "fallback_reason": fallback_reason,
             "count": len(items),
             "items": items,
             "generated_at": now.isoformat(),

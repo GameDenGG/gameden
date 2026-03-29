@@ -5694,6 +5694,7 @@ input:focus-visible {
             recentlyUpdatedExpanded: false,
             search: {
                 results: [],
+                resultsQueryKey: "",
                 loading: false,
                 error: null,
                 activeIndex: -1,
@@ -12411,6 +12412,7 @@ input:focus-visible {
                 clearSearchRequest();
                 clearSearchStagedRenderFrame();
                 state.search.results = [];
+                state.search.resultsQueryKey = "";
                 state.search.loading = false;
                 state.search.error = null;
                 state.search.lastRequestedQueryKey = "";
@@ -12428,6 +12430,7 @@ input:focus-visible {
                 clearSearchRequest();
                 clearSearchStagedRenderFrame();
                 state.search.results = [];
+                state.search.resultsQueryKey = "";
                 state.search.loading = false;
                 state.search.error = null;
                 state.search.lastRequestedQueryKey = "";
@@ -12442,6 +12445,7 @@ input:focus-visible {
                 clearSearchRequest();
                 clearSearchStagedRenderFrame();
                 state.search.results = [];
+                state.search.resultsQueryKey = "";
                 state.search.loading = false;
                 state.search.error = null;
                 state.search.activeIndex = -1;
@@ -12452,6 +12456,11 @@ input:focus-visible {
 
             state.search.error = null;
             state.search.activeIndex = -1;
+            if (state.search.resultsQueryKey && state.search.resultsQueryKey !== queryKey) {
+                state.search.results = [];
+                state.search.resultsQueryKey = "";
+                state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
+            }
             if (!force && state.search.loading && state.search.lastRequestedQueryKey === queryKey) {
                 renderSearchResults();
                 return;
@@ -12471,6 +12480,7 @@ input:focus-visible {
                 clearSearchRequest();
                 clearSearchStagedRenderFrame();
                 state.search.results = normalizeSearchResultRows(cachedRows);
+                state.search.resultsQueryKey = queryKey;
                 state.search.loading = false;
                 state.search.error = null;
                 state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
@@ -12512,6 +12522,8 @@ input:focus-visible {
                 const params = new URLSearchParams();
                 params.set("q", trimmed);
                 params.set("limit", String(SEARCH_INITIAL_VISIBLE_RESULTS));
+                params.set("mode", "quick");
+                params.set("seq", String(requestId));
                 const payload = await fetchJson(`/search?${params.toString()}`, { signal: controller.signal });
                 const isCurrent = (
                     state.search.requestId === requestId
@@ -12526,6 +12538,7 @@ input:focus-visible {
                 const remoteRows = normalizeSearchResultRows(payload?.items ?? payload);
                 setCachedSearchRows(queryKey, remoteRows);
                 state.search.results = remoteRows;
+                state.search.resultsQueryKey = queryKey;
                 state.search.loading = false;
                 state.search.error = null;
                 state.search.controller = null;
@@ -12554,7 +12567,11 @@ input:focus-visible {
 
                 state.search.loading = false;
                 state.search.controller = null;
-                if (!safeArray(state.search.results).length) {
+                const hasCurrentQueryResults = (
+                    state.search.resultsQueryKey === queryKey
+                    && safeArray(state.search.results).length > 0
+                );
+                if (!hasCurrentQueryResults) {
                     state.search.error = didTimeout
                         ? "Search is taking too long. Please refine your query."
                         : resolveSearchErrorMessage(error);
@@ -15129,6 +15146,7 @@ try {
                 clearSearchRequest();
                 clearSearchStagedRenderFrame();
                 state.search.results = [];
+                state.search.resultsQueryKey = "";
                 state.search.loading = false;
                 state.search.error = null;
                 state.search.activeIndex = -1;

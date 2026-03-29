@@ -4,6 +4,7 @@ import json
 import math
 import mimetypes
 import re
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -291,6 +292,10 @@ PLAYER_HISTORY_LEFT_EDGE_SEED_MAX_GAP_MS: dict[str, int] = {
     "3m": 28 * PLAYER_HISTORY_DAY_MS,
     "1y": 90 * PLAYER_HISTORY_DAY_MS,
 }
+SEARCH_SEQUENCE_MAX_TRACKED = 4096
+SEARCH_SEQUENCE_TTL_SECONDS = 5 * 60
+_search_sequence_lock = threading.Lock()
+_search_sequence_by_scope: dict[str, tuple[int, float]] = {}
 SEO_DISCOVERY_PAGE_DEFINITIONS: dict[str, dict[str, str]] = {
     "best-deals": {
         "slug": "best-deals",
@@ -388,6 +393,57 @@ def _build_canonical_url(path: str, query: str = "") -> str:
     final_path = path if path.startswith("/") else f"/{path}"
     suffix = f"?{query}" if query else ""
     return f"{base}{final_path}{suffix}"
+
+
+def _search_scope_key(request: Request) -> str:
+    viewer_scope = (
+        request.headers.get("x-gameden-viewer")
+        or request.cookies.get("gameden_viewer_id")
+        or request.query_params.get("user_id")
+        or ""
+    )
+    ip_scope = request.client.host if request.client else "unknown"
+    return f"{viewer_scope}:{ip_scope}"
+
+
+def _register_search_sequence(scope_key: str, sequence: int) -> None:
+    if sequence <= 0:
+        return
+    now_ts = time.time()
+    with _search_sequence_lock:
+        latest_sequence, _ = _search_sequence_by_scope.get(scope_key, (0, 0.0))
+        if sequence > latest_sequence:
+            latest_sequence = sequence
+        _search_sequence_by_scope[scope_key] = (latest_sequence, now_ts)
+        if len(_search_sequence_by_scope) <= SEARCH_SEQUENCE_MAX_TRACKED:
+            return
+        cutoff_ts = now_ts - SEARCH_SEQUENCE_TTL_SECONDS
+        stale_keys = [
+            key
+            for key, (_, seen_at) in list(_search_sequence_by_scope.items())
+            if seen_at < cutoff_ts
+        ]
+        for key in stale_keys:
+            _search_sequence_by_scope.pop(key, None)
+        if len(_search_sequence_by_scope) <= SEARCH_SEQUENCE_MAX_TRACKED:
+            return
+        overflow = len(_search_sequence_by_scope) - SEARCH_SEQUENCE_MAX_TRACKED
+        if overflow <= 0:
+            return
+        oldest_items = sorted(
+            _search_sequence_by_scope.items(),
+            key=lambda entry: entry[1][1],
+        )[:overflow]
+        for key, _ in oldest_items:
+            _search_sequence_by_scope.pop(key, None)
+
+
+def _is_search_sequence_stale(scope_key: str, sequence: int) -> bool:
+    if sequence <= 0:
+        return False
+    with _search_sequence_lock:
+        latest_sequence, _ = _search_sequence_by_scope.get(scope_key, (sequence, 0.0))
+    return latest_sequence > sequence
 
 
 @app.middleware("http")
@@ -5125,6 +5181,8 @@ def search_games_fast(
     request: Request,
     q: str = Query(default="", min_length=1),
     limit: int = Query(default=10, ge=1, le=20),
+    mode: str = Query(default="quick"),
+    seq: int = Query(default=0, ge=0, le=10_000_000),
 ):
     started = _start_timer()
     session = ReadSessionLocal()
@@ -5138,84 +5196,25 @@ def search_games_fast(
         normalized_limit = max(1, min(int(limit), 20))
         query_tokens = _search_tokens(normalized_query)
         tokenized_query = "%".join(query_tokens) if len(query_tokens) > 1 else ""
-        fast_candidate_limit = min(42, max(18, normalized_limit * 3))
+        normalized_mode = str(mode or "").strip().lower()
+        quick_mode = normalized_mode in {"", "quick", "quick-find", "homepage"}
+        search_scope_key = ""
+        if quick_mode and seq > 0:
+            search_scope_key = _search_scope_key(request)
+            _register_search_sequence(search_scope_key, int(seq))
+            if _is_search_sequence_stale(search_scope_key, int(seq)):
+                return []
+
+        fast_candidate_limit = min(24, max(8, normalized_limit * 3))
         if len(normalized_query) <= 2:
-            fast_candidate_limit = min(30, max(12, normalized_limit * 2))
+            fast_candidate_limit = min(16, max(6, normalized_limit * 2))
+        if not quick_mode:
+            fast_candidate_limit = min(42, max(18, normalized_limit * 3))
+            if len(normalized_query) <= 2:
+                fast_candidate_limit = min(30, max(12, normalized_limit * 2))
 
-        rows = session.execute(
-            text(
-                """
-                SELECT
-                    g.id,
-                    g.name AS game_name,
-                    g.developer,
-                    g.publisher,
-                    COALESCE(s.genres, g.genres, '') AS genres_csv,
-                    COALESCE(s.tags, g.tags, '') AS tags_csv,
-                    s.steam_appid,
-                    COALESCE(s.banner_url, 'https://cdn.cloudflare.steamstatic.com/steam/apps/' || g.appid || '/header.jpg') AS image_url,
-                    s.latest_price,
-                    s.latest_discount_percent,
-                    s.deal_score,
-                    COALESCE(s.popularity_score, 0) AS popularity_score,
-                    COALESCE(s.current_players, 0) AS current_players,
-                    COALESCE(s.upcoming_hot_score, 0) AS upcoming_hot_score,
-                    COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
-                    s.worth_buying_score,
-                    COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
-                    COALESCE(s.review_score, g.review_score) AS review_score,
-                    COALESCE(s.review_count, g.review_total_count) AS review_total_count,
-                    s.deal_heat_reason,
-                    s.release_date,
-                    s.is_upcoming,
-                    0.0 AS sim
-                FROM games g
-                LEFT JOIN game_snapshots s ON s.game_id = g.id
-                WHERE
-                    lower(g.name) = :normalized_q
-                    OR lower(g.name) LIKE (:normalized_q || '%')
-                    OR (
-                        :normalized_q_compact <> ''
-                        AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') = :normalized_q_compact
-                    )
-                    OR (
-                        :normalized_q_compact <> ''
-                        AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE (:normalized_q_compact || '%')
-                    )
-                    OR (:tokenized_q <> '' AND lower(g.name) LIKE (:tokenized_q || '%'))
-                ORDER BY
-                    CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
-                    CASE
-                        WHEN :normalized_q_compact <> ''
-                            AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') = :normalized_q_compact
-                        THEN 0
-                        ELSE 1
-                    END,
-                    CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
-                    CASE
-                        WHEN :normalized_q_compact <> ''
-                            AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE (:normalized_q_compact || '%')
-                        THEN 0
-                        ELSE 1
-                    END,
-                    length(g.name) ASC,
-                    g.name ASC
-                LIMIT :limit
-                """
-            ),
-            {
-                "normalized_q": normalized_query,
-                "normalized_q_compact": compact_normalized_query,
-                "tokenized_q": tokenized_query,
-                "limit": fast_candidate_limit,
-            },
-        ).mappings().all()
-
-        should_run_broad_pass = len(rows) < min(2, normalized_limit)
-        if should_run_broad_pass:
-            remaining_slots = max(1, normalized_limit - len(rows))
-            candidate_limit = min(28, max(8, remaining_slots * 3))
-            broad_rows = session.execute(
+        if quick_mode:
+            rows = session.execute(
                 text(
                     """
                     SELECT
@@ -5245,12 +5244,9 @@ def search_games_fast(
                     FROM games g
                     LEFT JOIN game_snapshots s ON s.game_id = g.id
                     WHERE
-                        lower(g.name) LIKE ('%' || :normalized_q || '%')
-                        OR (:tokenized_q <> '' AND lower(g.name) LIKE ('%' || :tokenized_q || '%'))
-                        OR (
-                            :normalized_q_compact <> ''
-                            AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE ('%' || :normalized_q_compact || '%')
-                        )
+                        lower(g.name) = :normalized_q
+                        OR lower(g.name) LIKE (:normalized_q || '%')
+                        OR (:tokenized_q <> '' AND lower(g.name) LIKE (:tokenized_q || '%'))
                     ORDER BY
                         CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
                         CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
@@ -5261,13 +5257,192 @@ def search_games_fast(
                 ),
                 {
                     "normalized_q": normalized_query,
-                    "normalized_q_compact": compact_normalized_query,
                     "tokenized_q": tokenized_query,
-                    "limit": candidate_limit,
+                    "limit": fast_candidate_limit,
                 },
             ).mappings().all()
+        else:
+            rows = session.execute(
+                text(
+                    """
+                    SELECT
+                        g.id,
+                        g.name AS game_name,
+                        g.developer,
+                        g.publisher,
+                        COALESCE(s.genres, g.genres, '') AS genres_csv,
+                        COALESCE(s.tags, g.tags, '') AS tags_csv,
+                        s.steam_appid,
+                        COALESCE(s.banner_url, 'https://cdn.cloudflare.steamstatic.com/steam/apps/' || g.appid || '/header.jpg') AS image_url,
+                        s.latest_price,
+                        s.latest_discount_percent,
+                        s.deal_score,
+                        COALESCE(s.popularity_score, 0) AS popularity_score,
+                        COALESCE(s.current_players, 0) AS current_players,
+                        COALESCE(s.upcoming_hot_score, 0) AS upcoming_hot_score,
+                        COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
+                        s.worth_buying_score,
+                        COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
+                        COALESCE(s.review_score, g.review_score) AS review_score,
+                        COALESCE(s.review_count, g.review_total_count) AS review_total_count,
+                        s.deal_heat_reason,
+                        s.release_date,
+                        s.is_upcoming,
+                        0.0 AS sim
+                    FROM games g
+                    LEFT JOIN game_snapshots s ON s.game_id = g.id
+                    WHERE
+                        lower(g.name) = :normalized_q
+                        OR lower(g.name) LIKE (:normalized_q || '%')
+                        OR (
+                            :normalized_q_compact <> ''
+                            AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') = :normalized_q_compact
+                        )
+                        OR (
+                            :normalized_q_compact <> ''
+                            AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE (:normalized_q_compact || '%')
+                        )
+                        OR (:tokenized_q <> '' AND lower(g.name) LIKE (:tokenized_q || '%'))
+                    ORDER BY
+                        CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
+                        CASE
+                            WHEN :normalized_q_compact <> ''
+                                AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') = :normalized_q_compact
+                            THEN 0
+                            ELSE 1
+                        END,
+                        CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+                        CASE
+                            WHEN :normalized_q_compact <> ''
+                                AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE (:normalized_q_compact || '%')
+                            THEN 0
+                            ELSE 1
+                        END,
+                        length(g.name) ASC,
+                        g.name ASC
+                    LIMIT :limit
+                    """
+                ),
+                {
+                    "normalized_q": normalized_query,
+                    "normalized_q_compact": compact_normalized_query,
+                    "tokenized_q": tokenized_query,
+                    "limit": fast_candidate_limit,
+                },
+            ).mappings().all()
+
+        if quick_mode and seq > 0 and _is_search_sequence_stale(search_scope_key, int(seq)):
+            return []
+
+        should_run_broad_pass = len(rows) < normalized_limit and len(normalized_query) >= 3
+        if should_run_broad_pass:
+            remaining_slots = max(1, normalized_limit - len(rows))
+            candidate_limit = min(12, max(4, remaining_slots * 3))
+            if not quick_mode:
+                candidate_limit = min(28, max(8, remaining_slots * 3))
+            if quick_mode:
+                broad_rows = session.execute(
+                    text(
+                        """
+                        SELECT
+                            g.id,
+                            g.name AS game_name,
+                            g.developer,
+                            g.publisher,
+                            COALESCE(s.genres, g.genres, '') AS genres_csv,
+                            COALESCE(s.tags, g.tags, '') AS tags_csv,
+                            s.steam_appid,
+                            COALESCE(s.banner_url, 'https://cdn.cloudflare.steamstatic.com/steam/apps/' || g.appid || '/header.jpg') AS image_url,
+                            s.latest_price,
+                            s.latest_discount_percent,
+                            s.deal_score,
+                            COALESCE(s.popularity_score, 0) AS popularity_score,
+                            COALESCE(s.current_players, 0) AS current_players,
+                            COALESCE(s.upcoming_hot_score, 0) AS upcoming_hot_score,
+                            COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
+                            s.worth_buying_score,
+                            COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
+                            COALESCE(s.review_score, g.review_score) AS review_score,
+                            COALESCE(s.review_count, g.review_total_count) AS review_total_count,
+                            s.deal_heat_reason,
+                            s.release_date,
+                            s.is_upcoming,
+                            0.0 AS sim
+                        FROM games g
+                        LEFT JOIN game_snapshots s ON s.game_id = g.id
+                        WHERE
+                            lower(g.name) LIKE ('%' || :normalized_q || '%')
+                            OR (:tokenized_q <> '' AND lower(g.name) LIKE ('%' || :tokenized_q || '%'))
+                        ORDER BY
+                            CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
+                            CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+                            length(g.name) ASC,
+                            g.name ASC
+                        LIMIT :limit
+                        """
+                    ),
+                    {
+                        "normalized_q": normalized_query,
+                        "tokenized_q": tokenized_query,
+                        "limit": candidate_limit,
+                    },
+                ).mappings().all()
+            else:
+                broad_rows = session.execute(
+                    text(
+                        """
+                        SELECT
+                            g.id,
+                            g.name AS game_name,
+                            g.developer,
+                            g.publisher,
+                            COALESCE(s.genres, g.genres, '') AS genres_csv,
+                            COALESCE(s.tags, g.tags, '') AS tags_csv,
+                            s.steam_appid,
+                            COALESCE(s.banner_url, 'https://cdn.cloudflare.steamstatic.com/steam/apps/' || g.appid || '/header.jpg') AS image_url,
+                            s.latest_price,
+                            s.latest_discount_percent,
+                            s.deal_score,
+                            COALESCE(s.popularity_score, 0) AS popularity_score,
+                            COALESCE(s.current_players, 0) AS current_players,
+                            COALESCE(s.upcoming_hot_score, 0) AS upcoming_hot_score,
+                            COALESCE(s.buy_score, s.worth_buying_score) AS buy_score,
+                            s.worth_buying_score,
+                            COALESCE(s.review_score_label, g.review_score_label) AS review_score_label,
+                            COALESCE(s.review_score, g.review_score) AS review_score,
+                            COALESCE(s.review_count, g.review_total_count) AS review_total_count,
+                            s.deal_heat_reason,
+                            s.release_date,
+                            s.is_upcoming,
+                            0.0 AS sim
+                        FROM games g
+                        LEFT JOIN game_snapshots s ON s.game_id = g.id
+                        WHERE
+                            lower(g.name) LIKE ('%' || :normalized_q || '%')
+                            OR (:tokenized_q <> '' AND lower(g.name) LIKE ('%' || :tokenized_q || '%'))
+                            OR (
+                                :normalized_q_compact <> ''
+                                AND replace(replace(replace(lower(g.name), '''', ''), '-', ''), ' ', '') LIKE ('%' || :normalized_q_compact || '%')
+                            )
+                        ORDER BY
+                            CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
+                            CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
+                            length(g.name) ASC,
+                            g.name ASC
+                        LIMIT :limit
+                        """
+                    ),
+                    {
+                        "normalized_q": normalized_query,
+                        "normalized_q_compact": compact_normalized_query,
+                        "tokenized_q": tokenized_query,
+                        "limit": candidate_limit,
+                    },
+                ).mappings().all()
             if broad_rows:
                 rows.extend(broad_rows)
+        if quick_mode and seq > 0 and _is_search_sequence_stale(search_scope_key, int(seq)):
+            return []
 
         ranked_rows = _rank_search_rows(rows, normalized_query, normalized_limit)
         return [

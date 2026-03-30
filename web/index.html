@@ -5028,7 +5028,7 @@ input:focus-visible {
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title" id="becauseYouOwnTitle">Because You Own...</h2>
-                            <div class="panel-subtitle" id="becauseYouOwnSubtitle">One strong library-based match.</div>
+                            <div class="panel-subtitle" id="becauseYouOwnSubtitle">Sale picks related to games you already own.</div>
                         </div>
                     </div>
                     <div class="panel-body">
@@ -5039,7 +5039,7 @@ input:focus-visible {
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Owned</h2>
-                            <div class="panel-subtitle">Library controls.</div>
+                            <div class="panel-subtitle">Your owned library and feed controls.</div>
                         </div>
                         <div class="panel-head-actions">
                             <button class="secondary-btn discovery-owned-filter-btn" id="feedOwnedToggleBtn" type="button" aria-pressed="false" data-active="true" data-owned-toggle-context="panel">
@@ -5062,8 +5062,8 @@ input:focus-visible {
                 <section class="panel panel-personal hidden" id="watchlistPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title" id="watchOpportunityTitle">Watch Opportunity</h2>
-                            <div class="panel-subtitle" id="watchOpportunitySubtitle">Best watched game to check right now.</div>
+                            <h2 class="panel-title">Watch Opportunity</h2>
+                            <div class="panel-subtitle">Top watchlist pick to check right now.</div>
                         </div>
                         <a class="panel-action" href="/watchlist?tab=watchlist">Open Watch</a>
                     </div>
@@ -5081,8 +5081,8 @@ input:focus-visible {
                 <section class="panel panel-digest" id="dailyDigestPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Next Step</h2>
-                            <div class="panel-subtitle">Shown only when a high-signal action is available.</div>
+                            <h2 class="panel-title">Daily Insight</h2>
+                            <div class="panel-subtitle">One important update to check today.</div>
                         </div>
                     </div>
                     <div class="panel-body">
@@ -5600,10 +5600,10 @@ input:focus-visible {
             { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 15, column: "lower" },
 
             { id: "recommendedForYouPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 10, column: "side" },
-            { id: "watchlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 15, column: "side" },
-            { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 20, column: "side" },
+            { id: "becauseYouOwnPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 15, column: "side" },
+            { id: "watchlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 20, column: "side" },
+            { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 30, column: "side" },
             { id: "dailyDigestPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 40, column: "side" },
-            { id: "becauseYouOwnPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 45, column: "side" },
             { id: "alertsPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 50, column: "side" },
 
             { id: "discoveryTabsShell", group: HOMEPAGE_SECTION_GROUPS.DISCOVER, priority: 5, column: "main" },
@@ -5895,8 +5895,6 @@ input:focus-visible {
             analyticsToggleBtn: document.getElementById("analyticsToggleBtn"),
             wishlistPanel: document.getElementById("wishlistPanel"),
             watchlistPanel: document.getElementById("watchlistPanel"),
-            watchOpportunityTitle: document.getElementById("watchOpportunityTitle"),
-            watchOpportunitySubtitle: document.getElementById("watchOpportunitySubtitle"),
             wishlistList: document.getElementById("wishlistList"),
             watchlistList: document.getElementById("watchlistList"),
             wishlistToggleBtn: document.getElementById("wishlistToggleBtn"),
@@ -10559,31 +10557,27 @@ input:focus-visible {
 
             const loading = !!state.dailyDigestStatus?.loading;
             const hasError = !!state.dailyDigestStatus?.error;
-            const rows = collectDailyDigestItems();
-            const topCandidate = rows[0] || null;
-            const topPriorityScore = Number(topCandidate?.priority_score || 0);
-            const topPersonalizationScore = Number(topCandidate?.personalization_score || 0);
-            const earnsPlacement = !!topCandidate && (
-                isHighValueDailyDigestItem(topCandidate)
-                || topPriorityScore >= 72
-                || topPersonalizationScore >= 55
-            );
-            if (!loading && !hasError && !earnsPlacement) {
-                setPanelVisibility(ui.dailyDigestPanel, false);
-                return;
-            }
-
             setPanelVisibility(ui.dailyDigestPanel, true);
-            if (loading && !rows.length) {
+
+            if (loading) {
                 renderSkeleton(ui.dailyDigestList, "panel-list", 1, { itemClass: "digest-item" });
                 return;
             }
-            if (hasError && !rows.length) {
-                setPanelVisibility(ui.dailyDigestPanel, false);
+            if (hasError) {
+                renderError(ui.dailyDigestList, "Failed to load daily digest.");
                 return;
             }
+
+            const rows = collectDailyDigestItems();
             if (!rows.length) {
-                setPanelVisibility(ui.dailyDigestPanel, false);
+                renderEmpty(
+                    ui.dailyDigestList,
+                    "No top insight right now.",
+                    {
+                        tone: "neutral",
+                        detail: "A daily highlight appears here as soon as fresh data is ready.",
+                    },
+                );
                 return;
             }
 
@@ -11272,7 +11266,7 @@ input:focus-visible {
                 ui.becauseYouOwnTitle.textContent = "Because You Own...";
             }
             if (ui.becauseYouOwnSubtitle) {
-                ui.becauseYouOwnSubtitle.textContent = "One strong library-based match.";
+                ui.becauseYouOwnSubtitle.textContent = "Sale picks related to games you already own.";
             }
 
             if (wishlistLoading && !hasOwnedItems) {
@@ -11297,7 +11291,7 @@ input:focus-visible {
 
             let recommendations = { items: [], anchorName: "", reason: "weak_match" };
             try {
-                recommendations = buildBecauseYouOwnRecommendations(1);
+                recommendations = buildBecauseYouOwnRecommendations(3);
             } catch (error) {
                 console.warn("Because-you-own recommendation build failed", error);
             }
@@ -11310,13 +11304,25 @@ input:focus-visible {
                 ui.becauseYouOwnTitle.textContent = "More Like Your Library";
             }
 
-            if (!recommendations.items.length || recommendations.reason === "weak_fallback") {
-                setPanelVisibility(ui.becauseYouOwnPanel, false);
+            if (!recommendations.items.length) {
+                if (ui.becauseYouOwnSubtitle) {
+                    ui.becauseYouOwnSubtitle.textContent = "Recommendations appear when we find strong overlap with your library.";
+                }
+                renderEmpty(
+                    ui.becauseYouOwnList,
+                    "No strong matches yet.",
+                    {
+                        tone: "neutral",
+                        detail: "Mark more games as Owned and we'll surface better matches.",
+                    },
+                );
                 return;
             }
 
             if (ui.becauseYouOwnSubtitle) {
-                ui.becauseYouOwnSubtitle.textContent = "Based on your owned library.";
+                ui.becauseYouOwnSubtitle.textContent = recommendations.reason === "weak_fallback"
+                    ? "Closest available matches while we wait for stronger overlap signals."
+                    : "Based on games you own.";
             }
             ui.becauseYouOwnList.innerHTML = recommendations.items
                 .map((entry) => becauseYouOwnItemHtml(entry))
@@ -11355,7 +11361,7 @@ input:focus-visible {
                     "No owned games yet.",
                     {
                         tone: "neutral",
-                        detail: "Mark games as Owned to keep buy feeds focused.",
+                        detail: "Mark games as Owned to hide them from buy recommendations.",
                     },
                 );
                 setTrackedPreviewToggleState(
@@ -11392,11 +11398,7 @@ input:focus-visible {
             const watchlistLoading = !!state.personalListStatus?.watchlistLoading;
             const watchlistError = !!state.personalListStatus?.watchlistError;
             const canShowPanel = !isAnonymousOrGuestUserId(CURRENT_USER_ID);
-            const shouldShowWatchPanel = canShowPanel && (watchlistItems.length > 0 || watchlistLoading || watchlistError);
-            setPanelVisibility(ui.watchlistPanel, shouldShowWatchPanel);
-            if (!shouldShowWatchPanel) {
-                return;
-            }
+            setPanelVisibility(ui.watchlistPanel, canShowPanel || watchlistItems.length > 0 || watchlistLoading || watchlistError);
             if (watchlistLoading) {
                 renderSkeleton(ui.watchlistList, "mini-list", 1, { itemClass: "mini-item" });
                 setTrackedPreviewToggleState(
@@ -11418,7 +11420,20 @@ input:focus-visible {
                 return;
             }
             if (!watchlistItems.length) {
-                setPanelVisibility(ui.watchlistPanel, false);
+                renderEmpty(
+                    ui.watchlistList,
+                    "No watched games yet.",
+                    {
+                        tone: "neutral",
+                        detail: "Use Watch on games you may buy and we'll surface the best moment to act.",
+                    },
+                );
+                setTrackedPreviewToggleState(
+                    ui.watchlistToggleBtn,
+                    "watchlist",
+                    0,
+                    false,
+                );
                 return;
             }
             const candidates = watchlistItems.map((item) => {
@@ -11443,12 +11458,6 @@ input:focus-visible {
             const decisionLabel = resolveTimingDecisionLabel(focusTiming)
                 || resolveDealConfidence(focus)?.confidence_label
                 || "Watch this";
-            if (ui.watchOpportunityTitle) {
-                ui.watchOpportunityTitle.textContent = "Watch Opportunity";
-            }
-            if (ui.watchOpportunitySubtitle) {
-                ui.watchOpportunitySubtitle.textContent = `Top watch signal from ${fmtInt(watchlistItems.length)} tracked ${watchlistItems.length === 1 ? "game" : "games"}.`;
-            }
             const discount = Number(focus.discount_percent || focus.latest_discount_percent || 0);
             const price = focus.price ?? focus.latest_price ?? null;
             const extraCount = Math.max(0, watchlistItems.length - 1);
@@ -11670,8 +11679,8 @@ input:focus-visible {
             }
             if (ui.yourDealsTodaySubtitle) {
                 ui.yourDealsTodaySubtitle.textContent = personalizedActive
-                    ? "Your highest-confidence next buy opportunity."
-                    : "Highest-confidence live opportunity right now.";
+                    ? "Your best next pick from Watch, Owned, and live prices."
+                    : "Top pick right now based on live deal quality.";
             }
 
             if (loading && !filteredDisplay.rows.length) {
@@ -14857,9 +14866,8 @@ try {
             state.dailyDigestStatus.loading = !hasCriticalDigest;
             state.dailyDigestStatus.error = null;
             setPanelVisibility(ui.recommendedForYouPanel, true);
-            setPanelVisibility(ui.wishlistPanel, false);
-            setPanelVisibility(ui.watchlistPanel, false);
-            setPanelVisibility(ui.dailyDigestPanel, false);
+            setPanelVisibility(ui.wishlistPanel, true);
+            setPanelVisibility(ui.watchlistPanel, true);
             renderDeferredHomepageSkeletons();
             wireHomepageDeferredPanelLoaders();
 

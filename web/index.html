@@ -16610,5 +16610,65 @@ try {
 
         init();
     </script>
+<script>
+(function () {
+  function initAutoScroll() {
+    const rails = document.querySelectorAll('.row-scroller');
+    if (!rails.length) return false;
+
+    rails.forEach((rail) => {
+      if (rail.dataset.autoscrollBound) return;
+      rail.dataset.autoscrollBound = "1";
+
+      // --- STEP 1: duplicate content ONCE for seamless looping ---
+      if (!rail.dataset.loopCloned) {
+        const children = Array.from(rail.children);
+        children.forEach((child) => {
+          const clone = child.cloneNode(true);
+          clone.setAttribute("data-clone", "1");
+          rail.appendChild(clone);
+        });
+        rail.dataset.loopCloned = "1";
+      }
+
+      let isHovered = false;
+
+      rail.addEventListener('mouseenter', () => (isHovered = true));
+      rail.addEventListener('mouseleave', () => (isHovered = false));
+
+      const originalWidth = rail.scrollWidth / 2;
+
+      function step() {
+        if (!isHovered) {
+          rail.scrollLeft += 1; // ✅ FIXED SPEED (visible)
+
+          // --- STEP 2: seamless reset ---
+          if (rail.scrollLeft >= originalWidth) {
+            rail.scrollLeft -= originalWidth;
+          }
+        }
+
+        requestAnimationFrame(step);
+      }
+
+      step();
+    });
+
+    return true;
+  }
+
+  // Wait for hydration
+  const observer = new MutationObserver(() => {
+    if (initAutoScroll()) {
+      observer.disconnect();
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // fallback
+  setTimeout(initAutoScroll, 500);
+})();
+</script>
 </body>
 </html>

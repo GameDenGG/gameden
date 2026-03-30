@@ -1037,7 +1037,7 @@ input:focus-visible {
 
 .lower-sections {
     display: grid;
-    gap: 16px;
+    gap: 18px;
     align-content: start;
     min-width: 0;
     width: 100%;
@@ -1050,7 +1050,7 @@ input:focus-visible {
 .homepage-main-column,
 .homepage-right-rail {
     display: grid;
-    gap: 16px;
+    gap: 18px;
     align-content: start;
     width: 100%;
     min-width: 0;
@@ -1365,7 +1365,7 @@ input:focus-visible {
 
 .discovery-tabs-shell {
     display: grid;
-    gap: 6px;
+    gap: 8px;
     min-width: 0;
     width: 100%;
     max-width: 100%;
@@ -1731,45 +1731,53 @@ input:focus-visible {
 }
 
 /* Tier 2: Secondary decision surfaces */
-#bestDealsPanel {
+#bestDealsPanel,
+#waitForSalePanel {
     border-color: rgba(121, 168, 255, 0.19);
     background: linear-gradient(180deg, rgba(12, 22, 40, 0.88), rgba(9, 16, 30, 0.94));
     box-shadow: 0 16px 34px rgba(2, 7, 20, 0.3);
 }
 
-#bestDealsPanel .panel-title {
+#bestDealsPanel .panel-title,
+#waitForSalePanel .panel-title {
     font-size: 20px;
     letter-spacing: -0.02em;
 }
 
-#bestDealsPanel .panel-subtitle {
+#bestDealsPanel .panel-subtitle,
+#waitForSalePanel .panel-subtitle {
     color: rgba(162, 189, 227, 0.72);
 }
 
 /* Tier 3: Exploratory/optional surfaces */
+#opportunityRadarPanel,
 #moreIntelSection {
     border-color: rgba(121, 168, 255, 0.14);
     background: linear-gradient(180deg, rgba(10, 19, 34, 0.86), rgba(8, 15, 28, 0.92));
     box-shadow: 0 12px 28px rgba(2, 7, 20, 0.22);
 }
 
+#opportunityRadarPanel .panel-head,
 #moreIntelSection > .panel-head {
     border-bottom-color: rgba(121, 168, 255, 0.08);
     padding-top: 15px;
     padding-bottom: 8px;
 }
 
+#opportunityRadarPanel .panel-title,
 #moreIntelSection .panel-title {
     font-size: 18px;
     letter-spacing: -0.015em;
     opacity: 0.9;
 }
 
+#opportunityRadarPanel .panel-subtitle,
 #moreIntelSection .panel-subtitle {
     color: rgba(154, 182, 230, 0.7);
     font-size: 10.5px;
 }
 
+#opportunityRadarPanel .panel-body,
 #moreIntelSection > .panel-body {
     padding-top: 10px;
     padding-bottom: 13px;
@@ -3977,9 +3985,11 @@ input:focus-visible {
     #buyNowPicksPanel .panel-title {
         font-size: 19px;
     }
-    #bestDealsPanel .panel-title {
+    #bestDealsPanel .panel-title,
+    #waitForSalePanel .panel-title {
         font-size: 17px;
     }
+    #opportunityRadarPanel .panel-title,
     #moreIntelSection .panel-title,
     #discoveryTabsShell .discovery-tabs-title {
         font-size: 16px;
@@ -4205,9 +4215,11 @@ input:focus-visible {
     #buyNowPicksPanel .panel-title {
         font-size: 18px;
     }
-    #bestDealsPanel .panel-title {
+    #bestDealsPanel .panel-title,
+    #waitForSalePanel .panel-title {
         font-size: 16px;
     }
+    #opportunityRadarPanel .panel-title,
     #moreIntelSection .panel-title,
     #discoveryTabsShell .discovery-tabs-title {
         font-size: 15px;
@@ -4517,7 +4529,7 @@ input:focus-visible {
                         </video>
                     </div>
                 </section>
-                <!--
+
                 <div class="sticky-shell">
                     <section class="command-launcher" id="searchStack" aria-label="Quick game search">
                         <div class="command-search-layer">
@@ -4730,7 +4742,6 @@ input:focus-visible {
                     </div>
                 </section>
 
-                -->
                 <section class="panel panel-deals" id="bestDealsPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -4751,8 +4762,8 @@ input:focus-visible {
                         <div class="show-all-wrap">
                             <a class="show-all-btn hidden" id="dealRankedShowAllBtn" href="#">
                                 Show All
-                            </a>
                                 <span class="dropdown-arrow">⇊</span>
+                            </a>
                         </div>
                     </div>
                 </section>
@@ -4848,7 +4859,6 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <!--
                 <section class="panel panel-activity" id="buyNowPicksPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -4869,40 +4879,33 @@ input:focus-visible {
                         <div class="show-all-wrap">
                             <a class="show-all-btn hidden" id="newDealsShowAllBtn" href="#">
                                 Show All
-                            </a>
                                 <span class="dropdown-arrow">⇊</span>
+                            </a>
                         </div>
                     </div>
                 </section>
 
-                                <span class="dropdown-arrow">⇊</span>
-                            </a>
-
-                        </div>
-                    </div>
-                </section>
-                -->
-                <section class="panel panel-activity" id="buyNowPicksPanel">
+                <section class="panel panel-deals hidden" id="waitForSalePanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Buy Now Picks</h2>
-                            <div class="panel-subtitle">Recommended buy-now picks at strong current prices.</div>
+                            <h2 class="panel-title">Wait for Next Sale</h2>
+                            <div class="panel-subtitle">Games likely to get a better price on the next sale.</div>
                         </div>
                         <div class="row-nav">
-                            <button class="row-nav-btn" type="button" data-row-left="newDealsGrid">&lt;</button>
-                            <button class="row-nav-btn" type="button" data-row-right="newDealsGrid">&gt;</button>
+                            <button class="row-nav-btn" type="button" data-row-left="recommendedDealsGrid">&lt;</button>
+                            <button class="row-nav-btn" type="button" data-row-right="recommendedDealsGrid">&gt;</button>
                         </div>
                     </div>
                     <div class="panel-body">
                         <div class="row-section">
                             <div class="row-fade-left"></div>
                             <div class="row-fade-right"></div>
-                            <div id="newDealsGrid" class="row-scroller"></div>
+                            <div id="recommendedDealsGrid" class="row-scroller"></div>
                         </div>
                         <div class="show-all-wrap">
-                            <a class="show-all-btn hidden" id="newDealsShowAllBtn" href="#">
+                            <a class="show-all-btn hidden" id="recommendedDealsShowAllBtn" href="#">
                                 Show All
-                                <span class="dropdown-arrow">&#8675;</span>
+                                <span class="dropdown-arrow">⇊</span>
                             </a>
                         </div>
                     </div>
@@ -4932,8 +4935,8 @@ input:focus-visible {
                             <h2 class="panel-title">All Deals</h2>
                             <div class="panel-subtitle" id="allGamesSubtitle">A broader stream of worthwhile discounted games beyond the top winners.</div>
                         </div>
-                        <a class="panel-action" id="releasedGamesDirectoryBtn" href="/all-results?view=released-games&title=All%20Deals&dealsOnly=1&minDeal=10&releasedSort=deal-score" aria-label="Show all deals in the full browse view">
-                            Show all deals
+                        <a class="panel-action" id="releasedGamesDirectoryBtn" href="/all-results?view=released-games&title=All%20Deals">
+                            Open All Deals
                         </a>
                     </div>
                     <div class="panel-body">
@@ -5275,8 +5278,8 @@ input:focus-visible {
             marketRadar: 48,
             dealOpportunities: 72,
             opportunityRadar: 72,
-            dealRailDepth: 96,
-            releasedGames: 72,
+            dealRailDepth: 72,
+            releasedGames: 24,
             upcoming: 24,
             personalizedDeals: 12,
             alertSignals: 40,
@@ -5285,22 +5288,8 @@ input:focus-visible {
         const HOMEPAGE_CRITICAL_SECTION_LIMIT = 8;
         const HOMEPAGE_RAIL_CONTINUATION_STEP = 6;
         const HOMEPAGE_RAIL_CONTINUATION_THRESHOLD_PX = 320;
-        const HOMEPAGE_RAIL_CONTINUATION_STEP_BY_SECTION = Object.freeze({
-            dealRankedGrid: 6,
-            opportunitiesGrid: 6,
-            worthBuyingGrid: 6,
-            trendingDealsGrid: 6,
-            newHistoricalLowsGrid: 6,
-            newDealsGrid: 6,
-            topReviewedGrid: 6,
-        });
-        const HOMEPAGE_INFINITE_SCROLL_STEP_BY_SECTION = Object.freeze({
-            releasedGamesGrid: 12,
-            upcomingGrid: 4,
-        });
         const HOMEPAGE_RAIL_DIVERSITY_WINDOW = 16;
-        const HOMEPAGE_ALL_DEALS_FEED_LIMIT = 192;
-        const HOMEPAGE_ALL_DEALS_CANDIDATE_POOL = 720;
+        const HOMEPAGE_ALL_DEALS_FEED_LIMIT = 96;
         const HOMEPAGE_ALL_DEALS_INITIAL_COUNT = 8;
         const HOMEPAGE_ALL_DEALS_LEAD_COUNT = 12;
         const HOMEPAGE_ALL_DEALS_MIN_DISCOUNT = 10;
@@ -5909,6 +5898,8 @@ input:focus-visible {
             feedOwnedToggleBtn: document.getElementById("feedOwnedToggleBtn"),
             opportunitiesPanel: document.getElementById("opportunitiesPanel"),
             opportunitiesGrid: document.getElementById("opportunitiesGrid"),
+            opportunityRadarPanel: document.getElementById("opportunityRadarPanel"),
+            opportunityRadarGrid: document.getElementById("opportunityRadarGrid"),
             recommendedForYouPanel: document.getElementById("recommendedForYouPanel"),
             yourDealsTodayTitle: document.getElementById("yourDealsTodayTitle"),
             yourDealsTodaySubtitle: document.getElementById("yourDealsTodaySubtitle"),
@@ -5922,11 +5913,14 @@ input:focus-visible {
             trendingDealsGrid: document.getElementById("trendingDealsGrid"),
             newHistoricalLowsGrid: document.getElementById("newHistoricalLowsGrid"),
             newDealsGrid: document.getElementById("newDealsGrid"),
+            waitForSalePanel: document.getElementById("waitForSalePanel"),
+            recommendedDealsGrid: document.getElementById("recommendedDealsGrid"),
 
             releasedGamesDirectoryBtn: document.getElementById("releasedGamesDirectoryBtn"),
             upcomingToggleBtn: document.getElementById("upcomingToggleBtn"),
             dealRankedShowAllBtn: document.getElementById("dealRankedShowAllBtn"),
             newDealsShowAllBtn: document.getElementById("newDealsShowAllBtn"),
+            recommendedDealsShowAllBtn: document.getElementById("recommendedDealsShowAllBtn"),
             historicalLowsShowAllBtn: document.getElementById("historicalLowsShowAllBtn"),
             topReviewedShowAllBtn: document.getElementById("topReviewedShowAllBtn"),
             upcomingShowAllBtn: document.getElementById("upcomingShowAllBtn"),
@@ -5996,6 +5990,7 @@ input:focus-visible {
                 Number(
                     HOMEPAGE_SECTION_LIMITS?.dealRailDepth
                     || HOMEPAGE_SECTION_LIMITS?.dealOpportunities
+                    || HOMEPAGE_SECTION_LIMITS?.opportunityRadar
                     || 24,
                 ) || 24,
             );
@@ -6010,12 +6005,13 @@ input:focus-visible {
             state.biggestDeals = filterProtectedDealRailRows(state.biggestDeals);
             state.buyNowPicks = filterProtectedDealRailRows(state.buyNowPicks);
             state.opportunitiesNow = filterProtectedDealRailRows(state.opportunitiesNow);
-            state.opportunityRadar = [];
-            state.waitPicks = [];
+            state.opportunityRadar = filterProtectedDealRailRows(state.opportunityRadar);
+            state.waitPicks = filterProtectedDealRailRows(state.waitPicks);
 
             const railSectionLimit = getHomepageDealRailDepthLimit();
             const protectedFallbackPool = filterProtectedDealRailRows([
                 ...safeArray(state.opportunitiesNow),
+                ...safeArray(state.opportunityRadar),
                 ...safeArray(state.dealRanked),
                 ...safeArray(state.worthBuyingNow),
                 ...safeArray(state.trendingDeals),
@@ -6025,6 +6021,12 @@ input:focus-visible {
             const protectedVisibleKeys = new Set();
             state.opportunitiesNow = selectExclusiveRailRows(
                 filterProtectedDealRailRows(state.opportunitiesNow),
+                protectedFallbackPool,
+                protectedVisibleKeys,
+                railSectionLimit,
+            );
+            state.opportunityRadar = selectExclusiveRailRows(
+                filterProtectedDealRailRows(state.opportunityRadar),
                 protectedFallbackPool,
                 protectedVisibleKeys,
                 railSectionLimit,
@@ -6073,10 +6075,30 @@ input:focus-visible {
                 decisionVisibleKeys,
                 railSectionLimit,
             );
+            state.waitPicks = selectExclusiveRailRows(
+                filterProtectedDealRailRows(state.waitPicks),
+                decisionFallbackPool.filter((row) =>
+                    Number(row?.price_vs_low_ratio || 0) >= 1.08
+                    || Number(row?.predicted_next_discount_percent || 0) >= 35
+                ),
+                decisionVisibleKeys,
+                railSectionLimit,
+            );
             if (!state.buyNowPicks.length) {
                 state.buyNowPicks = pickByRecommendation(decisionFallbackPool, "BUY_NOW", railSectionLimit);
                 if (!state.buyNowPicks.length) {
                     state.buyNowPicks = safeArray(state.worthBuyingNow).slice(0, railSectionLimit);
+                }
+            }
+            if (!state.waitPicks.length) {
+                state.waitPicks = pickByRecommendation(decisionFallbackPool, "WAIT", railSectionLimit);
+                if (!state.waitPicks.length) {
+                    state.waitPicks = decisionFallbackPool
+                        .filter((row) =>
+                            Number(row?.price_vs_low_ratio || 0) >= 1.08
+                            || Number(row?.predicted_next_discount_percent || 0) >= 35
+                        )
+                        .slice(0, railSectionLimit);
                 }
             }
 
@@ -6114,11 +6136,13 @@ input:focus-visible {
             return {
                 dealRanked: safeArray(state.dealRanked).slice(0, boundedLimit),
                 opportunitiesNow: safeArray(state.opportunitiesNow).slice(0, boundedLimit),
+                opportunityRadar: safeArray(state.opportunityRadar).slice(0, boundedLimit),
                 personalizedDeals: safeArray(state.personalizedDeals).slice(0, boundedLimit),
                 worthBuyingNow: safeArray(state.worthBuyingNow).slice(0, boundedLimit),
                 trendingDeals: safeArray(state.trendingDeals).slice(0, boundedLimit),
                 newHistoricalLows: safeArray(state.newHistoricalLows).slice(0, boundedLimit),
                 buyNowPicks: safeArray(state.buyNowPicks).slice(0, boundedLimit),
+                waitPicks: safeArray(state.waitPicks).slice(0, boundedLimit),
                 upcoming: safeArray(state.upcoming).slice(0, boundedLimit),
                 historicalLows: safeArray(state.historicalLows).slice(0, boundedLimit),
                 topReviewed: safeArray(state.topReviewed).slice(0, boundedLimit),
@@ -6193,13 +6217,13 @@ input:focus-visible {
                 const sections = parsed.sections && typeof parsed.sections === "object" ? parsed.sections : {};
                 state.dealRanked = uniqueGamesByName(sections.dealRanked || []);
                 state.opportunitiesNow = uniqueGamesByName(sections.opportunitiesNow || []);
-                state.opportunityRadar = [];
+                state.opportunityRadar = uniqueGamesByName(sections.opportunityRadar || []);
                 state.personalizedDeals = uniqueGamesByName(sections.personalizedDeals || []);
                 state.worthBuyingNow = uniqueGamesByName(sections.worthBuyingNow || []);
                 state.trendingDeals = uniqueGamesByName(sections.trendingDeals || []);
                 state.newHistoricalLows = uniqueGamesByName(sections.newHistoricalLows || []);
                 state.buyNowPicks = uniqueGamesByName(sections.buyNowPicks || []);
-                state.waitPicks = [];
+                state.waitPicks = uniqueGamesByName(sections.waitPicks || []);
                 state.upcoming = uniqueGamesByName(sections.upcoming || []);
                 state.historicalLows = uniqueGamesByName(sections.historicalLows || []);
                 state.topReviewed = uniqueGamesByName(sections.topReviewed || []);
@@ -8407,10 +8431,12 @@ input:focus-visible {
                 ...safeArray(state.dealRanked),
                 ...safeArray(state.worthBuyingNow),
                 ...safeArray(state.buyNowPicks),
+                ...safeArray(state.waitPicks),
                 ...safeArray(state.trendingNow),
                 ...safeArray(state.discoveryTrending),
                 ...safeArray(state.newHistoricalLows),
                 ...safeArray(state.opportunitiesNow),
+                ...safeArray(state.opportunityRadar),
                 ...safeArray(state.personalizedDeals),
                 ...safeArray(state.allGames),
             ]);
@@ -8586,7 +8612,9 @@ input:focus-visible {
             return uniqueGamesByIdentity([
                 ...safeArray(seedRows),
                 ...safeArray(state.buyNowPicks),
+                ...safeArray(state.waitPicks),
                 ...safeArray(state.opportunitiesNow),
+                ...safeArray(state.opportunityRadar),
                 ...safeArray(state.dealRanked),
                 ...safeArray(state.worthBuyingNow),
                 ...safeArray(state.trendingNow),
@@ -8623,6 +8651,7 @@ input:focus-visible {
             const fallbackPool = filterProtectedDealRailRows([
                 ...safeArray(seedRows),
                 ...safeArray(state.opportunitiesNow).slice(0, maxCandidatePool),
+                ...safeArray(state.opportunityRadar).slice(0, maxCandidatePool),
                 ...safeArray(state.buyNowPicks).slice(0, maxCandidatePool),
                 ...safeArray(state.dealRanked).slice(0, maxCandidatePool),
                 ...safeArray(state.worthBuyingNow).slice(0, maxCandidatePool),
@@ -9600,7 +9629,9 @@ input:focus-visible {
                 safeArray(state.biggestDiscounts),
                 safeArray(state.worthBuyingNow),
                 safeArray(state.trendingNow),
+                safeArray(state.opportunityRadar),
                 safeArray(state.dealRanked),
+                safeArray(state.waitPicks),
             ];
             for (const railRows of railSources) {
                 for (const row of railRows.slice(0, normalizedWindow)) {
@@ -9613,21 +9644,19 @@ input:focus-visible {
         }
 
         function getFeaturedAllGames() {
-            const maxCandidatePool = Math.max(
-                HOMEPAGE_ALL_DEALS_CANDIDATE_POOL,
-                HOMEPAGE_ALL_DEALS_FEED_LIMIT * 3,
-            );
             const sourceRows = filterProtectedDealRailRows(uniqueGamesByIdentity([
-                ...safeArray(state.allDealsFeed).slice(0, maxCandidatePool),
-                ...safeArray(state.allGames).slice(0, maxCandidatePool),
-                ...safeArray(state.dealRanked).slice(0, maxCandidatePool),
-                ...safeArray(state.worthBuyingNow).slice(0, maxCandidatePool),
-                ...safeArray(state.biggestDiscounts).slice(0, maxCandidatePool),
-                ...safeArray(state.buyNowPicks).slice(0, maxCandidatePool),
-                ...safeArray(state.opportunitiesNow).slice(0, maxCandidatePool),
-                ...safeArray(state.trendingNow).slice(0, maxCandidatePool),
-                ...safeArray(state.latestPrices).slice(0, maxCandidatePool),
-            ])).slice(0, maxCandidatePool);
+                ...safeArray(state.allDealsFeed),
+                ...safeArray(state.allGames),
+                ...safeArray(state.dealRanked),
+                ...safeArray(state.worthBuyingNow),
+                ...safeArray(state.biggestDiscounts),
+                ...safeArray(state.buyNowPicks),
+                ...safeArray(state.opportunitiesNow),
+                ...safeArray(state.trendingNow),
+                ...safeArray(state.opportunityRadar),
+                ...safeArray(state.waitPicks),
+                ...safeArray(state.latestPrices),
+            ]));
             const floorRows = sourceRows.filter(isAllDealsFloorCandidate);
             const candidates = (floorRows.length ? floorRows : sourceRows)
                 .sort((a, b) => {
@@ -9914,7 +9943,7 @@ input:focus-visible {
                     "No qualifying all-deals items are available right now.",
                     {
                         tone: "neutral",
-                        detail: "Use Show all deals to browse the full discounted catalog.",
+                        detail: "Open All Deals to browse the full discounted catalog.",
                     },
                 );
                 return;
@@ -9930,10 +9959,6 @@ input:focus-visible {
                 title: "All Deals",
                 initialCount: HOMEPAGE_ALL_DEALS_INITIAL_COUNT,
             });
-            maybePrefetchAllDealsCatalogPages(
-                items.length,
-                Number(state.visibleCounts.releasedGamesGrid || HOMEPAGE_ALL_DEALS_INITIAL_COUNT),
-            );
         }
 
         function renderNewDeals() {
@@ -9964,6 +9989,44 @@ input:focus-visible {
                 showAllButton: ui.newDealsShowAllBtn,
                 view: "buy-now-picks",
                 title: "Buy Now Picks",
+                initialCount: 12,
+            });
+        }
+
+        function renderRecommendedDeals() {
+            if (
+                !ui.recommendedDealsGrid
+                || !ui.waitForSalePanel
+                || ui.waitForSalePanel.classList.contains("hidden")
+            ) return;
+            const filtered = resolveDiscoveryFeedRows(state.waitPicks, {
+                targetCount: 12,
+                extendToCount: getHomepageDealRailDepthLimit(),
+                fallbackRows: buildDealRailDepthFallbackRows(state.waitPicks),
+            });
+            if (!filtered.rows.length) {
+                renderOwnedFilteredFeedEmpty(
+                    ui.recommendedDealsGrid,
+                    "No clear wait-for-next-sale picks right now.",
+                    {
+                        tone: "neutral",
+                        detail: "Games that look better to wait on will appear here.",
+                    },
+                    filtered,
+                );
+                ui.recommendedDealsShowAllBtn.classList.add("hidden");
+                return;
+            }
+
+            renderPagedCards({
+                container: ui.recommendedDealsGrid,
+                items: filtered.rows,
+                renderer: gameCardHtml,
+                visibleKey: "recommendedDealsGrid",
+                toggleButton: null,
+                showAllButton: ui.recommendedDealsShowAllBtn,
+                view: "wait-for-next-sale",
+                title: "Wait for Next Sale",
                 initialCount: 12,
             });
         }
@@ -10393,6 +10456,7 @@ input:focus-visible {
                 ...safeArray(state.trendingDeals),
                 ...safeArray(state.newHistoricalLows),
                 ...safeArray(state.buyNowPicks),
+                ...safeArray(state.waitPicks),
                 ...safeArray(state.historicalLows),
                 ...safeArray(state.topReviewed),
                 ...safeArray(state.topPlayed),
@@ -10400,6 +10464,7 @@ input:focus-visible {
                 ...safeArray(state.dealRadar),
                 ...safeArray(state.alertSignals),
                 ...safeArray(state.opportunitiesNow),
+                ...safeArray(state.opportunityRadar),
                 ...safeArray(state.personalizedDeals),
             ]);
             for (const row of candidates) {
@@ -11550,6 +11615,38 @@ input:focus-visible {
             });
         }
 
+        function renderOpportunityRadar() {
+            if (!ui.opportunityRadarGrid || !ui.opportunityRadarPanel) return;
+            const filtered = resolveDiscoveryFeedRows(state.opportunityRadar, {
+                targetCount: 12,
+                extendToCount: getHomepageDealRailDepthLimit(),
+                fallbackRows: buildDealRailDepthFallbackRows(state.opportunityRadar),
+            });
+            if (!filtered.rows.length) {
+                renderOwnedFilteredFeedEmpty(
+                    ui.opportunityRadarGrid,
+                    "No deal opportunity radar picks available right now.",
+                    {
+                        tone: "neutral",
+                        detail: "Predicted opportunities refresh throughout the day.",
+                    },
+                    filtered,
+                );
+                return;
+            }
+            renderPagedCards({
+                container: ui.opportunityRadarGrid,
+                items: filtered.rows,
+                renderer: gameCardHtml,
+                visibleKey: "opportunityRadarGrid",
+                toggleButton: null,
+                showAllButton: null,
+                view: "opportunity-radar",
+                title: "Deal Opportunity Radar",
+                initialCount: 12,
+            });
+        }
+
         function buildProtectedVisibleRailIdentitySet() {
             const keys = new Set();
             const addRows = (rows) => {
@@ -11559,6 +11656,7 @@ input:focus-visible {
                 });
             };
             addRows(state.opportunitiesNow);
+            addRows(state.opportunityRadar);
             return keys;
         }
 
@@ -12508,23 +12606,6 @@ input:focus-visible {
             if (isDiscoveryTabActive("all-games")) {
                 renderReleasedGames();
             }
-        }
-
-        function maybePrefetchAllDealsCatalogPages(totalItems = 0, currentVisible = Number(state.visibleCounts.releasedGamesGrid || 0)) {
-            if (!isCatalogContextActive()) return;
-            if (state.catalog.loading || state.catalog.loadingMore || !state.catalog.hasMore) return;
-
-            const normalizedTotal = Math.max(0, Number(totalItems) || 0);
-            const normalizedVisible = Math.max(0, Number(currentVisible) || 0);
-            const remaining = normalizedTotal > 0
-                ? Math.max(0, normalizedTotal - normalizedVisible)
-                : 0;
-            if (normalizedTotal > 0 && remaining > CATALOG_PREFETCH_BUFFER) return;
-
-            void loadNextCatalogPage().catch((error) => {
-                if (isAbortLikeError(error)) return;
-                console.warn("Failed to prefetch additional all-deals catalog pages", error);
-            });
         }
 
         function openSearchResults() {
@@ -13512,6 +13593,7 @@ input:focus-visible {
             releasedPayload,
             dealRadarPayload,
             opportunitiesPayload,
+            opportunityRadarPayload,
             dailyDigestPayload,
             options = {},
         ) {
@@ -13556,6 +13638,7 @@ input:focus-visible {
                 : uniqueAlertSignals(dashboardPayload?.alertSignals || []);
             const hasDealRadarPayload = dealRadarPayload !== null && dealRadarPayload !== undefined;
             const hasOpportunitiesPayload = opportunitiesPayload !== null && opportunitiesPayload !== undefined;
+            const hasOpportunityRadarPayload = opportunityRadarPayload !== null && opportunityRadarPayload !== undefined;
             const hasDailyDigestPayload = dailyDigestPayload !== null && dailyDigestPayload !== undefined;
             const dealRadarFromEndpoint = hasDealRadarPayload
                 ? uniqueDealRadarSignals(dealRadarPayload?.items || dealRadarPayload || [])
@@ -13592,8 +13675,43 @@ input:focus-visible {
                         ? filterReleasedRailRows(state.opportunitiesNow)
                         : []
                 );
+            const opportunityRadarFromEndpoint = hasOpportunityRadarPayload
+                ? filterReleasedRailRows(opportunityRadarPayload?.items || opportunityRadarPayload || [])
+                : [];
+            const opportunityRadarFromDashboard = filterReleasedRailRows(
+                dashboardPayload?.opportunity_radar
+                || dashboardPayload?.opportunityRadar
+                || []
+            );
+            const hasOpportunityRadarSource = hasOpportunityRadarPayload || hasDashboardKey("opportunity_radar", "opportunityRadar");
+            const opportunityIdentityKeys = new Set(
+                opportunitiesNow
+                    .map((row) => gameIdentityKey(row))
+                    .filter((key) => !!key),
+            );
+            const opportunityRadarSeed = uniqueGamesByIdentity([
+                ...opportunityRadarFromEndpoint,
+                ...opportunityRadarFromDashboard,
+            ]);
+            const opportunityRadarDistinct = opportunityRadarSeed.filter((row) => {
+                const key = gameIdentityKey(row);
+                if (!key) return false;
+                return !opportunityIdentityKeys.has(key);
+            });
+            const opportunityRadar = hasOpportunityRadarSource
+                ? (
+                    opportunityRadarDistinct.length
+                        ? opportunityRadarDistinct
+                        : opportunityRadarSeed
+                )
+                : (
+                    preserveExistingSections
+                        ? filterReleasedRailRows(state.opportunityRadar)
+                        : []
+                );
             const decisionPool = uniqueGamesByIdentity([
                 ...opportunitiesNow,
+                ...opportunityRadar,
                 ...worthBuyingNow,
                 ...dealRanked,
                 ...recommendedDeals,
@@ -13604,13 +13722,27 @@ input:focus-visible {
             const releasedDecisionPool = filterReleasedRailRows(decisionPool);
             const railSectionLimit = getHomepageDealRailDepthLimit();
             const buyNowFromPayload = hydrateRowsFromPayload(["buy_now_picks", "buyNowPicks"], state.buyNowPicks);
+            const waitFromPayload = hydrateRowsFromPayload(["wait_picks", "waitPicks"], state.waitPicks);
             const derivedBuyNowPicks = pickByRecommendation(releasedDecisionPool, "BUY_NOW", railSectionLimit);
+            const derivedWaitPicks = pickByRecommendation(releasedDecisionPool, "WAIT", railSectionLimit);
             const buyNowPicks = buyNowFromPayload.length
                 ? buyNowFromPayload
                 : (
                     derivedBuyNowPicks.length
                         ? derivedBuyNowPicks
                         : filterReleasedRailRows(worthBuyingNow).slice(0, railSectionLimit)
+                );
+            const waitPicks = waitFromPayload.length
+                ? waitFromPayload
+                : (
+                    derivedWaitPicks.length
+                        ? derivedWaitPicks
+                        : releasedDecisionPool
+                            .filter((row) =>
+                                Number(row?.price_vs_low_ratio || 0) >= 1.08
+                                || Number(row?.predicted_next_discount_percent || 0) >= 35
+                            )
+                            .slice(0, railSectionLimit)
                 );
             const allDealsFromDashboardPayload = filterProtectedDealRailRows(uniqueGamesByIdentity([
                 ...safeArray(dashboardPayload?.all_deals),
@@ -13690,6 +13822,12 @@ input:focus-visible {
                 protectedVisibleUsedKeys,
                 railSectionLimit,
             );
+            const stableOpportunityRadar = selectExclusiveRailRows(
+                filterReleasedRailRows(opportunityRadar),
+                protectedFallbackPool,
+                protectedVisibleUsedKeys,
+                railSectionLimit,
+            );
             const stableBuyNowPicks = selectExclusiveRailRows(
                 filterReleasedRailRows(buyNowPicks),
                 filterReleasedRailRows([
@@ -13699,10 +13837,20 @@ input:focus-visible {
                 protectedVisibleUsedKeys,
                 railSectionLimit,
             );
+            const waitBiggestKeys = new Set();
             const stableBiggestDiscounts = selectExclusiveRailRows(
                 filterReleasedRailRows(biggestDiscounts),
                 releaseSafeDealRanked,
-                new Set(),
+                waitBiggestKeys,
+                railSectionLimit,
+            );
+            const stableWaitPicks = selectExclusiveRailRows(
+                filterReleasedRailRows(waitPicks),
+                releasedDecisionPool.filter((row) =>
+                    Number(row?.price_vs_low_ratio || 0) >= 1.08
+                    || Number(row?.predicted_next_discount_percent || 0) >= 35
+                ),
+                waitBiggestKeys,
                 railSectionLimit,
             );
             const seasonalState = {
@@ -13738,7 +13886,7 @@ input:focus-visible {
             state.upcoming = upcoming;
             state.dealRanked = releaseSafeDealRanked;
             state.opportunitiesNow = stableOpportunitiesNow;
-            state.opportunityRadar = [];
+            state.opportunityRadar = stableOpportunityRadar;
             state.recommendedDeals = recommendedDeals;
             state.worthBuyingNow = releaseSafeWorthBuying;
             state.trendingDeals = trendingDeals;
@@ -13746,7 +13894,7 @@ input:focus-visible {
             state.discoveryTrending = diversifiedDiscoveryRails.discoveryTrending || discoveryTrendingCandidates;
             state.newHistoricalLows = releaseSafeNewHistoricalLows;
             state.buyNowPicks = stableBuyNowPicks;
-            state.waitPicks = [];
+            state.waitPicks = stableWaitPicks;
             state.seasonalSale = seasonalState;
             const nextCatalogSummary = normalizeCatalogSummary(dashboardPayload?.catalogSummary);
             state.catalogSummary = (
@@ -13815,10 +13963,12 @@ input:focus-visible {
         function applyDeferredHomepageSections({
             dealRadarPayload,
             opportunitiesPayload,
+            opportunityRadarPayload,
             dailyDigestPayload,
         }) {
             const hasDealRadarPayload = dealRadarPayload !== null && dealRadarPayload !== undefined;
             const hasOpportunitiesPayload = opportunitiesPayload !== null && opportunitiesPayload !== undefined;
+            const hasOpportunityRadarPayload = opportunityRadarPayload !== null && opportunityRadarPayload !== undefined;
             const hasDailyDigestPayload = dailyDigestPayload !== null && dailyDigestPayload !== undefined;
 
             if (hasDealRadarPayload) {
@@ -13833,9 +13983,26 @@ input:focus-visible {
                     state.opportunitiesNow = nextOpportunities;
                 }
             }
-            state.opportunityRadar = [];
-            state.waitPicks = [];
-            if (hasOpportunitiesPayload) {
+            if (hasOpportunityRadarPayload) {
+                const radarFromEndpoint = filterProtectedDealRailRows(opportunityRadarPayload?.items || opportunityRadarPayload || []);
+                const opportunityIdentityKeys = new Set(
+                    safeArray(state.opportunitiesNow)
+                        .map((row) => gameIdentityKey(row))
+                        .filter((key) => !!key),
+                );
+                const distinctRadar = radarFromEndpoint.filter((row) => {
+                    const key = gameIdentityKey(row);
+                    if (!key) return false;
+                    return !opportunityIdentityKeys.has(key);
+                });
+                const nextRadar = distinctRadar.length
+                    ? distinctRadar
+                    : radarFromEndpoint;
+                if (nextRadar.length || !safeArray(state.opportunityRadar).length) {
+                    state.opportunityRadar = nextRadar;
+                }
+            }
+            if (hasOpportunitiesPayload || hasOpportunityRadarPayload) {
                 const railSectionLimit = getHomepageDealRailDepthLimit();
                 const protectedFallbackPool = filterProtectedDealRailRows([
                     ...safeArray(state.dealRanked),
@@ -13846,6 +14013,12 @@ input:focus-visible {
                 const protectedVisibleKeys = new Set();
                 state.opportunitiesNow = selectExclusiveRailRows(
                     filterProtectedDealRailRows(state.opportunitiesNow),
+                    protectedFallbackPool,
+                    protectedVisibleKeys,
+                    railSectionLimit,
+                );
+                state.opportunityRadar = selectExclusiveRailRows(
+                    filterProtectedDealRailRows(state.opportunityRadar),
                     protectedFallbackPool,
                     protectedVisibleKeys,
                     railSectionLimit,
@@ -13884,7 +14057,7 @@ input:focus-visible {
             sanitizeProtectedHomepageRailState();
 
             if (hasOpportunitiesPayload) renderOpportunities();
-            if (hasOpportunitiesPayload) {
+            if (hasOpportunityRadarPayload || hasOpportunitiesPayload) {
                 renderNewDeals();
             }
             if (hasDealRadarPayload) renderDealRadar();
@@ -13915,10 +14088,12 @@ input:focus-visible {
             const emptyReleased = { items: [] };
             const emptyDealRadar = { items: [] };
             const emptyOpportunities = { items: [] };
+            const emptyOpportunityRadar = { items: [] };
             const emptyDailyDigest = { sections: {}, highlights: [], counts: {} };
             const marketRadarEndpointUrl = `/api/market-radar?limit=${HOMEPAGE_SECTION_LIMITS.marketRadar}`;
             const dealRadarEndpointUrl = `/api/deal-radar?limit=${HOMEPAGE_SECTION_LIMITS.marketRadar}`;
             const opportunitiesEndpointUrl = `/api/deal-opportunities?limit=${HOMEPAGE_SECTION_LIMITS.dealOpportunities}`;
+            const opportunityRadarEndpointUrl = `/api/opportunity-radar?limit=${HOMEPAGE_SECTION_LIMITS.opportunityRadar}`;
             const dailyDigestEndpointUrl = `/api/daily-digest?user_id=${encodeURIComponent(CURRENT_USER_ID)}&section_limit=${HOMEPAGE_SECTION_LIMITS.dailyDigestSection}`;
 
 let dashboardData = null;
@@ -13926,6 +14101,7 @@ let seasonalData = emptySeasonal;
 let releasedData = emptyReleased;
 let dealRadarData = null;
 let opportunitiesData = null;
+let opportunityRadarData = null;
 let dailyDigestData = null;
 const scheduleCatalogSeed = (payload) => {
     if (!payload || !safeArray(payload.items).length) return;
@@ -13970,9 +14146,12 @@ try {
             ...safeArray(dashboardData?.trending_deals),
             ...safeArray(dashboardData?.trending_now),
             ...safeArray(dashboardData?.buy_now_picks),
+            ...safeArray(dashboardData?.wait_picks),
             ...safeArray(dashboardData?.new_historical_lows),
             ...safeArray(dashboardData?.deal_opportunities),
             ...safeArray(dashboardData?.dealOpportunities),
+            ...safeArray(dashboardData?.opportunity_radar),
+            ...safeArray(dashboardData?.opportunityRadar),
         ]));
     const hasReleasedSeed = dashboardReleasedSeed.length > 0;
     releasedData = hasReleasedSeed ? { items: dashboardReleasedSeed } : emptyReleased;
@@ -13987,9 +14166,14 @@ try {
         ? safeArray(dashboardData?.deal_opportunities)
         : safeArray(dashboardData?.dealOpportunities);
 
+    const dashboardOpportunityRadarSeed = safeArray(dashboardData?.opportunity_radar).length
+        ? safeArray(dashboardData?.opportunity_radar)
+        : safeArray(dashboardData?.opportunityRadar);
+
     const dashboardDigestSeed = dashboardData?.daily_digest || dashboardData?.dailyDigest;
     const needsDealRadarRefresh = !safeArray(state.dealRadar).length;
     const needsOpportunitiesRefresh = !safeArray(state.opportunitiesNow).length;
+    const needsOpportunityRadarRefresh = !safeArray(state.opportunityRadar).length;
     const needsDailyDigestRefresh = !(
         state.dailyDigest
         && typeof state.dailyDigest === "object"
@@ -14017,7 +14201,7 @@ try {
     // Start lower-priority content in background. Do not await here.
     setTimeout(async () => {
         try {
-            [dealRadarData, opportunitiesData, dailyDigestData] = await Promise.all([
+            [dealRadarData, opportunitiesData, opportunityRadarData, dailyDigestData] = await Promise.all([
                 dashboardDealRadarSeed.length
                     ? Promise.resolve({ items: dashboardDealRadarSeed })
                     : needsDealRadarRefresh
@@ -14030,6 +14214,12 @@ try {
                     ? Promise.resolve({ items: dashboardOpportunitySeed })
                     : needsOpportunitiesRefresh
                         ? fetchJson(opportunitiesEndpointUrl).catch(() => null)
+                        : Promise.resolve(null),
+
+                dashboardOpportunityRadarSeed.length
+                    ? Promise.resolve({ items: dashboardOpportunityRadarSeed })
+                    : needsOpportunityRadarRefresh
+                        ? fetchJson(opportunityRadarEndpointUrl).catch(() => null)
                         : Promise.resolve(null),
 
                 (
@@ -14049,6 +14239,7 @@ try {
             applyDeferredHomepageSections({
                 dealRadarPayload: dealRadarData,
                 opportunitiesPayload: opportunitiesData,
+                opportunityRadarPayload: opportunityRadarData,
                 dailyDigestPayload: dailyDigestData,
             });
         } catch (secondaryError) {
@@ -14071,6 +14262,7 @@ try {
         worth_buying_now: [],
         trending_now: [],
         buy_now_picks: [],
+        wait_picks: [],
         new_historical_lows: [],
         topReviewed: [],
         mostPlayedDeals: [],
@@ -14085,6 +14277,8 @@ try {
         deal_radar: [],
         dealOpportunities: [],
         deal_opportunities: [],
+        opportunityRadar: [],
+        opportunity_radar: [],
         all_deals: [],
         allDeals: [],
         daily_digest: emptyDailyDigest,
@@ -14100,6 +14294,7 @@ try {
 
     const needsDealRadarRefresh = !safeArray(state.dealRadar).length;
     const needsOpportunitiesRefresh = !safeArray(state.opportunitiesNow).length;
+    const needsOpportunityRadarRefresh = !safeArray(state.opportunityRadar).length;
     const needsDailyDigestRefresh = !(
         state.dailyDigest
         && typeof state.dailyDigest === "object"
@@ -14111,7 +14306,7 @@ try {
 
     setTimeout(async () => {
         try {
-            [dealRadarData, opportunitiesData, dailyDigestData] = await Promise.all([
+            [dealRadarData, opportunitiesData, opportunityRadarData, dailyDigestData] = await Promise.all([
                 needsDealRadarRefresh
                     ? fetchJson(marketRadarEndpointUrl)
                         .catch(() => fetchJson(dealRadarEndpointUrl))
@@ -14122,6 +14317,10 @@ try {
                     ? fetchJson(opportunitiesEndpointUrl).catch(() => null)
                     : Promise.resolve(null),
 
+                needsOpportunityRadarRefresh
+                    ? fetchJson(opportunityRadarEndpointUrl).catch(() => null)
+                    : Promise.resolve(null),
+
                 needsDailyDigestRefresh
                     ? fetchJson(dailyDigestEndpointUrl).catch(() => null)
                     : Promise.resolve(null),
@@ -14130,6 +14329,7 @@ try {
             applyDeferredHomepageSections({
                 dealRadarPayload: dealRadarData,
                 opportunitiesPayload: opportunitiesData,
+                opportunityRadarPayload: opportunityRadarData,
                 dailyDigestPayload: dailyDigestData,
             });
         } catch (secondaryError) {
@@ -14144,6 +14344,7 @@ try {
                 releasedData,
                 dealRadarData,
                 opportunitiesData,
+                opportunityRadarData,
                 dailyDigestData,
                 { preservePersonalState: true, preserveExistingSections: true },
             );
@@ -14759,6 +14960,7 @@ try {
                     null,
                     null,
                     null,
+                    null,
                     criticalDigest,
                     { deferAnalytics: true, preservePersonalState: true },
                 );
@@ -14771,7 +14973,10 @@ try {
                 state.homepageLoad.criticalLoaded = true;
                 renderCriticalHomepageSections();
             } catch (error) {
-                const opportunitiesPayload = await fetchJson(`/api/deal-opportunities?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`).catch(() => []);
+                const [opportunitiesPayload, opportunityRadarPayload] = await Promise.all([
+                    fetchJson(`/api/deal-opportunities?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`).catch(() => []),
+                    fetchJson(`/api/opportunity-radar?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`).catch(() => []),
+                ]);
                 const opportunities = filterProtectedDealRailRows(opportunitiesPayload?.items || opportunitiesPayload || []);
                 const protectedVisibleKeys = new Set();
                 state.opportunitiesNow = selectExclusiveRailRows(
@@ -14783,7 +14988,15 @@ try {
                     protectedVisibleKeys,
                     HOMEPAGE_CRITICAL_SECTION_LIMIT,
                 );
-                state.opportunityRadar = [];
+                state.opportunityRadar = selectExclusiveRailRows(
+                    filterProtectedDealRailRows(opportunityRadarPayload?.items || opportunityRadarPayload || []),
+                    filterProtectedDealRailRows([
+                        ...safeArray(state.dealRanked),
+                        ...safeArray(state.worthBuyingNow),
+                    ]),
+                    protectedVisibleKeys,
+                    HOMEPAGE_CRITICAL_SECTION_LIMIT,
+                );
                 sanitizeProtectedHomepageRailState();
                 state.homepageLoad.criticalLoaded = true;
                 renderCriticalHomepageSections();
@@ -14846,6 +15059,7 @@ try {
                 safeArray(state.trendingNow).length
                 || safeArray(state.discoveryTrending).length
                 || safeArray(state.dealRanked).length
+                || safeArray(state.opportunityRadar).length
                 || safeArray(state.worthBuyingNow).length
             );
             const allowFallback = !knownUser || hasFallbackSeed || state.personalizedStatus.fallbackMode;
@@ -15968,19 +16182,11 @@ try {
             });
         }
 
-        function getRailContinuationStep(sectionKey, fallbackStep = HOMEPAGE_RAIL_CONTINUATION_STEP) {
-            const configuredStep = Number(HOMEPAGE_RAIL_CONTINUATION_STEP_BY_SECTION?.[sectionKey]);
-            if (Number.isFinite(configuredStep) && configuredStep > 0) {
-                return Math.max(2, configuredStep);
-            }
-            return Math.max(2, Number(fallbackStep || HOMEPAGE_RAIL_CONTINUATION_STEP) || HOMEPAGE_RAIL_CONTINUATION_STEP);
-        }
-
         function enableHorizontalRailContinuation(sectionKey, renderFunction, options = {}) {
             const container = document.getElementById(sectionKey);
             if (!container) return;
 
-            const step = getRailContinuationStep(sectionKey, options.step);
+            const step = Math.max(2, Number(options.step || HOMEPAGE_RAIL_CONTINUATION_STEP));
             const thresholdPx = Math.max(120, Number(options.thresholdPx || HOMEPAGE_RAIL_CONTINUATION_THRESHOLD_PX));
             const wiredSet = enableHorizontalRailContinuation._wired || (enableHorizontalRailContinuation._wired = new Set());
             if (wiredSet.has(sectionKey)) return;
@@ -16023,7 +16229,6 @@ try {
                 { key: "trendingDealsGrid", render: renderTrendingDeals },
                 { key: "newHistoricalLowsGrid", render: renderNewHistoricalLows },
                 { key: "newDealsGrid", render: renderNewDeals },
-                { key: "topReviewedGrid", render: renderTopReviewed },
             ];
             sections.forEach(({ key, render }) => {
                 enableHorizontalRailContinuation(key, render);
@@ -16031,7 +16236,7 @@ try {
             wireHorizontalRailContinuation._wired = true;
         }
 
-        function enableInfiniteScroll(sectionKey, getItems, renderFunction, options = {}) {
+        function enableInfiniteScroll(sectionKey, getItems, renderFunction) {
             const container = document.getElementById(sectionKey);
             if (!container) return;
             const parent = container.parentElement;
@@ -16051,14 +16256,7 @@ try {
 
             let loading = false;
             let releaseLockTimer = null;
-            const configuredIncrement = Number(HOMEPAGE_INFINITE_SCROLL_STEP_BY_SECTION?.[sectionKey]);
-            const increment = Math.max(
-                2,
-                Number.isFinite(configuredIncrement) && configuredIncrement > 0
-                    ? configuredIncrement
-                    : 4,
-            );
-            const onNearEnd = typeof options?.onNearEnd === "function" ? options.onNearEnd : null;
+            const increment = sectionKey === "releasedGamesGrid" ? 6 : 4;
 
             const observer = new IntersectionObserver((entries) => {
                 const entry = entries[0];
@@ -16067,9 +16265,6 @@ try {
                 const items = getItems();
                 const totalItems = Array.isArray(items) ? items.length : 0;
                 const currentVisible = Number(state.visibleCounts[sectionKey] || 0);
-                if (onNearEnd) {
-                    onNearEnd({ sectionKey, totalItems, currentVisible, increment });
-                }
                 if (!totalItems || currentVisible >= totalItems) {
                     return;
                 }
@@ -16209,12 +16404,7 @@ try {
                 enableInfiniteScroll(
                     "releasedGamesGrid",
                     () => getFeaturedAllGames(),
-                    renderReleasedGames,
-                    {
-                        onNearEnd: ({ totalItems, currentVisible }) => {
-                            maybePrefetchAllDealsCatalogPages(totalItems, currentVisible);
-                        },
-                    }
+                    renderReleasedGames
                 );
             } catch (error) {
                 console.error(error);

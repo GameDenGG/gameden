@@ -4745,8 +4745,8 @@ input:focus-visible {
                 <section class="panel panel-deals" id="bestDealsPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Biggest Discounts Today</h2>
-                            <div class="panel-subtitle">Today's deepest discounts with price, review, and trend context.</div>
+                            <h2 class="panel-title">All Deals</h2>
+                            <div class="panel-subtitle">A broad, live browse lane of worthwhile discounted games.</div>
                         </div>
                         <div class="row-nav">
                             <button class="row-nav-btn" type="button" data-row-left="dealRankedGrid">&lt;</button>
@@ -5603,7 +5603,7 @@ input:focus-visible {
                 column: "main",
                 discoveryTab: true,
                 tabKey: "best-deals",
-                tabLabel: "Best Deals",
+                tabLabel: "All Deals",
             },
             {
                 id: "trendingGamesPanel",
@@ -5639,7 +5639,7 @@ input:focus-visible {
                 column: "main",
                 discoveryTab: true,
                 tabKey: "all-games",
-                tabLabel: "All Deals",
+                tabLabel: "All Deals Deep",
             },
             {
                 id: "topReviewedPanel",
@@ -5794,7 +5794,7 @@ input:focus-visible {
                 showOwned: false,
             },
             visibleCounts: {
-                dealRankedGrid: 6,
+                dealRankedGrid: HOMEPAGE_ALL_DEALS_INITIAL_COUNT,
                 opportunitiesGrid: 6,
                 personalizedDealsGrid: 6,
                 worthBuyingGrid: 6,
@@ -9600,6 +9600,32 @@ input:focus-visible {
             return 5;
         }
 
+        function primaryGenreToken(game) {
+            const genreSources = [
+                game?.genres,
+                game?.tags,
+                game?.genre,
+                game?.primary_genre,
+                game?.genre_primary,
+            ];
+            for (const source of genreSources) {
+                if (Array.isArray(source)) {
+                    const first = source.find((entry) => String(entry || "").trim());
+                    if (first) return String(first).trim().toLowerCase();
+                } else {
+                    const value = String(source || "").trim();
+                    if (value) return value.toLowerCase();
+                }
+            }
+            return "misc";
+        }
+
+        function allDealsBreadthBucketKey(game) {
+            const discountBand = allDealsDiscountBand(game);
+            const genreToken = primaryGenreToken(game);
+            return `${String(discountBand)}|${genreToken}`;
+        }
+
         function isExceptionalHomepageRepeatGame(game) {
             const discount = Math.max(
                 0,
@@ -9644,9 +9670,12 @@ input:focus-visible {
         }
 
         function getFeaturedAllGames() {
-            const sourceRows = filterProtectedDealRailRows(uniqueGamesByIdentity([
+            const discountedInventoryRows = filterProtectedDealRailRows(uniqueGamesByIdentity([
                 ...safeArray(state.allDealsFeed),
                 ...safeArray(state.allGames),
+                ...safeArray(state.latestPrices),
+            ]));
+            const fallbackCuratedRows = filterProtectedDealRailRows(uniqueGamesByIdentity([
                 ...safeArray(state.dealRanked),
                 ...safeArray(state.worthBuyingNow),
                 ...safeArray(state.biggestDiscounts),
@@ -9655,8 +9684,10 @@ input:focus-visible {
                 ...safeArray(state.trendingNow),
                 ...safeArray(state.opportunityRadar),
                 ...safeArray(state.waitPicks),
-                ...safeArray(state.latestPrices),
             ]));
+            const sourceRows = discountedInventoryRows.length
+                ? discountedInventoryRows
+                : fallbackCuratedRows;
             const floorRows = sourceRows.filter(isAllDealsFloorCandidate);
             const candidates = (floorRows.length ? floorRows : sourceRows)
                 .sort((a, b) => {
@@ -9689,25 +9720,31 @@ input:focus-visible {
                 }
             }
 
-            const byBand = [[], [], [], [], [], []];
+            const buckets = new Map();
             for (const candidate of candidates) {
                 const key = gameIdentityKey(candidate);
                 if (!key || seen.has(key)) continue;
-                byBand[allDealsDiscountBand(candidate)].push(candidate);
+                const bucketKey = allDealsBreadthBucketKey(candidate);
+                if (!buckets.has(bucketKey)) {
+                    buckets.set(bucketKey, []);
+                }
+                buckets.get(bucketKey).push(candidate);
             }
+            const bucketKeys = Array.from(buckets.keys()).sort((left, right) => left.localeCompare(right));
 
             while (selected.length < HOMEPAGE_ALL_DEALS_FEED_LIMIT) {
                 let progressed = false;
-                for (const bandRows of byBand) {
-                    while (bandRows.length) {
-                        const candidate = bandRows.shift();
-                        if (!candidate) continue;
-                        if (tryAdd(candidate, false)) {
-                            progressed = true;
-                            break;
-                        }
+                for (const bucketKey of bucketKeys) {
+                    const bucketRows = buckets.get(bucketKey);
+                    if (!bucketRows || !bucketRows.length) continue;
+                    const candidate = bucketRows.shift();
+                    if (!candidate) continue;
+                    if (tryAdd(candidate, false)) {
+                        progressed = true;
                     }
-                    if (selected.length >= HOMEPAGE_ALL_DEALS_FEED_LIMIT) break;
+                    if (selected.length >= HOMEPAGE_ALL_DEALS_FEED_LIMIT) {
+                        break;
+                    }
                 }
                 if (!progressed) break;
             }
@@ -11547,40 +11584,29 @@ input:focus-visible {
         }
 
         function renderDealRanked() {
-            const sectionItems = state.biggestDiscounts.length
-                ? state.biggestDiscounts
-                : (
-                    state.dealRanked.length
-                        ? state.dealRanked
-                        : state.worthBuyingNow
-                );
-            const filtered = resolveDiscoveryFeedRows(sectionItems, {
-                targetCount: 8,
-                extendToCount: getHomepageDealRailDepthLimit(),
-                fallbackRows: buildDealRailDepthFallbackRows(sectionItems),
-            });
-            if (!filtered.rows.length) {
-                renderOwnedFilteredFeedEmpty(
+            maybeEnsureAllDealsHomepageCatalog();
+            const allDealsRows = getFeaturedAllGames();
+            if (!allDealsRows.length) {
+                renderEmpty(
                     ui.dealRankedGrid,
-                    "No biggest discounts available right now.",
+                    "No qualifying all-deals items are available right now.",
                     {
                         tone: "neutral",
                         detail: "New discounted games appear as prices refresh.",
                     },
-                    filtered,
                 );
                 return;
             }
             renderPagedCards({
                 container: ui.dealRankedGrid,
-                items: filtered.rows,
+                items: allDealsRows,
                 renderer: gameCardHtml,
                 visibleKey: "dealRankedGrid",
                 toggleButton: null,
                 showAllButton: null,
-                view: "biggest-discounts",
-                title: "Biggest Discounts Today",
-                initialCount: 8,
+                view: "all-deals-primary",
+                title: "All Deals",
+                initialCount: HOMEPAGE_ALL_DEALS_INITIAL_COUNT,
             });
         }
 
@@ -13333,14 +13359,74 @@ input:focus-visible {
             refreshReleasedAndSearch();
         }
 
-        async function runCatalogQuery() {
-            if (!isCatalogContextActive()) return;
+        function canLoadCatalogForContext(options = {}) {
+            if (isCatalogContextActive()) return true;
+            if (options.allowHomepageAllDeals !== true) return false;
+            return isDiscoveryTabActive("best-deals");
+        }
+
+        function shouldUpgradeAllDealsSeedCatalog() {
+            const seededLimit = Math.max(1, Number(HOMEPAGE_SECTION_LIMITS.releasedGames || 24));
+            const loadedRows = Math.max(
+                safeArray(state.allDealsFeed).length,
+                safeArray(state.allGames).length,
+            );
+            if (!state.catalog.loaded) {
+                return loadedRows === 0 && !state.catalog.loading;
+            }
+            return (
+                loadedRows > 0
+                && loadedRows <= seededLimit
+                && Number(state.catalog.totalPages || 0) <= 1
+            );
+        }
+
+        function maybeEnsureAllDealsHomepageCatalog() {
+            if (!isDiscoveryTabActive("best-deals")) return;
+            if (state.catalog.loading || state.catalog.loadingMore) return;
+
             const queryKey = getCatalogQueryKey();
-            if (shouldSkipCatalogReloadForQueryKey(queryKey)) {
+            const needsSeedUpgrade = shouldUpgradeAllDealsSeedCatalog();
+            if (!needsSeedUpgrade && shouldSkipCatalogReloadForQueryKey(queryKey)) {
+                return;
+            }
+
+            void runCatalogQuery({
+                allowHomepageAllDeals: true,
+                preserveRenderedFeed: true,
+                forceReload: needsSeedUpgrade,
+            }).catch((error) => {
+                if (isAbortLikeError(error)) return;
+                console.warn("All Deals rail catalog hydration failed", error);
+            });
+        }
+
+        function maybeLoadMoreAllDealsHomepageCatalog() {
+            if (!isDiscoveryTabActive("best-deals")) return;
+            if (state.catalog.loading || state.catalog.loadingMore) return;
+
+            if (!state.catalog.loaded || shouldUpgradeAllDealsSeedCatalog()) {
+                maybeEnsureAllDealsHomepageCatalog();
+                return;
+            }
+            if (!state.catalog.hasMore) return;
+
+            void loadNextCatalogPage({ allowHomepageAllDeals: true }).catch((error) => {
+                if (isAbortLikeError(error)) return;
+                console.warn("All Deals rail continuation failed", error);
+            });
+        }
+
+        async function runCatalogQuery(options = {}) {
+            if (!canLoadCatalogForContext(options)) return;
+            const queryKey = getCatalogQueryKey();
+            const forceReload = options?.forceReload === true;
+            if (!forceReload && shouldSkipCatalogReloadForQueryKey(queryKey)) {
                 refreshReleasedAndSearch();
                 return;
             }
             cancelCatalogLoad();
+            const preserveRenderedFeed = options?.preserveRenderedFeed === true;
 
             const requestId = state.catalog.requestId + 1;
             const controller = new AbortController();
@@ -13357,8 +13443,10 @@ input:focus-visible {
             state.catalog.totalItems = 0;
             state.catalog.nextPage = 1;
             state.catalog.hasMore = false;
-            state.allGames = [];
-            state.allDealsFeed = [];
+            if (!preserveRenderedFeed) {
+                state.allGames = [];
+                state.allDealsFeed = [];
+            }
             state.catalog.pageCache = new Map();
             state.catalog.inflightControllers = new Map();
 
@@ -13401,8 +13489,8 @@ input:focus-visible {
             }
         }
 
-        async function loadNextCatalogPage() {
-            if (!isCatalogContextActive()) return;
+        async function loadNextCatalogPage(options = {}) {
+            if (!canLoadCatalogForContext(options)) return;
             if (state.catalog.loading || state.catalog.loadingMore || !state.catalog.hasMore) {
                 return;
             }
@@ -14872,7 +14960,7 @@ try {
         }
 
         function renderCriticalHomepageSkeletons() {
-            renderSkeleton(ui.dealRankedGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.dealRankedGrid, "deal-cards", HOMEPAGE_ALL_DEALS_INITIAL_COUNT, { cardClass: "game-card" });
             renderSkeleton(ui.opportunitiesGrid, "deal-cards", 6, { cardClass: "game-card" });
             renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 1, { cardClass: "game-card" });
             renderSkeleton(ui.dailyDigestList, "panel-list", 1, { itemClass: "digest-item" });
@@ -16188,6 +16276,7 @@ try {
 
             const step = Math.max(2, Number(options.step || HOMEPAGE_RAIL_CONTINUATION_STEP));
             const thresholdPx = Math.max(120, Number(options.thresholdPx || HOMEPAGE_RAIL_CONTINUATION_THRESHOLD_PX));
+            const onNearEnd = typeof options.onNearEnd === "function" ? options.onNearEnd : null;
             const wiredSet = enableHorizontalRailContinuation._wired || (enableHorizontalRailContinuation._wired = new Set());
             if (wiredSet.has(sectionKey)) return;
 
@@ -16197,15 +16286,23 @@ try {
 
                 const totalItems = Number(container.dataset.totalItems || 0);
                 const currentVisible = Number(state.visibleCounts[sectionKey] || 0);
-                if (!Number.isFinite(totalItems) || totalItems <= 0 || currentVisible >= totalItems) return;
+                if (!Number.isFinite(totalItems) || totalItems <= 0) return;
 
                 const remainingScroll = container.scrollWidth - (container.scrollLeft + container.clientWidth);
                 if (remainingScroll > thresholdPx) return;
+
+                if (currentVisible >= totalItems) {
+                    if (onNearEnd) onNearEnd();
+                    return;
+                }
 
                 locked = true;
                 state.visibleCounts[sectionKey] = Math.min(totalItems, currentVisible + step);
                 requestAnimationFrame(() => {
                     renderFunction();
+                    if (onNearEnd && Number(state.visibleCounts[sectionKey] || 0) >= totalItems) {
+                        onNearEnd();
+                    }
                     setTimeout(() => {
                         locked = false;
                     }, 80);
@@ -16223,15 +16320,15 @@ try {
         function wireHorizontalRailContinuation() {
             if (wireHorizontalRailContinuation._wired) return;
             const sections = [
-                { key: "dealRankedGrid", render: renderDealRanked },
+                { key: "dealRankedGrid", render: renderDealRanked, onNearEnd: maybeLoadMoreAllDealsHomepageCatalog },
                 { key: "opportunitiesGrid", render: renderOpportunities },
                 { key: "worthBuyingGrid", render: renderWorthBuyingNow },
                 { key: "trendingDealsGrid", render: renderTrendingDeals },
                 { key: "newHistoricalLowsGrid", render: renderNewHistoricalLows },
                 { key: "newDealsGrid", render: renderNewDeals },
             ];
-            sections.forEach(({ key, render }) => {
-                enableHorizontalRailContinuation(key, render);
+            sections.forEach(({ key, render, onNearEnd }) => {
+                enableHorizontalRailContinuation(key, render, { onNearEnd });
             });
             wireHorizontalRailContinuation._wired = true;
         }

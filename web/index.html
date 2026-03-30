@@ -5293,6 +5293,8 @@ input:focus-visible {
         const HOMEPAGE_ALL_DEALS_INITIAL_COUNT = 8;
         const HOMEPAGE_ALL_DEALS_LEAD_COUNT = 12;
         const HOMEPAGE_ALL_DEALS_MIN_DISCOUNT = 10;
+        const HOMEPAGE_ALL_DEALS_AUTO_SCROLL_PX_PER_SECOND = 6;
+        const HOMEPAGE_ALL_DEALS_AUTO_SCROLL_RESUME_DELAY_MS = 2200;
         const HOMEPAGE_BOTTOM_RAIL_EXPOSURE_WINDOW = 8;
         const HOMEPAGE_CROSS_RAIL_RENDER_PRIORITY = Object.freeze([
             "dealRanked",
@@ -11704,6 +11706,7 @@ input:focus-visible {
                 title: "All Deals",
                 initialCount: HOMEPAGE_ALL_DEALS_INITIAL_COUNT,
             });
+            ensureAllDealsAutoScroll(ui.dealRankedGrid);
         }
 
         function renderOpportunities() {
@@ -13511,6 +13514,112 @@ input:focus-visible {
                 if (isAbortLikeError(error)) return;
                 console.warn("All Deals rail continuation failed", error);
             });
+        }
+
+        function ensureAllDealsAutoScroll(container) {
+            if (!container || container.id !== "dealRankedGrid") return;
+            const registry = ensureAllDealsAutoScroll._registry || (ensureAllDealsAutoScroll._registry = new WeakMap());
+            if (registry.has(container)) return;
+
+            const state = {
+                rafId: 0,
+                lastTs: 0,
+                direction: 1,
+                pauseUntil: 0,
+                hoverPaused: false,
+                programmaticScrollUntil: 0,
+                resumeTimer: null,
+            };
+
+            const clearResumeTimer = () => {
+                if (state.resumeTimer) {
+                    clearTimeout(state.resumeTimer);
+                    state.resumeTimer = null;
+                }
+            };
+
+            const pauseForInactivity = () => {
+                state.pauseUntil = performance.now() + HOMEPAGE_ALL_DEALS_AUTO_SCROLL_RESUME_DELAY_MS;
+                clearResumeTimer();
+                state.resumeTimer = setTimeout(() => {
+                    state.resumeTimer = null;
+                }, HOMEPAGE_ALL_DEALS_AUTO_SCROLL_RESUME_DELAY_MS);
+            };
+
+            const markUserActivity = () => {
+                pauseForInactivity();
+            };
+
+            const onScroll = () => {
+                if (performance.now() < state.programmaticScrollUntil) return;
+                markUserActivity();
+            };
+
+            const onMouseEnter = () => {
+                state.hoverPaused = true;
+                pauseForInactivity();
+            };
+
+            const onMouseLeave = () => {
+                state.hoverPaused = false;
+                pauseForInactivity();
+            };
+
+            const onKeyDown = (event) => {
+                if (!event || event.defaultPrevented) return;
+                if (["ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) {
+                    markUserActivity();
+                }
+            };
+
+            const tick = (ts) => {
+                state.rafId = requestAnimationFrame(tick);
+                if (!container.isConnected || document.hidden) {
+                    state.lastTs = ts;
+                    return;
+                }
+                if (state.hoverPaused || ts < state.pauseUntil) {
+                    state.lastTs = ts;
+                    return;
+                }
+
+                const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+                if (maxScrollLeft <= 2) {
+                    state.lastTs = ts;
+                    return;
+                }
+
+                const currentLeft = container.scrollLeft;
+                const edgeSlack = 1;
+                if (currentLeft <= edgeSlack) {
+                    state.direction = 1;
+                } else if (currentLeft >= maxScrollLeft - edgeSlack) {
+                    state.direction = -1;
+                }
+
+                const lastTs = state.lastTs || ts;
+                const elapsedMs = Math.max(0, ts - lastTs);
+                state.lastTs = ts;
+                const delta = (HOMEPAGE_ALL_DEALS_AUTO_SCROLL_PX_PER_SECOND * elapsedMs) / 1000.0;
+                if (delta <= 0) return;
+
+                const nextLeft = Math.max(0, Math.min(maxScrollLeft, currentLeft + (state.direction * delta)));
+                if (Math.abs(nextLeft - currentLeft) < 0.01) return;
+
+                state.programmaticScrollUntil = ts + 80;
+                container.scrollLeft = nextLeft;
+            };
+
+            container.addEventListener("scroll", onScroll, { passive: true });
+            container.addEventListener("mouseenter", onMouseEnter, { passive: true });
+            container.addEventListener("mouseleave", onMouseLeave, { passive: true });
+            container.addEventListener("wheel", markUserActivity, { passive: true });
+            container.addEventListener("touchstart", markUserActivity, { passive: true });
+            container.addEventListener("pointerdown", markUserActivity, { passive: true });
+            container.addEventListener("keydown", onKeyDown);
+
+            state.rafId = requestAnimationFrame(tick);
+            registry.set(container, state);
         }
 
         async function runCatalogQuery(options = {}) {

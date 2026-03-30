@@ -253,12 +253,18 @@ def compute_deal_score(
     review_count: float,
     avg_player_count: float,
     player_momentum: float,
+    popularity_score: float = 0.0,
     history_confidence: float | None = None,
     medium_term_trend: float | None = None,
     long_term_trend: float | None = None,
     player_interest_state: str | None = None,
 ) -> float:
-    discount_component = clamp(discount_percent, 0.0, 100.0) * 0.45
+    discount_value = clamp(safe_num(discount_percent, 0.0), 0.0, 100.0)
+    discount_component = (
+        min(discount_value, 50.0) * 0.42
+        + max(0.0, min(discount_value, 80.0) - 50.0) * 0.24
+        + max(0.0, discount_value - 80.0) * 0.12
+    )
 
     historical_component = 0.0
     if latest_price and latest_price > 0 and historical_low and historical_low > 0:
@@ -267,7 +273,9 @@ def compute_deal_score(
 
     review_quality = clamp(review_score, 0.0, 100.0)
     review_confidence = clamp(math.log10(max(review_count, 1.0)) / 4.0, 0.0, 1.0)
-    review_component = (review_quality / 100.0) * review_confidence * 15.0
+    review_component = (review_quality / 100.0) * review_confidence * 18.0
+
+    popularity_component = clamp(safe_num(popularity_score, 0.0), 0.0, 100.0) * 0.08
 
     player_component = clamp(math.log10(max(avg_player_count, 0.0) + 1.0) * 4.0, 0.0, 10.0)
     if (
@@ -294,7 +302,14 @@ def compute_deal_score(
         elif normalized_state == "one_off_spike":
             momentum_component -= 1.5
 
-    total = discount_component + historical_component + review_component + player_component + momentum_component
+    total = (
+        discount_component
+        + historical_component
+        + review_component
+        + popularity_component
+        + player_component
+        + momentum_component
+    )
     return round(clamp(total, 0.0, 100.0), 2)
 
 
@@ -681,6 +696,7 @@ def compute_worth_buying_score(
     latest_price: float | None,
     historical_low_price: float | None,
     historical_low_hit: bool,
+    popularity_score: float | None = None,
     history_confidence: float | None = None,
     player_interest_state: str | None = None,
 ) -> tuple[float, dict[str, float], str]:
@@ -692,13 +708,19 @@ def compute_worth_buying_score(
     confidence_factor = clamp(safe_num(history_confidence, 0.45), 0.2, 1.0)
     interest_state = str(player_interest_state or "").strip().lower()
 
-    discount_component = round(discount_value * 0.42, 2)
+    discount_component = round(
+        min(discount_value, 50.0) * 0.34
+        + max(0.0, min(discount_value, 80.0) - 50.0) * 0.18
+        + max(0.0, discount_value - 80.0) * 0.08,
+        2,
+    )
     review_confidence = clamp(math.log10(max(10.0, review_count_value)) / 4.0, 0.0, 1.0)
-    review_component = round((review_value / 100.0) * review_confidence * 24.0, 2)
+    review_component = round((review_value / 100.0) * review_confidence * 26.0, 2)
     player_activity_component = round(
         clamp(math.log10(players + 1.0) * 5.5, 0.0, 14.0) * (0.65 + confidence_factor * 0.35),
         2,
     )
+    popularity_component = round(clamp(safe_num(popularity_score, 0.0), 0.0, 100.0) * 0.08, 2)
     player_growth_component = round(
         clamp((growth_ratio - 1.0) * 18.0, -10.0, 16.0) * confidence_factor,
         2,
@@ -723,6 +745,7 @@ def compute_worth_buying_score(
         "discount_component": discount_component,
         "review_component": review_component,
         "player_activity_component": player_activity_component,
+        "popularity_component": popularity_component,
         "player_growth_component": player_growth_component,
         "player_history_confidence_component": player_history_confidence_component,
         "player_state_adjustment": round(player_state_adjustment, 2),
@@ -737,6 +760,8 @@ def compute_worth_buying_score(
         reasons.append("meaningful discount")
     if players >= 5000:
         reasons.append("strong player activity")
+    if safe_num(popularity_score, 0.0) >= 60:
+        reasons.append("strong popularity")
     if growth_ratio >= 1.4:
         reasons.append("rising momentum")
     if interest_state in {"stable_evergreen", "resurging"}:
@@ -2698,19 +2723,6 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
 
         review_score = safe_num(game.review_score, default=0.0)
         review_count = safe_num(game.review_total_count, default=0.0)
-        deal_score = compute_deal_score(
-            discount_percent=safe_num(latest_discount_percent, default=0.0),
-            latest_price=latest_price,
-            historical_low=historical_low,
-            review_score=review_score,
-            review_count=review_count,
-            avg_player_count=safe_num(avg_player_count, default=0.0),
-            player_momentum=player_momentum,
-            history_confidence=history_confidence,
-            medium_term_trend=medium_term_player_trend,
-            long_term_trend=long_term_player_trend,
-            player_interest_state=player_interest_state,
-        )
 
         is_upcoming = int(game.is_released or 0) != 1
         release_date = game.release_date or _parse_release_date(game.release_date_text)
@@ -2733,6 +2745,20 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
             wishlist_count=wishlist_count,
             watchlist_count=watchlist_count,
             last_clicked_at=interest.last_clicked_at,
+        )
+        deal_score = compute_deal_score(
+            discount_percent=safe_num(latest_discount_percent, default=0.0),
+            latest_price=latest_price,
+            historical_low=historical_low,
+            review_score=review_score,
+            review_count=review_count,
+            avg_player_count=safe_num(avg_player_count, default=0.0),
+            player_momentum=player_momentum,
+            popularity_score=popularity_score,
+            history_confidence=history_confidence,
+            medium_term_trend=medium_term_player_trend,
+            long_term_trend=long_term_player_trend,
+            player_interest_state=player_interest_state,
         )
         has_upcoming_artwork = bool(str(game.appid or "").strip())
         has_genre_metadata = bool(split_csv_field(game.genres))
@@ -2767,6 +2793,7 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
             latest_price=latest_price,
             historical_low_price=historical_low,
             historical_low_hit=is_new_historical_low,
+            popularity_score=popularity_score,
             history_confidence=history_confidence,
             player_interest_state=player_interest_state,
         )

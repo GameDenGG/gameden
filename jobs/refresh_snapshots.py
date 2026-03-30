@@ -136,6 +136,11 @@ HOMEPAGE_CROSS_RAIL_ORDER = (
 )
 HOMEPAGE_CROSS_RAIL_UNIQUENESS_WINDOW = max(8, min(12, HOMEPAGE_RAIL_LIMIT))
 HOMEPAGE_CATALOG_SEED_LIMIT = 24
+HOMEPAGE_ALL_DEALS_LIMIT = 96
+HOMEPAGE_ALL_DEALS_CANDIDATE_POOL = 480
+HOMEPAGE_ALL_DEALS_LEAD_COUNT = 12
+HOMEPAGE_ALL_DEALS_MIN_DISCOUNT = 10
+ALL_DEALS_FEED_CACHE_KEY = "home:all_deals_feed"
 EXTENDED_PLATFORM_FILTER_OPTIONS = ("Steam Deck", "VR Compatibility")
 UTC = datetime.timezone.utc
 DEAL_EVENT_NEW_SALE = "NEW_SALE"
@@ -3632,6 +3637,156 @@ def _snapshot_sort_game_id(row: dict) -> int:
     return int(safe_num((row or {}).get("game_id") or (row or {}).get("id"), 0.0))
 
 
+def _is_all_deals_floor_snapshot_row(row: dict) -> bool:
+    if not isinstance(row, dict):
+        return False
+    if not _is_released_snapshot_row(row):
+        return False
+    discount = safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0))
+    price = safe_num(row.get("price"), safe_num(row.get("latest_price"), 0.0))
+    if price <= 0 or discount <= 0:
+        return False
+    if discount < HOMEPAGE_ALL_DEALS_MIN_DISCOUNT:
+        return False
+    deal_score = safe_num(row.get("deal_score"), 0.0)
+    buy_score = safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0))
+    opportunity_score = safe_num(row.get("deal_opportunity_score"), 0.0)
+    review_score = safe_num(row.get("review_score"), 0.0)
+    current_players = safe_num(row.get("current_players"), 0.0)
+    historical_status = str(row.get("historical_status") or "").strip().lower()
+    has_historical_signal = historical_status in {"new_historical_low", "matches_historical_low", "near_historical_low"}
+    return bool(
+        discount >= 55
+        or deal_score >= 38
+        or buy_score >= 40
+        or opportunity_score >= 42
+        or review_score >= 72
+        or current_players >= 300
+        or has_historical_signal
+    )
+
+
+def _score_all_deals_snapshot_row(row: dict) -> float:
+    discount = safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0))
+    deal_score = safe_num(row.get("deal_score"), 0.0)
+    buy_score = safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0))
+    opportunity_score = safe_num(row.get("deal_opportunity_score"), 0.0)
+    momentum_score = safe_num(row.get("momentum_score"), 0.0)
+    review_score = safe_num(row.get("review_score"), 0.0)
+    current_players = safe_num(row.get("current_players"), 0.0)
+    player_signal = clamp(math.log10(current_players + 1.0) * 6.5, 0.0, 18.0)
+    return (
+        deal_score * 0.5
+        + buy_score * 0.38
+        + opportunity_score * 0.24
+        + momentum_score * 0.18
+        + review_score * 0.12
+        + clamp(discount, 0.0, 90.0) * 0.2
+        + player_signal
+    )
+
+
+def _all_deals_snapshot_discount_band(row: dict) -> int:
+    discount = safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0))
+    if discount >= 70:
+        return 0
+    if discount >= 50:
+        return 1
+    if discount >= 35:
+        return 2
+    if discount >= 20:
+        return 3
+    if discount >= HOMEPAGE_ALL_DEALS_MIN_DISCOUNT:
+        return 4
+    return 5
+
+
+def _build_homepage_all_deals_rows(
+    primary_rows: list[dict],
+    fallback_rows: list[dict],
+    *,
+    exposure_counts: dict[str, int],
+    limit: int = HOMEPAGE_ALL_DEALS_LIMIT,
+    lead_count: int = HOMEPAGE_ALL_DEALS_LEAD_COUNT,
+) -> list[dict]:
+    bounded_limit = max(1, int(limit))
+    bounded_lead_count = max(1, min(int(lead_count), bounded_limit))
+    candidate_rows = _released_deal_snapshot_rows([*primary_rows, *fallback_rows])
+    floor_rows = [row for row in candidate_rows if _is_all_deals_floor_snapshot_row(row)]
+    ranked_rows = floor_rows if floor_rows else candidate_rows
+    ranked_rows = sorted(
+        ranked_rows,
+        key=lambda row: (
+            _score_all_deals_snapshot_row(row),
+            safe_num(row.get("deal_score"), 0.0),
+            safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0)),
+            safe_num(row.get("buy_score"), safe_num(row.get("worth_buying_score"), 0.0)),
+            -_snapshot_sort_game_id(row),
+        ),
+        reverse=True,
+    )
+    if not ranked_rows:
+        return []
+
+    selected: list[dict] = []
+    seen_keys: set[str] = set()
+
+    def _try_add(row: dict, *, allow_exposed: bool) -> bool:
+        row_key = _snapshot_identity_key(row, 0)
+        if not row_key or row_key in seen_keys:
+            return False
+        repeat_count = int(exposure_counts.get(row_key, 0))
+        is_exceptional_repeat = repeat_count > 0 and _is_exceptional_homepage_repeat_row(row)
+        if repeat_count >= 2:
+            return False
+        if not allow_exposed and repeat_count > 0 and not is_exceptional_repeat:
+            return False
+        selected.append(row)
+        seen_keys.add(row_key)
+        exposure_counts[row_key] = repeat_count + 1
+        return True
+
+    for row in ranked_rows:
+        if _try_add(row, allow_exposed=False) and len(selected) >= bounded_lead_count:
+            break
+
+    remaining_rows = [row for row in ranked_rows if _snapshot_identity_key(row, 0) not in seen_keys]
+    bands: dict[int, list[dict]] = {band: [] for band in range(6)}
+    for row in remaining_rows:
+        bands[_all_deals_snapshot_discount_band(row)].append(row)
+    for band_rows in bands.values():
+        band_rows.sort(
+            key=lambda row: (
+                _score_all_deals_snapshot_row(row),
+                safe_num(row.get("discount_percent"), safe_num(row.get("latest_discount_percent"), 0.0)),
+                safe_num(row.get("deal_score"), 0.0),
+                -_snapshot_sort_game_id(row),
+            ),
+            reverse=True,
+        )
+
+    while len(selected) < bounded_limit:
+        progressed = False
+        for band in (0, 1, 2, 3, 4, 5):
+            band_rows = bands.get(band, [])
+            while band_rows:
+                row = band_rows.pop(0)
+                if _try_add(row, allow_exposed=False):
+                    progressed = True
+                    break
+            if len(selected) >= bounded_limit:
+                break
+        if not progressed:
+            break
+
+    if len(selected) < bounded_limit:
+        for row in ranked_rows:
+            if _try_add(row, allow_exposed=True) and len(selected) >= bounded_limit:
+                break
+
+    return selected[:bounded_limit]
+
+
 def _is_exceptional_homepage_repeat_row(row: dict) -> bool:
     if not isinstance(row, dict):
         return False
@@ -4087,6 +4242,24 @@ def rebuild_dashboard_cache(session: Session) -> None:
     leaderboard_rows = [_snapshot_row_to_dict(row) for row in leaderboard]
     upcoming_rows = [_snapshot_row_to_dict(row) for row in upcoming][:HOMEPAGE_RAIL_LIMIT]
     new_historical_lows_rows = _dedupe_snapshot_rows(new_historical_lows)
+    all_discounted_snapshot_rows = (
+        session.query(GameSnapshot)
+        .filter(
+            GameSnapshot.is_upcoming.is_(False),
+            GameSnapshot.is_released == 1,
+            GameSnapshot.latest_discount_percent.isnot(None),
+            GameSnapshot.latest_discount_percent > 0,
+        )
+        .order_by(
+            GameSnapshot.deal_score.desc().nullslast(),
+            GameSnapshot.latest_discount_percent.desc().nullslast(),
+            GameSnapshot.worth_buying_score.desc().nullslast(),
+            GameSnapshot.game_id.asc(),
+        )
+        .limit(HOMEPAGE_ALL_DEALS_CANDIDATE_POOL)
+        .all()
+    )
+    all_discounted_rows = [_snapshot_row_to_dict(row) for row in all_discounted_snapshot_rows]
 
     canonical_deal_pool = _released_deal_snapshot_rows(
         [
@@ -4183,29 +4356,38 @@ def rebuild_dashboard_cache(session: Session) -> None:
     )
     player_surges = _build_player_surges(alert_signals, trending_rows)
     seasonal_summary = _build_cached_seasonal_summary(decision_pool, limit=24)
-    catalog_seed_candidates = _released_snapshot_rows(
-        [
-            *top_reviewed_rows,
-            *top_played_rows,
-            *leaderboard_rows,
-            *trending_rows,
-            *historical_lows_rows,
-            *decision_pool,
-            *canonical_deal_pool,
-        ]
-    )
-    catalog_seed_rows_source = _compose_cross_rail_snapshot_rows(
-        catalog_seed_candidates,
-        _released_snapshot_rows([*catalog_seed_candidates, *upcoming_rows]),
+    all_deals_rows = _build_homepage_all_deals_rows(
+        all_discounted_rows,
+        _released_deal_snapshot_rows(
+            [
+                *decision_pool,
+                *canonical_deal_pool,
+                *deal_ranked_rows,
+                *worth_buying_rows,
+                *biggest_discounts_rows,
+                *buy_now_picks,
+                *deal_opportunities_rows,
+                *trending_now_rows,
+                *opportunity_radar_rows,
+                *wait_picks,
+                *new_historical_lows_rows,
+            ]
+        ),
         exposure_counts=dict(cross_rail_exposure_counts),
-        limit=HOMEPAGE_CATALOG_SEED_LIMIT,
-        uniqueness_window=HOMEPAGE_CATALOG_SEED_LIMIT,
+        limit=HOMEPAGE_ALL_DEALS_LIMIT,
+        lead_count=HOMEPAGE_ALL_DEALS_LEAD_COUNT,
     )
-    catalog_seed_rows = [
-        _compact_catalog_seed_row(row)
-        for row in catalog_seed_rows_source[:HOMEPAGE_CATALOG_SEED_LIMIT]
-    ]
-    catalog_seed_rows = [row for row in catalog_seed_rows if row]
+    if not all_deals_rows:
+        all_deals_rows = _released_deal_snapshot_rows(
+            [
+                *decision_pool,
+                *canonical_deal_pool,
+                *deal_ranked_rows,
+                *worth_buying_rows,
+                *biggest_discounts_rows,
+            ]
+        )[:HOMEPAGE_ALL_DEALS_LIMIT]
+    catalog_seed_rows = all_deals_rows[:HOMEPAGE_ALL_DEALS_LIMIT]
     biggest_price_drops_rows: list[dict] = []
     for row in biggest_price_drop_events:
         game_id = int(row.game_id) if row.game_id is not None else 0
@@ -4297,8 +4479,10 @@ def rebuild_dashboard_cache(session: Session) -> None:
         "alertSignals": alert_signals,
         "player_surges": player_surges,
         "seasonal_summary": seasonal_summary,
-        "releasedGames": catalog_seed_rows,
-        "released": catalog_seed_rows,
+        "all_deals": all_deals_rows,
+        "allDeals": all_deals_rows,
+        "releasedGames": all_deals_rows,
+        "released": all_deals_rows,
         "generated_at": utcnow().isoformat(),
     }
 
@@ -4320,6 +4504,7 @@ def rebuild_dashboard_cache(session: Session) -> None:
         "home:top_played": {"items": payload.get("topPlayed", []), "generated_at": payload["generated_at"]},
         "home:leaderboard": {"items": payload.get("leaderboard", []), "generated_at": payload["generated_at"]},
         "home:upcoming": {"items": payload.get("upcoming", []), "generated_at": payload["generated_at"]},
+        ALL_DEALS_FEED_CACHE_KEY: {"items": all_deals_rows, "total": len(all_deals_rows), "total_pages": 1, "generated_at": payload["generated_at"]},
         "home:catalog_seed": {"items": catalog_seed_rows, "total": len(catalog_seed_rows), "total_pages": 1, "generated_at": payload["generated_at"]},
     }
     for legacy_cache_key in LEGACY_CACHE_KEYS:

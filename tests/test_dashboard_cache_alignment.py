@@ -367,6 +367,172 @@ class DashboardCacheAlignmentTests(unittest.TestCase):
         finally:
             session.close()
 
+    def test_rebuild_dashboard_cache_emits_all_deals_feed_and_cache_row(self):
+        session = _build_session()
+        try:
+            for idx in range(1, 180):
+                session.add(
+                    GameSnapshot(
+                        game_id=idx,
+                        game_name=f"All Deals {idx}",
+                        steam_appid=str(idx),
+                        latest_price=6.99 + (idx / 200.0),
+                        latest_original_price=59.99 + (idx / 100.0),
+                        latest_discount_percent=max(10, 92 - (idx % 80)),
+                        review_score=68 + (idx % 28),
+                        review_score_label="Very Positive",
+                        review_count=2500 + idx,
+                        current_players=max(120, 21000 - idx * 95),
+                        avg_player_count=max(90, 18000 - idx * 82),
+                        player_change=max(1, 2600 - idx * 12),
+                        daily_peak=max(150, 28000 - idx * 120),
+                        momentum_score=float(410 - idx),
+                        worth_buying_score=float(430 - idx),
+                        recommended_score=float(420 - idx),
+                        deal_score=float(460 - idx),
+                        buy_score=float(420 - idx),
+                        deal_opportunity_score=float(395 - idx),
+                        is_upcoming=False,
+                        is_released=1,
+                    )
+                )
+            session.commit()
+
+            rebuild_dashboard_cache(session)
+            session.commit()
+
+            home = session.query(DashboardCache).filter(DashboardCache.cache_key == "home").first()
+            self.assertIsNotNone(home)
+            payload = json.loads(home.payload)
+
+            all_deals = payload.get("all_deals", [])
+            self.assertTrue(all_deals)
+            self.assertLessEqual(len(all_deals), 96)
+            self.assertGreater(len(all_deals), 24)
+            self.assertEqual(payload.get("allDeals"), all_deals)
+            self.assertEqual(payload.get("releasedGames"), all_deals)
+            self.assertEqual(payload.get("released"), all_deals)
+            self.assertTrue(all(float(row.get("discount_percent") or 0.0) >= 10.0 for row in all_deals[:24]))
+
+            all_deals_cache = session.query(DashboardCache).filter(DashboardCache.cache_key == "home:all_deals_feed").first()
+            self.assertIsNotNone(all_deals_cache)
+            all_deals_payload = json.loads(all_deals_cache.payload)
+            self.assertEqual(all_deals_payload.get("items"), all_deals)
+        finally:
+            session.close()
+
+    def test_rebuild_dashboard_cache_all_deals_top_window_limits_primary_overlap(self):
+        session = _build_session()
+        try:
+            for idx in range(1, 220):
+                discount = 50 - (idx % 32)
+                session.add(
+                    GameSnapshot(
+                        game_id=idx,
+                        game_name=f"Overlap {idx}",
+                        steam_appid=str(idx),
+                        latest_price=8.99 + (idx / 150.0),
+                        latest_original_price=39.99 + (idx / 120.0),
+                        latest_discount_percent=max(10, discount),
+                        review_score=66 + (idx % 25),
+                        review_score_label="Very Positive",
+                        review_count=1800 + idx,
+                        current_players=max(90, 16000 - idx * 65),
+                        avg_player_count=max(70, 14000 - idx * 58),
+                        player_change=max(1, 1900 - idx * 9),
+                        daily_peak=max(100, 22000 - idx * 80),
+                        momentum_score=float(320 - idx),
+                        worth_buying_score=float(160 - (idx * 0.4)),
+                        recommended_score=float(150 - (idx * 0.35)),
+                        deal_score=float(170 - (idx * 0.42)),
+                        buy_score=float(150 - (idx * 0.38)),
+                        deal_opportunity_score=float(145 - (idx * 0.36)),
+                        is_upcoming=False,
+                        is_released=1,
+                    )
+                )
+            session.commit()
+
+            rebuild_dashboard_cache(session)
+            session.commit()
+            payload = json.loads(session.query(DashboardCache).filter(DashboardCache.cache_key == "home").first().payload)
+
+            lead_rail_ids: set[int] = set()
+            for key in (
+                "deal_opportunities",
+                "buyNowPicks",
+                "biggest_discounts",
+                "worth_buying_now",
+                "trending_now",
+                "opportunity_radar",
+                "dealRanked",
+                "wait_picks",
+            ):
+                for row in payload.get(key, [])[:8]:
+                    game_id = int(row.get("game_id") or 0)
+                    if game_id > 0:
+                        lead_rail_ids.add(game_id)
+
+            all_deals_top = [
+                int(row.get("game_id") or 0)
+                for row in payload.get("all_deals", [])[:12]
+                if int(row.get("game_id") or 0) > 0
+            ]
+            self.assertTrue(all_deals_top)
+            overlap = [game_id for game_id in all_deals_top if game_id in lead_rail_ids]
+            self.assertLessEqual(len(overlap), 2)
+        finally:
+            session.close()
+
+    def test_rebuild_dashboard_cache_all_deals_order_is_deterministic(self):
+        session = _build_session()
+        try:
+            for idx in range(1, 140):
+                session.add(
+                    GameSnapshot(
+                        game_id=idx,
+                        game_name=f"All Deals Deterministic {idx}",
+                        steam_appid=str(idx),
+                        latest_price=7.49 + (idx / 175.0),
+                        latest_original_price=42.99 + (idx / 130.0),
+                        latest_discount_percent=max(10, 88 - (idx % 70)),
+                        review_score=65 + (idx % 30),
+                        review_score_label="Mostly Positive",
+                        review_count=1400 + idx,
+                        current_players=max(80, 14000 - idx * 75),
+                        avg_player_count=max(70, 11500 - idx * 66),
+                        player_change=max(1, 1700 - idx * 8),
+                        daily_peak=max(95, 19000 - idx * 92),
+                        momentum_score=float(300 - idx),
+                        worth_buying_score=float(280 - idx),
+                        recommended_score=float(265 - idx),
+                        deal_score=float(310 - idx),
+                        buy_score=float(275 - idx),
+                        deal_opportunity_score=float(250 - idx),
+                        is_upcoming=False,
+                        is_released=1,
+                    )
+                )
+            session.commit()
+
+            rebuild_dashboard_cache(session)
+            session.commit()
+            first_payload = json.loads(
+                session.query(DashboardCache).filter(DashboardCache.cache_key == "home").first().payload
+            )
+
+            rebuild_dashboard_cache(session)
+            session.commit()
+            second_payload = json.loads(
+                session.query(DashboardCache).filter(DashboardCache.cache_key == "home").first().payload
+            )
+
+            first_ids = [int(item["game_id"]) for item in first_payload.get("all_deals", [])[:48]]
+            second_ids = [int(item["game_id"]) for item in second_payload.get("all_deals", [])[:48]]
+            self.assertEqual(first_ids, second_ids)
+        finally:
+            session.close()
+
     def test_deal_radar_feed_limits_duplicate_games_and_balances_signals(self):
         session = _build_session()
         try:

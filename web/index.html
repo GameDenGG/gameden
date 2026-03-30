@@ -1037,7 +1037,7 @@ input:focus-visible {
 
 .lower-sections {
     display: grid;
-    gap: 18px;
+    gap: 16px;
     align-content: start;
     min-width: 0;
     width: 100%;
@@ -1050,7 +1050,7 @@ input:focus-visible {
 .homepage-main-column,
 .homepage-right-rail {
     display: grid;
-    gap: 18px;
+    gap: 16px;
     align-content: start;
     width: 100%;
     min-width: 0;
@@ -1365,7 +1365,7 @@ input:focus-visible {
 
 .discovery-tabs-shell {
     display: grid;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
     width: 100%;
     max-width: 100%;
@@ -1731,53 +1731,45 @@ input:focus-visible {
 }
 
 /* Tier 2: Secondary decision surfaces */
-#bestDealsPanel,
-#waitForSalePanel {
+#bestDealsPanel {
     border-color: rgba(121, 168, 255, 0.19);
     background: linear-gradient(180deg, rgba(12, 22, 40, 0.88), rgba(9, 16, 30, 0.94));
     box-shadow: 0 16px 34px rgba(2, 7, 20, 0.3);
 }
 
-#bestDealsPanel .panel-title,
-#waitForSalePanel .panel-title {
+#bestDealsPanel .panel-title {
     font-size: 20px;
     letter-spacing: -0.02em;
 }
 
-#bestDealsPanel .panel-subtitle,
-#waitForSalePanel .panel-subtitle {
+#bestDealsPanel .panel-subtitle {
     color: rgba(162, 189, 227, 0.72);
 }
 
 /* Tier 3: Exploratory/optional surfaces */
-#opportunityRadarPanel,
 #moreIntelSection {
     border-color: rgba(121, 168, 255, 0.14);
     background: linear-gradient(180deg, rgba(10, 19, 34, 0.86), rgba(8, 15, 28, 0.92));
     box-shadow: 0 12px 28px rgba(2, 7, 20, 0.22);
 }
 
-#opportunityRadarPanel .panel-head,
 #moreIntelSection > .panel-head {
     border-bottom-color: rgba(121, 168, 255, 0.08);
     padding-top: 15px;
     padding-bottom: 8px;
 }
 
-#opportunityRadarPanel .panel-title,
 #moreIntelSection .panel-title {
     font-size: 18px;
     letter-spacing: -0.015em;
     opacity: 0.9;
 }
 
-#opportunityRadarPanel .panel-subtitle,
 #moreIntelSection .panel-subtitle {
     color: rgba(154, 182, 230, 0.7);
     font-size: 10.5px;
 }
 
-#opportunityRadarPanel .panel-body,
 #moreIntelSection > .panel-body {
     padding-top: 10px;
     padding-bottom: 13px;
@@ -1876,6 +1868,56 @@ input:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     perspective: 1200px;
+}
+
+#releasedGamesGrid {
+    --row-card-size: clamp(var(--row-card-min), 22vw, var(--row-card-max));
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 11px;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+    scroll-padding-left: 12px;
+    scroll-behavior: smooth;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+    contain: paint;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+#releasedGamesGrid > * {
+    min-width: 0;
+    flex: 0 0 var(--row-card-size);
+    width: var(--row-card-size);
+    max-width: none;
+}
+
+#releasedGamesGrid > .section-empty,
+#releasedGamesGrid > .error,
+#releasedGamesGrid > .analytics-empty {
+    flex: 0 0 100%;
+    width: 100%;
+    max-width: 100%;
+}
+
+#releasedGamesGrid .game-card {
+    scroll-snap-align: start;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+}
+
+#releasedGamesGrid::-webkit-scrollbar {
+    height: 10px;
+}
+
+#releasedGamesGrid::-webkit-scrollbar-thumb {
+    background: rgba(154,182,255,0.22);
+    border-radius: 999px;
 }
 
 .row-scroller {
@@ -3985,11 +4027,9 @@ input:focus-visible {
     #buyNowPicksPanel .panel-title {
         font-size: 19px;
     }
-    #bestDealsPanel .panel-title,
-    #waitForSalePanel .panel-title {
+    #bestDealsPanel .panel-title {
         font-size: 17px;
     }
-    #opportunityRadarPanel .panel-title,
     #moreIntelSection .panel-title,
     #discoveryTabsShell .discovery-tabs-title {
         font-size: 16px;
@@ -4215,11 +4255,9 @@ input:focus-visible {
     #buyNowPicksPanel .panel-title {
         font-size: 18px;
     }
-    #bestDealsPanel .panel-title,
-    #waitForSalePanel .panel-title {
+    #bestDealsPanel .panel-title {
         font-size: 16px;
     }
-    #opportunityRadarPanel .panel-title,
     #moreIntelSection .panel-title,
     #discoveryTabsShell .discovery-tabs-title {
         font-size: 15px;
@@ -4529,7 +4567,7 @@ input:focus-visible {
                         </video>
                     </div>
                 </section>
-
+                <!--
                 <div class="sticky-shell">
                     <section class="command-launcher" id="searchStack" aria-label="Quick game search">
                         <div class="command-search-layer">
@@ -4742,6 +4780,7 @@ input:focus-visible {
                     </div>
                 </section>
 
+                -->
                 <section class="panel panel-deals" id="bestDealsPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -4762,8 +4801,8 @@ input:focus-visible {
                         <div class="show-all-wrap">
                             <a class="show-all-btn hidden" id="dealRankedShowAllBtn" href="#">
                                 Show All
-                                <span class="dropdown-arrow">⇊</span>
                             </a>
+                                <span class="dropdown-arrow">⇊</span>
                         </div>
                     </div>
                 </section>
@@ -4859,6 +4898,7 @@ input:focus-visible {
                     </div>
                 </section>
 
+                <!--
                 <section class="panel panel-activity" id="buyNowPicksPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -4879,33 +4919,40 @@ input:focus-visible {
                         <div class="show-all-wrap">
                             <a class="show-all-btn hidden" id="newDealsShowAllBtn" href="#">
                                 Show All
-                                <span class="dropdown-arrow">⇊</span>
                             </a>
+                                <span class="dropdown-arrow">⇊</span>
                         </div>
                     </div>
                 </section>
 
-                <section class="panel panel-deals hidden" id="waitForSalePanel" aria-hidden="true">
+                                <span class="dropdown-arrow">⇊</span>
+                            </a>
+
+                        </div>
+                    </div>
+                </section>
+                -->
+                <section class="panel panel-activity" id="buyNowPicksPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Wait for Next Sale</h2>
-                            <div class="panel-subtitle">Games likely to get a better price on the next sale.</div>
+                            <h2 class="panel-title">Buy Now Picks</h2>
+                            <div class="panel-subtitle">Recommended buy-now picks at strong current prices.</div>
                         </div>
                         <div class="row-nav">
-                            <button class="row-nav-btn" type="button" data-row-left="recommendedDealsGrid">&lt;</button>
-                            <button class="row-nav-btn" type="button" data-row-right="recommendedDealsGrid">&gt;</button>
+                            <button class="row-nav-btn" type="button" data-row-left="newDealsGrid">&lt;</button>
+                            <button class="row-nav-btn" type="button" data-row-right="newDealsGrid">&gt;</button>
                         </div>
                     </div>
                     <div class="panel-body">
                         <div class="row-section">
                             <div class="row-fade-left"></div>
                             <div class="row-fade-right"></div>
-                            <div id="recommendedDealsGrid" class="row-scroller"></div>
+                            <div id="newDealsGrid" class="row-scroller"></div>
                         </div>
                         <div class="show-all-wrap">
-                            <a class="show-all-btn hidden" id="recommendedDealsShowAllBtn" href="#">
+                            <a class="show-all-btn hidden" id="newDealsShowAllBtn" href="#">
                                 Show All
-                                <span class="dropdown-arrow">⇊</span>
+                                <span class="dropdown-arrow">&#8675;</span>
                             </a>
                         </div>
                     </div>
@@ -4932,11 +4979,11 @@ input:focus-visible {
                 <section class="panel panel-catalog" id="allGamesPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">All Games</h2>
-                            <div class="panel-subtitle" id="allGamesSubtitle">Two rotating top-selling picks from across the catalog.</div>
+                            <h2 class="panel-title">All Deals</h2>
+                            <div class="panel-subtitle" id="allGamesSubtitle">A broader stream of worthwhile discounted games beyond the top winners.</div>
                         </div>
-                        <a class="panel-action" id="releasedGamesDirectoryBtn" href="/all-results?view=released-games&title=All%20Games%20Directory">
-                            Open Full Directory
+                        <a class="panel-action" id="releasedGamesDirectoryBtn" href="/all-results?view=released-games&title=All%20Deals&dealsOnly=1&minDeal=10&releasedSort=deal-score" aria-label="Show all deals in the full browse view">
+                            Show all deals
                         </a>
                     </div>
                     <div class="panel-body">
@@ -5031,7 +5078,7 @@ input:focus-visible {
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title" id="becauseYouOwnTitle">Because You Own...</h2>
-                            <div class="panel-subtitle" id="becauseYouOwnSubtitle">Sale picks related to games you already own.</div>
+                            <div class="panel-subtitle" id="becauseYouOwnSubtitle">One strong library-based match.</div>
                         </div>
                     </div>
                     <div class="panel-body">
@@ -5042,7 +5089,7 @@ input:focus-visible {
                     <div class="panel-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title">Owned</h2>
-                            <div class="panel-subtitle">Your owned library and feed controls.</div>
+                            <div class="panel-subtitle">Library controls.</div>
                         </div>
                         <div class="panel-head-actions">
                             <button class="secondary-btn discovery-owned-filter-btn" id="feedOwnedToggleBtn" type="button" aria-pressed="false" data-active="true" data-owned-toggle-context="panel">
@@ -5065,8 +5112,8 @@ input:focus-visible {
                 <section class="panel panel-personal hidden" id="watchlistPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Watch Opportunity</h2>
-                            <div class="panel-subtitle">Top watchlist pick to check right now.</div>
+                            <h2 class="panel-title" id="watchOpportunityTitle">Watch Opportunity</h2>
+                            <div class="panel-subtitle" id="watchOpportunitySubtitle">Best watched game to check right now.</div>
                         </div>
                         <a class="panel-action" href="/watchlist?tab=watchlist">Open Watch</a>
                     </div>
@@ -5084,8 +5131,8 @@ input:focus-visible {
                 <section class="panel panel-digest" id="dailyDigestPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Daily Insight</h2>
-                            <div class="panel-subtitle">One important update to check today.</div>
+                            <h2 class="panel-title">Next Step</h2>
+                            <div class="panel-subtitle">Shown only when a high-signal action is available.</div>
                         </div>
                     </div>
                     <div class="panel-body">
@@ -5278,8 +5325,8 @@ input:focus-visible {
             marketRadar: 48,
             dealOpportunities: 72,
             opportunityRadar: 72,
-            dealRailDepth: 72,
-            releasedGames: 24,
+            dealRailDepth: 96,
+            releasedGames: 72,
             upcoming: 24,
             personalizedDeals: 12,
             alertSignals: 40,
@@ -5288,8 +5335,29 @@ input:focus-visible {
         const HOMEPAGE_CRITICAL_SECTION_LIMIT = 8;
         const HOMEPAGE_RAIL_CONTINUATION_STEP = 6;
         const HOMEPAGE_RAIL_CONTINUATION_THRESHOLD_PX = 320;
+        const HOMEPAGE_RAIL_CONTINUATION_STEP_BY_SECTION = Object.freeze({
+            dealRankedGrid: 6,
+            opportunitiesGrid: 6,
+            worthBuyingGrid: 6,
+            trendingDealsGrid: 6,
+            newHistoricalLowsGrid: 6,
+            newDealsGrid: 6,
+            topReviewedGrid: 6,
+        });
+        const HOMEPAGE_INFINITE_SCROLL_STEP_BY_SECTION = Object.freeze({
+            releasedGamesGrid: 12,
+            upcomingGrid: 4,
+        });
         const HOMEPAGE_RAIL_DIVERSITY_WINDOW = 16;
-        const HOMEPAGE_BOTTOM_RAIL_PICK_COUNT = 2;
+        const HOMEPAGE_ALL_DEALS_FEED_LIMIT = 192;
+        const HOMEPAGE_ALL_DEALS_CANDIDATE_POOL = 720;
+        const HOMEPAGE_ALL_DEALS_INITIAL_COUNT = 8;
+        const HOMEPAGE_ALL_DEALS_LEAD_COUNT = 12;
+        const HOMEPAGE_ALL_DEALS_MIN_DISCOUNT = 10;
+        const ALL_DEALS_AMBIENT_SCROLL_IDLE_MS = 7000;
+        const ALL_DEALS_AMBIENT_SCROLL_RESUME_DELAY_MS = 5000;
+        const ALL_DEALS_AMBIENT_SCROLL_PX_PER_SECOND = 2.8;
+        const ALL_DEALS_AMBIENT_SCROLL_MAX_STEP_PX = 0.24;
         const HOMEPAGE_BOTTOM_RAIL_EXPOSURE_WINDOW = 8;
         const HOMEPAGE_PRIORITY_IMAGE_SECTIONS = new Set([
             "dealRankedGrid",
@@ -5586,10 +5654,10 @@ input:focus-visible {
             { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 15, column: "lower" },
 
             { id: "recommendedForYouPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 10, column: "side" },
-            { id: "becauseYouOwnPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 15, column: "side" },
-            { id: "watchlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 20, column: "side" },
-            { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 30, column: "side" },
+            { id: "watchlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 15, column: "side" },
+            { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 20, column: "side" },
             { id: "dailyDigestPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 40, column: "side" },
+            { id: "becauseYouOwnPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 45, column: "side" },
             { id: "alertsPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 50, column: "side" },
 
             { id: "discoveryTabsShell", group: HOMEPAGE_SECTION_GROUPS.DISCOVER, priority: 5, column: "main" },
@@ -5636,7 +5704,7 @@ input:focus-visible {
                 column: "main",
                 discoveryTab: true,
                 tabKey: "all-games",
-                tabLabel: "All Games",
+                tabLabel: "All Deals",
             },
             {
                 id: "topReviewedPanel",
@@ -5663,6 +5731,7 @@ input:focus-visible {
         const state = {
             latestPrices: [],
             allGames: [],
+            allDealsFeed: [],
             biggestDeals: [],
             biggestDiscounts: [],
             historicalLows: [],
@@ -5799,7 +5868,7 @@ input:focus-visible {
                 newDealsGrid: 6,
                 dealRadarFeed: 6,
                 historicalLowsGrid: 8,
-                releasedGamesGrid: 2,
+                releasedGamesGrid: 8,
                 topReviewedGrid: 8,
                 upcomingGrid: 2,
                 seasonalTopGrid: 8,
@@ -5880,6 +5949,8 @@ input:focus-visible {
             analyticsToggleBtn: document.getElementById("analyticsToggleBtn"),
             wishlistPanel: document.getElementById("wishlistPanel"),
             watchlistPanel: document.getElementById("watchlistPanel"),
+            watchOpportunityTitle: document.getElementById("watchOpportunityTitle"),
+            watchOpportunitySubtitle: document.getElementById("watchOpportunitySubtitle"),
             wishlistList: document.getElementById("wishlistList"),
             watchlistList: document.getElementById("watchlistList"),
             wishlistToggleBtn: document.getElementById("wishlistToggleBtn"),
@@ -5894,8 +5965,6 @@ input:focus-visible {
             feedOwnedToggleBtn: document.getElementById("feedOwnedToggleBtn"),
             opportunitiesPanel: document.getElementById("opportunitiesPanel"),
             opportunitiesGrid: document.getElementById("opportunitiesGrid"),
-            opportunityRadarPanel: document.getElementById("opportunityRadarPanel"),
-            opportunityRadarGrid: document.getElementById("opportunityRadarGrid"),
             recommendedForYouPanel: document.getElementById("recommendedForYouPanel"),
             yourDealsTodayTitle: document.getElementById("yourDealsTodayTitle"),
             yourDealsTodaySubtitle: document.getElementById("yourDealsTodaySubtitle"),
@@ -5909,14 +5978,11 @@ input:focus-visible {
             trendingDealsGrid: document.getElementById("trendingDealsGrid"),
             newHistoricalLowsGrid: document.getElementById("newHistoricalLowsGrid"),
             newDealsGrid: document.getElementById("newDealsGrid"),
-            waitForSalePanel: document.getElementById("waitForSalePanel"),
-            recommendedDealsGrid: document.getElementById("recommendedDealsGrid"),
 
             releasedGamesDirectoryBtn: document.getElementById("releasedGamesDirectoryBtn"),
             upcomingToggleBtn: document.getElementById("upcomingToggleBtn"),
             dealRankedShowAllBtn: document.getElementById("dealRankedShowAllBtn"),
             newDealsShowAllBtn: document.getElementById("newDealsShowAllBtn"),
-            recommendedDealsShowAllBtn: document.getElementById("recommendedDealsShowAllBtn"),
             historicalLowsShowAllBtn: document.getElementById("historicalLowsShowAllBtn"),
             topReviewedShowAllBtn: document.getElementById("topReviewedShowAllBtn"),
             upcomingShowAllBtn: document.getElementById("upcomingShowAllBtn"),
@@ -5986,7 +6052,6 @@ input:focus-visible {
                 Number(
                     HOMEPAGE_SECTION_LIMITS?.dealRailDepth
                     || HOMEPAGE_SECTION_LIMITS?.dealOpportunities
-                    || HOMEPAGE_SECTION_LIMITS?.opportunityRadar
                     || 24,
                 ) || 24,
             );
@@ -6001,13 +6066,12 @@ input:focus-visible {
             state.biggestDeals = filterProtectedDealRailRows(state.biggestDeals);
             state.buyNowPicks = filterProtectedDealRailRows(state.buyNowPicks);
             state.opportunitiesNow = filterProtectedDealRailRows(state.opportunitiesNow);
-            state.opportunityRadar = filterProtectedDealRailRows(state.opportunityRadar);
-            state.waitPicks = filterProtectedDealRailRows(state.waitPicks);
+            state.opportunityRadar = [];
+            state.waitPicks = [];
 
             const railSectionLimit = getHomepageDealRailDepthLimit();
             const protectedFallbackPool = filterProtectedDealRailRows([
                 ...safeArray(state.opportunitiesNow),
-                ...safeArray(state.opportunityRadar),
                 ...safeArray(state.dealRanked),
                 ...safeArray(state.worthBuyingNow),
                 ...safeArray(state.trendingDeals),
@@ -6017,12 +6081,6 @@ input:focus-visible {
             const protectedVisibleKeys = new Set();
             state.opportunitiesNow = selectExclusiveRailRows(
                 filterProtectedDealRailRows(state.opportunitiesNow),
-                protectedFallbackPool,
-                protectedVisibleKeys,
-                railSectionLimit,
-            );
-            state.opportunityRadar = selectExclusiveRailRows(
-                filterProtectedDealRailRows(state.opportunityRadar),
                 protectedFallbackPool,
                 protectedVisibleKeys,
                 railSectionLimit,
@@ -6071,30 +6129,10 @@ input:focus-visible {
                 decisionVisibleKeys,
                 railSectionLimit,
             );
-            state.waitPicks = selectExclusiveRailRows(
-                filterProtectedDealRailRows(state.waitPicks),
-                decisionFallbackPool.filter((row) =>
-                    Number(row?.price_vs_low_ratio || 0) >= 1.08
-                    || Number(row?.predicted_next_discount_percent || 0) >= 35
-                ),
-                decisionVisibleKeys,
-                railSectionLimit,
-            );
             if (!state.buyNowPicks.length) {
                 state.buyNowPicks = pickByRecommendation(decisionFallbackPool, "BUY_NOW", railSectionLimit);
                 if (!state.buyNowPicks.length) {
                     state.buyNowPicks = safeArray(state.worthBuyingNow).slice(0, railSectionLimit);
-                }
-            }
-            if (!state.waitPicks.length) {
-                state.waitPicks = pickByRecommendation(decisionFallbackPool, "WAIT", railSectionLimit);
-                if (!state.waitPicks.length) {
-                    state.waitPicks = decisionFallbackPool
-                        .filter((row) =>
-                            Number(row?.price_vs_low_ratio || 0) >= 1.08
-                            || Number(row?.predicted_next_discount_percent || 0) >= 35
-                        )
-                        .slice(0, railSectionLimit);
                 }
             }
 
@@ -6132,13 +6170,11 @@ input:focus-visible {
             return {
                 dealRanked: safeArray(state.dealRanked).slice(0, boundedLimit),
                 opportunitiesNow: safeArray(state.opportunitiesNow).slice(0, boundedLimit),
-                opportunityRadar: safeArray(state.opportunityRadar).slice(0, boundedLimit),
                 personalizedDeals: safeArray(state.personalizedDeals).slice(0, boundedLimit),
                 worthBuyingNow: safeArray(state.worthBuyingNow).slice(0, boundedLimit),
                 trendingDeals: safeArray(state.trendingDeals).slice(0, boundedLimit),
                 newHistoricalLows: safeArray(state.newHistoricalLows).slice(0, boundedLimit),
                 buyNowPicks: safeArray(state.buyNowPicks).slice(0, boundedLimit),
-                waitPicks: safeArray(state.waitPicks).slice(0, boundedLimit),
                 upcoming: safeArray(state.upcoming).slice(0, boundedLimit),
                 historicalLows: safeArray(state.historicalLows).slice(0, boundedLimit),
                 topReviewed: safeArray(state.topReviewed).slice(0, boundedLimit),
@@ -6213,13 +6249,13 @@ input:focus-visible {
                 const sections = parsed.sections && typeof parsed.sections === "object" ? parsed.sections : {};
                 state.dealRanked = uniqueGamesByName(sections.dealRanked || []);
                 state.opportunitiesNow = uniqueGamesByName(sections.opportunitiesNow || []);
-                state.opportunityRadar = uniqueGamesByName(sections.opportunityRadar || []);
+                state.opportunityRadar = [];
                 state.personalizedDeals = uniqueGamesByName(sections.personalizedDeals || []);
                 state.worthBuyingNow = uniqueGamesByName(sections.worthBuyingNow || []);
                 state.trendingDeals = uniqueGamesByName(sections.trendingDeals || []);
                 state.newHistoricalLows = uniqueGamesByName(sections.newHistoricalLows || []);
                 state.buyNowPicks = uniqueGamesByName(sections.buyNowPicks || []);
-                state.waitPicks = uniqueGamesByName(sections.waitPicks || []);
+                state.waitPicks = [];
                 state.upcoming = uniqueGamesByName(sections.upcoming || []);
                 state.historicalLows = uniqueGamesByName(sections.historicalLows || []);
                 state.topReviewed = uniqueGamesByName(sections.topReviewed || []);
@@ -6993,7 +7029,7 @@ input:focus-visible {
             } else if (state === "wait_for_better_drop") {
                 label = "Wait";
             } else if (state === "watch_for_sale" || state === "low_confidence") {
-                label = "Watch this";
+                label = "Watch";
             } else {
                 const rawLabel = String(timingSignal.label || "").trim();
                 if (!rawLabel) return "";
@@ -7009,7 +7045,7 @@ input:focus-visible {
             if (state === "buy_now") return "Buy now";
             if (state === "good_time_to_buy") return "Good deal";
             if (state === "wait_for_better_drop") return "Wait";
-            if (state === "watch_for_sale" || state === "low_confidence") return "Watch this";
+            if (state === "watch_for_sale" || state === "low_confidence") return "Watch";
             const rawLabel = String(timingSignal.label || "").trim();
             if (!rawLabel) return "";
             return rawLabel.length > 22 ? `${rawLabel.slice(0, 19).trimEnd()}...` : rawLabel;
@@ -7845,17 +7881,17 @@ input:focus-visible {
             }
             const historicalStatus = String(game.historical_status || "").trim();
             if (historicalStatus === "new_historical_low") {
-                pushCardSignal(signals, "new_historical_low", "New historical low", "good", 100);
+                pushCardSignal(signals, "new_historical_low", "New all-time low", "good", 100);
             } else if (historicalStatus === "matches_historical_low") {
-                pushCardSignal(signals, "matches_historical_low", "Matches historical low", "info", 92);
+                pushCardSignal(signals, "matches_historical_low", "Matches all-time low", "info", 92);
             } else if (historicalStatus === "near_historical_low") {
-                pushCardSignal(signals, "near_historical_low", "Near historical low", "info", 84);
+                pushCardSignal(signals, "near_historical_low", "Near all-time low", "info", 84);
             }
 
             const detectedTs = parseDealDetectedAt(game);
             if (Number.isFinite(detectedTs)) {
                 if (state.lastVisitTs > 0 && detectedTs > state.lastVisitTs) {
-                    pushCardSignal(signals, "new_deal", "New deal since last visit", "good", 88);
+                    pushCardSignal(signals, "new_deal", "New since visit", "good", 88);
                 }
                 const diff = Date.now() - detectedTs;
                 if (Number.isFinite(diff) && diff >= 0) {
@@ -7879,8 +7915,6 @@ input:focus-visible {
                     pushCardSignal(signals, "players_rising", "Players rising", "good", 74);
                 } else if (movementSignal < 0) {
                     pushCardSignal(signals, "players_falling", "Players falling", "warn", 70);
-                } else {
-                    pushCardSignal(signals, "players_stable", "Player activity stable", "info", 58);
                 }
             }
 
@@ -7888,7 +7922,13 @@ input:focus-visible {
             if (heatLevel) {
                 const normalizedHeat = heatLevel.toUpperCase();
                 const heatPriority = normalizedHeat === "HOT" ? 68 : normalizedHeat === "WARM" ? 62 : 52;
-                pushCardSignal(signals, `heat_${normalizedHeat}`, `${normalizedHeat} market interest`, "warn", heatPriority);
+                pushCardSignal(
+                    signals,
+                    `heat_${normalizedHeat}`,
+                    normalizedHeat === "HOT" ? "Hot right now" : "Warming up",
+                    "warn",
+                    heatPriority,
+                );
             }
 
             const seen = new Set();
@@ -7915,7 +7955,6 @@ input:focus-visible {
             if (key === "dropped_this_week") return "Dropped this week";
             if (key === "players_rising") return "Players up";
             if (key === "players_falling") return "Players down";
-            if (key === "players_stable") return "Players stable";
             if (key === "heat_hot") return "Hot now";
             if (key === "heat_warm") return "Warming up";
             if (key === "near_historical_low") return "Near low";
@@ -8054,7 +8093,7 @@ input:focus-visible {
             ]);
             const signals = buildCardSignalItems(game)
                 .filter((entry) => !primaryKeys.has(String(entry?.key || "").toLowerCase()))
-                .slice(0, 2);
+                .slice(0, 1);
             if (!signals.length) return "";
 
             return `
@@ -8087,7 +8126,7 @@ input:focus-visible {
             } else if (historicalStatus === "matches_historical_low") {
                 recommendationChip = `<span class="meta-chip signal good${signalGlowClass("low")}">Good deal</span>`;
             } else if (historicalStatus === "near_historical_low") {
-                recommendationChip = `<span class="meta-chip signal info">Watch this</span>`;
+                recommendationChip = `<span class="meta-chip signal info">Watch</span>`;
             }
 
             const discountChip = discount > 0
@@ -8096,7 +8135,7 @@ input:focus-visible {
             const fallbackDecisionChip = discount >= 60
                 ? '<span class="meta-chip signal good">Good deal</span>'
                 : discount > 0
-                    ? '<span class="meta-chip signal info">Watch this</span>'
+                    ? '<span class="meta-chip signal info">Watch</span>'
                     : '<span class="meta-chip deal-neutral">Wait</span>';
             const qualityChip = confidenceChip || recommendationChip || fallbackDecisionChip;
             const visibleChips = [discountChip, qualityChip].filter(Boolean).slice(0, 2);
@@ -8134,10 +8173,11 @@ input:focus-visible {
                 contextItems.push(`<span class="context-item">${escapeHtml(reviewLabel)}</span>`);
             }
             if (!contextItems.length) return "";
+            const quietItems = contextItems.slice(0, 2);
 
             return `
                 <div class="card-meta-row context compact">
-                    ${contextItems.join('<span class="context-item">•</span>')}
+                    ${quietItems.join('<span class="context-item">•</span>')}
                 </div>
             `;
         }
@@ -8176,7 +8216,7 @@ input:focus-visible {
 
             return `
                 <div class="card-mini-stats">
-                    ${entries.slice(0, 2).map((entry) => `
+                    ${entries.slice(0, 1).map((entry) => `
                         <span class="mini-stat">
                             <span class="mini-stat-label">${escapeHtml(entry.label)}</span>
                             <strong class="mini-stat-value">${escapeHtml(String(entry.value))}</strong>
@@ -8427,12 +8467,10 @@ input:focus-visible {
                 ...safeArray(state.dealRanked),
                 ...safeArray(state.worthBuyingNow),
                 ...safeArray(state.buyNowPicks),
-                ...safeArray(state.waitPicks),
                 ...safeArray(state.trendingNow),
                 ...safeArray(state.discoveryTrending),
                 ...safeArray(state.newHistoricalLows),
                 ...safeArray(state.opportunitiesNow),
-                ...safeArray(state.opportunityRadar),
                 ...safeArray(state.personalizedDeals),
                 ...safeArray(state.allGames),
             ]);
@@ -8608,9 +8646,7 @@ input:focus-visible {
             return uniqueGamesByIdentity([
                 ...safeArray(seedRows),
                 ...safeArray(state.buyNowPicks),
-                ...safeArray(state.waitPicks),
                 ...safeArray(state.opportunitiesNow),
-                ...safeArray(state.opportunityRadar),
                 ...safeArray(state.dealRanked),
                 ...safeArray(state.worthBuyingNow),
                 ...safeArray(state.trendingNow),
@@ -8647,7 +8683,6 @@ input:focus-visible {
             const fallbackPool = filterProtectedDealRailRows([
                 ...safeArray(seedRows),
                 ...safeArray(state.opportunitiesNow).slice(0, maxCandidatePool),
-                ...safeArray(state.opportunityRadar).slice(0, maxCandidatePool),
                 ...safeArray(state.buyNowPicks).slice(0, maxCandidatePool),
                 ...safeArray(state.dealRanked).slice(0, maxCandidatePool),
                 ...safeArray(state.worthBuyingNow).slice(0, maxCandidatePool),
@@ -9177,7 +9212,7 @@ input:focus-visible {
 
             const lower = raw.toLowerCase();
             if (lower.includes("historical low")) {
-                return "Near historical low";
+                return "Near all-time low";
             }
             if (
                 (lower.includes("player") || lower.includes("momentum"))
@@ -9189,7 +9224,7 @@ input:focus-visible {
                     || lower.includes("climbing")
                 )
             ) {
-                return "Strong player growth";
+                return "Players rising";
             }
             if (
                 lower.includes("discount")
@@ -9197,14 +9232,14 @@ input:focus-visible {
                 || lower.includes("price favorable")
                 || lower.includes("better sale")
             ) {
-                return "Large discount vs normal price";
+                return "Big discount";
             }
             if (
                 lower.includes("popular")
                 || lower.includes("trending")
                 || lower.includes("interest")
             ) {
-                return "Popular game currently trending";
+                return "Trending now";
             }
 
             const firstSentence = raw
@@ -9256,7 +9291,7 @@ input:focus-visible {
             if (score >= 50) {
                 return {
                     score,
-                    confidence_label: "Watch this",
+                    confidence_label: "Watch",
                     confidence_icon: "WS",
                     class_name: "fair-price",
                 };
@@ -9331,9 +9366,9 @@ input:focus-visible {
             }
 
             if (recommendation === "BUY_NOW") {
-                pushDecisionLine(lines, buyReason || "Buy-now timing signal");
+                pushDecisionLine(lines, buyReason || "Good time to buy");
             } else if (recommendation === "WAIT") {
-                pushDecisionLine(lines, buyReason || predictedReason || "Better value likely on next sale");
+                pushDecisionLine(lines, buyReason || predictedReason || "Better sale likely");
             }
 
             if (
@@ -9341,9 +9376,9 @@ input:focus-visible {
                 || historicalStatus === "matches_historical_low"
                 || historicalStatus === "near_historical_low"
             ) {
-                pushDecisionLine(lines, "Near historical low");
+                pushDecisionLine(lines, "Near all-time low");
             } else if (Number.isFinite(priceVsLowRatio) && priceVsLowRatio > 0 && priceVsLowRatio <= 1.08) {
-                pushDecisionLine(lines, "Near historical low");
+                pushDecisionLine(lines, "Near all-time low");
             }
 
             if (trendReason) {
@@ -9352,13 +9387,13 @@ input:focus-visible {
                 (Number.isFinite(playerChange) && playerChange > 0)
                 || (Number.isFinite(playerTrend) && playerTrend > 0)
             ) {
-                pushDecisionLine(lines, "Strong player growth");
+                pushDecisionLine(lines, "Players rising");
             }
 
             if (discount >= 60) {
-                pushDecisionLine(lines, "Large discount vs normal price");
+                pushDecisionLine(lines, "Big discount");
             } else if (discount >= 35) {
-                pushDecisionLine(lines, "Meaningful discount right now");
+                pushDecisionLine(lines, "On sale now");
             }
 
             if (heatReason) {
@@ -9367,7 +9402,7 @@ input:focus-visible {
                 (Number.isFinite(popularityScore) && popularityScore >= 65)
                 || heatLevel === "HOT"
             ) {
-                pushDecisionLine(lines, "Popular game currently trending");
+                pushDecisionLine(lines, "Trending now");
             }
 
             if (!lines.length && worthReason) {
@@ -9539,20 +9574,61 @@ input:focus-visible {
             return sorted;
         }
 
-        function scoreTopSellerCandidate(game) {
-            const players = Math.max(0, Number(game.current_players || 0));
-            const popularity = Math.max(0, Number(game.popularity_score || 0));
-            const momentum = Math.max(0, Number(game.momentum_score || 0));
-            const reviewScore = Math.max(0, Number(game.review_score || 0));
-            const dealScore = Math.max(0, Number(game.deal_score || 0));
+        function scoreAllDealsCandidate(game) {
+            const players = Math.max(0, Number(game?.current_players || 0));
+            const momentum = Math.max(0, Number(game?.momentum_score || 0));
+            const reviewScore = Math.max(0, Number(game?.review_score || 0));
+            const dealScore = Math.max(0, Number(game?.deal_score || 0));
+            const buyScore = Math.max(0, Number(game?.buy_score ?? game?.worth_buying_score ?? 0));
+            const opportunityScore = Math.max(0, Number(game?.deal_opportunity_score || 0));
+            const discount = Math.max(0, Number(game?.discount_percent ?? game?.latest_discount_percent ?? 0));
+            const playerSignal = Math.min(18, Math.log10(players + 1) * 6.5);
 
-            const playerSignal = Math.min(72, Math.log10(players + 1) * 22);
-            const popularitySignal = Math.min(20, popularity * 0.45);
-            const momentumSignal = Math.min(15, momentum * 0.18);
-            const reviewSignal = Math.min(12, reviewScore * 0.12);
-            const dealSignal = Math.min(10, dealScore * 0.1);
+            return (
+                dealScore * 0.5
+                + buyScore * 0.38
+                + opportunityScore * 0.24
+                + momentum * 0.18
+                + reviewScore * 0.12
+                + Math.min(discount, 90) * 0.2
+                + playerSignal
+            );
+        }
 
-            return playerSignal + popularitySignal + momentumSignal + reviewSignal + dealSignal;
+        function isAllDealsFloorCandidate(game) {
+            if (!game || typeof game !== "object") return false;
+            const price = Number(game?.price ?? game?.latest_price ?? 0);
+            const discount = Number(game?.discount_percent ?? game?.latest_discount_percent ?? 0);
+            if (!Number.isFinite(price) || price <= 0) return false;
+            if (!Number.isFinite(discount) || discount < HOMEPAGE_ALL_DEALS_MIN_DISCOUNT) return false;
+            const dealScore = Number(game?.deal_score || 0);
+            const buyScore = Number(game?.buy_score ?? game?.worth_buying_score ?? 0);
+            const opportunityScore = Number(game?.deal_opportunity_score || 0);
+            const reviewScore = Number(game?.review_score || 0);
+            const players = Number(game?.current_players || 0);
+            const historicalStatus = String(game?.historical_status || "").trim().toLowerCase();
+            const hasHistoricalSignal = historicalStatus === "new_historical_low"
+                || historicalStatus === "matches_historical_low"
+                || historicalStatus === "near_historical_low";
+            return (
+                discount >= 55
+                || dealScore >= 38
+                || buyScore >= 40
+                || opportunityScore >= 42
+                || reviewScore >= 72
+                || players >= 300
+                || hasHistoricalSignal
+            );
+        }
+
+        function allDealsDiscountBand(game) {
+            const discount = Number(game?.discount_percent ?? game?.latest_discount_percent ?? 0);
+            if (discount >= 70) return 0;
+            if (discount >= 50) return 1;
+            if (discount >= 35) return 2;
+            if (discount >= 20) return 3;
+            if (discount >= HOMEPAGE_ALL_DEALS_MIN_DISCOUNT) return 4;
+            return 5;
         }
 
         function isExceptionalHomepageRepeatGame(game) {
@@ -9584,9 +9660,7 @@ input:focus-visible {
                 safeArray(state.biggestDiscounts),
                 safeArray(state.worthBuyingNow),
                 safeArray(state.trendingNow),
-                safeArray(state.opportunityRadar),
                 safeArray(state.dealRanked),
-                safeArray(state.waitPicks),
             ];
             for (const railRows of railSources) {
                 for (const row of railRows.slice(0, normalizedWindow)) {
@@ -9599,84 +9673,120 @@ input:focus-visible {
         }
 
         function getFeaturedAllGames() {
-            const candidates = uniqueGamesByIdentity([
-                ...safeArray(state.allGames),
-                ...safeArray(state.releasedGames),
-                ...safeArray(state.topPlayed),
-                ...safeArray(state.leaderboard),
-                ...safeArray(state.latestPrices),
-                ...safeArray(state.dealRanked),
-                ...safeArray(state.worthBuyingNow),
-                ...safeArray(state.biggestDiscounts),
-            ])
-                .filter((row) => !row?.is_upcoming)
+            const maxCandidatePool = Math.max(
+                HOMEPAGE_ALL_DEALS_CANDIDATE_POOL,
+                HOMEPAGE_ALL_DEALS_FEED_LIMIT * 3,
+            );
+            const sourceRows = filterProtectedDealRailRows(uniqueGamesByIdentity([
+                ...safeArray(state.allDealsFeed).slice(0, maxCandidatePool),
+                ...safeArray(state.allGames).slice(0, maxCandidatePool),
+                ...safeArray(state.dealRanked).slice(0, maxCandidatePool),
+                ...safeArray(state.worthBuyingNow).slice(0, maxCandidatePool),
+                ...safeArray(state.biggestDiscounts).slice(0, maxCandidatePool),
+                ...safeArray(state.buyNowPicks).slice(0, maxCandidatePool),
+                ...safeArray(state.opportunitiesNow).slice(0, maxCandidatePool),
+                ...safeArray(state.trendingNow).slice(0, maxCandidatePool),
+                ...safeArray(state.latestPrices).slice(0, maxCandidatePool),
+            ])).slice(0, maxCandidatePool);
+            const floorRows = sourceRows.filter(isAllDealsFloorCandidate);
+            const candidates = (floorRows.length ? floorRows : sourceRows)
                 .sort((a, b) => {
-                    const scoreDiff = scoreTopSellerCandidate(b) - scoreTopSellerCandidate(a);
+                    const scoreDiff = scoreAllDealsCandidate(b) - scoreAllDealsCandidate(a);
                     if (scoreDiff !== 0) return scoreDiff;
+                    const discountDiff = Number(b.discount_percent || 0) - Number(a.discount_percent || 0);
+                    if (discountDiff !== 0) return discountDiff;
                     const nameDiff = String(a.game_name || "").localeCompare(String(b.game_name || ""));
                     if (nameDiff !== 0) return nameDiff;
                     return Number(a.game_id || a.id || 0) - Number(b.game_id || b.id || 0);
                 });
-
             if (!candidates.length) return [];
 
-            const pool = candidates.slice(0, Math.min(24, candidates.length));
             const exposedKeys = buildPrimaryRailExposureKeys();
-
             const selected = [];
             const seen = new Set();
-            for (const candidate of pool) {
+
+            const tryAdd = (candidate, allowExposed = false) => {
                 const key = gameIdentityKey(candidate);
-                if (!key || seen.has(key)) continue;
-                if (exposedKeys.has(key) && !isExceptionalHomepageRepeatGame(candidate)) continue;
+                if (!key || seen.has(key)) return false;
+                if (!allowExposed && exposedKeys.has(key) && !isExceptionalHomepageRepeatGame(candidate)) return false;
                 seen.add(key);
                 selected.push(candidate);
-                if (selected.length >= HOMEPAGE_BOTTOM_RAIL_PICK_COUNT) break;
-            }
-            if (selected.length < HOMEPAGE_BOTTOM_RAIL_PICK_COUNT) {
-                for (const candidate of pool) {
-                    const key = gameIdentityKey(candidate);
-                    if (!key || seen.has(key)) continue;
-                    seen.add(key);
-                    selected.push(candidate);
-                    if (selected.length >= HOMEPAGE_BOTTOM_RAIL_PICK_COUNT) break;
+                return true;
+            };
+
+            for (const candidate of candidates) {
+                if (tryAdd(candidate, false) && selected.length >= Math.min(HOMEPAGE_ALL_DEALS_LEAD_COUNT, HOMEPAGE_ALL_DEALS_FEED_LIMIT)) {
+                    break;
                 }
             }
-            if (selected.length < HOMEPAGE_BOTTOM_RAIL_PICK_COUNT) {
-                for (const candidate of candidates.slice(pool.length)) {
-                    const key = gameIdentityKey(candidate);
-                    if (!key || seen.has(key)) continue;
-                    seen.add(key);
-                    selected.push(candidate);
-                    if (selected.length >= HOMEPAGE_BOTTOM_RAIL_PICK_COUNT) break;
+
+            const byBand = [[], [], [], [], [], []];
+            for (const candidate of candidates) {
+                const key = gameIdentityKey(candidate);
+                if (!key || seen.has(key)) continue;
+                byBand[allDealsDiscountBand(candidate)].push(candidate);
+            }
+
+            while (selected.length < HOMEPAGE_ALL_DEALS_FEED_LIMIT) {
+                let progressed = false;
+                for (const bandRows of byBand) {
+                    while (bandRows.length) {
+                        const candidate = bandRows.shift();
+                        if (!candidate) continue;
+                        if (tryAdd(candidate, false)) {
+                            progressed = true;
+                            break;
+                        }
+                    }
+                    if (selected.length >= HOMEPAGE_ALL_DEALS_FEED_LIMIT) break;
+                }
+                if (!progressed) break;
+            }
+
+            if (selected.length < HOMEPAGE_ALL_DEALS_FEED_LIMIT) {
+                for (const candidate of candidates) {
+                    if (tryAdd(candidate, true) && selected.length >= HOMEPAGE_ALL_DEALS_FEED_LIMIT) {
+                        break;
+                    }
                 }
             }
-            return selected.slice(0, HOMEPAGE_BOTTOM_RAIL_PICK_COUNT);
+            return selected.slice(0, HOMEPAGE_ALL_DEALS_FEED_LIMIT);
         }
 
         function updateAllGamesDirectoryLink() {
-            const href = buildShowAllHref("released-games", "All Games Directory");
+            const href = buildShowAllHref(
+                "released-games",
+                "All Deals",
+                { dealsOnly: true, minDealDefault: HOMEPAGE_ALL_DEALS_MIN_DISCOUNT, releasedSort: "deal-score" },
+            );
             if (ui.releasedGamesDirectoryBtn) {
                 ui.releasedGamesDirectoryBtn.href = href;
             }
         }
 
-        function buildShowAllHref(view, title) {
+        function buildShowAllHref(view, title, options = {}) {
+            const forceDealsOnly = options.dealsOnly === true;
+            const releasedSortOverride = String(options.releasedSort || "").trim();
+            const configuredMinDeal = Number(catalogQueryState.filters.minDeal);
+            const fallbackMinDeal = Number(options.minDealDefault || 0);
+            const effectiveMinDeal = Number.isFinite(configuredMinDeal)
+                ? configuredMinDeal
+                : (forceDealsOnly && fallbackMinDeal > 0 ? fallbackMinDeal : null);
             const releasedSortValue = view === "released-games"
-                ? "alpha-asc"
+                ? (releasedSortOverride || (forceDealsOnly ? "deal-score" : "alpha-asc"))
                 : (catalogQueryState.sort || "");
             const params = new URLSearchParams({
                 view,
                 title,
                 search: catalogQueryState.query || "",
-                minDeal: catalogQueryState.filters.minDeal ?? "",
+                minDeal: effectiveMinDeal ?? "",
                 genre: catalogQueryState.filters.genre || "",
                 tag: catalogQueryState.filters.tag || "",
                 platform: catalogQueryState.filters.platform || "",
                 reviewLabel: catalogQueryState.filters.reviewLabel || "",
                 maxPrice: catalogQueryState.filters.maxPrice ?? "",
                 minPlayers: catalogQueryState.filters.minPlayers ?? "",
-                dealsOnly: catalogQueryState.filters.dealsOnly ? "1" : "",
+                dealsOnly: (forceDealsOnly || catalogQueryState.filters.dealsOnly) ? "1" : "",
                 includeFree: catalogQueryState.filters.includeFree ? "1" : "",
                 releasedSort: releasedSortValue,
             });
@@ -9851,7 +9961,7 @@ input:focus-visible {
             updateAllGamesDirectoryLink();
             const items = getFeaturedAllGames();
             if (!items.length && state.catalog.loading) {
-                renderSkeleton(ui.releasedGamesGrid, "deal-cards", 2, { cardClass: "game-card", compact: true });
+                renderSkeleton(ui.releasedGamesGrid, "deal-cards", HOMEPAGE_ALL_DEALS_INITIAL_COUNT, { cardClass: "game-card", compact: true });
                 return;
             }
             if (!items.length && state.catalog.error) {
@@ -9861,22 +9971,29 @@ input:focus-visible {
             if (!items.length) {
                 renderEmpty(
                     ui.releasedGamesGrid,
-                    "Featured picks are not available yet.",
+                    "No qualifying all-deals items are available right now.",
                     {
                         tone: "neutral",
-                        detail: "Open the full directory to browse the full catalog.",
+                        detail: "Use Show all deals to browse the full discounted catalog.",
                     },
                 );
                 return;
             }
-            ui.releasedGamesGrid.innerHTML = items.map((item, index) =>
-                gameCardHtml(item, {
-                    sectionKey: "releasedGamesGrid",
-                    view: "released-games",
-                    index,
-                })
-            ).join("");
-            animateCards(ui.releasedGamesGrid, { startIndex: 0, maxAnimated: 6 });
+            renderPagedCards({
+                container: ui.releasedGamesGrid,
+                items,
+                renderer: gameCardHtml,
+                visibleKey: "releasedGamesGrid",
+                toggleButton: null,
+                showAllButton: null,
+                view: "all-deals",
+                title: "All Deals",
+                initialCount: HOMEPAGE_ALL_DEALS_INITIAL_COUNT,
+            });
+            maybePrefetchAllDealsCatalogPages(
+                items.length,
+                Number(state.visibleCounts.releasedGamesGrid || HOMEPAGE_ALL_DEALS_INITIAL_COUNT),
+            );
         }
 
         function renderNewDeals() {
@@ -9907,44 +10024,6 @@ input:focus-visible {
                 showAllButton: ui.newDealsShowAllBtn,
                 view: "buy-now-picks",
                 title: "Buy Now Picks",
-                initialCount: 12,
-            });
-        }
-
-        function renderRecommendedDeals() {
-            if (
-                !ui.recommendedDealsGrid
-                || !ui.waitForSalePanel
-                || ui.waitForSalePanel.classList.contains("hidden")
-            ) return;
-            const filtered = resolveDiscoveryFeedRows(state.waitPicks, {
-                targetCount: 12,
-                extendToCount: getHomepageDealRailDepthLimit(),
-                fallbackRows: buildDealRailDepthFallbackRows(state.waitPicks),
-            });
-            if (!filtered.rows.length) {
-                renderOwnedFilteredFeedEmpty(
-                    ui.recommendedDealsGrid,
-                    "No clear wait-for-next-sale picks right now.",
-                    {
-                        tone: "neutral",
-                        detail: "Games that look better to wait on will appear here.",
-                    },
-                    filtered,
-                );
-                ui.recommendedDealsShowAllBtn.classList.add("hidden");
-                return;
-            }
-
-            renderPagedCards({
-                container: ui.recommendedDealsGrid,
-                items: filtered.rows,
-                renderer: gameCardHtml,
-                visibleKey: "recommendedDealsGrid",
-                toggleButton: null,
-                showAllButton: ui.recommendedDealsShowAllBtn,
-                view: "wait-for-next-sale",
-                title: "Wait for Next Sale",
                 initialCount: 12,
             });
         }
@@ -10374,7 +10453,6 @@ input:focus-visible {
                 ...safeArray(state.trendingDeals),
                 ...safeArray(state.newHistoricalLows),
                 ...safeArray(state.buyNowPicks),
-                ...safeArray(state.waitPicks),
                 ...safeArray(state.historicalLows),
                 ...safeArray(state.topReviewed),
                 ...safeArray(state.topPlayed),
@@ -10382,7 +10460,6 @@ input:focus-visible {
                 ...safeArray(state.dealRadar),
                 ...safeArray(state.alertSignals),
                 ...safeArray(state.opportunitiesNow),
-                ...safeArray(state.opportunityRadar),
                 ...safeArray(state.personalizedDeals),
             ]);
             for (const row of candidates) {
@@ -10540,27 +10617,31 @@ input:focus-visible {
 
             const loading = !!state.dailyDigestStatus?.loading;
             const hasError = !!state.dailyDigestStatus?.error;
-            setPanelVisibility(ui.dailyDigestPanel, true);
+            const rows = collectDailyDigestItems();
+            const topCandidate = rows[0] || null;
+            const topPriorityScore = Number(topCandidate?.priority_score || 0);
+            const topPersonalizationScore = Number(topCandidate?.personalization_score || 0);
+            const earnsPlacement = !!topCandidate && (
+                isHighValueDailyDigestItem(topCandidate)
+                || topPriorityScore >= 72
+                || topPersonalizationScore >= 55
+            );
+            if (!loading && !hasError && !earnsPlacement) {
+                setPanelVisibility(ui.dailyDigestPanel, false);
+                return;
+            }
 
-            if (loading) {
+            setPanelVisibility(ui.dailyDigestPanel, true);
+            if (loading && !rows.length) {
                 renderSkeleton(ui.dailyDigestList, "panel-list", 1, { itemClass: "digest-item" });
                 return;
             }
-            if (hasError) {
-                renderError(ui.dailyDigestList, "Failed to load daily digest.");
+            if (hasError && !rows.length) {
+                setPanelVisibility(ui.dailyDigestPanel, false);
                 return;
             }
-
-            const rows = collectDailyDigestItems();
             if (!rows.length) {
-                renderEmpty(
-                    ui.dailyDigestList,
-                    "No top insight right now.",
-                    {
-                        tone: "neutral",
-                        detail: "A daily highlight appears here as soon as fresh data is ready.",
-                    },
-                );
+                setPanelVisibility(ui.dailyDigestPanel, false);
                 return;
             }
 
@@ -11249,7 +11330,7 @@ input:focus-visible {
                 ui.becauseYouOwnTitle.textContent = "Because You Own...";
             }
             if (ui.becauseYouOwnSubtitle) {
-                ui.becauseYouOwnSubtitle.textContent = "Sale picks related to games you already own.";
+                ui.becauseYouOwnSubtitle.textContent = "One strong library-based match.";
             }
 
             if (wishlistLoading && !hasOwnedItems) {
@@ -11274,7 +11355,7 @@ input:focus-visible {
 
             let recommendations = { items: [], anchorName: "", reason: "weak_match" };
             try {
-                recommendations = buildBecauseYouOwnRecommendations(3);
+                recommendations = buildBecauseYouOwnRecommendations(1);
             } catch (error) {
                 console.warn("Because-you-own recommendation build failed", error);
             }
@@ -11287,25 +11368,13 @@ input:focus-visible {
                 ui.becauseYouOwnTitle.textContent = "More Like Your Library";
             }
 
-            if (!recommendations.items.length) {
-                if (ui.becauseYouOwnSubtitle) {
-                    ui.becauseYouOwnSubtitle.textContent = "Recommendations appear when we find strong overlap with your library.";
-                }
-                renderEmpty(
-                    ui.becauseYouOwnList,
-                    "No strong matches yet.",
-                    {
-                        tone: "neutral",
-                        detail: "Mark more games as Owned and we'll surface better matches.",
-                    },
-                );
+            if (!recommendations.items.length || recommendations.reason === "weak_fallback") {
+                setPanelVisibility(ui.becauseYouOwnPanel, false);
                 return;
             }
 
             if (ui.becauseYouOwnSubtitle) {
-                ui.becauseYouOwnSubtitle.textContent = recommendations.reason === "weak_fallback"
-                    ? "Closest available matches while we wait for stronger overlap signals."
-                    : "Based on games you own.";
+                ui.becauseYouOwnSubtitle.textContent = "Based on your owned library.";
             }
             ui.becauseYouOwnList.innerHTML = recommendations.items
                 .map((entry) => becauseYouOwnItemHtml(entry))
@@ -11344,7 +11413,7 @@ input:focus-visible {
                     "No owned games yet.",
                     {
                         tone: "neutral",
-                        detail: "Mark games as Owned to hide them from buy recommendations.",
+                        detail: "Mark games as Owned to keep buy feeds focused.",
                     },
                 );
                 setTrackedPreviewToggleState(
@@ -11381,7 +11450,11 @@ input:focus-visible {
             const watchlistLoading = !!state.personalListStatus?.watchlistLoading;
             const watchlistError = !!state.personalListStatus?.watchlistError;
             const canShowPanel = !isAnonymousOrGuestUserId(CURRENT_USER_ID);
-            setPanelVisibility(ui.watchlistPanel, canShowPanel || watchlistItems.length > 0 || watchlistLoading || watchlistError);
+            const shouldShowWatchPanel = canShowPanel && (watchlistItems.length > 0 || watchlistLoading || watchlistError);
+            setPanelVisibility(ui.watchlistPanel, shouldShowWatchPanel);
+            if (!shouldShowWatchPanel) {
+                return;
+            }
             if (watchlistLoading) {
                 renderSkeleton(ui.watchlistList, "mini-list", 1, { itemClass: "mini-item" });
                 setTrackedPreviewToggleState(
@@ -11403,20 +11476,7 @@ input:focus-visible {
                 return;
             }
             if (!watchlistItems.length) {
-                renderEmpty(
-                    ui.watchlistList,
-                    "No watched games yet.",
-                    {
-                        tone: "neutral",
-                        detail: "Use Watch on games you may buy and we'll surface the best moment to act.",
-                    },
-                );
-                setTrackedPreviewToggleState(
-                    ui.watchlistToggleBtn,
-                    "watchlist",
-                    0,
-                    false,
-                );
+                setPanelVisibility(ui.watchlistPanel, false);
                 return;
             }
             const candidates = watchlistItems.map((item) => {
@@ -11440,7 +11500,13 @@ input:focus-visible {
             });
             const decisionLabel = resolveTimingDecisionLabel(focusTiming)
                 || resolveDealConfidence(focus)?.confidence_label
-                || "Watch this";
+                || "Watch";
+            if (ui.watchOpportunityTitle) {
+                ui.watchOpportunityTitle.textContent = "Watch Opportunity";
+            }
+            if (ui.watchOpportunitySubtitle) {
+                ui.watchOpportunitySubtitle.textContent = `Top watch signal from ${fmtInt(watchlistItems.length)} tracked ${watchlistItems.length === 1 ? "game" : "games"}.`;
+            }
             const discount = Number(focus.discount_percent || focus.latest_discount_percent || 0);
             const price = focus.price ?? focus.latest_price ?? null;
             const extraCount = Math.max(0, watchlistItems.length - 1);
@@ -11533,38 +11599,6 @@ input:focus-visible {
             });
         }
 
-        function renderOpportunityRadar() {
-            if (!ui.opportunityRadarGrid || !ui.opportunityRadarPanel) return;
-            const filtered = resolveDiscoveryFeedRows(state.opportunityRadar, {
-                targetCount: 12,
-                extendToCount: getHomepageDealRailDepthLimit(),
-                fallbackRows: buildDealRailDepthFallbackRows(state.opportunityRadar),
-            });
-            if (!filtered.rows.length) {
-                renderOwnedFilteredFeedEmpty(
-                    ui.opportunityRadarGrid,
-                    "No deal opportunity radar picks available right now.",
-                    {
-                        tone: "neutral",
-                        detail: "Predicted opportunities refresh throughout the day.",
-                    },
-                    filtered,
-                );
-                return;
-            }
-            renderPagedCards({
-                container: ui.opportunityRadarGrid,
-                items: filtered.rows,
-                renderer: gameCardHtml,
-                visibleKey: "opportunityRadarGrid",
-                toggleButton: null,
-                showAllButton: null,
-                view: "opportunity-radar",
-                title: "Deal Opportunity Radar",
-                initialCount: 12,
-            });
-        }
-
         function buildProtectedVisibleRailIdentitySet() {
             const keys = new Set();
             const addRows = (rows) => {
@@ -11574,7 +11608,6 @@ input:focus-visible {
                 });
             };
             addRows(state.opportunitiesNow);
-            addRows(state.opportunityRadar);
             return keys;
         }
 
@@ -11695,8 +11728,8 @@ input:focus-visible {
             }
             if (ui.yourDealsTodaySubtitle) {
                 ui.yourDealsTodaySubtitle.textContent = personalizedActive
-                    ? "Your best next pick from Watch, Owned, and live prices."
-                    : "Top pick right now based on live deal quality.";
+                    ? "Your highest-confidence next buy opportunity."
+                    : "Highest-confidence live opportunity right now.";
             }
 
             if (loading && !filteredDisplay.rows.length) {
@@ -12499,15 +12532,24 @@ input:focus-visible {
         function updateAllGamesSubtitle() {
             if (!ui.allGamesSubtitle) return;
             if (state.catalog.loading && !state.catalog.loaded) {
-                ui.allGamesSubtitle.textContent = "Loading featured picks from the catalog...";
+                ui.allGamesSubtitle.textContent = "Loading a broader all-deals stream...";
                 return;
             }
+            const allDealsCount = Math.max(
+                0,
+                safeArray(state.allDealsFeed).length,
+                safeArray(getFeaturedAllGames()).length,
+            );
             const trackedCount = resolveTrackedGamesCount();
             if (trackedCount !== null) {
-                ui.allGamesSubtitle.textContent = `Showing 2 featured games. Open Full Directory to browse all ${fmtInt(trackedCount)} tracked titles.`;
+                ui.allGamesSubtitle.textContent = `Showing curated live deals from ${fmtInt(allDealsCount || trackedCount)} discounted games.`;
                 return;
             }
-            ui.allGamesSubtitle.textContent = "Two featured picks. Open Full Directory to browse the full catalog.";
+            if (allDealsCount > 0) {
+                ui.allGamesSubtitle.textContent = `Showing curated live deals from ${fmtInt(allDealsCount)} discounted games.`;
+                return;
+            }
+            ui.allGamesSubtitle.textContent = "A broader stream of worthwhile discounted games.";
         }
 
         function refreshReleasedAndSearch() {
@@ -12515,6 +12557,23 @@ input:focus-visible {
             if (isDiscoveryTabActive("all-games")) {
                 renderReleasedGames();
             }
+        }
+
+        function maybePrefetchAllDealsCatalogPages(totalItems = 0, currentVisible = Number(state.visibleCounts.releasedGamesGrid || 0)) {
+            if (!isCatalogContextActive()) return;
+            if (state.catalog.loading || state.catalog.loadingMore || !state.catalog.hasMore) return;
+
+            const normalizedTotal = Math.max(0, Number(totalItems) || 0);
+            const normalizedVisible = Math.max(0, Number(currentVisible) || 0);
+            const remaining = normalizedTotal > 0
+                ? Math.max(0, normalizedTotal - normalizedVisible)
+                : 0;
+            if (normalizedTotal > 0 && remaining > CATALOG_PREFETCH_BUFFER) return;
+
+            void loadNextCatalogPage().catch((error) => {
+                if (isAbortLikeError(error)) return;
+                console.warn("Failed to prefetch additional all-deals catalog pages", error);
+            });
         }
 
         function openSearchResults() {
@@ -13112,6 +13171,7 @@ input:focus-visible {
                 merged.push(...safeArray(pageCache.get(page)));
             }
             state.allGames = uniqueGamesByName(merged);
+            state.allDealsFeed = filterProtectedDealRailRows(state.allGames);
             state.catalog.totalItems = Math.max(Number(state.catalog.totalItems || 0), state.allGames.length);
         }
 
@@ -13266,6 +13326,7 @@ input:focus-visible {
             state.catalog.nextPage = 1;
             state.catalog.hasMore = false;
             state.allGames = [];
+            state.allDealsFeed = [];
             state.catalog.pageCache = new Map();
             state.catalog.inflightControllers = new Map();
 
@@ -13500,7 +13561,6 @@ input:focus-visible {
             releasedPayload,
             dealRadarPayload,
             opportunitiesPayload,
-            opportunityRadarPayload,
             dailyDigestPayload,
             options = {},
         ) {
@@ -13545,7 +13605,6 @@ input:focus-visible {
                 : uniqueAlertSignals(dashboardPayload?.alertSignals || []);
             const hasDealRadarPayload = dealRadarPayload !== null && dealRadarPayload !== undefined;
             const hasOpportunitiesPayload = opportunitiesPayload !== null && opportunitiesPayload !== undefined;
-            const hasOpportunityRadarPayload = opportunityRadarPayload !== null && opportunityRadarPayload !== undefined;
             const hasDailyDigestPayload = dailyDigestPayload !== null && dailyDigestPayload !== undefined;
             const dealRadarFromEndpoint = hasDealRadarPayload
                 ? uniqueDealRadarSignals(dealRadarPayload?.items || dealRadarPayload || [])
@@ -13582,43 +13641,8 @@ input:focus-visible {
                         ? filterReleasedRailRows(state.opportunitiesNow)
                         : []
                 );
-            const opportunityRadarFromEndpoint = hasOpportunityRadarPayload
-                ? filterReleasedRailRows(opportunityRadarPayload?.items || opportunityRadarPayload || [])
-                : [];
-            const opportunityRadarFromDashboard = filterReleasedRailRows(
-                dashboardPayload?.opportunity_radar
-                || dashboardPayload?.opportunityRadar
-                || []
-            );
-            const hasOpportunityRadarSource = hasOpportunityRadarPayload || hasDashboardKey("opportunity_radar", "opportunityRadar");
-            const opportunityIdentityKeys = new Set(
-                opportunitiesNow
-                    .map((row) => gameIdentityKey(row))
-                    .filter((key) => !!key),
-            );
-            const opportunityRadarSeed = uniqueGamesByIdentity([
-                ...opportunityRadarFromEndpoint,
-                ...opportunityRadarFromDashboard,
-            ]);
-            const opportunityRadarDistinct = opportunityRadarSeed.filter((row) => {
-                const key = gameIdentityKey(row);
-                if (!key) return false;
-                return !opportunityIdentityKeys.has(key);
-            });
-            const opportunityRadar = hasOpportunityRadarSource
-                ? (
-                    opportunityRadarDistinct.length
-                        ? opportunityRadarDistinct
-                        : opportunityRadarSeed
-                )
-                : (
-                    preserveExistingSections
-                        ? filterReleasedRailRows(state.opportunityRadar)
-                        : []
-                );
             const decisionPool = uniqueGamesByIdentity([
                 ...opportunitiesNow,
-                ...opportunityRadar,
                 ...worthBuyingNow,
                 ...dealRanked,
                 ...recommendedDeals,
@@ -13629,9 +13653,7 @@ input:focus-visible {
             const releasedDecisionPool = filterReleasedRailRows(decisionPool);
             const railSectionLimit = getHomepageDealRailDepthLimit();
             const buyNowFromPayload = hydrateRowsFromPayload(["buy_now_picks", "buyNowPicks"], state.buyNowPicks);
-            const waitFromPayload = hydrateRowsFromPayload(["wait_picks", "waitPicks"], state.waitPicks);
             const derivedBuyNowPicks = pickByRecommendation(releasedDecisionPool, "BUY_NOW", railSectionLimit);
-            const derivedWaitPicks = pickByRecommendation(releasedDecisionPool, "WAIT", railSectionLimit);
             const buyNowPicks = buyNowFromPayload.length
                 ? buyNowFromPayload
                 : (
@@ -13639,24 +13661,21 @@ input:focus-visible {
                         ? derivedBuyNowPicks
                         : filterReleasedRailRows(worthBuyingNow).slice(0, railSectionLimit)
                 );
-            const waitPicks = waitFromPayload.length
-                ? waitFromPayload
-                : (
-                    derivedWaitPicks.length
-                        ? derivedWaitPicks
-                        : releasedDecisionPool
-                            .filter((row) =>
-                                Number(row?.price_vs_low_ratio || 0) >= 1.08
-                                || Number(row?.predicted_next_discount_percent || 0) >= 35
-                            )
-                            .slice(0, railSectionLimit)
-                );
-            const releasedItemsFromPayload = uniqueGamesByName(releasedPayload?.items || []);
+            const allDealsFromDashboardPayload = filterProtectedDealRailRows(uniqueGamesByIdentity([
+                ...safeArray(dashboardPayload?.all_deals),
+                ...safeArray(dashboardPayload?.allDeals),
+                ...safeArray(dashboardPayload?.releasedGames),
+                ...safeArray(dashboardPayload?.released),
+            ]));
+            const releasedItemsFromPayload = filterProtectedDealRailRows(uniqueGamesByIdentity([
+                ...allDealsFromDashboardPayload,
+                ...safeArray(releasedPayload?.items || []),
+            ]));
             const releasedItems = releasedItemsFromPayload.length
                 ? releasedItemsFromPayload
                 : (
                     preserveExistingSections
-                        ? uniqueGamesByName(state.allGames)
+                        ? filterProtectedDealRailRows(state.allDealsFeed)
                         : []
                 );
             const seasonalFromEndpoint = normalizeSeasonalPayload(seasonalPayload);
@@ -13720,12 +13739,6 @@ input:focus-visible {
                 protectedVisibleUsedKeys,
                 railSectionLimit,
             );
-            const stableOpportunityRadar = selectExclusiveRailRows(
-                filterReleasedRailRows(opportunityRadar),
-                protectedFallbackPool,
-                protectedVisibleUsedKeys,
-                railSectionLimit,
-            );
             const stableBuyNowPicks = selectExclusiveRailRows(
                 filterReleasedRailRows(buyNowPicks),
                 filterReleasedRailRows([
@@ -13735,20 +13748,10 @@ input:focus-visible {
                 protectedVisibleUsedKeys,
                 railSectionLimit,
             );
-            const waitBiggestKeys = new Set();
             const stableBiggestDiscounts = selectExclusiveRailRows(
                 filterReleasedRailRows(biggestDiscounts),
                 releaseSafeDealRanked,
-                waitBiggestKeys,
-                railSectionLimit,
-            );
-            const stableWaitPicks = selectExclusiveRailRows(
-                filterReleasedRailRows(waitPicks),
-                releasedDecisionPool.filter((row) =>
-                    Number(row?.price_vs_low_ratio || 0) >= 1.08
-                    || Number(row?.predicted_next_discount_percent || 0) >= 35
-                ),
-                waitBiggestKeys,
+                new Set(),
                 railSectionLimit,
             );
             const seasonalState = {
@@ -13757,7 +13760,10 @@ input:focus-visible {
             };
 
             if (releasedItems.length) {
+                state.allDealsFeed = releasedItems;
                 state.allGames = releasedItems;
+            } else if (!preserveExistingSections) {
+                state.allDealsFeed = [];
             }
             const fallbackLatestPrices = uniqueGamesByName([
                 ...dealRanked,
@@ -13781,7 +13787,7 @@ input:focus-visible {
             state.upcoming = upcoming;
             state.dealRanked = releaseSafeDealRanked;
             state.opportunitiesNow = stableOpportunitiesNow;
-            state.opportunityRadar = stableOpportunityRadar;
+            state.opportunityRadar = [];
             state.recommendedDeals = recommendedDeals;
             state.worthBuyingNow = releaseSafeWorthBuying;
             state.trendingDeals = trendingDeals;
@@ -13789,7 +13795,7 @@ input:focus-visible {
             state.discoveryTrending = diversifiedDiscoveryRails.discoveryTrending || discoveryTrendingCandidates;
             state.newHistoricalLows = releaseSafeNewHistoricalLows;
             state.buyNowPicks = stableBuyNowPicks;
-            state.waitPicks = stableWaitPicks;
+            state.waitPicks = [];
             state.seasonalSale = seasonalState;
             const nextCatalogSummary = normalizeCatalogSummary(dashboardPayload?.catalogSummary);
             state.catalogSummary = (
@@ -13858,12 +13864,10 @@ input:focus-visible {
         function applyDeferredHomepageSections({
             dealRadarPayload,
             opportunitiesPayload,
-            opportunityRadarPayload,
             dailyDigestPayload,
         }) {
             const hasDealRadarPayload = dealRadarPayload !== null && dealRadarPayload !== undefined;
             const hasOpportunitiesPayload = opportunitiesPayload !== null && opportunitiesPayload !== undefined;
-            const hasOpportunityRadarPayload = opportunityRadarPayload !== null && opportunityRadarPayload !== undefined;
             const hasDailyDigestPayload = dailyDigestPayload !== null && dailyDigestPayload !== undefined;
 
             if (hasDealRadarPayload) {
@@ -13878,26 +13882,9 @@ input:focus-visible {
                     state.opportunitiesNow = nextOpportunities;
                 }
             }
-            if (hasOpportunityRadarPayload) {
-                const radarFromEndpoint = filterProtectedDealRailRows(opportunityRadarPayload?.items || opportunityRadarPayload || []);
-                const opportunityIdentityKeys = new Set(
-                    safeArray(state.opportunitiesNow)
-                        .map((row) => gameIdentityKey(row))
-                        .filter((key) => !!key),
-                );
-                const distinctRadar = radarFromEndpoint.filter((row) => {
-                    const key = gameIdentityKey(row);
-                    if (!key) return false;
-                    return !opportunityIdentityKeys.has(key);
-                });
-                const nextRadar = distinctRadar.length
-                    ? distinctRadar
-                    : radarFromEndpoint;
-                if (nextRadar.length || !safeArray(state.opportunityRadar).length) {
-                    state.opportunityRadar = nextRadar;
-                }
-            }
-            if (hasOpportunitiesPayload || hasOpportunityRadarPayload) {
+            state.opportunityRadar = [];
+            state.waitPicks = [];
+            if (hasOpportunitiesPayload) {
                 const railSectionLimit = getHomepageDealRailDepthLimit();
                 const protectedFallbackPool = filterProtectedDealRailRows([
                     ...safeArray(state.dealRanked),
@@ -13908,12 +13895,6 @@ input:focus-visible {
                 const protectedVisibleKeys = new Set();
                 state.opportunitiesNow = selectExclusiveRailRows(
                     filterProtectedDealRailRows(state.opportunitiesNow),
-                    protectedFallbackPool,
-                    protectedVisibleKeys,
-                    railSectionLimit,
-                );
-                state.opportunityRadar = selectExclusiveRailRows(
-                    filterProtectedDealRailRows(state.opportunityRadar),
                     protectedFallbackPool,
                     protectedVisibleKeys,
                     railSectionLimit,
@@ -13952,7 +13933,7 @@ input:focus-visible {
             sanitizeProtectedHomepageRailState();
 
             if (hasOpportunitiesPayload) renderOpportunities();
-            if (hasOpportunityRadarPayload || hasOpportunitiesPayload) {
+            if (hasOpportunitiesPayload) {
                 renderNewDeals();
             }
             if (hasDealRadarPayload) renderDealRadar();
@@ -13983,12 +13964,10 @@ input:focus-visible {
             const emptyReleased = { items: [] };
             const emptyDealRadar = { items: [] };
             const emptyOpportunities = { items: [] };
-            const emptyOpportunityRadar = { items: [] };
             const emptyDailyDigest = { sections: {}, highlights: [], counts: {} };
             const marketRadarEndpointUrl = `/api/market-radar?limit=${HOMEPAGE_SECTION_LIMITS.marketRadar}`;
             const dealRadarEndpointUrl = `/api/deal-radar?limit=${HOMEPAGE_SECTION_LIMITS.marketRadar}`;
             const opportunitiesEndpointUrl = `/api/deal-opportunities?limit=${HOMEPAGE_SECTION_LIMITS.dealOpportunities}`;
-            const opportunityRadarEndpointUrl = `/api/opportunity-radar?limit=${HOMEPAGE_SECTION_LIMITS.opportunityRadar}`;
             const dailyDigestEndpointUrl = `/api/daily-digest?user_id=${encodeURIComponent(CURRENT_USER_ID)}&section_limit=${HOMEPAGE_SECTION_LIMITS.dailyDigestSection}`;
 
 let dashboardData = null;
@@ -13996,7 +13975,6 @@ let seasonalData = emptySeasonal;
 let releasedData = emptyReleased;
 let dealRadarData = null;
 let opportunitiesData = null;
-let opportunityRadarData = null;
 let dailyDigestData = null;
 const scheduleCatalogSeed = (payload) => {
     if (!payload || !safeArray(payload.items).length) return;
@@ -14021,13 +13999,15 @@ try {
         dashboardData?.seasonalSale || dashboardData?.seasonal_summary || null
     );
 
-    const releasedSeedFromDashboard = uniqueGamesByName([
+    const releasedSeedFromDashboard = filterProtectedDealRailRows(uniqueGamesByIdentity([
+        ...safeArray(dashboardData?.all_deals),
+        ...safeArray(dashboardData?.allDeals),
         ...safeArray(dashboardData?.releasedGames),
         ...safeArray(dashboardData?.released),
-    ]);
+    ]));
     const dashboardReleasedSeed = releasedSeedFromDashboard.length
         ? releasedSeedFromDashboard
-        : uniqueGamesByName([
+        : filterProtectedDealRailRows(uniqueGamesByIdentity([
             ...safeArray(dashboardData?.dealRanked),
             ...safeArray(dashboardData?.topDealsToday),
             ...safeArray(dashboardData?.worthBuyingNow),
@@ -14035,20 +14015,14 @@ try {
             ...safeArray(dashboardData?.biggestDeals),
             ...safeArray(dashboardData?.biggest_discounts),
             ...safeArray(dashboardData?.biggest_deals),
-            ...safeArray(dashboardData?.topReviewed),
-            ...safeArray(dashboardData?.top_reviewed),
             ...safeArray(dashboardData?.trendingDeals),
             ...safeArray(dashboardData?.trending_deals),
             ...safeArray(dashboardData?.trending_now),
             ...safeArray(dashboardData?.buy_now_picks),
-            ...safeArray(dashboardData?.wait_picks),
-            ...safeArray(dashboardData?.topPlayed),
-            ...safeArray(dashboardData?.top_played),
-            ...safeArray(dashboardData?.historicalLows),
-            ...safeArray(dashboardData?.historical_lows),
             ...safeArray(dashboardData?.new_historical_lows),
-            ...safeArray(dashboardData?.upcoming),
-        ]);
+            ...safeArray(dashboardData?.deal_opportunities),
+            ...safeArray(dashboardData?.dealOpportunities),
+        ]));
     const hasReleasedSeed = dashboardReleasedSeed.length > 0;
     releasedData = hasReleasedSeed ? { items: dashboardReleasedSeed } : emptyReleased;
 
@@ -14062,14 +14036,9 @@ try {
         ? safeArray(dashboardData?.deal_opportunities)
         : safeArray(dashboardData?.dealOpportunities);
 
-    const dashboardOpportunityRadarSeed = safeArray(dashboardData?.opportunity_radar).length
-        ? safeArray(dashboardData?.opportunity_radar)
-        : safeArray(dashboardData?.opportunityRadar);
-
     const dashboardDigestSeed = dashboardData?.daily_digest || dashboardData?.dailyDigest;
     const needsDealRadarRefresh = !safeArray(state.dealRadar).length;
     const needsOpportunitiesRefresh = !safeArray(state.opportunitiesNow).length;
-    const needsOpportunityRadarRefresh = !safeArray(state.opportunityRadar).length;
     const needsDailyDigestRefresh = !(
         state.dailyDigest
         && typeof state.dailyDigest === "object"
@@ -14097,7 +14066,7 @@ try {
     // Start lower-priority content in background. Do not await here.
     setTimeout(async () => {
         try {
-            [dealRadarData, opportunitiesData, opportunityRadarData, dailyDigestData] = await Promise.all([
+            [dealRadarData, opportunitiesData, dailyDigestData] = await Promise.all([
                 dashboardDealRadarSeed.length
                     ? Promise.resolve({ items: dashboardDealRadarSeed })
                     : needsDealRadarRefresh
@@ -14110,12 +14079,6 @@ try {
                     ? Promise.resolve({ items: dashboardOpportunitySeed })
                     : needsOpportunitiesRefresh
                         ? fetchJson(opportunitiesEndpointUrl).catch(() => null)
-                        : Promise.resolve(null),
-
-                dashboardOpportunityRadarSeed.length
-                    ? Promise.resolve({ items: dashboardOpportunityRadarSeed })
-                    : needsOpportunityRadarRefresh
-                        ? fetchJson(opportunityRadarEndpointUrl).catch(() => null)
                         : Promise.resolve(null),
 
                 (
@@ -14135,7 +14098,6 @@ try {
             applyDeferredHomepageSections({
                 dealRadarPayload: dealRadarData,
                 opportunitiesPayload: opportunitiesData,
-                opportunityRadarPayload: opportunityRadarData,
                 dailyDigestPayload: dailyDigestData,
             });
         } catch (secondaryError) {
@@ -14158,7 +14120,6 @@ try {
         worth_buying_now: [],
         trending_now: [],
         buy_now_picks: [],
-        wait_picks: [],
         new_historical_lows: [],
         topReviewed: [],
         mostPlayedDeals: [],
@@ -14173,8 +14134,8 @@ try {
         deal_radar: [],
         dealOpportunities: [],
         deal_opportunities: [],
-        opportunityRadar: [],
-        opportunity_radar: [],
+        all_deals: [],
+        allDeals: [],
         daily_digest: emptyDailyDigest,
     };
 
@@ -14188,7 +14149,6 @@ try {
 
     const needsDealRadarRefresh = !safeArray(state.dealRadar).length;
     const needsOpportunitiesRefresh = !safeArray(state.opportunitiesNow).length;
-    const needsOpportunityRadarRefresh = !safeArray(state.opportunityRadar).length;
     const needsDailyDigestRefresh = !(
         state.dailyDigest
         && typeof state.dailyDigest === "object"
@@ -14200,7 +14160,7 @@ try {
 
     setTimeout(async () => {
         try {
-            [dealRadarData, opportunitiesData, opportunityRadarData, dailyDigestData] = await Promise.all([
+            [dealRadarData, opportunitiesData, dailyDigestData] = await Promise.all([
                 needsDealRadarRefresh
                     ? fetchJson(marketRadarEndpointUrl)
                         .catch(() => fetchJson(dealRadarEndpointUrl))
@@ -14211,10 +14171,6 @@ try {
                     ? fetchJson(opportunitiesEndpointUrl).catch(() => null)
                     : Promise.resolve(null),
 
-                needsOpportunityRadarRefresh
-                    ? fetchJson(opportunityRadarEndpointUrl).catch(() => null)
-                    : Promise.resolve(null),
-
                 needsDailyDigestRefresh
                     ? fetchJson(dailyDigestEndpointUrl).catch(() => null)
                     : Promise.resolve(null),
@@ -14223,7 +14179,6 @@ try {
             applyDeferredHomepageSections({
                 dealRadarPayload: dealRadarData,
                 opportunitiesPayload: opportunitiesData,
-                opportunityRadarPayload: opportunityRadarData,
                 dailyDigestPayload: dailyDigestData,
             });
         } catch (secondaryError) {
@@ -14238,7 +14193,6 @@ try {
                 releasedData,
                 dealRadarData,
                 opportunitiesData,
-                opportunityRadarData,
                 dailyDigestData,
                 { preservePersonalState: true, preserveExistingSections: true },
             );
@@ -14811,7 +14765,7 @@ try {
         function renderDeferredHomepageSkeletons() {
             renderSkeleton(ui.seasonalSaleTopGrid, "deal-cards", 4, { cardClass: "game-card" });
             renderSkeleton(ui.seasonalSaleLowerGrid, "deal-cards", 4, { cardClass: "game-card" });
-            renderSkeleton(ui.releasedGamesGrid, "deal-cards", 2, { cardClass: "game-card", compact: true });
+            renderSkeleton(ui.releasedGamesGrid, "deal-cards", HOMEPAGE_ALL_DEALS_INITIAL_COUNT, { cardClass: "game-card", compact: true });
             if (isDiscoveryTabActive("top-reviewed") && !safeArray(state.topReviewed).length) {
                 renderSkeleton(ui.topReviewedGrid, "deal-cards", 6, { cardClass: "game-card" });
             }
@@ -14854,7 +14808,6 @@ try {
                     null,
                     null,
                     null,
-                    null,
                     criticalDigest,
                     { deferAnalytics: true, preservePersonalState: true },
                 );
@@ -14867,10 +14820,7 @@ try {
                 state.homepageLoad.criticalLoaded = true;
                 renderCriticalHomepageSections();
             } catch (error) {
-                const [opportunitiesPayload, opportunityRadarPayload] = await Promise.all([
-                    fetchJson(`/api/deal-opportunities?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`).catch(() => []),
-                    fetchJson(`/api/opportunity-radar?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`).catch(() => []),
-                ]);
+                const opportunitiesPayload = await fetchJson(`/api/deal-opportunities?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`).catch(() => []);
                 const opportunities = filterProtectedDealRailRows(opportunitiesPayload?.items || opportunitiesPayload || []);
                 const protectedVisibleKeys = new Set();
                 state.opportunitiesNow = selectExclusiveRailRows(
@@ -14882,15 +14832,7 @@ try {
                     protectedVisibleKeys,
                     HOMEPAGE_CRITICAL_SECTION_LIMIT,
                 );
-                state.opportunityRadar = selectExclusiveRailRows(
-                    filterProtectedDealRailRows(opportunityRadarPayload?.items || opportunityRadarPayload || []),
-                    filterProtectedDealRailRows([
-                        ...safeArray(state.dealRanked),
-                        ...safeArray(state.worthBuyingNow),
-                    ]),
-                    protectedVisibleKeys,
-                    HOMEPAGE_CRITICAL_SECTION_LIMIT,
-                );
+                state.opportunityRadar = [];
                 sanitizeProtectedHomepageRailState();
                 state.homepageLoad.criticalLoaded = true;
                 renderCriticalHomepageSections();
@@ -14934,6 +14876,7 @@ try {
                 wireKeyboardShortcuts();
                 wireDragScroll();
                 wireHorizontalRailContinuation();
+                wireAllDealsAmbientScroll();
                 wireTrackedGameLinks();
                 wireQuickView();
             };
@@ -14953,7 +14896,6 @@ try {
                 safeArray(state.trendingNow).length
                 || safeArray(state.discoveryTrending).length
                 || safeArray(state.dealRanked).length
-                || safeArray(state.opportunityRadar).length
                 || safeArray(state.worthBuyingNow).length
             );
             const allowFallback = !knownUser || hasFallbackSeed || state.personalizedStatus.fallbackMode;
@@ -14974,8 +14916,9 @@ try {
             state.dailyDigestStatus.loading = !hasCriticalDigest;
             state.dailyDigestStatus.error = null;
             setPanelVisibility(ui.recommendedForYouPanel, true);
-            setPanelVisibility(ui.wishlistPanel, true);
-            setPanelVisibility(ui.watchlistPanel, true);
+            setPanelVisibility(ui.wishlistPanel, false);
+            setPanelVisibility(ui.watchlistPanel, false);
+            setPanelVisibility(ui.dailyDigestPanel, false);
             renderDeferredHomepageSkeletons();
             wireHomepageDeferredPanelLoaders();
 
@@ -16076,11 +16019,19 @@ try {
             });
         }
 
+        function getRailContinuationStep(sectionKey, fallbackStep = HOMEPAGE_RAIL_CONTINUATION_STEP) {
+            const configuredStep = Number(HOMEPAGE_RAIL_CONTINUATION_STEP_BY_SECTION?.[sectionKey]);
+            if (Number.isFinite(configuredStep) && configuredStep > 0) {
+                return Math.max(2, configuredStep);
+            }
+            return Math.max(2, Number(fallbackStep || HOMEPAGE_RAIL_CONTINUATION_STEP) || HOMEPAGE_RAIL_CONTINUATION_STEP);
+        }
+
         function enableHorizontalRailContinuation(sectionKey, renderFunction, options = {}) {
             const container = document.getElementById(sectionKey);
             if (!container) return;
 
-            const step = Math.max(2, Number(options.step || HOMEPAGE_RAIL_CONTINUATION_STEP));
+            const step = getRailContinuationStep(sectionKey, options.step);
             const thresholdPx = Math.max(120, Number(options.thresholdPx || HOMEPAGE_RAIL_CONTINUATION_THRESHOLD_PX));
             const wiredSet = enableHorizontalRailContinuation._wired || (enableHorizontalRailContinuation._wired = new Set());
             if (wiredSet.has(sectionKey)) return;
@@ -16123,6 +16074,7 @@ try {
                 { key: "trendingDealsGrid", render: renderTrendingDeals },
                 { key: "newHistoricalLowsGrid", render: renderNewHistoricalLows },
                 { key: "newDealsGrid", render: renderNewDeals },
+                { key: "topReviewedGrid", render: renderTopReviewed },
             ];
             sections.forEach(({ key, render }) => {
                 enableHorizontalRailContinuation(key, render);
@@ -16130,7 +16082,7 @@ try {
             wireHorizontalRailContinuation._wired = true;
         }
 
-        function enableInfiniteScroll(sectionKey, getItems, renderFunction) {
+        function enableInfiniteScroll(sectionKey, getItems, renderFunction, options = {}) {
             const container = document.getElementById(sectionKey);
             if (!container) return;
             const parent = container.parentElement;
@@ -16150,7 +16102,14 @@ try {
 
             let loading = false;
             let releaseLockTimer = null;
-            const increment = sectionKey === "releasedGamesGrid" ? 6 : 4;
+            const configuredIncrement = Number(HOMEPAGE_INFINITE_SCROLL_STEP_BY_SECTION?.[sectionKey]);
+            const increment = Math.max(
+                2,
+                Number.isFinite(configuredIncrement) && configuredIncrement > 0
+                    ? configuredIncrement
+                    : 4,
+            );
+            const onNearEnd = typeof options?.onNearEnd === "function" ? options.onNearEnd : null;
 
             const observer = new IntersectionObserver((entries) => {
                 const entry = entries[0];
@@ -16159,6 +16118,9 @@ try {
                 const items = getItems();
                 const totalItems = Array.isArray(items) ? items.length : 0;
                 const currentVisible = Number(state.visibleCounts[sectionKey] || 0);
+                if (onNearEnd) {
+                    onNearEnd({ sectionKey, totalItems, currentVisible, increment });
+                }
                 if (!totalItems || currentVisible >= totalItems) {
                     return;
                 }
@@ -16180,6 +16142,159 @@ try {
             });
 
             observer.observe(sentinel);
+        }
+
+        function wireAllDealsAmbientScroll() {
+            if (wireAllDealsAmbientScroll._wired) return;
+            const rail = ui.releasedGamesGrid || document.getElementById("releasedGamesGrid");
+            if (!(rail instanceof HTMLElement)) return;
+
+            const reducedMotionQuery = window.matchMedia
+                ? window.matchMedia("(prefers-reduced-motion: reduce)")
+                : null;
+            let reducedMotion = !!(reducedMotionQuery && reducedMotionQuery.matches);
+            let direction = 1;
+            let lastFrameTs = 0;
+            let interactionResumeAt = Date.now() + ALL_DEALS_AMBIENT_SCROLL_IDLE_MS;
+            let hovering = false;
+            let touchActive = false;
+            let focusWithin = false;
+            let internalScrollUpdate = false;
+
+            const noteInteraction = (delayMs = ALL_DEALS_AMBIENT_SCROLL_RESUME_DELAY_MS) => {
+                const safeDelay = Math.max(400, Number(delayMs) || ALL_DEALS_AMBIENT_SCROLL_RESUME_DELAY_MS);
+                interactionResumeAt = Date.now() + safeDelay;
+            };
+
+            const isAllDealsRailReady = () => {
+                if (!rail.isConnected) return false;
+                if (!isDiscoveryTabActive("all-games")) return false;
+                if (rail.offsetParent === null) return false;
+                if (rail.clientWidth <= 0) return false;
+                return rail.scrollWidth > rail.clientWidth + 1;
+            };
+
+            const canAutoScroll = () => (
+                !reducedMotion
+                && !hovering
+                && !touchActive
+                && !focusWithin
+                && Date.now() >= interactionResumeAt
+                && isAllDealsRailReady()
+            );
+
+            rail.addEventListener("mouseenter", () => {
+                hovering = true;
+                noteInteraction();
+            });
+            rail.addEventListener("mouseleave", () => {
+                hovering = false;
+                noteInteraction();
+            });
+            rail.addEventListener("pointerdown", () => {
+                noteInteraction();
+            }, { passive: true });
+            rail.addEventListener("wheel", () => {
+                noteInteraction();
+            }, { passive: true });
+            rail.addEventListener("click", () => {
+                noteInteraction();
+            });
+            rail.addEventListener("keydown", () => {
+                noteInteraction();
+            });
+            rail.addEventListener("touchstart", () => {
+                touchActive = true;
+                noteInteraction(ALL_DEALS_AMBIENT_SCROLL_RESUME_DELAY_MS + 1800);
+            }, { passive: true });
+            rail.addEventListener("touchend", () => {
+                touchActive = false;
+                noteInteraction();
+            }, { passive: true });
+            rail.addEventListener("touchcancel", () => {
+                touchActive = false;
+                noteInteraction();
+            }, { passive: true });
+            rail.addEventListener("focusin", () => {
+                focusWithin = true;
+                noteInteraction();
+            });
+            rail.addEventListener("focusout", () => {
+                focusWithin = rail.contains(document.activeElement);
+                noteInteraction();
+            });
+            rail.addEventListener("scroll", () => {
+                if (internalScrollUpdate) return;
+                noteInteraction();
+            }, { passive: true });
+
+            document.addEventListener("click", (event) => {
+                const trigger = event.target instanceof Element
+                    ? event.target.closest("[data-row-left],[data-row-right]")
+                    : null;
+                if (!trigger) return;
+                const leftTarget = String(trigger.getAttribute("data-row-left") || "").trim();
+                const rightTarget = String(trigger.getAttribute("data-row-right") || "").trim();
+                if (leftTarget === "releasedGamesGrid" || rightTarget === "releasedGamesGrid") {
+                    noteInteraction();
+                }
+            });
+
+            if (reducedMotionQuery) {
+                const handleReducedMotionChange = (event) => {
+                    reducedMotion = !!event.matches;
+                    noteInteraction(
+                        reducedMotion
+                            ? ALL_DEALS_AMBIENT_SCROLL_IDLE_MS
+                            : ALL_DEALS_AMBIENT_SCROLL_RESUME_DELAY_MS,
+                    );
+                };
+                if (typeof reducedMotionQuery.addEventListener === "function") {
+                    reducedMotionQuery.addEventListener("change", handleReducedMotionChange);
+                } else if (typeof reducedMotionQuery.addListener === "function") {
+                    reducedMotionQuery.addListener(handleReducedMotionChange);
+                }
+            }
+
+            const tick = (ts) => {
+                requestAnimationFrame(tick);
+                if (!canAutoScroll()) {
+                    lastFrameTs = ts;
+                    return;
+                }
+
+                const maxScroll = Math.max(0, rail.scrollWidth - rail.clientWidth);
+                if (maxScroll <= 1) {
+                    lastFrameTs = ts;
+                    return;
+                }
+                if (rail.scrollLeft >= maxScroll - 0.6) {
+                    direction = -1;
+                } else if (rail.scrollLeft <= 0.6) {
+                    direction = 1;
+                }
+
+                if (!lastFrameTs) {
+                    lastFrameTs = ts;
+                }
+                const deltaMs = Math.max(0, Math.min(64, ts - lastFrameTs));
+                lastFrameTs = ts;
+                const distance = Math.min(
+                    ALL_DEALS_AMBIENT_SCROLL_MAX_STEP_PX,
+                    (deltaMs / 1000) * ALL_DEALS_AMBIENT_SCROLL_PX_PER_SECOND,
+                );
+                if (!(distance > 0)) return;
+
+                const target = Math.max(0, Math.min(maxScroll, rail.scrollLeft + (direction * distance)));
+                if (Math.abs(target - rail.scrollLeft) < 0.01) return;
+                internalScrollUpdate = true;
+                rail.scrollLeft = target;
+                internalScrollUpdate = false;
+            };
+
+            noteInteraction(ALL_DEALS_AMBIENT_SCROLL_IDLE_MS);
+            requestAnimationFrame(tick);
+            wireAllDealsAmbientScroll._wired = true;
         }
 
         function wireCatalogLifecycle() {
@@ -16294,6 +16409,16 @@ try {
                     "upcomingGrid",
                     () => state.upcoming,
                     renderUpcoming
+                );
+                enableInfiniteScroll(
+                    "releasedGamesGrid",
+                    () => getFeaturedAllGames(),
+                    renderReleasedGames,
+                    {
+                        onNearEnd: ({ totalItems, currentVisible }) => {
+                            maybePrefetchAllDealsCatalogPages(totalItems, currentVisible);
+                        },
+                    }
                 );
             } catch (error) {
                 console.error(error);

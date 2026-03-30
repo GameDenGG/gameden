@@ -6975,7 +6975,7 @@ input:focus-visible {
             } else if (state === "wait_for_better_drop") {
                 label = "Wait";
             } else if (state === "watch_for_sale" || state === "low_confidence") {
-                label = "Watch";
+                label = "Watch this";
             } else {
                 const rawLabel = String(timingSignal.label || "").trim();
                 if (!rawLabel) return "";
@@ -6991,7 +6991,7 @@ input:focus-visible {
             if (state === "buy_now") return "Buy now";
             if (state === "good_time_to_buy") return "Good deal";
             if (state === "wait_for_better_drop") return "Wait";
-            if (state === "watch_for_sale" || state === "low_confidence") return "Watch";
+            if (state === "watch_for_sale" || state === "low_confidence") return "Watch this";
             const rawLabel = String(timingSignal.label || "").trim();
             if (!rawLabel) return "";
             return rawLabel.length > 22 ? `${rawLabel.slice(0, 19).trimEnd()}...` : rawLabel;
@@ -7827,17 +7827,17 @@ input:focus-visible {
             }
             const historicalStatus = String(game.historical_status || "").trim();
             if (historicalStatus === "new_historical_low") {
-                pushCardSignal(signals, "new_historical_low", "New all-time low", "good", 100);
+                pushCardSignal(signals, "new_historical_low", "New historical low", "good", 100);
             } else if (historicalStatus === "matches_historical_low") {
-                pushCardSignal(signals, "matches_historical_low", "Matches all-time low", "info", 92);
+                pushCardSignal(signals, "matches_historical_low", "Matches historical low", "info", 92);
             } else if (historicalStatus === "near_historical_low") {
-                pushCardSignal(signals, "near_historical_low", "Near all-time low", "info", 84);
+                pushCardSignal(signals, "near_historical_low", "Near historical low", "info", 84);
             }
 
             const detectedTs = parseDealDetectedAt(game);
             if (Number.isFinite(detectedTs)) {
                 if (state.lastVisitTs > 0 && detectedTs > state.lastVisitTs) {
-                    pushCardSignal(signals, "new_deal", "New since visit", "good", 88);
+                    pushCardSignal(signals, "new_deal", "New deal since last visit", "good", 88);
                 }
                 const diff = Date.now() - detectedTs;
                 if (Number.isFinite(diff) && diff >= 0) {
@@ -7861,6 +7861,8 @@ input:focus-visible {
                     pushCardSignal(signals, "players_rising", "Players rising", "good", 74);
                 } else if (movementSignal < 0) {
                     pushCardSignal(signals, "players_falling", "Players falling", "warn", 70);
+                } else {
+                    pushCardSignal(signals, "players_stable", "Player activity stable", "info", 58);
                 }
             }
 
@@ -7868,13 +7870,7 @@ input:focus-visible {
             if (heatLevel) {
                 const normalizedHeat = heatLevel.toUpperCase();
                 const heatPriority = normalizedHeat === "HOT" ? 68 : normalizedHeat === "WARM" ? 62 : 52;
-                pushCardSignal(
-                    signals,
-                    `heat_${normalizedHeat}`,
-                    normalizedHeat === "HOT" ? "Hot right now" : "Warming up",
-                    "warn",
-                    heatPriority,
-                );
+                pushCardSignal(signals, `heat_${normalizedHeat}`, `${normalizedHeat} market interest`, "warn", heatPriority);
             }
 
             const seen = new Set();
@@ -7901,6 +7897,7 @@ input:focus-visible {
             if (key === "dropped_this_week") return "Dropped this week";
             if (key === "players_rising") return "Players up";
             if (key === "players_falling") return "Players down";
+            if (key === "players_stable") return "Players stable";
             if (key === "heat_hot") return "Hot now";
             if (key === "heat_warm") return "Warming up";
             if (key === "near_historical_low") return "Near low";
@@ -8039,7 +8036,7 @@ input:focus-visible {
             ]);
             const signals = buildCardSignalItems(game)
                 .filter((entry) => !primaryKeys.has(String(entry?.key || "").toLowerCase()))
-                .slice(0, 1);
+                .slice(0, 2);
             if (!signals.length) return "";
 
             return `
@@ -8072,7 +8069,7 @@ input:focus-visible {
             } else if (historicalStatus === "matches_historical_low") {
                 recommendationChip = `<span class="meta-chip signal good${signalGlowClass("low")}">Good deal</span>`;
             } else if (historicalStatus === "near_historical_low") {
-                recommendationChip = `<span class="meta-chip signal info">Watch</span>`;
+                recommendationChip = `<span class="meta-chip signal info">Watch this</span>`;
             }
 
             const discountChip = discount > 0
@@ -8081,7 +8078,7 @@ input:focus-visible {
             const fallbackDecisionChip = discount >= 60
                 ? '<span class="meta-chip signal good">Good deal</span>'
                 : discount > 0
-                    ? '<span class="meta-chip signal info">Watch</span>'
+                    ? '<span class="meta-chip signal info">Watch this</span>'
                     : '<span class="meta-chip deal-neutral">Wait</span>';
             const qualityChip = confidenceChip || recommendationChip || fallbackDecisionChip;
             const visibleChips = [discountChip, qualityChip].filter(Boolean).slice(0, 2);
@@ -8119,11 +8116,10 @@ input:focus-visible {
                 contextItems.push(`<span class="context-item">${escapeHtml(reviewLabel)}</span>`);
             }
             if (!contextItems.length) return "";
-            const quietItems = contextItems.slice(0, 2);
 
             return `
                 <div class="card-meta-row context compact">
-                    ${quietItems.join('<span class="context-item">•</span>')}
+                    ${contextItems.join('<span class="context-item">•</span>')}
                 </div>
             `;
         }
@@ -8162,7 +8158,7 @@ input:focus-visible {
 
             return `
                 <div class="card-mini-stats">
-                    ${entries.slice(0, 1).map((entry) => `
+                    ${entries.slice(0, 2).map((entry) => `
                         <span class="mini-stat">
                             <span class="mini-stat-label">${escapeHtml(entry.label)}</span>
                             <strong class="mini-stat-value">${escapeHtml(String(entry.value))}</strong>
@@ -9158,7 +9154,7 @@ input:focus-visible {
 
             const lower = raw.toLowerCase();
             if (lower.includes("historical low")) {
-                return "Near all-time low";
+                return "Near historical low";
             }
             if (
                 (lower.includes("player") || lower.includes("momentum"))
@@ -9170,7 +9166,7 @@ input:focus-visible {
                     || lower.includes("climbing")
                 )
             ) {
-                return "Players rising";
+                return "Strong player growth";
             }
             if (
                 lower.includes("discount")
@@ -9178,14 +9174,14 @@ input:focus-visible {
                 || lower.includes("price favorable")
                 || lower.includes("better sale")
             ) {
-                return "Big discount";
+                return "Large discount vs normal price";
             }
             if (
                 lower.includes("popular")
                 || lower.includes("trending")
                 || lower.includes("interest")
             ) {
-                return "Trending now";
+                return "Popular game currently trending";
             }
 
             const firstSentence = raw
@@ -9237,7 +9233,7 @@ input:focus-visible {
             if (score >= 50) {
                 return {
                     score,
-                    confidence_label: "Watch",
+                    confidence_label: "Watch this",
                     confidence_icon: "WS",
                     class_name: "fair-price",
                 };
@@ -9312,9 +9308,9 @@ input:focus-visible {
             }
 
             if (recommendation === "BUY_NOW") {
-                pushDecisionLine(lines, buyReason || "Good time to buy");
+                pushDecisionLine(lines, buyReason || "Buy-now timing signal");
             } else if (recommendation === "WAIT") {
-                pushDecisionLine(lines, buyReason || predictedReason || "Better sale likely");
+                pushDecisionLine(lines, buyReason || predictedReason || "Better value likely on next sale");
             }
 
             if (
@@ -9322,9 +9318,9 @@ input:focus-visible {
                 || historicalStatus === "matches_historical_low"
                 || historicalStatus === "near_historical_low"
             ) {
-                pushDecisionLine(lines, "Near all-time low");
+                pushDecisionLine(lines, "Near historical low");
             } else if (Number.isFinite(priceVsLowRatio) && priceVsLowRatio > 0 && priceVsLowRatio <= 1.08) {
-                pushDecisionLine(lines, "Near all-time low");
+                pushDecisionLine(lines, "Near historical low");
             }
 
             if (trendReason) {
@@ -9333,13 +9329,13 @@ input:focus-visible {
                 (Number.isFinite(playerChange) && playerChange > 0)
                 || (Number.isFinite(playerTrend) && playerTrend > 0)
             ) {
-                pushDecisionLine(lines, "Players rising");
+                pushDecisionLine(lines, "Strong player growth");
             }
 
             if (discount >= 60) {
-                pushDecisionLine(lines, "Big discount");
+                pushDecisionLine(lines, "Large discount vs normal price");
             } else if (discount >= 35) {
-                pushDecisionLine(lines, "On sale now");
+                pushDecisionLine(lines, "Meaningful discount right now");
             }
 
             if (heatReason) {
@@ -9348,7 +9344,7 @@ input:focus-visible {
                 (Number.isFinite(popularityScore) && popularityScore >= 65)
                 || heatLevel === "HOT"
             ) {
-                pushDecisionLine(lines, "Trending now");
+                pushDecisionLine(lines, "Popular game currently trending");
             }
 
             if (!lines.length && worthReason) {
@@ -11446,7 +11442,7 @@ input:focus-visible {
             });
             const decisionLabel = resolveTimingDecisionLabel(focusTiming)
                 || resolveDealConfidence(focus)?.confidence_label
-                || "Watch";
+                || "Watch this";
             if (ui.watchOpportunityTitle) {
                 ui.watchOpportunityTitle.textContent = "Watch Opportunity";
             }

@@ -5294,17 +5294,6 @@ input:focus-visible {
         const HOMEPAGE_ALL_DEALS_LEAD_COUNT = 12;
         const HOMEPAGE_ALL_DEALS_MIN_DISCOUNT = 10;
         const HOMEPAGE_BOTTOM_RAIL_EXPOSURE_WINDOW = 8;
-        const HOMEPAGE_CROSS_RAIL_RENDER_PRIORITY = Object.freeze([
-            "dealRanked",
-            "worthBuyingNow",
-            "biggestDiscounts",
-            "trendingNow",
-            "opportunitiesNow",
-            "buyNowPicks",
-            "opportunityRadar",
-            "waitPicks",
-            "newHistoricalLows",
-        ]);
         const HOMEPAGE_PRIORITY_IMAGE_SECTIONS = new Set([
             "dealRankedGrid",
             "opportunitiesGrid",
@@ -6138,42 +6127,6 @@ input:focus-visible {
             if (safeArray(diversifiedRails.newHistoricalLows).length) {
                 state.newHistoricalLows = diversifiedRails.newHistoricalLows;
             }
-            const globallyDedupedRails = dedupeHomepageProtectedRailsByGameId(
-                {
-                    dealRanked: state.dealRanked,
-                    worthBuyingNow: state.worthBuyingNow,
-                    biggestDiscounts: state.biggestDiscounts,
-                    trendingNow: safeArray(state.trendingNow).length ? state.trendingNow : state.trendingDeals,
-                    opportunitiesNow: state.opportunitiesNow,
-                    buyNowPicks: state.buyNowPicks,
-                    opportunityRadar: state.opportunityRadar,
-                    waitPicks: state.waitPicks,
-                    newHistoricalLows: state.newHistoricalLows,
-                },
-                HOMEPAGE_CROSS_RAIL_RENDER_PRIORITY,
-                railSectionLimit,
-                [
-                    ...safeArray(state.dealRanked),
-                    ...safeArray(state.worthBuyingNow),
-                    ...safeArray(state.biggestDiscounts),
-                    ...safeArray(state.trendingNow),
-                    ...safeArray(state.opportunitiesNow),
-                    ...safeArray(state.buyNowPicks),
-                    ...safeArray(state.opportunityRadar),
-                    ...safeArray(state.waitPicks),
-                    ...safeArray(state.newHistoricalLows),
-                    ...safeArray(state.latestPrices),
-                ],
-            );
-            state.dealRanked = safeArray(globallyDedupedRails.dealRanked);
-            state.worthBuyingNow = safeArray(globallyDedupedRails.worthBuyingNow);
-            state.biggestDiscounts = safeArray(globallyDedupedRails.biggestDiscounts);
-            state.trendingNow = safeArray(globallyDedupedRails.trendingNow);
-            state.opportunitiesNow = safeArray(globallyDedupedRails.opportunitiesNow);
-            state.buyNowPicks = safeArray(globallyDedupedRails.buyNowPicks);
-            state.opportunityRadar = safeArray(globallyDedupedRails.opportunityRadar);
-            state.waitPicks = safeArray(globallyDedupedRails.waitPicks);
-            state.newHistoricalLows = safeArray(globallyDedupedRails.newHistoricalLows);
             state.biggestDeals = state.biggestDiscounts;
             sanitizePersonalizedDealsState();
         }
@@ -7132,55 +7085,6 @@ input:focus-visible {
                 appendUniqueRailRows(fallbackRows, usedKeys, selected, normalizedLimit);
             }
             return selected;
-        }
-
-        function crossRailGameIdKey(row) {
-            const normalized = normalizeGameRow(row);
-            const canonicalGameId = toPositiveIntOrNull(
-                normalized?.canonical_game_id
-                ?? normalized?.game_id
-                ?? normalized?.id,
-            );
-            if (canonicalGameId !== null) return `game_id:${canonicalGameId}`;
-            return gameIdentityKey(normalized);
-        }
-
-        function appendUniqueRailRowsByGameId(rows, selectedGameIds, selected, limit) {
-            for (const row of uniqueGamesByIdentity(rows)) {
-                const key = crossRailGameIdKey(row);
-                if (!key || selectedGameIds.has(key)) continue;
-                selectedGameIds.add(key);
-                selected.push(normalizeGameRow(row));
-                if (selected.length >= limit) break;
-            }
-            return selected;
-        }
-
-        function selectExclusiveRailRowsByGameId(primaryRows, fallbackRows, selectedGameIds, limit = 24) {
-            const normalizedLimit = Math.max(1, Number(limit) || 24);
-            const selected = [];
-            appendUniqueRailRowsByGameId(primaryRows, selectedGameIds, selected, normalizedLimit);
-            if (selected.length < normalizedLimit) {
-                appendUniqueRailRowsByGameId(fallbackRows, selectedGameIds, selected, normalizedLimit);
-            }
-            return selected;
-        }
-
-        function dedupeHomepageProtectedRailsByGameId(railsByKey, railOrder, limit = 24, fallbackRows = []) {
-            const normalizedLimit = Math.max(1, Number(limit) || 24);
-            const deduped = {};
-            const selectedGameIds = new Set();
-            const globalFallbackRows = filterProtectedDealRailRows(fallbackRows);
-            for (const railKey of safeArray(railOrder)) {
-                const primaryRows = filterProtectedDealRailRows(railsByKey?.[railKey] || []);
-                deduped[railKey] = selectExclusiveRailRowsByGameId(
-                    primaryRows,
-                    globalFallbackRows,
-                    selectedGameIds,
-                    normalizedLimit,
-                );
-            }
-            return deduped;
         }
 
         function appendGameIdQueryFallback(path, normalizedGame) {
@@ -16610,58 +16514,5 @@ try {
 
         init();
     </script>
-<script>
-(function () {
-  function initAutoScroll() {
-    const rails = document.querySelectorAll('#dealRankedGrid');
-    if (!rails.length) return false;
-
-    rails.forEach((rail) => {
-      if (rail.dataset.autoscrollBound) return;
-      rail.dataset.autoscrollBound = "1";
-
-      if (!rail.dataset.loopCloned) {
-        const children = Array.from(rail.children);
-        children.forEach((child) => {
-          const clone = child.cloneNode(true);
-          clone.setAttribute("data-clone", "1");
-          rail.appendChild(clone);
-        });
-        rail.dataset.loopCloned = "1";
-      }
-
-      let isHovered = false;
-
-      rail.addEventListener('mouseenter', () => (isHovered = true));
-      rail.addEventListener('mouseleave', () => (isHovered = false));
-
-      const originalWidth = rail.scrollWidth / 2;
-
-      function step() {
-        if (!isHovered) {
-          rail.scrollLeft += 1;
-
-          if (rail.scrollLeft >= originalWidth) {
-            rail.scrollLeft -= originalWidth;
-          }
-        }
-        requestAnimationFrame(step);
-      }
-
-      step();
-    });
-
-    return true;
-  }
-
-  const observer = new MutationObserver(() => {
-    if (initAutoScroll()) observer.disconnect();
-  });
-
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  setTimeout(initAutoScroll, 500);
-})();
-</script>
 </body>
 </html>

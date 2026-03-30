@@ -7,6 +7,7 @@ if str(ROOT_DIR) not in sys.path:
 
 import argparse
 import datetime
+import hashlib
 import json
 import math
 import os
@@ -99,6 +100,13 @@ HOMEPAGE_CRITICAL_DIGEST_LIMIT = 6
 HOMEPAGE_CRITICAL_RADAR_LIMIT = min(8, HOMEPAGE_RAIL_LIMIT)
 HOMEPAGE_DEAL_CANDIDATE_POOL = SNAPSHOT_HOMEPAGE_DEAL_CANDIDATE_POOL
 HOMEPAGE_DIVERSITY_WINDOW = SNAPSHOT_HOMEPAGE_DIVERSITY_WINDOW
+HOMEPAGE_COMPOSITION_POOL_MULTIPLIER = 5
+HOMEPAGE_COMPOSITION_RAIL_LIMIT = max(
+    HOMEPAGE_RAIL_LIMIT,
+    min(HOMEPAGE_DEAL_CANDIDATE_POOL, HOMEPAGE_RAIL_LIMIT * HOMEPAGE_COMPOSITION_POOL_MULTIPLIER),
+)
+HOMEPAGE_DIVERSITY_LEAD_PROTECT = 12
+HOMEPAGE_DIVERSITY_ROTATION_WINDOW = 9
 RETRY_BACKOFF_BASE_SECONDS = SNAPSHOT_RETRY_BACKOFF_BASE_SECONDS
 RETRY_BACKOFF_MAX_SECONDS = SNAPSHOT_RETRY_BACKOFF_MAX_SECONDS
 RETRY_BACKOFF_EXPONENT_CAP = SNAPSHOT_RETRY_BACKOFF_EXPONENT_CAP
@@ -125,16 +133,16 @@ HOMEPAGE_VISIBLE_DIVERSITY_RAIL_ORDER = (
     "trending_now",
 )
 HOMEPAGE_CROSS_RAIL_ORDER = (
-    "deal_opportunities",
     "deal_ranked",
-    "buy_now_picks",
-    "biggest_discounts",
     "worth_buying_now",
+    "biggest_discounts",
     "trending_now",
+    "deal_opportunities",
+    "buy_now_picks",
     "opportunity_radar",
     "wait_picks",
 )
-HOMEPAGE_CROSS_RAIL_UNIQUENESS_WINDOW = max(8, min(12, HOMEPAGE_RAIL_LIMIT))
+HOMEPAGE_CROSS_RAIL_UNIQUENESS_WINDOW = max(1, min(8, HOMEPAGE_RAIL_LIMIT))
 HOMEPAGE_CATALOG_SEED_LIMIT = 24
 HOMEPAGE_ALL_DEALS_LIMIT = 96
 HOMEPAGE_ALL_DEALS_CANDIDATE_POOL = 480
@@ -2265,13 +2273,36 @@ def _take_diverse_rows(
     used_game_ids: set[int],
     section_limit: int,
     uniqueness_window: int,
+    rail_key: str,
 ) -> list[GameSnapshot]:
+    def _diversity_token(game_id: int) -> int:
+        digest = hashlib.sha1(
+            f"{utcnow().date().isoformat()}:{rail_key}:{game_id}".encode("utf-8")
+        ).hexdigest()
+        return int(digest[:12], 16)
+
+    def _reorder_with_diversity_bias(rows: list[GameSnapshot]) -> list[GameSnapshot]:
+        if len(rows) <= HOMEPAGE_DIVERSITY_LEAD_PROTECT + 1:
+            return rows
+        lead_count = min(HOMEPAGE_DIVERSITY_LEAD_PROTECT, len(rows))
+        reordered: list[GameSnapshot] = list(rows[:lead_count])
+        tail = list(rows[lead_count:])
+        while tail:
+            window_size = min(HOMEPAGE_DIVERSITY_ROTATION_WINDOW, len(tail))
+            best_idx = min(
+                range(window_size),
+                key=lambda idx: _diversity_token(int(safe_num(tail[idx].game_id, 0.0))),
+            )
+            reordered.append(tail.pop(best_idx))
+        return reordered
+
+    ordered_candidates = _reorder_with_diversity_bias(ranked_candidates)
     selected: list[GameSnapshot] = []
     deferred: list[GameSnapshot] = []
     section_seen: set[int] = set()
     unique_target = max(0, min(section_limit, uniqueness_window))
 
-    for row in ranked_candidates:
+    for row in ordered_candidates:
         game_id = int(row.game_id)
         if game_id in section_seen:
             continue
@@ -2315,6 +2346,7 @@ def _apply_homepage_deal_diversity(
             used_game_ids=used_game_ids,
             section_limit=section_limit,
             uniqueness_window=uniqueness_window,
+            rail_key=rail_key,
         )
         diversified[rail_key] = diversified_rows
         for row in diversified_rows[:uniqueness_window]:
@@ -3637,6 +3669,36 @@ def _snapshot_sort_game_id(row: dict) -> int:
     return int(safe_num((row or {}).get("game_id") or (row or {}).get("id"), 0.0))
 
 
+def _snapshot_diversity_token(row: dict, rail_key: str, idx: int = 0) -> int:
+    identity = _snapshot_identity_key(row, idx)
+    digest = hashlib.sha1(
+        f"{utcnow().date().isoformat()}:{rail_key}:{identity}".encode("utf-8")
+    ).hexdigest()
+    return int(digest[:12], 16)
+
+
+def _reorder_ranked_snapshot_rows_for_diversity(
+    ranked_rows: list[dict],
+    *,
+    rail_key: str,
+    lead_protect: int = HOMEPAGE_DIVERSITY_LEAD_PROTECT,
+    rotation_window: int = HOMEPAGE_DIVERSITY_ROTATION_WINDOW,
+) -> list[dict]:
+    if len(ranked_rows) <= lead_protect + 1:
+        return ranked_rows
+    lead_count = min(max(0, int(lead_protect)), len(ranked_rows))
+    reordered: list[dict] = list(ranked_rows[:lead_count])
+    tail = list(ranked_rows[lead_count:])
+    while tail:
+        window_size = min(max(1, int(rotation_window)), len(tail))
+        best_idx = min(
+            range(window_size),
+            key=lambda idx: _snapshot_diversity_token(tail[idx], rail_key, idx),
+        )
+        reordered.append(tail.pop(best_idx))
+    return reordered
+
+
 def _is_all_deals_floor_snapshot_row(row: dict) -> bool:
     if not isinstance(row, dict):
         return False
@@ -3711,6 +3773,7 @@ def _build_homepage_all_deals_rows(
 ) -> list[dict]:
     bounded_limit = max(1, int(limit))
     bounded_lead_count = max(1, min(int(lead_count), bounded_limit))
+    max_exposed_rows = max(4, min(8, bounded_limit // 3))
     candidate_rows = _released_deal_snapshot_rows([*primary_rows, *fallback_rows])
     floor_rows = [row for row in candidate_rows if _is_all_deals_floor_snapshot_row(row)]
     ranked_rows = floor_rows if floor_rows else candidate_rows
@@ -3725,24 +3788,35 @@ def _build_homepage_all_deals_rows(
         ),
         reverse=True,
     )
+    ranked_rows = _reorder_ranked_snapshot_rows_for_diversity(
+        ranked_rows,
+        rail_key="all_deals",
+        lead_protect=min(6, bounded_lead_count),
+        rotation_window=10,
+    )
     if not ranked_rows:
         return []
 
     selected: list[dict] = []
     seen_keys: set[str] = set()
+    exposed_rows_selected = 0
 
     def _try_add(row: dict, *, allow_exposed: bool) -> bool:
+        nonlocal exposed_rows_selected
         row_key = _snapshot_identity_key(row, 0)
         if not row_key or row_key in seen_keys:
             return False
         repeat_count = int(exposure_counts.get(row_key, 0))
-        is_exceptional_repeat = repeat_count > 0 and _is_exceptional_homepage_repeat_row(row)
         if repeat_count >= 2:
             return False
-        if not allow_exposed and repeat_count > 0 and not is_exceptional_repeat:
+        if not allow_exposed and repeat_count > 0:
+            return False
+        if allow_exposed and repeat_count > 0 and exposed_rows_selected >= max_exposed_rows:
             return False
         selected.append(row)
         seen_keys.add(row_key)
+        if repeat_count > 0:
+            exposed_rows_selected += 1
         exposure_counts[row_key] = repeat_count + 1
         return True
 
@@ -3829,14 +3903,11 @@ def _compose_cross_rail_snapshot_rows(
                 continue
 
             repeat_count = int(exposure_counts.get(row_key, 0))
-            is_exceptional_repeat = repeat_count > 0 and _is_exceptional_homepage_repeat_row(row)
-
-            if repeat_count > 0 and not is_exceptional_repeat:
+            if repeat_count > 0:
+                if repeat_count >= 2:
+                    seen_keys.add(row_key)
+                    continue
                 deferred_repeats.append(row)
-                seen_keys.add(row_key)
-                continue
-
-            if repeat_count >= 2:
                 seen_keys.add(row_key)
                 continue
 
@@ -3852,8 +3923,10 @@ def _compose_cross_rail_snapshot_rows(
             row_key = _snapshot_identity_key(row, idx)
             if not row_key:
                 continue
+            repeat_count = int(exposure_counts.get(row_key, 0))
+            if repeat_count >= 2:
+                continue
             if len(selected) < bounded_window and len(selected) > 0:
-                # Keep lead slots as unique as possible unless the rail is underfilled.
                 continue
             selected.append(row)
             if len(selected) >= bounded_limit:
@@ -3863,11 +3936,19 @@ def _compose_cross_rail_snapshot_rows(
         for row in deferred_repeats:
             if row in selected:
                 continue
+            row_key = _snapshot_identity_key(row, 0)
+            if not row_key:
+                continue
+            repeat_count = int(exposure_counts.get(row_key, 0))
+            if repeat_count >= 2:
+                continue
             selected.append(row)
             if len(selected) >= bounded_limit:
                 break
 
     for idx, row in enumerate(selected):
+        if idx >= bounded_window:
+            continue
         row_key = _snapshot_identity_key(row, idx)
         if not row_key:
             continue
@@ -3962,8 +4043,12 @@ def _allocate_homepage_protected_deal_rails(
         ("opportunity_radar", ranked_radar),
         ("wait_picks", ranked_wait),
     ):
+        diverse_ranked_rows = _reorder_ranked_snapshot_rows_for_diversity(
+            ranked_rows,
+            rail_key=rail_key,
+        )
         allocated[rail_key] = _compose_unique_snapshot_rows(
-            _released_deal_snapshot_rows(ranked_rows),
+            _released_deal_snapshot_rows(diverse_ranked_rows),
             eligible_pool,
             used_keys,
             bounded_limit,
@@ -4148,7 +4233,7 @@ def rebuild_dashboard_cache(session: Session) -> None:
             "biggest_deals": biggest_deals,
             "trending_deals": trending_deals,
         },
-        section_limit=HOMEPAGE_RAIL_LIMIT,
+        section_limit=HOMEPAGE_COMPOSITION_RAIL_LIMIT,
         uniqueness_window=HOMEPAGE_DIVERSITY_WINDOW,
         rail_order=HOMEPAGE_DIVERSITY_RAIL_ORDER,
     )
@@ -4275,7 +4360,7 @@ def rebuild_dashboard_cache(session: Session) -> None:
     trending_now_rows = _released_deal_snapshot_rows(trending_rows if trending_rows else trending_deals_rows)
     allocated_protected_rails, protected_visible_keys = _allocate_homepage_protected_deal_rails(
         [*canonical_deal_pool, *trending_now_rows, *new_historical_lows_rows],
-        HOMEPAGE_RAIL_LIMIT,
+        HOMEPAGE_COMPOSITION_RAIL_LIMIT,
     )
     deal_opportunities_rows = allocated_protected_rails.get("deal_opportunities", [])
     opportunity_radar_rows = allocated_protected_rails.get("opportunity_radar", [])
@@ -4285,26 +4370,28 @@ def rebuild_dashboard_cache(session: Session) -> None:
         biggest_discounts_rows = _released_deal_snapshot_rows(deal_ranked_rows)
     wait_picks = allocated_protected_rails.get("wait_picks", [])
 
-    buy_now_candidates = _released_deal_snapshot_rows(_build_decision_picks(canonical_deal_pool, "BUY_NOW"))
+    buy_now_candidates = _released_deal_snapshot_rows(
+        _build_decision_picks(canonical_deal_pool, "BUY_NOW", limit=HOMEPAGE_COMPOSITION_RAIL_LIMIT)
+    )
     buy_now_picks = _compose_unique_snapshot_rows(
         buy_now_candidates,
         _released_deal_snapshot_rows([*worth_buying_rows, *canonical_deal_pool]),
         protected_visible_keys,
-        HOMEPAGE_RAIL_LIMIT,
+        HOMEPAGE_COMPOSITION_RAIL_LIMIT,
     )
     if not buy_now_picks:
         buy_now_picks = _compose_unique_snapshot_rows(
             _released_deal_snapshot_rows(worth_buying_now_rows),
             _released_deal_snapshot_rows(canonical_deal_pool),
             protected_visible_keys,
-            HOMEPAGE_RAIL_LIMIT,
+            HOMEPAGE_COMPOSITION_RAIL_LIMIT,
         )
 
     deal_ranked_rows = _compose_unique_snapshot_rows(
         _released_deal_snapshot_rows(deal_ranked_rows),
         _released_deal_snapshot_rows([*canonical_deal_pool, *biggest_discounts_rows]),
         set(),
-        HOMEPAGE_RAIL_LIMIT,
+        HOMEPAGE_COMPOSITION_RAIL_LIMIT,
     )
     diversified_cross_rails, cross_rail_exposure_counts = _diversify_homepage_cross_rails(
         {

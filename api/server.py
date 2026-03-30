@@ -222,17 +222,19 @@ CATALOG_SEED_CACHE_KEY = "home:catalog_seed"
 ALL_DEALS_FEED_CACHE_KEY = "home:all_deals_feed"
 HOMEPAGE_CRITICAL_LIMIT = 8
 DASHBOARD_HOME_DEAL_RAIL_LIMIT = 60
-DASHBOARD_CROSS_RAIL_UNIQUENESS_WINDOW = max(8, min(12, DASHBOARD_HOME_DEAL_RAIL_LIMIT))
+DASHBOARD_CROSS_RAIL_UNIQUENESS_WINDOW = max(1, min(8, DASHBOARD_HOME_DEAL_RAIL_LIMIT))
 DASHBOARD_ALL_DEALS_LIMIT = 96
 DASHBOARD_ALL_DEALS_LEAD_COUNT = 12
 DASHBOARD_ALL_DEALS_MIN_DISCOUNT = 10
+DASHBOARD_DIVERSITY_LEAD_PROTECT = 12
+DASHBOARD_DIVERSITY_ROTATION_WINDOW = 9
 DASHBOARD_CROSS_RAIL_ORDER = (
-    "deal_opportunities",
     "dealRanked",
-    "buy_now_picks",
-    "biggest_discounts",
     "worth_buying_now",
+    "biggest_discounts",
     "trending_now",
+    "deal_opportunities",
+    "buy_now_picks",
     "opportunity_radar",
     "wait_picks",
 )
@@ -7654,6 +7656,47 @@ def _dashboard_sort_game_id(row: dict) -> int:
     return int(safe_num((row or {}).get("game_id") or (row or {}).get("id"), 0.0))
 
 
+def _dashboard_diversity_epoch_token(payload: dict | None = None) -> str:
+    generated_at = None
+    if isinstance(payload, dict):
+        generated_at = payload.get("generated_at") or payload.get("_meta", {}).get("generated_at")
+    normalized = str(generated_at or "").strip()
+    if normalized:
+        date_part = normalized.split("T", 1)[0]
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", date_part):
+            return date_part
+    return utc_now().date().isoformat()
+
+
+def _dashboard_row_diversity_token(row: dict, rail_key: str, epoch_token: str, idx: int = 0) -> int:
+    identity = _dashboard_identity_key(row, idx)
+    digest = hashlib.sha1(f"{epoch_token}:{rail_key}:{identity}".encode("utf-8")).hexdigest()
+    return int(digest[:12], 16)
+
+
+def _reorder_ranked_dashboard_rows_for_diversity(
+    ranked_rows: list[dict],
+    *,
+    rail_key: str,
+    epoch_token: str,
+    lead_protect: int = DASHBOARD_DIVERSITY_LEAD_PROTECT,
+    rotation_window: int = DASHBOARD_DIVERSITY_ROTATION_WINDOW,
+) -> list[dict]:
+    if len(ranked_rows) <= lead_protect + 1:
+        return ranked_rows
+    lead_count = min(max(0, int(lead_protect)), len(ranked_rows))
+    reordered: list[dict] = list(ranked_rows[:lead_count])
+    tail = list(ranked_rows[lead_count:])
+    while tail:
+        window_size = min(max(1, int(rotation_window)), len(tail))
+        best_idx = min(
+            range(window_size),
+            key=lambda idx: _dashboard_row_diversity_token(tail[idx], rail_key, epoch_token, idx),
+        )
+        reordered.append(tail.pop(best_idx))
+    return reordered
+
+
 def _is_all_deals_floor_dashboard_row(row: dict) -> bool:
     if not isinstance(row, dict):
         return False
@@ -7725,9 +7768,12 @@ def _build_dashboard_all_deals_rows(
     exposure_counts: dict[str, int],
     limit: int = DASHBOARD_ALL_DEALS_LIMIT,
     lead_count: int = DASHBOARD_ALL_DEALS_LEAD_COUNT,
+    diversity_epoch: str | None = None,
 ) -> list[dict]:
     bounded_limit = max(1, int(limit))
     bounded_lead_count = max(1, min(int(lead_count), bounded_limit))
+    epoch_token = str(diversity_epoch or utc_now().date().isoformat())
+    max_exposed_rows = max(4, min(8, bounded_limit // 3))
     candidate_rows = _released_deal_dashboard_rows([*primary_rows, *fallback_rows])
     floor_rows = [row for row in candidate_rows if _is_all_deals_floor_dashboard_row(row)]
     ranked_rows = floor_rows if floor_rows else candidate_rows
@@ -7742,24 +7788,36 @@ def _build_dashboard_all_deals_rows(
         ),
         reverse=True,
     )
+    ranked_rows = _reorder_ranked_dashboard_rows_for_diversity(
+        ranked_rows,
+        rail_key="all_deals",
+        epoch_token=epoch_token,
+        lead_protect=min(6, bounded_lead_count),
+        rotation_window=10,
+    )
     if not ranked_rows:
         return []
 
     selected: list[dict] = []
     seen_keys: set[str] = set()
+    exposed_rows_selected = 0
 
     def _try_add(row: dict, *, allow_exposed: bool) -> bool:
+        nonlocal exposed_rows_selected
         row_key = _dashboard_identity_key(row, 0)
         if not row_key or row_key in seen_keys:
             return False
         repeat_count = int(exposure_counts.get(row_key, 0))
-        is_exceptional_repeat = repeat_count > 0 and _is_exceptional_dashboard_repeat_row(row)
         if repeat_count >= 2:
             return False
-        if not allow_exposed and repeat_count > 0 and not is_exceptional_repeat:
+        if not allow_exposed and repeat_count > 0:
+            return False
+        if allow_exposed and repeat_count > 0 and exposed_rows_selected >= max_exposed_rows:
             return False
         selected.append(row)
         seen_keys.add(row_key)
+        if repeat_count > 0:
+            exposed_rows_selected += 1
         exposure_counts[row_key] = repeat_count + 1
         return True
 
@@ -7846,14 +7904,11 @@ def _compose_cross_rail_dashboard_rows(
                 continue
 
             repeat_count = int(exposure_counts.get(row_key, 0))
-            is_exceptional_repeat = repeat_count > 0 and _is_exceptional_dashboard_repeat_row(row)
-
-            if repeat_count > 0 and not is_exceptional_repeat:
+            if repeat_count > 0:
+                if repeat_count >= 2:
+                    seen_keys.add(row_key)
+                    continue
                 deferred_repeats.append(row)
-                seen_keys.add(row_key)
-                continue
-
-            if repeat_count >= 2:
                 seen_keys.add(row_key)
                 continue
 
@@ -7869,6 +7924,9 @@ def _compose_cross_rail_dashboard_rows(
             row_key = _dashboard_identity_key(row, idx)
             if not row_key:
                 continue
+            repeat_count = int(exposure_counts.get(row_key, 0))
+            if repeat_count >= 2:
+                continue
             if len(selected) < bounded_window and len(selected) > 0:
                 continue
             selected.append(row)
@@ -7879,11 +7937,19 @@ def _compose_cross_rail_dashboard_rows(
         for row in deferred_repeats:
             if row in selected:
                 continue
+            row_key = _dashboard_identity_key(row, 0)
+            if not row_key:
+                continue
+            repeat_count = int(exposure_counts.get(row_key, 0))
+            if repeat_count >= 2:
+                continue
             selected.append(row)
             if len(selected) >= bounded_limit:
                 break
 
     for idx, row in enumerate(selected):
+        if idx >= bounded_window:
+            continue
         row_key = _dashboard_identity_key(row, idx)
         if not row_key:
             continue
@@ -7940,6 +8006,8 @@ def _score_dashboard_opportunity_row(row: dict) -> float:
 def _allocate_protected_dashboard_deal_rails(
     candidate_pool: list[dict],
     limit: int,
+    *,
+    diversity_epoch: str,
 ) -> tuple[dict[str, list[dict]], set[str]]:
     eligible_pool = _released_deal_dashboard_rows(candidate_pool)
     if not eligible_pool:
@@ -7991,8 +8059,13 @@ def _allocate_protected_dashboard_deal_rails(
         ("opportunity_radar", ranked_radar),
         ("wait_picks", ranked_wait),
     ):
+        diverse_ranked_rows = _reorder_ranked_dashboard_rows_for_diversity(
+            ranked_rows,
+            rail_key=rail_key,
+            epoch_token=diversity_epoch,
+        )
         allocated[rail_key] = _compose_unique_dashboard_rows(
-            _released_deal_dashboard_rows(ranked_rows),
+            _released_deal_dashboard_rows(diverse_ranked_rows),
             eligible_pool,
             used_keys,
             bounded_limit,
@@ -8072,6 +8145,7 @@ def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
     payload = dict(raw_payload)
 
     rail_limit = DASHBOARD_HOME_DEAL_RAIL_LIMIT
+    diversity_epoch = _dashboard_diversity_epoch_token(payload)
     worth_buying_now = _released_deal_dashboard_rows(_dashboard_rows(payload, "worth_buying_now", "worthBuyingNow"))
     biggest_discounts = _released_deal_dashboard_rows(_dashboard_rows(payload, "biggest_discounts", "biggestDeals"))
     trending_now = _released_dashboard_rows(_dashboard_rows(payload, "trending_now", "trending", "trendingDeals"))
@@ -8106,6 +8180,7 @@ def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
     allocated_rails, protected_visible_keys = _allocate_protected_dashboard_deal_rails(
         [*canonical_deal_pool, *deal_opportunities, *opportunity_radar],
         rail_limit,
+        diversity_epoch=diversity_epoch,
     )
     deal_opportunities = allocated_rails.get("deal_opportunities", [])
     opportunity_radar = allocated_rails.get("opportunity_radar", [])
@@ -8191,6 +8266,7 @@ def _augment_dashboard_home_payload(raw_payload: dict) -> dict:
         exposure_counts=dict(cross_rail_exposure_counts),
         limit=DASHBOARD_ALL_DEALS_LIMIT,
         lead_count=DASHBOARD_ALL_DEALS_LEAD_COUNT,
+        diversity_epoch=diversity_epoch,
     )
     if not all_deals_rows:
         all_deals_rows = _released_deal_dashboard_rows(

@@ -1870,56 +1870,6 @@ input:focus-visible {
     perspective: 1200px;
 }
 
-#releasedGamesGrid {
-    --row-card-size: clamp(var(--row-card-min), 22vw, var(--row-card-max));
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: stretch;
-    gap: 11px;
-    min-width: 0;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 4px;
-    scroll-padding-left: 12px;
-    scroll-behavior: smooth;
-    scroll-snap-type: x proximity;
-    scrollbar-width: thin;
-    contain: paint;
-    overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
-}
-
-#releasedGamesGrid > * {
-    min-width: 0;
-    flex: 0 0 var(--row-card-size);
-    width: var(--row-card-size);
-    max-width: none;
-}
-
-#releasedGamesGrid > .section-empty,
-#releasedGamesGrid > .error,
-#releasedGamesGrid > .analytics-empty {
-    flex: 0 0 100%;
-    width: 100%;
-    max-width: 100%;
-}
-
-#releasedGamesGrid .game-card {
-    scroll-snap-align: start;
-    min-width: 0;
-    width: 100%;
-    max-width: 100%;
-}
-
-#releasedGamesGrid::-webkit-scrollbar {
-    height: 10px;
-}
-
-#releasedGamesGrid::-webkit-scrollbar-thumb {
-    background: rgba(154,182,255,0.22);
-    border-radius: 999px;
-}
-
 .row-scroller {
     --row-card-size: clamp(var(--row-card-min), 22vw, var(--row-card-max));
     display: flex;
@@ -5354,10 +5304,6 @@ input:focus-visible {
         const HOMEPAGE_ALL_DEALS_INITIAL_COUNT = 8;
         const HOMEPAGE_ALL_DEALS_LEAD_COUNT = 12;
         const HOMEPAGE_ALL_DEALS_MIN_DISCOUNT = 10;
-        const ALL_DEALS_AMBIENT_SCROLL_IDLE_MS = 7000;
-        const ALL_DEALS_AMBIENT_SCROLL_RESUME_DELAY_MS = 5000;
-        const ALL_DEALS_AMBIENT_SCROLL_PX_PER_SECOND = 2.8;
-        const ALL_DEALS_AMBIENT_SCROLL_MAX_STEP_PX = 0.24;
         const HOMEPAGE_BOTTOM_RAIL_EXPOSURE_WINDOW = 8;
         const HOMEPAGE_PRIORITY_IMAGE_SECTIONS = new Set([
             "dealRankedGrid",
@@ -14876,7 +14822,6 @@ try {
                 wireKeyboardShortcuts();
                 wireDragScroll();
                 wireHorizontalRailContinuation();
-                wireAllDealsAmbientScroll();
                 wireTrackedGameLinks();
                 wireQuickView();
             };
@@ -16142,159 +16087,6 @@ try {
             });
 
             observer.observe(sentinel);
-        }
-
-        function wireAllDealsAmbientScroll() {
-            if (wireAllDealsAmbientScroll._wired) return;
-            const rail = ui.releasedGamesGrid || document.getElementById("releasedGamesGrid");
-            if (!(rail instanceof HTMLElement)) return;
-
-            const reducedMotionQuery = window.matchMedia
-                ? window.matchMedia("(prefers-reduced-motion: reduce)")
-                : null;
-            let reducedMotion = !!(reducedMotionQuery && reducedMotionQuery.matches);
-            let direction = 1;
-            let lastFrameTs = 0;
-            let interactionResumeAt = Date.now() + ALL_DEALS_AMBIENT_SCROLL_IDLE_MS;
-            let hovering = false;
-            let touchActive = false;
-            let focusWithin = false;
-            let internalScrollUpdate = false;
-
-            const noteInteraction = (delayMs = ALL_DEALS_AMBIENT_SCROLL_RESUME_DELAY_MS) => {
-                const safeDelay = Math.max(400, Number(delayMs) || ALL_DEALS_AMBIENT_SCROLL_RESUME_DELAY_MS);
-                interactionResumeAt = Date.now() + safeDelay;
-            };
-
-            const isAllDealsRailReady = () => {
-                if (!rail.isConnected) return false;
-                if (!isDiscoveryTabActive("all-games")) return false;
-                if (rail.offsetParent === null) return false;
-                if (rail.clientWidth <= 0) return false;
-                return rail.scrollWidth > rail.clientWidth + 1;
-            };
-
-            const canAutoScroll = () => (
-                !reducedMotion
-                && !hovering
-                && !touchActive
-                && !focusWithin
-                && Date.now() >= interactionResumeAt
-                && isAllDealsRailReady()
-            );
-
-            rail.addEventListener("mouseenter", () => {
-                hovering = true;
-                noteInteraction();
-            });
-            rail.addEventListener("mouseleave", () => {
-                hovering = false;
-                noteInteraction();
-            });
-            rail.addEventListener("pointerdown", () => {
-                noteInteraction();
-            }, { passive: true });
-            rail.addEventListener("wheel", () => {
-                noteInteraction();
-            }, { passive: true });
-            rail.addEventListener("click", () => {
-                noteInteraction();
-            });
-            rail.addEventListener("keydown", () => {
-                noteInteraction();
-            });
-            rail.addEventListener("touchstart", () => {
-                touchActive = true;
-                noteInteraction(ALL_DEALS_AMBIENT_SCROLL_RESUME_DELAY_MS + 1800);
-            }, { passive: true });
-            rail.addEventListener("touchend", () => {
-                touchActive = false;
-                noteInteraction();
-            }, { passive: true });
-            rail.addEventListener("touchcancel", () => {
-                touchActive = false;
-                noteInteraction();
-            }, { passive: true });
-            rail.addEventListener("focusin", () => {
-                focusWithin = true;
-                noteInteraction();
-            });
-            rail.addEventListener("focusout", () => {
-                focusWithin = rail.contains(document.activeElement);
-                noteInteraction();
-            });
-            rail.addEventListener("scroll", () => {
-                if (internalScrollUpdate) return;
-                noteInteraction();
-            }, { passive: true });
-
-            document.addEventListener("click", (event) => {
-                const trigger = event.target instanceof Element
-                    ? event.target.closest("[data-row-left],[data-row-right]")
-                    : null;
-                if (!trigger) return;
-                const leftTarget = String(trigger.getAttribute("data-row-left") || "").trim();
-                const rightTarget = String(trigger.getAttribute("data-row-right") || "").trim();
-                if (leftTarget === "releasedGamesGrid" || rightTarget === "releasedGamesGrid") {
-                    noteInteraction();
-                }
-            });
-
-            if (reducedMotionQuery) {
-                const handleReducedMotionChange = (event) => {
-                    reducedMotion = !!event.matches;
-                    noteInteraction(
-                        reducedMotion
-                            ? ALL_DEALS_AMBIENT_SCROLL_IDLE_MS
-                            : ALL_DEALS_AMBIENT_SCROLL_RESUME_DELAY_MS,
-                    );
-                };
-                if (typeof reducedMotionQuery.addEventListener === "function") {
-                    reducedMotionQuery.addEventListener("change", handleReducedMotionChange);
-                } else if (typeof reducedMotionQuery.addListener === "function") {
-                    reducedMotionQuery.addListener(handleReducedMotionChange);
-                }
-            }
-
-            const tick = (ts) => {
-                requestAnimationFrame(tick);
-                if (!canAutoScroll()) {
-                    lastFrameTs = ts;
-                    return;
-                }
-
-                const maxScroll = Math.max(0, rail.scrollWidth - rail.clientWidth);
-                if (maxScroll <= 1) {
-                    lastFrameTs = ts;
-                    return;
-                }
-                if (rail.scrollLeft >= maxScroll - 0.6) {
-                    direction = -1;
-                } else if (rail.scrollLeft <= 0.6) {
-                    direction = 1;
-                }
-
-                if (!lastFrameTs) {
-                    lastFrameTs = ts;
-                }
-                const deltaMs = Math.max(0, Math.min(64, ts - lastFrameTs));
-                lastFrameTs = ts;
-                const distance = Math.min(
-                    ALL_DEALS_AMBIENT_SCROLL_MAX_STEP_PX,
-                    (deltaMs / 1000) * ALL_DEALS_AMBIENT_SCROLL_PX_PER_SECOND,
-                );
-                if (!(distance > 0)) return;
-
-                const target = Math.max(0, Math.min(maxScroll, rail.scrollLeft + (direction * distance)));
-                if (Math.abs(target - rail.scrollLeft) < 0.01) return;
-                internalScrollUpdate = true;
-                rail.scrollLeft = target;
-                internalScrollUpdate = false;
-            };
-
-            noteInteraction(ALL_DEALS_AMBIENT_SCROLL_IDLE_MS);
-            requestAnimationFrame(tick);
-            wireAllDealsAmbientScroll._wired = true;
         }
 
         function wireCatalogLifecycle() {

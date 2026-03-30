@@ -16613,14 +16613,13 @@ try {
 <script>
 (function () {
   function initAutoScroll() {
-    const rails = document.querySelectorAll('.row-scroller');
+    const rails = document.querySelectorAll('#dealRankedGrid');
     if (!rails.length) return false;
 
     rails.forEach((rail) => {
       if (rail.dataset.autoscrollBound) return;
       rail.dataset.autoscrollBound = "1";
 
-      // --- STEP 1: duplicate content ONCE for seamless looping ---
       if (!rail.dataset.loopCloned) {
         const children = Array.from(rail.children);
         children.forEach((child) => {
@@ -16640,14 +16639,12 @@ try {
 
       function step() {
         if (!isHovered) {
-          rail.scrollLeft += 1; // ✅ FIXED SPEED (visible)
+          rail.scrollLeft += 1;
 
-          // --- STEP 2: seamless reset ---
           if (rail.scrollLeft >= originalWidth) {
             rail.scrollLeft -= originalWidth;
           }
         }
-
         requestAnimationFrame(step);
       }
 
@@ -16657,16 +16654,12 @@ try {
     return true;
   }
 
-  // Wait for hydration
   const observer = new MutationObserver(() => {
-    if (initAutoScroll()) {
-      observer.disconnect();
-    }
+    if (initAutoScroll()) observer.disconnect();
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
 
-  // fallback
   setTimeout(initAutoScroll, 500);
 })();
 </script>

@@ -16551,6 +16551,9 @@ try {
 
     rail.dataset.autoscrollRunning = "1";
 
+// 🔥 disable scroll snapping so JS scrolling works
+rail.style.scrollSnapType = "none";
+
     const step = () => {
       if (!document.body.contains(rail)) {
         rail.dataset.autoscrollRunning = "0";

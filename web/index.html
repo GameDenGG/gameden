@@ -16488,6 +16488,20 @@ try {
     return rail instanceof HTMLElement ? rail : null;
   }
 
+  function stopAutoscroll() {
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  }
+
+  function disconnectRailObserver() {
+    if (railObserver) {
+      railObserver.disconnect();
+      railObserver = null;
+    }
+  }
+
   function removeClones(rail) {
     rail.querySelectorAll('[data-autoscroll-clone="1"]').forEach((node) => node.remove());
   }
@@ -16499,11 +16513,14 @@ try {
   }
 
   function buildLoop(rail) {
+    disconnectRailObserver();
+
     removeClones(rail);
 
     const realChildren = getRealChildren(rail);
     if (realChildren.length < 2) {
       rail.dataset.autoscrollReady = "0";
+      observeRail(rail);
       return false;
     }
 
@@ -16514,14 +16531,8 @@ try {
     });
 
     rail.dataset.autoscrollReady = "1";
+    observeRail(rail);
     return true;
-  }
-
-  function stopAutoscroll() {
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
-    }
   }
 
   function startAutoscroll(rail) {
@@ -16593,10 +16604,7 @@ try {
   }
 
   function observeRail(rail) {
-    if (railObserver) {
-      railObserver.disconnect();
-      railObserver = null;
-    }
+    disconnectRailObserver();
 
     railObserver = new MutationObserver(() => {
       refreshAutoscroll();
@@ -16610,7 +16618,6 @@ try {
     if (!rail) return false;
 
     const started = refreshAutoscroll();
-    observeRail(rail);
     return started;
   }
 

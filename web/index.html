@@ -16477,11 +16477,12 @@ try {
 <script>
 (function () {
   const TARGET_ID = "dealRankedGrid";
-  const SPEED_PX_PER_FRAME = 0.8;
+  const SPEED_PX_PER_FRAME = 0.6;
 
   let rafId = null;
-  let pollId = null;
   let railObserver = null;
+  let initPollId = null;
+  let lastRealSignature = "";
 
   function getRail() {
     const rail = document.getElementById(TARGET_ID);
@@ -16502,29 +16503,77 @@ try {
     }
   }
 
-  function removeClones(rail) {
-    rail.querySelectorAll('[data-autoscroll-clone="1"]').forEach((node) => node.remove());
-  }
-
   function getRealChildren(rail) {
     return Array.from(rail.children).filter(
       (node) => node instanceof HTMLElement && node.dataset.autoscrollClone !== "1"
     );
   }
 
+  function removeClones(rail) {
+    rail.querySelectorAll('[data-autoscroll-clone="1"]').forEach((node) => node.remove());
+  }
+
+  function getRealSignature(rail) {
+    return getRealChildren(rail)
+      .map((node) =>
+        node.getAttribute("data-game-id")
+        || node.getAttribute("data-key")
+        || node.getAttribute("data-id")
+        || node.id
+        || node.outerHTML.slice(0, 120)
+      )
+      .join("|");
+  }
+
+  function setSnapPaused(rail, paused) {
+    rail.style.scrollSnapType = paused ? "" : "none";
+  }
+
+  function wirePauseHandlers(rail) {
+    if (rail.dataset.autoscrollHandlersBound === "1") return;
+
+    rail.addEventListener("mouseenter", () => {
+      rail.dataset.pauseAutoscroll = "1";
+      setSnapPaused(rail, true);
+    });
+
+    rail.addEventListener("mouseleave", () => {
+      rail.dataset.pauseAutoscroll = "0";
+      setSnapPaused(rail, false);
+    });
+
+    rail.addEventListener("pointerdown", () => {
+      rail.dataset.pauseAutoscroll = "1";
+      setSnapPaused(rail, true);
+    });
+
+    window.addEventListener("pointerup", () => {
+      const currentRail = getRail();
+      if (!currentRail) return;
+      currentRail.dataset.pauseAutoscroll = "0";
+      setSnapPaused(currentRail, false);
+    });
+
+    rail.dataset.autoscrollHandlersBound = "1";
+  }
+
   function buildLoop(rail) {
     disconnectRailObserver();
     stopAutoscroll();
+
     rail.dataset.autoscrollRunning = "0";
+    rail.dataset.autoscrollReady = "0";
 
     removeClones(rail);
 
     const realChildren = getRealChildren(rail);
     if (realChildren.length < 2) {
-      rail.dataset.autoscrollReady = "0";
       observeRail(rail);
       return false;
     }
+
+    const signature = getRealSignature(rail);
+    lastRealSignature = signature;
 
     realChildren.forEach((child) => {
       const clone = child.cloneNode(true);
@@ -16532,13 +16581,19 @@ try {
       rail.appendChild(clone);
     });
 
-    // Force layout after clones exist
     void rail.offsetWidth;
 
     const loopWidth = rail.scrollWidth / 2;
     const hasOverflow = loopWidth > rail.clientWidth + 4;
 
     rail.dataset.autoscrollReady = hasOverflow ? "1" : "0";
+    rail.dataset.pauseAutoscroll = rail.dataset.pauseAutoscroll || "0";
+
+    if (!hasOverflow) {
+      setSnapPaused(rail, true);
+    } else {
+      setSnapPaused(rail, false);
+    }
 
     observeRail(rail);
     return hasOverflow;
@@ -16550,9 +16605,7 @@ try {
     if (rail.dataset.autoscrollRunning === "1") return;
 
     rail.dataset.autoscrollRunning = "1";
-
-// 🔥 disable scroll snapping so JS scrolling works
-rail.style.scrollSnapType = "none";
+    setSnapPaused(rail, false);
 
     const step = () => {
       if (!document.body.contains(rail)) {
@@ -16565,6 +16618,7 @@ rail.style.scrollSnapType = "none";
         const loopWidth = rail.scrollWidth / 2;
         if (loopWidth > rail.clientWidth + 4) {
           rail.scrollLeft += SPEED_PX_PER_FRAME;
+
           if (rail.scrollLeft >= loopWidth) {
             rail.scrollLeft -= loopWidth;
           }
@@ -16577,34 +16631,25 @@ rail.style.scrollSnapType = "none";
     rafId = requestAnimationFrame(step);
   }
 
-  function wirePauseHandlers(rail) {
-    if (rail.dataset.autoscrollHandlersBound === "1") return;
-
-    rail.addEventListener("mouseenter", () => {
-      rail.dataset.pauseAutoscroll = "1";
-    });
-
-    rail.addEventListener("mouseleave", () => {
-      rail.dataset.pauseAutoscroll = "0";
-    });
-
-    rail.addEventListener("pointerdown", () => {
-      rail.dataset.pauseAutoscroll = "1";
-    });
-
-    window.addEventListener("pointerup", () => {
-      const currentRail = getRail();
-      if (currentRail) currentRail.dataset.pauseAutoscroll = "0";
-    });
-
-    rail.dataset.autoscrollHandlersBound = "1";
-  }
-
-  function refreshAutoscroll() {
+  function refreshAutoscroll(forceRebuild = false) {
     const rail = getRail();
     if (!rail) return false;
 
     wirePauseHandlers(rail);
+
+    const nextSignature = getRealSignature(rail);
+    const needsRebuild =
+      forceRebuild ||
+      rail.dataset.autoscrollReady !== "1" ||
+      nextSignature !== lastRealSignature ||
+      rail.querySelectorAll('[data-autoscroll-clone="1"]').length === 0;
+
+    if (!needsRebuild) {
+      if (rail.dataset.autoscrollRunning !== "1") {
+        startAutoscroll(rail);
+      }
+      return true;
+    }
 
     const ready = buildLoop(rail);
     if (!ready) return false;
@@ -16617,41 +16662,63 @@ rail.style.scrollSnapType = "none";
     disconnectRailObserver();
 
     railObserver = new MutationObserver(() => {
-      refreshAutoscroll();
+      const currentRail = getRail();
+      if (!currentRail) return;
+
+      const currentSignature = getRealSignature(currentRail);
+      const cloneCount = currentRail.querySelectorAll('[data-autoscroll-clone="1"]').length;
+
+      if (currentSignature !== lastRealSignature || cloneCount === 0) {
+        refreshAutoscroll(true);
+      }
     });
 
     railObserver.observe(rail, { childList: true });
   }
 
-  function tryInitAutoscroll() {
+  function tryInit() {
     const rail = getRail();
     if (!rail) return false;
 
     const realChildren = getRealChildren(rail);
     if (realChildren.length < 2) return false;
 
-    return refreshAutoscroll();
+    return refreshAutoscroll(true);
   }
 
-  // Poll briefly until the rail is actually rendered/populated
-  pollId = window.setInterval(() => {
-    if (tryInitAutoscroll()) {
-      clearInterval(pollId);
-      pollId = null;
+  initPollId = window.setInterval(() => {
+    if (tryInit()) {
+      clearInterval(initPollId);
+      initPollId = null;
     }
   }, 250);
 
-  // Safety stop for polling
   setTimeout(() => {
-    if (pollId !== null) {
-      clearInterval(pollId);
-      pollId = null;
+    if (initPollId !== null) {
+      clearInterval(initPollId);
+      initPollId = null;
     }
   }, 10000);
 
-  // Late retries in case deferred rendering replaces the rail later
-  setTimeout(tryInitAutoscroll, 1000);
-  setTimeout(tryInitAutoscroll, 2500);
+  setTimeout(tryInit, 1000);
+  setTimeout(tryInit, 2500);
+
+  document.addEventListener("visibilitychange", () => {
+    const rail = getRail();
+    if (!rail) return;
+
+    if (document.hidden) {
+      stopAutoscroll();
+      rail.dataset.autoscrollRunning = "0";
+      return;
+    }
+
+    if (rail.dataset.autoscrollReady === "1") {
+      startAutoscroll(rail);
+    } else {
+      tryInit();
+    }
+  });
 })();
 </script>
 </body>

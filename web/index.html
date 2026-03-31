@@ -6009,27 +6009,13 @@ input:focus-visible {
             state.waitPicks = filterProtectedDealRailRows(state.waitPicks);
 
             const railSectionLimit = getHomepageDealRailDepthLimit();
-            const protectedFallbackPool = filterProtectedDealRailRows([
-                ...safeArray(state.opportunitiesNow),
-                ...safeArray(state.opportunityRadar),
-                ...safeArray(state.dealRanked),
-                ...safeArray(state.worthBuyingNow),
-                ...safeArray(state.trendingDeals),
-                ...safeArray(state.newHistoricalLows),
-                ...safeArray(state.biggestDiscounts),
-            ]);
-            const protectedVisibleKeys = new Set();
-            state.opportunitiesNow = selectExclusiveRailRows(
-                filterProtectedDealRailRows(state.opportunitiesNow),
-                protectedFallbackPool,
-                protectedVisibleKeys,
-                railSectionLimit,
-            );
-            state.opportunityRadar = selectExclusiveRailRows(
-                filterProtectedDealRailRows(state.opportunityRadar),
-                protectedFallbackPool,
-                protectedVisibleKeys,
-                railSectionLimit,
+            const protectedVisibleKeys = new Set(
+                [
+                    ...safeArray(state.opportunitiesNow),
+                    ...safeArray(state.opportunityRadar),
+                ]
+                    .map((row) => gameIdentityKey(row))
+                    .filter((key) => !!key),
             );
 
             if (!state.worthBuyingNow.length) {
@@ -11614,7 +11600,7 @@ input:focus-visible {
             const filtered = resolveDiscoveryFeedRows(state.opportunitiesNow, {
                 targetCount: 12,
                 extendToCount: getHomepageDealRailDepthLimit(),
-                fallbackRows: buildDealRailDepthFallbackRows(state.opportunitiesNow),
+                includeFallback: false,
             });
             if (!filtered.rows.length) {
                 renderOwnedFilteredFeedEmpty(
@@ -11646,7 +11632,7 @@ input:focus-visible {
             const filtered = resolveDiscoveryFeedRows(state.opportunityRadar, {
                 targetCount: 12,
                 extendToCount: getHomepageDealRailDepthLimit(),
-                fallbackRows: buildDealRailDepthFallbackRows(state.opportunityRadar),
+                includeFallback: false,
             });
             if (!filtered.rows.length) {
                 renderOwnedFilteredFeedEmpty(
@@ -14092,30 +14078,21 @@ input:focus-visible {
             }
             if (hasOpportunitiesPayload || hasOpportunityRadarPayload) {
                 const railSectionLimit = getHomepageDealRailDepthLimit();
-                const protectedFallbackPool = filterProtectedDealRailRows([
-                    ...safeArray(state.dealRanked),
-                    ...safeArray(state.worthBuyingNow),
-                    ...safeArray(state.trendingNow),
-                    ...safeArray(state.newHistoricalLows),
-                ]);
-                const protectedVisibleKeys = new Set();
-                state.opportunitiesNow = selectExclusiveRailRows(
-                    filterProtectedDealRailRows(state.opportunitiesNow),
-                    protectedFallbackPool,
-                    protectedVisibleKeys,
-                    railSectionLimit,
-                );
-                state.opportunityRadar = selectExclusiveRailRows(
-                    filterProtectedDealRailRows(state.opportunityRadar),
-                    protectedFallbackPool,
-                    protectedVisibleKeys,
-                    railSectionLimit,
+                const protectedVisibleKeys = new Set(
+                    [
+                        ...safeArray(state.opportunitiesNow),
+                        ...safeArray(state.opportunityRadar),
+                    ]
+                        .map((row) => gameIdentityKey(row))
+                        .filter((key) => !!key),
                 );
                 state.buyNowPicks = selectExclusiveRailRows(
                     filterProtectedDealRailRows(state.buyNowPicks),
                     filterProtectedDealRailRows([
                         ...safeArray(state.worthBuyingNow),
-                        ...protectedFallbackPool,
+                        ...safeArray(state.dealRanked),
+                        ...safeArray(state.trendingNow),
+                        ...safeArray(state.newHistoricalLows),
                     ]),
                     protectedVisibleKeys,
                     railSectionLimit,
@@ -15066,25 +15043,8 @@ try {
                     fetchJson(`/api/opportunity-radar?limit=${HOMEPAGE_CRITICAL_SECTION_LIMIT}`).catch(() => []),
                 ]);
                 const opportunities = filterProtectedDealRailRows(opportunitiesPayload?.items || opportunitiesPayload || []);
-                const protectedVisibleKeys = new Set();
-                state.opportunitiesNow = selectExclusiveRailRows(
-                    opportunities,
-                    filterProtectedDealRailRows([
-                        ...safeArray(state.dealRanked),
-                        ...safeArray(state.worthBuyingNow),
-                    ]),
-                    protectedVisibleKeys,
-                    HOMEPAGE_CRITICAL_SECTION_LIMIT,
-                );
-                state.opportunityRadar = selectExclusiveRailRows(
-                    filterProtectedDealRailRows(opportunityRadarPayload?.items || opportunityRadarPayload || []),
-                    filterProtectedDealRailRows([
-                        ...safeArray(state.dealRanked),
-                        ...safeArray(state.worthBuyingNow),
-                    ]),
-                    protectedVisibleKeys,
-                    HOMEPAGE_CRITICAL_SECTION_LIMIT,
-                );
+                state.opportunitiesNow = opportunities;
+                state.opportunityRadar = filterProtectedDealRailRows(opportunityRadarPayload?.items || opportunityRadarPayload || []);
                 sanitizeProtectedHomepageRailState();
                 state.homepageLoad.criticalLoaded = true;
                 renderCriticalHomepageSections();

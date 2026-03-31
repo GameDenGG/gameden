@@ -1829,22 +1829,6 @@ input:focus-visible {
     box-shadow: 0 0 0 0 rgba(102, 240, 176, 0.18);
 }
 
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.view-all-btn {
-  font-size: 13px;
-  opacity: 0.8;
-  text-decoration: none;
-}
-
-.view-all-btn:hover {
-  opacity: 1;
-}
-
 @media (prefers-reduced-motion: no-preference) {
     .deal-radar-title-live-dot {
         animation: radarTitlePulse 2.8s ease-in-out infinite;
@@ -4761,10 +4745,7 @@ input:focus-visible {
                 <section class="panel panel-deals" id="bestDealsPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <div class="panel-header">
-  <h2 class="panel-title">All Deals</h2>
-  <a href="/catalog" class="view-all-btn">View All</a>
-</div>
+                            <h2 class="panel-title">All Deals</h2>
                             <div class="panel-subtitle">A broad, live browse lane of worthwhile discounted games.</div>
                         </div>
                         <div class="row-nav">
@@ -11589,6 +11570,7 @@ input:focus-visible {
         }
 
         function renderDealRanked() {
+            maybeEnsureAllDealsHomepageCatalog();
             const allDealsRows = getFeaturedAllGames();
             if (!allDealsRows.length) {
                 renderEmpty(
@@ -11610,9 +11592,8 @@ input:focus-visible {
                 showAllButton: null,
                 view: "all-deals-primary",
                 title: "All Deals",
-                initialCount: 32,
+                initialCount: HOMEPAGE_ALL_DEALS_INITIAL_COUNT,
             });
-      initAllDealsAutoscroll();
         }
 
         function renderOpportunities() {
@@ -16299,6 +16280,7 @@ try {
         function wireHorizontalRailContinuation() {
             if (wireHorizontalRailContinuation._wired) return;
             const sections = [
+                { key: "dealRankedGrid", render: renderDealRanked, onNearEnd: maybeLoadMoreAllDealsHomepageCatalog },
                 { key: "opportunitiesGrid", render: renderOpportunities },
                 { key: "worthBuyingGrid", render: renderWorthBuyingNow },
                 { key: "trendingDealsGrid", render: renderTrendingDeals },
@@ -16489,61 +16471,7 @@ try {
                 scheduleDeferredHomepageStage();
             }
         }
-(function () {
-  const RAIL_ID = "dealRankedGrid";
 
-  function initAllDealsAutoscroll() {
-    const rail = document.getElementById(RAIL_ID);
-    if (!rail) return;
-
-    // Prevent double init
-    if (rail.dataset.autoscrollReady === "1") return;
-    rail.dataset.autoscrollReady = "1";
-
-    // Disable snapping (important)
-    rail.style.scrollSnapType = "none";
-
-    // Wait until cards are rendered
-    requestAnimationFrame(() => {
-      const originalItems = Array.from(rail.children);
-      if (!originalItems.length) return;
-
-      // Clone ONLY once
-      const clones = originalItems.map((el) => {
-        const clone = el.cloneNode(true);
-        clone.setAttribute("data-autoscroll-clone", "1");
-        return clone;
-      });
-
-      clones.forEach((clone) => rail.appendChild(clone));
-
-      let isHovered = false;
-
-      rail.addEventListener("mouseenter", () => (isHovered = true));
-      rail.addEventListener("mouseleave", () => (isHovered = false));
-
-      const loopWidth = rail.scrollWidth / 2;
-
-      function step() {
-        if (!isHovered) {
-          rail.scrollLeft += 0.3; // 🔧 SPEED (lower = slower)
-
-          //  TRUE seamless loop
-          if (rail.scrollLeft >= loopWidth) {
-            rail.scrollLeft -= loopWidth;
-          }
-        }
-
-        requestAnimationFrame(step);
-      }
-
-      step();
-    });
-  }
-
-  // 🔑 IMPORTANT: run AFTER renderDealRanked completes
-  window.initAllDealsAutoscroll = initAllDealsAutoscroll;
-})();
         init();
     </script>
 </body>

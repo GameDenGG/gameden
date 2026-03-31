@@ -16491,59 +16491,5 @@ try {
         }
 
         init();
-   <script>
-(function () {
-  const RAIL_ID = "dealRankedGrid";
-
-  function initAllDealsAutoscroll() {
-    const rail = document.getElementById(RAIL_ID);
-    if (!rail) return;
-
-    // Prevent double init
-    if (rail.dataset.autoscrollReady === "1") return;
-    rail.dataset.autoscrollReady = "1";
-
-    // Disable snapping (critical)
-    rail.style.scrollSnapType = "none";
-
-    requestAnimationFrame(() => {
-      const originalItems = Array.from(rail.children);
-      if (!originalItems.length) return;
-
-      // Clone once
-      const clones = originalItems.map((el) => {
-        const clone = el.cloneNode(true);
-        clone.setAttribute("data-autoscroll-clone", "1");
-        return clone;
-      });
-
-      clones.forEach((clone) => rail.appendChild(clone));
-
-      let isHovered = false;
-
-      rail.addEventListener("mouseenter", () => (isHovered = true));
-      rail.addEventListener("mouseleave", () => (isHovered = false));
-
-      const loopWidth = rail.scrollWidth / 2;
-
-      function step() {
-        if (!isHovered) {
-          rail.scrollLeft += 0.2; // slightly slower (better feel)
-
-          if (rail.scrollLeft >= loopWidth) {
-            rail.scrollLeft -= loopWidth;
-          }
-        }
-
-        requestAnimationFrame(step);
-      }
-
-      step();
-    });
-  }
-
-  window.initAllDealsAutoscroll = initAllDealsAutoscroll;
-})();
-</script>
 </body>
 </html>

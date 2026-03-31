@@ -16477,11 +16477,11 @@ try {
 <script>
 (function () {
   const TARGET_ID = "dealRankedGrid";
-  const SPEED_PX_PER_FRAME = 1;
+  const SPEED_PX_PER_FRAME = 0.8;
 
   let rafId = null;
+  let pollId = null;
   let railObserver = null;
-  let pageObserver = null;
 
   function getRail() {
     const rail = document.getElementById(TARGET_ID);
@@ -16514,6 +16514,8 @@ try {
 
   function buildLoop(rail) {
     disconnectRailObserver();
+    stopAutoscroll();
+    rail.dataset.autoscrollRunning = "0";
 
     removeClones(rail);
 
@@ -16530,9 +16532,16 @@ try {
       rail.appendChild(clone);
     });
 
-    rail.dataset.autoscrollReady = "1";
+    // Force layout after clones exist
+    void rail.offsetWidth;
+
+    const loopWidth = rail.scrollWidth / 2;
+    const hasOverflow = loopWidth > rail.clientWidth + 4;
+
+    rail.dataset.autoscrollReady = hasOverflow ? "1" : "0";
+
     observeRail(rail);
-    return true;
+    return hasOverflow;
   }
 
   function startAutoscroll(rail) {
@@ -16551,7 +16560,7 @@ try {
 
       if (rail.dataset.pauseAutoscroll !== "1") {
         const loopWidth = rail.scrollWidth / 2;
-        if (loopWidth > rail.clientWidth) {
+        if (loopWidth > rail.clientWidth + 4) {
           rail.scrollLeft += SPEED_PX_PER_FRAME;
           if (rail.scrollLeft >= loopWidth) {
             rail.scrollLeft -= loopWidth;
@@ -16593,8 +16602,6 @@ try {
     if (!rail) return false;
 
     wirePauseHandlers(rail);
-    stopAutoscroll();
-    rail.dataset.autoscrollRunning = "0";
 
     const ready = buildLoop(rail);
     if (!ready) return false;
@@ -16613,28 +16620,35 @@ try {
     railObserver.observe(rail, { childList: true });
   }
 
-  function initAllDealsAutoscroll() {
+  function tryInitAutoscroll() {
     const rail = getRail();
     if (!rail) return false;
 
-    const started = refreshAutoscroll();
-    return started;
+    const realChildren = getRealChildren(rail);
+    if (realChildren.length < 2) return false;
+
+    return refreshAutoscroll();
   }
 
-  pageObserver = new MutationObserver(() => {
-    if (initAllDealsAutoscroll()) {
-      pageObserver.disconnect();
-      pageObserver = null;
+  // Poll briefly until the rail is actually rendered/populated
+  pollId = window.setInterval(() => {
+    if (tryInitAutoscroll()) {
+      clearInterval(pollId);
+      pollId = null;
     }
-  });
+  }, 250);
 
-  pageObserver.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
+  // Safety stop for polling
+  setTimeout(() => {
+    if (pollId !== null) {
+      clearInterval(pollId);
+      pollId = null;
+    }
+  }, 10000);
 
-  setTimeout(initAllDealsAutoscroll, 300);
-  setTimeout(initAllDealsAutoscroll, 1000);
+  // Late retries in case deferred rendering replaces the rail later
+  setTimeout(tryInitAutoscroll, 1000);
+  setTimeout(tryInitAutoscroll, 2500);
 })();
 </script>
 </body>

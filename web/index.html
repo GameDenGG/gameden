@@ -16474,5 +16474,161 @@ try {
 
         init();
     </script>
+<script>
+(function () {
+  const TARGET_ID = "dealRankedGrid";
+  const SPEED_PX_PER_FRAME = 1;
+
+  let rafId = null;
+  let railObserver = null;
+  let pageObserver = null;
+
+  function getRail() {
+    const rail = document.getElementById(TARGET_ID);
+    return rail instanceof HTMLElement ? rail : null;
+  }
+
+  function removeClones(rail) {
+    rail.querySelectorAll('[data-autoscroll-clone="1"]').forEach((node) => node.remove());
+  }
+
+  function getRealChildren(rail) {
+    return Array.from(rail.children).filter(
+      (node) => node instanceof HTMLElement && node.dataset.autoscrollClone !== "1"
+    );
+  }
+
+  function buildLoop(rail) {
+    removeClones(rail);
+
+    const realChildren = getRealChildren(rail);
+    if (realChildren.length < 2) {
+      rail.dataset.autoscrollReady = "0";
+      return false;
+    }
+
+    realChildren.forEach((child) => {
+      const clone = child.cloneNode(true);
+      clone.setAttribute("data-autoscroll-clone", "1");
+      rail.appendChild(clone);
+    });
+
+    rail.dataset.autoscrollReady = "1";
+    return true;
+  }
+
+  function stopAutoscroll() {
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  }
+
+  function startAutoscroll(rail) {
+    if (!(rail instanceof HTMLElement)) return;
+    if (rail.dataset.autoscrollReady !== "1") return;
+    if (rail.dataset.autoscrollRunning === "1") return;
+
+    rail.dataset.autoscrollRunning = "1";
+
+    const step = () => {
+      if (!document.body.contains(rail)) {
+        rail.dataset.autoscrollRunning = "0";
+        stopAutoscroll();
+        return;
+      }
+
+      if (rail.dataset.pauseAutoscroll !== "1") {
+        const loopWidth = rail.scrollWidth / 2;
+        if (loopWidth > rail.clientWidth) {
+          rail.scrollLeft += SPEED_PX_PER_FRAME;
+          if (rail.scrollLeft >= loopWidth) {
+            rail.scrollLeft -= loopWidth;
+          }
+        }
+      }
+
+      rafId = requestAnimationFrame(step);
+    };
+
+    rafId = requestAnimationFrame(step);
+  }
+
+  function wirePauseHandlers(rail) {
+    if (rail.dataset.autoscrollHandlersBound === "1") return;
+
+    rail.addEventListener("mouseenter", () => {
+      rail.dataset.pauseAutoscroll = "1";
+    });
+
+    rail.addEventListener("mouseleave", () => {
+      rail.dataset.pauseAutoscroll = "0";
+    });
+
+    rail.addEventListener("pointerdown", () => {
+      rail.dataset.pauseAutoscroll = "1";
+    });
+
+    window.addEventListener("pointerup", () => {
+      const currentRail = getRail();
+      if (currentRail) currentRail.dataset.pauseAutoscroll = "0";
+    });
+
+    rail.dataset.autoscrollHandlersBound = "1";
+  }
+
+  function refreshAutoscroll() {
+    const rail = getRail();
+    if (!rail) return false;
+
+    wirePauseHandlers(rail);
+    stopAutoscroll();
+    rail.dataset.autoscrollRunning = "0";
+
+    const ready = buildLoop(rail);
+    if (!ready) return false;
+
+    startAutoscroll(rail);
+    return true;
+  }
+
+  function observeRail(rail) {
+    if (railObserver) {
+      railObserver.disconnect();
+      railObserver = null;
+    }
+
+    railObserver = new MutationObserver(() => {
+      refreshAutoscroll();
+    });
+
+    railObserver.observe(rail, { childList: true });
+  }
+
+  function initAllDealsAutoscroll() {
+    const rail = getRail();
+    if (!rail) return false;
+
+    const started = refreshAutoscroll();
+    observeRail(rail);
+    return started;
+  }
+
+  pageObserver = new MutationObserver(() => {
+    if (initAllDealsAutoscroll()) {
+      pageObserver.disconnect();
+      pageObserver = null;
+    }
+  });
+
+  pageObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  setTimeout(initAllDealsAutoscroll, 300);
+  setTimeout(initAllDealsAutoscroll, 1000);
+})();
+</script>
 </body>
 </html>

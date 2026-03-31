@@ -16477,11 +16477,11 @@ try {
 <script>
 (function () {
   const TARGET_ID = "dealRankedGrid";
-  const SPEED = 0.45;
-  const INTERVAL_MS = 16;
+  const SPEED = 0.6;
+  const TICK_MS = 16;
 
-  let intervalId = null;
-  let built = false;
+  let scrollTimer = null;
+  let setupTimer = null;
 
   function getRail() {
     const rail = document.getElementById(TARGET_ID);
@@ -16498,15 +16498,14 @@ try {
     rail.querySelectorAll('[data-autoscroll-clone="1"]').forEach((node) => node.remove());
   }
 
-  function stop() {
-    if (intervalId !== null) {
-      clearInterval(intervalId);
-      intervalId = null;
+  function stopScroll() {
+    if (scrollTimer !== null) {
+      clearInterval(scrollTimer);
+      scrollTimer = null;
     }
   }
 
   function buildLoop(rail) {
-    stop();
     removeClones(rail);
 
     const realChildren = getRealChildren(rail);
@@ -16520,17 +16519,18 @@ try {
 
     rail.scrollLeft = 0;
     rail.style.scrollSnapType = "none";
+    rail.dataset.pauseAutoscroll = rail.dataset.pauseAutoscroll || "0";
 
     return rail.scrollWidth > rail.clientWidth + 4;
   }
 
-  function start(rail) {
-    stop();
+  function startScroll(rail) {
+    stopScroll();
     rail.style.scrollSnapType = "none";
 
-    intervalId = window.setInterval(() => {
+    scrollTimer = setInterval(() => {
       if (!document.body.contains(rail)) {
-        stop();
+        stopScroll();
         return;
       }
 
@@ -16544,7 +16544,7 @@ try {
       if (rail.scrollLeft >= loopWidth) {
         rail.scrollLeft -= loopWidth;
       }
-    }, INTERVAL_MS);
+    }, TICK_MS);
   }
 
   function wireHandlers(rail) {
@@ -16575,39 +16575,57 @@ try {
     rail.dataset.autoscrollHandlersBound = "1";
   }
 
-  function init(forceRebuild = false) {
+  function initAutoscroll(forceRebuild = false) {
     const rail = getRail();
     if (!rail) return false;
 
     wireHandlers(rail);
 
-    if (forceRebuild || !built || rail.querySelectorAll('[data-autoscroll-clone="1"]').length === 0) {
+    const cloneCount = rail.querySelectorAll('[data-autoscroll-clone="1"]').length;
+    if (forceRebuild || cloneCount === 0) {
       const ok = buildLoop(rail);
       if (!ok) return false;
-      built = true;
     }
 
-    start(rail);
+    startScroll(rail);
     return true;
   }
 
-  const poll = setInterval(() => {
-    if (init()) {
-      clearInterval(poll);
+  function startSetupPolling() {
+    if (setupTimer !== null) {
+      clearInterval(setupTimer);
     }
-  }, 250);
 
-  setTimeout(() => clearInterval(poll), 10000);
+    setupTimer = setInterval(() => {
+      initAutoscroll();
+    }, 1000);
 
-  setTimeout(() => init(true), 2500);
-  setTimeout(() => init(true), 5000);
+    setTimeout(() => {
+      if (setupTimer !== null) {
+        clearInterval(setupTimer);
+        setupTimer = null;
+      }
+    }, 15000);
+  }
+
+  // initial attempts
+  setTimeout(() => initAutoscroll(true), 500);
+  setTimeout(() => initAutoscroll(true), 2000);
+  setTimeout(() => initAutoscroll(true), 4000);
+
+  // keep checking for deferred rail rerender on first load
+  startSetupPolling();
 
   document.addEventListener("visibilitychange", () => {
+    const rail = getRail();
+    if (!rail) return;
+
     if (document.hidden) {
-      stop();
+      stopScroll();
       return;
     }
-    init();
+
+    initAutoscroll();
   });
 })();
 </script>

@@ -16477,30 +16477,14 @@ try {
 <script>
 (function () {
   const TARGET_ID = "dealRankedGrid";
-  const SPEED_PX_PER_FRAME = 0.6;
+  const SPEED = 0.8;
 
   let rafId = null;
-  let railObserver = null;
-  let initPollId = null;
-  let lastRealSignature = "";
+  let initialized = false;
 
   function getRail() {
     const rail = document.getElementById(TARGET_ID);
     return rail instanceof HTMLElement ? rail : null;
-  }
-
-  function stopAutoscroll() {
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
-    }
-  }
-
-  function disconnectRailObserver() {
-    if (railObserver) {
-      railObserver.disconnect();
-      railObserver = null;
-    }
   }
 
   function getRealChildren(rail) {
@@ -16513,67 +16497,11 @@ try {
     rail.querySelectorAll('[data-autoscroll-clone="1"]').forEach((node) => node.remove());
   }
 
-  function getRealSignature(rail) {
-    return getRealChildren(rail)
-      .map((node) =>
-        node.getAttribute("data-game-id")
-        || node.getAttribute("data-key")
-        || node.getAttribute("data-id")
-        || node.id
-        || node.outerHTML.slice(0, 120)
-      )
-      .join("|");
-  }
-
-  function setSnapPaused(rail, paused) {
-    rail.style.scrollSnapType = paused ? "" : "none";
-  }
-
-  function wirePauseHandlers(rail) {
-    if (rail.dataset.autoscrollHandlersBound === "1") return;
-
-    rail.addEventListener("mouseenter", () => {
-      rail.dataset.pauseAutoscroll = "1";
-      setSnapPaused(rail, true);
-    });
-
-    rail.addEventListener("mouseleave", () => {
-      rail.dataset.pauseAutoscroll = "0";
-      setSnapPaused(rail, false);
-    });
-
-    rail.addEventListener("pointerdown", () => {
-      rail.dataset.pauseAutoscroll = "1";
-      setSnapPaused(rail, true);
-    });
-
-    window.addEventListener("pointerup", () => {
-      const currentRail = getRail();
-      if (!currentRail) return;
-      currentRail.dataset.pauseAutoscroll = "0";
-      setSnapPaused(currentRail, false);
-    });
-
-    rail.dataset.autoscrollHandlersBound = "1";
-  }
-
   function buildLoop(rail) {
-    disconnectRailObserver();
-    stopAutoscroll();
-
-    rail.dataset.autoscrollRunning = "0";
-    rail.dataset.autoscrollReady = "0";
-
     removeClones(rail);
 
     const realChildren = getRealChildren(rail);
-    if (realChildren.length < 2) {
-      observeRail(rail);
-      return false;
-    }
-
-    const signature = getRealSignature(rail);
-    lastRealSignature = signature;
+    if (realChildren.length < 2) return false;
 
     realChildren.forEach((child) => {
       const clone = child.cloneNode(true);
@@ -16581,43 +16509,32 @@ try {
       rail.appendChild(clone);
     });
 
-    void rail.offsetWidth;
-
-    const loopWidth = rail.scrollWidth / 2;
-    const hasOverflow = loopWidth > rail.clientWidth + 4;
-
-    rail.dataset.autoscrollReady = hasOverflow ? "1" : "0";
-    rail.dataset.pauseAutoscroll = rail.dataset.pauseAutoscroll || "0";
-
-    if (!hasOverflow) {
-      setSnapPaused(rail, true);
-    } else {
-      setSnapPaused(rail, false);
-    }
-
-    observeRail(rail);
-    return hasOverflow;
+    return rail.scrollWidth > rail.clientWidth + 4;
   }
 
-  function startAutoscroll(rail) {
-    if (!(rail instanceof HTMLElement)) return;
-    if (rail.dataset.autoscrollReady !== "1") return;
-    if (rail.dataset.autoscrollRunning === "1") return;
+  function stop() {
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  }
 
-    rail.dataset.autoscrollRunning = "1";
-    setSnapPaused(rail, false);
+  function start(rail) {
+    stop();
 
-    const step = () => {
+    rail.dataset.pauseAutoscroll = rail.dataset.pauseAutoscroll || "0";
+    rail.style.scrollSnapType = "none";
+
+    function tick() {
       if (!document.body.contains(rail)) {
-        rail.dataset.autoscrollRunning = "0";
-        stopAutoscroll();
+        stop();
         return;
       }
 
       if (rail.dataset.pauseAutoscroll !== "1") {
         const loopWidth = rail.scrollWidth / 2;
         if (loopWidth > rail.clientWidth + 4) {
-          rail.scrollLeft += SPEED_PX_PER_FRAME;
+          rail.scrollLeft += SPEED;
 
           if (rail.scrollLeft >= loopWidth) {
             rail.scrollLeft -= loopWidth;
@@ -16625,100 +16542,66 @@ try {
         }
       }
 
-      rafId = requestAnimationFrame(step);
-    };
+      rafId = requestAnimationFrame(tick);
+    }
 
-    rafId = requestAnimationFrame(step);
+    rafId = requestAnimationFrame(tick);
   }
 
-  function refreshAutoscroll(forceRebuild = false) {
+  function wireHandlers(rail) {
+    if (rail.dataset.autoscrollHandlersBound === "1") return;
+
+    rail.addEventListener("mouseenter", () => {
+      rail.dataset.pauseAutoscroll = "1";
+      rail.style.scrollSnapType = "";
+    });
+
+    rail.addEventListener("mouseleave", () => {
+      rail.dataset.pauseAutoscroll = "0";
+      rail.style.scrollSnapType = "none";
+    });
+
+    rail.addEventListener("pointerdown", () => {
+      rail.dataset.pauseAutoscroll = "1";
+      rail.style.scrollSnapType = "";
+    });
+
+    window.addEventListener("pointerup", () => {
+      const currentRail = getRail();
+      if (!currentRail) return;
+      currentRail.dataset.pauseAutoscroll = "0";
+      currentRail.style.scrollSnapType = "none";
+    });
+
+    rail.dataset.autoscrollHandlersBound = "1";
+  }
+
+  function init() {
     const rail = getRail();
     if (!rail) return false;
 
-    wirePauseHandlers(rail);
+    wireHandlers(rail);
 
-    const nextSignature = getRealSignature(rail);
-    const needsRebuild =
-      forceRebuild ||
-      rail.dataset.autoscrollReady !== "1" ||
-      nextSignature !== lastRealSignature ||
-      rail.querySelectorAll('[data-autoscroll-clone="1"]').length === 0;
-
-    if (!needsRebuild) {
-      if (rail.dataset.autoscrollRunning !== "1") {
-        startAutoscroll(rail);
-      }
-      return true;
+    if (!initialized) {
+      const ok = buildLoop(rail);
+      if (!ok) return false;
+      initialized = true;
     }
 
-    const ready = buildLoop(rail);
-    if (!ready) return false;
-
-    startAutoscroll(rail);
+    start(rail);
     return true;
   }
 
-  function observeRail(rail) {
-    disconnectRailObserver();
-
-    railObserver = new MutationObserver(() => {
-      const currentRail = getRail();
-      if (!currentRail) return;
-
-      const currentSignature = getRealSignature(currentRail);
-      const cloneCount = currentRail.querySelectorAll('[data-autoscroll-clone="1"]').length;
-
-      if (currentSignature !== lastRealSignature || cloneCount === 0) {
-        refreshAutoscroll(true);
-      }
-    });
-
-    railObserver.observe(rail, { childList: true });
-  }
-
-  function tryInit() {
-    const rail = getRail();
-    if (!rail) return false;
-
-    const realChildren = getRealChildren(rail);
-    if (realChildren.length < 2) return false;
-
-    return refreshAutoscroll(true);
-  }
-
-  initPollId = window.setInterval(() => {
-    if (tryInit()) {
-      clearInterval(initPollId);
-      initPollId = null;
+  const poll = setInterval(() => {
+    if (init()) {
+      clearInterval(poll);
     }
   }, 250);
 
-  setTimeout(() => {
-    if (initPollId !== null) {
-      clearInterval(initPollId);
-      initPollId = null;
-    }
-  }, 10000);
+  setTimeout(() => clearInterval(poll), 10000);
 
-  setTimeout(tryInit, 1000);
-  setTimeout(tryInit, 2500);
-
-  document.addEventListener("visibilitychange", () => {
-    const rail = getRail();
-    if (!rail) return;
-
-    if (document.hidden) {
-      stopAutoscroll();
-      rail.dataset.autoscrollRunning = "0";
-      return;
-    }
-
-    if (rail.dataset.autoscrollReady === "1") {
-      startAutoscroll(rail);
-    } else {
-      tryInit();
-    }
-  });
+  setTimeout(init, 1000);
+  setTimeout(init, 2000);
 })();
 </script>
 </body>

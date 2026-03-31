@@ -16482,7 +16482,6 @@ try {
 
   let scrollTimer = null;
   let setupTimer = null;
-  let realTrackWidth = 0;
 
   function getRail() {
     const rail = document.getElementById(TARGET_ID);
@@ -16506,28 +16505,11 @@ try {
     }
   }
 
-  function measureRealTrackWidth(rail, realChildren) {
-    if (!realChildren.length) return 0;
-
-    const first = realChildren[0];
-    const last = realChildren[realChildren.length - 1];
-
-    const firstLeft = first.offsetLeft;
-    const lastRight = last.offsetLeft + last.offsetWidth;
-
-    return Math.max(0, lastRight - firstLeft);
-  }
-
   function buildLoop(rail) {
-    stopScroll();
     removeClones(rail);
-    realTrackWidth = 0;
 
     const realChildren = getRealChildren(rail);
     if (realChildren.length < 2) return false;
-
-    realTrackWidth = measureRealTrackWidth(rail, realChildren);
-    if (!(realTrackWidth > rail.clientWidth + 4)) return false;
 
     realChildren.forEach((child) => {
       const clone = child.cloneNode(true);
@@ -16539,7 +16521,7 @@ try {
     rail.style.scrollSnapType = "none";
     rail.dataset.pauseAutoscroll = rail.dataset.pauseAutoscroll || "0";
 
-    return true;
+    return rail.scrollWidth > rail.clientWidth + 4;
   }
 
   function startScroll(rail) {
@@ -16553,12 +16535,14 @@ try {
       }
 
       if (rail.dataset.pauseAutoscroll === "1") return;
-      if (!(realTrackWidth > rail.clientWidth + 4)) return;
+
+      const loopWidth = rail.scrollWidth / 2;
+      if (loopWidth <= rail.clientWidth + 4) return;
 
       rail.scrollLeft += SPEED;
 
-      if (rail.scrollLeft >= realTrackWidth) {
-        rail.scrollLeft -= realTrackWidth;
+      if (rail.scrollLeft >= loopWidth) {
+        rail.scrollLeft -= loopWidth;
       }
     }, TICK_MS);
   }

@@ -11107,205 +11107,261 @@ input:focus-visible {
             return meaningful || normalizedTokens[0];
         }
 
-        function buildBecauseYouOwnRecommendations(limit = 3) {
-            const normalizedLimit = Math.max(1, Number(limit) || 3);
-            const ownedRows = uniqueGamesByIdentity(state.wishlist).map((row) => normalizeGameRow(row));
-            if (!ownedRows.length) {
-                return { items: [], anchorName: "", reason: "no_owned" };
+    function buildBecauseYouOwnRecommendations(limit = 3) {
+    const normalizedLimit = Math.max(1, Number(limit) || 3);
+    const ownedRows = uniqueGamesByIdentity(state.wishlist).map((row) => normalizeGameRow(row));
+    if (!ownedRows.length) {
+        return { items: [], anchorName: "", reason: "no_owned" };
+    }
+
+    const tokenLookup = buildDiscoverySeedTokenLookup();
+    const ownedProfiles = ownedRows
+        .map((row) => {
+            try {
+                const key = gameIdentityKey(row);
+                const tokens = getDiscoveryRowTokens(row, tokenLookup);
+                const meaningfulTokens = tokens.filter((token) => !isBroadDiscoveryToken(token));
+                return {
+                    key,
+                    row,
+                    tokens,
+                    meaningfulTokens,
+                    tokenSet: new Set(tokens),
+                };
+            } catch {
+                return null;
             }
+        })
+        .filter((profile) => !!profile)
+        .filter((profile) => !!profile.key && profile.tokens.length > 0);
 
-            const tokenLookup = buildDiscoverySeedTokenLookup();
-            const ownedProfiles = ownedRows
-                .map((row) => {
-                    try {
-                        const key = gameIdentityKey(row);
-                        const tokens = getDiscoveryRowTokens(row, tokenLookup);
-                        const meaningfulTokens = tokens.filter((token) => !isBroadDiscoveryToken(token));
-                        return {
-                            key,
-                            row,
-                            tokens,
-                            meaningfulTokens,
-                            tokenSet: new Set(tokens),
-                        };
-                    } catch {
-                        return null;
-                    }
-                })
-                .filter((profile) => !!profile)
-                .filter((profile) => !!profile.key && profile.tokens.length > 0);
-            if (!ownedProfiles.length) {
-                return { items: [], anchorName: "", reason: "weak_owned_signals" };
-            }
+    if (!ownedProfiles.length) {
+        return { items: [], anchorName: "", reason: "weak_owned_signals" };
+    }
 
-            const personalizationContext = buildDiscoveryPersonalizationContext();
-            const scoringContext = personalizationContext.enabled
-                ? personalizationContext
-                : buildDiscoveryPersonalizationContext();
-            const ownedKeys = new Set(ownedProfiles.map((profile) => profile.key).filter((key) => !!key));
-            const candidateRows = resolveDiscoveryFeedRows(
-                buildDiscoveryFallbackPool([
-                    ...safeArray(state.personalizedDeals),
-                    ...safeArray(state.buyNowPicks),
-                    ...safeArray(state.opportunitiesNow),
-                    ...safeArray(state.dealRanked),
-                    ...safeArray(state.worthBuyingNow),
-                    ...safeArray(state.newHistoricalLows),
-                    ...safeArray(state.trendingNow),
-                ]),
-                { targetCount: 120 },
-            ).rows;
+    const personalizationContext = buildDiscoveryPersonalizationContext();
+    const scoringContext = personalizationContext.enabled
+        ? personalizationContext
+        : buildDiscoveryPersonalizationContext();
 
-            const scored = [];
-            candidateRows.forEach((row, index) => {
-                try {
-                    const normalized = normalizeGameRow(row);
-                    const key = gameIdentityKey(normalized);
-                    if (!key || ownedKeys.has(key)) return;
+    const ownedKeys = new Set(
+        ownedProfiles.map((profile) => profile.key).filter((key) => !!key)
+    );
 
-                    const tokens = getDiscoveryRowTokens(normalized, tokenLookup);
-                    if (!tokens.length) return;
+    const candidateRows = resolveDiscoveryFeedRows(
+        buildDiscoveryFallbackPool([
+            ...safeArray(state.personalizedDeals),
+            ...safeArray(state.buyNowPicks),
+            ...safeArray(state.opportunitiesNow),
+            ...safeArray(state.dealRanked),
+            ...safeArray(state.worthBuyingNow),
+            ...safeArray(state.newHistoricalLows),
+            ...safeArray(state.trendingNow),
+        ]),
+        { targetCount: 120 },
+    ).rows;
 
-                    let bestOverlap = null;
-                    ownedProfiles.forEach((profile) => {
-                        const overlapTokens = tokens.filter((token) => profile.tokenSet.has(token));
-                        if (!overlapTokens.length) return;
-                        const meaningfulOverlapTokens = overlapTokens.filter((token) => !isBroadDiscoveryToken(token));
-                        const weightedOverlap = overlapTokens.reduce((sum, token) => (
-                            sum + Number(personalizationContext.ownedTokenWeights.get(token) || 0)
-                        ), 0);
-                        const meaningfulWeightedOverlap = meaningfulOverlapTokens.reduce((sum, token) => (
-                            sum + Number(personalizationContext.ownedTokenWeights.get(token) || 0)
-                        ), 0);
-                        const overlapScore = (
-                            meaningfulOverlapTokens.length * 18
-                            + (overlapTokens.length - meaningfulOverlapTokens.length) * 4
-                            + meaningfulWeightedOverlap * 7
-                            + weightedOverlap * 3
-                        );
-                        if (!bestOverlap || overlapScore > bestOverlap.overlapScore) {
-                            bestOverlap = {
-                                profile,
-                                overlapTokens,
-                                meaningfulOverlapTokens,
-                                overlapScore,
-                                weightedOverlap,
-                                meaningfulWeightedOverlap,
-                            };
-                        }
-                    });
-                    if (!bestOverlap) return;
+    const scored = [];
+    const fallbackScored = [];
 
-                    const recommendation = normalizeBuyRecommendation(normalized.buy_recommendation);
-                    const discount = Math.max(0, Number(normalized.discount_percent || 0));
-                    const dealScore = Math.max(0, Number(normalized.deal_score || 0));
-                    const buyScore = Math.max(0, Number(normalized.buy_score || 0));
-                    const timingSignal = getDealTimingSignalForRow(normalized, {
-                        watched: isInWatchlist(normalized),
-                        mode: isUnreleasedInventoryRow(normalized) ? "unreleased" : "paid",
-                    });
-                    const timingBoost = scoreTimingUrgencyAdjustment(timingSignal, { watched: false });
-                    const baseScore = scoreDiscoveryRowForUserIntent(
-                        normalized,
-                        index,
-                        scoringContext,
-                    );
-                    const qualityScore = (
-                        discount * 0.36
-                        + dealScore * 0.22
-                        + buyScore * 0.31
-                        + (recommendation === "BUY_NOW" ? 9 : 0)
-                        + (timingBoost * 2.0)
-                    );
+    candidateRows.forEach((row, index) => {
+        try {
+            const normalized = normalizeGameRow(row);
+            const key = gameIdentityKey(normalized);
+            if (!key || ownedKeys.has(key)) return;
 
-                    const overlapCount = bestOverlap.overlapTokens.length;
-                    const meaningfulOverlapCount = bestOverlap.meaningfulOverlapTokens.length;
-                    const weightedOverlap = bestOverlap.weightedOverlap;
-                    const meaningfulWeightedOverlap = bestOverlap.meaningfulWeightedOverlap;
-                    const strongDealSignal = recommendation === "BUY_NOW"
-                        || buyScore >= 72
-                        || (dealScore >= 66 && discount >= 25);
-                    const hasStrongOverlap = (
-                        meaningfulOverlapCount >= 2
-                        || (
-                            meaningfulOverlapCount >= 1
-                            && strongDealSignal
-                            && (meaningfulWeightedOverlap >= 1.8 || qualityScore >= 74)
-                        )
-                    );
-                    const hasControlledWeakFallback = !hasStrongOverlap
-                        && overlapCount >= 2
-                        && strongDealSignal
-                        && weightedOverlap >= 2.1;
-                    if (!hasStrongOverlap && !hasControlledWeakFallback) return;
+            const tokens = getDiscoveryRowTokens(normalized, tokenLookup);
+            if (!tokens.length) return;
 
-                    const overlapComponent = hasStrongOverlap
-                        ? (
-                            meaningfulOverlapCount * 20
-                            + meaningfulWeightedOverlap * 9
-                            + overlapCount * 2
-                        )
-                        : (
-                            overlapCount * 6
-                            + weightedOverlap * 3
-                        );
-                    const totalScore = overlapComponent + qualityScore + (baseScore * 0.28);
+            let bestOverlap = null;
+            ownedProfiles.forEach((profile) => {
+                const overlapTokens = tokens.filter((token) => profile.tokenSet.has(token));
+                if (!overlapTokens.length) return;
 
-                    scored.push({
-                        game: normalized,
-                        totalScore,
-                        overlapCount,
-                        meaningfulOverlapCount,
+                const meaningfulOverlapTokens = overlapTokens.filter(
+                    (token) => !isBroadDiscoveryToken(token)
+                );
+
+                const weightedOverlap = overlapTokens.reduce(
+                    (sum, token) => sum + Number(personalizationContext.ownedTokenWeights.get(token) || 0),
+                    0,
+                );
+
+                const meaningfulWeightedOverlap = meaningfulOverlapTokens.reduce(
+                    (sum, token) => sum + Number(personalizationContext.ownedTokenWeights.get(token) || 0),
+                    0,
+                );
+
+                const overlapScore = (
+                    meaningfulOverlapTokens.length * 18
+                    + (overlapTokens.length - meaningfulOverlapTokens.length) * 4
+                    + meaningfulWeightedOverlap * 7
+                    + weightedOverlap * 3
+                );
+
+                if (!bestOverlap || overlapScore > bestOverlap.overlapScore) {
+                    bestOverlap = {
+                        profile,
+                        overlapTokens,
+                        meaningfulOverlapTokens,
+                        overlapScore,
                         weightedOverlap,
                         meaningfulWeightedOverlap,
-                        overlapStrength: hasStrongOverlap ? "strong" : "weak",
-                        overlapToken: pickPreferredOverlapToken(bestOverlap.meaningfulOverlapTokens.length
-                            ? bestOverlap.meaningfulOverlapTokens
-                            : bestOverlap.overlapTokens),
-                        anchorName: String(bestOverlap.profile.row.game_name || "").trim(),
-                        decisionLabel: resolveTimingDecisionLabel(timingSignal)
-                            || resolveDealConfidence(normalized)?.confidence_label
-                            || "Good deal",
-                    });
-                } catch {
-                    // Skip malformed rows without breaking the full rail.
+                    };
                 }
             });
 
-            if (!scored.length) {
-                return { items: [], anchorName: "", reason: "weak_match" };
-            }
+            if (!bestOverlap) return;
 
-            const strongScored = scored.filter((entry) => entry.overlapStrength === "strong");
-            const rankedPool = strongScored.length ? strongScored : scored;
-            rankedPool.sort((left, right) => {
-                const scoreDiff = Number(right.totalScore || 0) - Number(left.totalScore || 0);
-                if (scoreDiff !== 0) return scoreDiff;
-                const overlapDiff = Number(right.meaningfulOverlapCount || 0) - Number(left.meaningfulOverlapCount || 0);
-                if (overlapDiff !== 0) return overlapDiff;
-                const weightedDiff = Number(right.meaningfulWeightedOverlap || right.weightedOverlap || 0)
-                    - Number(left.meaningfulWeightedOverlap || left.weightedOverlap || 0);
-                if (weightedDiff !== 0) return weightedDiff;
-                const dealDiff = Math.max(0, Number(right?.game?.deal_score || 0))
-                    - Math.max(0, Number(left?.game?.deal_score || 0));
-                if (dealDiff !== 0) return dealDiff;
-                const rightId = Number(right?.game?.game_id || right?.game?.id || 0);
-                const leftId = Number(left?.game?.game_id || left?.game?.id || 0);
-                if (leftId > 0 && rightId > 0 && leftId !== rightId) {
-                    return leftId - rightId;
-                }
-                return String(left?.game?.game_name || "").localeCompare(String(right?.game?.game_name || ""));
+            const recommendation = normalizeBuyRecommendation(normalized.buy_recommendation);
+            const discount = Math.max(0, Number(normalized.discount_percent || 0));
+            const dealScore = Math.max(0, Number(normalized.deal_score || 0));
+            const buyScore = Math.max(0, Number(normalized.buy_score || 0));
+            const timingSignal = getDealTimingSignalForRow(normalized, {
+                watched: isInWatchlist(normalized),
+                mode: isUnreleasedInventoryRow(normalized) ? "unreleased" : "paid",
             });
+            const timingBoost = scoreTimingUrgencyAdjustment(timingSignal, { watched: false });
+            const baseScore = scoreDiscoveryRowForUserIntent(
+                normalized,
+                index,
+                scoringContext,
+            );
 
-            const selected = rankedPool.slice(0, normalizedLimit);
-            const anchorName = String(selected[0]?.anchorName || "").trim();
-            return {
-                items: selected,
-                anchorName,
-                reason: strongScored.length ? "ok" : "weak_fallback",
+            const qualityScore = (
+                discount * 0.36
+                + dealScore * 0.22
+                + buyScore * 0.31
+                + (recommendation === "BUY_NOW" ? 9 : 0)
+                + (timingBoost * 2.0)
+            );
+
+            const overlapCount = bestOverlap.overlapTokens.length;
+            const meaningfulOverlapCount = bestOverlap.meaningfulOverlapTokens.length;
+            const weightedOverlap = bestOverlap.weightedOverlap;
+            const meaningfulWeightedOverlap = bestOverlap.meaningfulWeightedOverlap;
+
+            const strongDealSignal = recommendation === "BUY_NOW"
+                || buyScore >= 72
+                || (dealScore >= 66 && discount >= 25);
+
+            const hasStrongOverlap = (
+                meaningfulOverlapCount >= 2
+                || (
+                    meaningfulOverlapCount >= 1
+                    && strongDealSignal
+                    && (meaningfulWeightedOverlap >= 1.8 || qualityScore >= 74)
+                )
+            );
+
+            const hasControlledWeakFallback = !hasStrongOverlap
+                && overlapCount >= 2
+                && strongDealSignal
+                && weightedOverlap >= 2.1;
+
+            const overlapComponent = hasStrongOverlap
+                ? (
+                    meaningfulOverlapCount * 20
+                    + meaningfulWeightedOverlap * 9
+                    + overlapCount * 2
+                )
+                : (
+                    overlapCount * 6
+                    + weightedOverlap * 3
+                );
+
+            const totalScore = overlapComponent + qualityScore + (baseScore * 0.28);
+
+            const entry = {
+                game: normalized,
+                totalScore,
+                overlapCount,
+                meaningfulOverlapCount,
+                weightedOverlap,
+                meaningfulWeightedOverlap,
+                overlapStrength: hasStrongOverlap ? "strong" : "weak",
+                overlapToken: pickPreferredOverlapToken(
+                    bestOverlap.meaningfulOverlapTokens.length
+                        ? bestOverlap.meaningfulOverlapTokens
+                        : bestOverlap.overlapTokens
+                ),
+                anchorName: String(bestOverlap.profile.row.game_name || "").trim(),
+                decisionLabel: resolveTimingDecisionLabel(timingSignal)
+                    || resolveDealConfidence(normalized)?.confidence_label
+                    || "Good deal",
             };
+
+            fallbackScored.push(entry);
+
+            if (hasStrongOverlap || hasControlledWeakFallback) {
+                scored.push(entry);
+            }
+        } catch {
+            // Skip malformed rows without breaking the full rail.
+        }
+    });
+
+    if (!scored.length) {
+        fallbackScored.sort((left, right) => {
+            const scoreDiff = Number(right.totalScore || 0) - Number(left.totalScore || 0);
+            if (scoreDiff !== 0) return scoreDiff;
+            const overlapDiff = Number(right.overlapCount || 0) - Number(left.overlapCount || 0);
+            if (overlapDiff !== 0) return overlapDiff;
+            const dealDiff = Math.max(0, Number(right?.game?.deal_score || 0))
+                - Math.max(0, Number(left?.game?.deal_score || 0));
+            if (dealDiff !== 0) return dealDiff;
+            return String(left?.game?.game_name || "").localeCompare(
+                String(right?.game?.game_name || "")
+            );
+        });
+
+        const selectedFallback = fallbackScored.slice(0, normalizedLimit);
+        return {
+            items: selectedFallback,
+            anchorName: String(selectedFallback[0]?.anchorName || "").trim(),
+            reason: selectedFallback.length ? "weak_fallback" : "weak_match",
+        };
+    }
+
+    const strongScored = scored.filter((entry) => entry.overlapStrength === "strong");
+    const rankedPool = strongScored.length ? strongScored : scored;
+
+    rankedPool.sort((left, right) => {
+        const scoreDiff = Number(right.totalScore || 0) - Number(left.totalScore || 0);
+        if (scoreDiff !== 0) return scoreDiff;
+
+        const overlapDiff = Number(right.meaningfulOverlapCount || 0)
+            - Number(left.meaningfulOverlapCount || 0);
+        if (overlapDiff !== 0) return overlapDiff;
+
+        const weightedDiff = Number(right.meaningfulWeightedOverlap || right.weightedOverlap || 0)
+            - Number(left.meaningfulWeightedOverlap || left.weightedOverlap || 0);
+        if (weightedDiff !== 0) return weightedDiff;
+
+        const dealDiff = Math.max(0, Number(right?.game?.deal_score || 0))
+            - Math.max(0, Number(left?.game?.deal_score || 0));
+        if (dealDiff !== 0) return dealDiff;
+
+        const rightId = Number(right?.game?.game_id || right?.game?.id || 0);
+        const leftId = Number(left?.game?.game_id || left?.game?.id || 0);
+        if (leftId > 0 && rightId > 0 && leftId !== rightId) {
+            return leftId - rightId;
         }
 
+        return String(left?.game?.game_name || "").localeCompare(
+            String(right?.game?.game_name || "")
+        );
+    });
+
+    const selected = rankedPool.slice(0, normalizedLimit);
+    const anchorName = String(selected[0]?.anchorName || "").trim();
+
+    return {
+        items: selected,
+        anchorName,
+        reason: strongScored.length ? "ok" : "weak_fallback",
+    };
+}
         function becauseYouOwnItemHtml(entry) {
             const game = normalizeGameRow(entry?.game);
             const discount = Math.max(0, Number(game.discount_percent || 0));

@@ -16477,11 +16477,12 @@ try {
 <script>
 (function () {
   const TARGET_ID = "dealRankedGrid";
-  const SPEED = 0.6;
+  const SPEED = 0.45;
   const TICK_MS = 16;
 
   let scrollTimer = null;
   let setupTimer = null;
+  let realTrackWidth = 0;
 
   function getRail() {
     const rail = document.getElementById(TARGET_ID);
@@ -16505,11 +16506,28 @@ try {
     }
   }
 
+  function measureRealTrackWidth(rail, realChildren) {
+    if (!realChildren.length) return 0;
+
+    const first = realChildren[0];
+    const last = realChildren[realChildren.length - 1];
+
+    const firstLeft = first.offsetLeft;
+    const lastRight = last.offsetLeft + last.offsetWidth;
+
+    return Math.max(0, lastRight - firstLeft);
+  }
+
   function buildLoop(rail) {
+    stopScroll();
     removeClones(rail);
+    realTrackWidth = 0;
 
     const realChildren = getRealChildren(rail);
     if (realChildren.length < 2) return false;
+
+    realTrackWidth = measureRealTrackWidth(rail, realChildren);
+    if (!(realTrackWidth > rail.clientWidth + 4)) return false;
 
     realChildren.forEach((child) => {
       const clone = child.cloneNode(true);
@@ -16521,7 +16539,7 @@ try {
     rail.style.scrollSnapType = "none";
     rail.dataset.pauseAutoscroll = rail.dataset.pauseAutoscroll || "0";
 
-    return rail.scrollWidth > rail.clientWidth + 4;
+    return true;
   }
 
   function startScroll(rail) {
@@ -16535,14 +16553,12 @@ try {
       }
 
       if (rail.dataset.pauseAutoscroll === "1") return;
-
-      const loopWidth = rail.scrollWidth / 2;
-      if (loopWidth <= rail.clientWidth + 4) return;
+      if (!(realTrackWidth > rail.clientWidth + 4)) return;
 
       rail.scrollLeft += SPEED;
 
-      if (rail.scrollLeft >= loopWidth) {
-        rail.scrollLeft -= loopWidth;
+      if (rail.scrollLeft >= realTrackWidth) {
+        rail.scrollLeft -= realTrackWidth;
       }
     }, TICK_MS);
   }
@@ -16608,12 +16624,10 @@ try {
     }, 15000);
   }
 
-  // initial attempts
   setTimeout(() => initAutoscroll(true), 500);
   setTimeout(() => initAutoscroll(true), 2000);
   setTimeout(() => initAutoscroll(true), 4000);
 
-  // keep checking for deferred rail rerender on first load
   startSetupPolling();
 
   document.addEventListener("visibilitychange", () => {

@@ -16477,10 +16477,12 @@ try {
 <script>
 (function () {
   const TARGET_ID = "dealRankedGrid";
-  const SPEED = 0.8;
+  const SPEED = 0.45;
 
   let rafId = null;
-  let initialized = false;
+  let railObserver = null;
+  let initPoll = null;
+  let currentSignature = "";
 
   function getRail() {
     const rail = document.getElementById(TARGET_ID);
@@ -16497,19 +16499,17 @@ try {
     rail.querySelectorAll('[data-autoscroll-clone="1"]').forEach((node) => node.remove());
   }
 
-  function buildLoop(rail) {
-    removeClones(rail);
-
-    const realChildren = getRealChildren(rail);
-    if (realChildren.length < 2) return false;
-
-    realChildren.forEach((child) => {
-      const clone = child.cloneNode(true);
-      clone.setAttribute("data-autoscroll-clone", "1");
-      rail.appendChild(clone);
-    });
-
-    return rail.scrollWidth > rail.clientWidth + 4;
+  function getSignature(rail) {
+    return getRealChildren(rail)
+      .map((node) =>
+        node.getAttribute("data-game-id")
+        || node.getAttribute("data-id")
+        || node.getAttribute("data-key")
+        || node.id
+        || node.textContent?.slice(0, 40)
+        || "x"
+      )
+      .join("|");
   }
 
   function stop() {
@@ -16519,11 +16519,29 @@ try {
     }
   }
 
+  function buildLoop(rail) {
+    stop();
+    removeClones(rail);
+
+    const realChildren = getRealChildren(rail);
+    if (realChildren.length < 2) return false;
+
+    currentSignature = getSignature(rail);
+
+    realChildren.forEach((child) => {
+      const clone = child.cloneNode(true);
+      clone.setAttribute("data-autoscroll-clone", "1");
+      rail.appendChild(clone);
+    });
+
+    rail.scrollLeft = 0;
+    rail.style.scrollSnapType = "none";
+
+    return rail.scrollWidth > rail.clientWidth + 4;
+  }
+
   function start(rail) {
     stop();
-
-    rail.dataset.pauseAutoscroll = rail.dataset.pauseAutoscroll || "0";
-    rail.style.scrollSnapType = "none";
 
     function tick() {
       if (!document.body.contains(rail)) {
@@ -16532,12 +16550,13 @@ try {
       }
 
       if (rail.dataset.pauseAutoscroll !== "1") {
-        const loopWidth = rail.scrollWidth / 2;
-        if (loopWidth > rail.clientWidth + 4) {
+        const realWidth = rail.scrollWidth / 2;
+
+        if (realWidth > rail.clientWidth + 4) {
           rail.scrollLeft += SPEED;
 
-          if (rail.scrollLeft >= loopWidth) {
-            rail.scrollLeft -= loopWidth;
+          if (rail.scrollLeft >= realWidth) {
+            rail.scrollLeft -= realWidth;
           }
         }
       }
@@ -16567,41 +16586,77 @@ try {
     });
 
     window.addEventListener("pointerup", () => {
-      const currentRail = getRail();
-      if (!currentRail) return;
-      currentRail.dataset.pauseAutoscroll = "0";
-      currentRail.style.scrollSnapType = "none";
+      const current = getRail();
+      if (!current) return;
+      current.dataset.pauseAutoscroll = "0";
+      current.style.scrollSnapType = "none";
     });
 
     rail.dataset.autoscrollHandlersBound = "1";
   }
 
-  function init() {
+  function refresh(forceRebuild = false) {
     const rail = getRail();
     if (!rail) return false;
 
     wireHandlers(rail);
 
-    if (!initialized) {
+    const nextSignature = getSignature(rail);
+    const cloneCount = rail.querySelectorAll('[data-autoscroll-clone="1"]').length;
+
+    if (forceRebuild || cloneCount === 0 || nextSignature !== currentSignature) {
       const ok = buildLoop(rail);
       if (!ok) return false;
-      initialized = true;
     }
 
     start(rail);
     return true;
   }
 
-  const poll = setInterval(() => {
+  function observeRail(rail) {
+    if (railObserver) railObserver.disconnect();
+
+    railObserver = new MutationObserver(() => {
+      const current = getRail();
+      if (!current) return;
+
+      const nextSignature = getSignature(current);
+      if (nextSignature !== currentSignature) {
+        refresh(true);
+      }
+    });
+
+    railObserver.observe(rail, { childList: true });
+  }
+
+  function init() {
+    const rail = getRail();
+    if (!rail) return false;
+
+    const realChildren = getRealChildren(rail);
+    if (realChildren.length < 2) return false;
+
+    const ok = refresh(true);
+    if (ok) observeRail(rail);
+    return ok;
+  }
+
+  initPoll = setInterval(() => {
     if (init()) {
-      clearInterval(poll);
+      clearInterval(initPoll);
+      initPoll = null;
     }
   }, 250);
 
-  setTimeout(() => clearInterval(poll), 10000);
+  setTimeout(() => {
+    if (initPoll !== null) {
+      clearInterval(initPoll);
+      initPoll = null;
+    }
+  }, 12000);
 
-  setTimeout(init, 1000);
-  setTimeout(init, 2000);
+  setTimeout(init, 1500);
+  setTimeout(init, 3000);
 })();
 </script>
 </body>

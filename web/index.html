@@ -16478,8 +16478,9 @@ try {
 (function () {
   const TARGET_ID = "dealRankedGrid";
   const SPEED = 0.45;
+  const INTERVAL_MS = 16;
 
-  let rafId = null;
+  let intervalId = null;
   let built = false;
 
   function getRail() {
@@ -16498,9 +16499,9 @@ try {
   }
 
   function stop() {
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
+    if (intervalId !== null) {
+      clearInterval(intervalId);
+      intervalId = null;
     }
   }
 
@@ -16519,6 +16520,7 @@ try {
 
     rail.scrollLeft = 0;
     rail.style.scrollSnapType = "none";
+
     return rail.scrollWidth > rail.clientWidth + 4;
   }
 
@@ -16526,27 +16528,23 @@ try {
     stop();
     rail.style.scrollSnapType = "none";
 
-    function tick() {
+    intervalId = window.setInterval(() => {
       if (!document.body.contains(rail)) {
         stop();
         return;
       }
 
-      if (rail.dataset.pauseAutoscroll !== "1") {
-        const loopWidth = rail.scrollWidth / 2;
-        if (loopWidth > rail.clientWidth + 4) {
-          rail.scrollLeft += SPEED;
+      if (rail.dataset.pauseAutoscroll === "1") return;
 
-          if (rail.scrollLeft >= loopWidth) {
-            rail.scrollLeft -= loopWidth;
-          }
-        }
+      const loopWidth = rail.scrollWidth / 2;
+      if (loopWidth <= rail.clientWidth + 4) return;
+
+      rail.scrollLeft += SPEED;
+
+      if (rail.scrollLeft >= loopWidth) {
+        rail.scrollLeft -= loopWidth;
       }
-
-      rafId = requestAnimationFrame(tick);
-    }
-
-    rafId = requestAnimationFrame(tick);
+    }, INTERVAL_MS);
   }
 
   function wireHandlers(rail) {
@@ -16601,19 +16599,14 @@ try {
 
   setTimeout(() => clearInterval(poll), 10000);
 
-  // delayed rebuilds after deferred homepage rerender
   setTimeout(() => init(true), 2500);
   setTimeout(() => init(true), 5000);
 
   document.addEventListener("visibilitychange", () => {
-    const rail = getRail();
-    if (!rail) return;
-
     if (document.hidden) {
       stop();
       return;
     }
-
     init();
   });
 })();

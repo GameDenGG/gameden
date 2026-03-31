@@ -16491,7 +16491,7 @@ try {
         }
 
         init();
-    </script>
+   <script>
 (function () {
   const RAIL_ID = "dealRankedGrid";
 
@@ -16503,15 +16503,14 @@ try {
     if (rail.dataset.autoscrollReady === "1") return;
     rail.dataset.autoscrollReady = "1";
 
-    // Disable snapping (important)
+    // Disable snapping (critical)
     rail.style.scrollSnapType = "none";
 
-    // Wait until cards are rendered
     requestAnimationFrame(() => {
       const originalItems = Array.from(rail.children);
       if (!originalItems.length) return;
 
-      // Clone ONLY once
+      // Clone once
       const clones = originalItems.map((el) => {
         const clone = el.cloneNode(true);
         clone.setAttribute("data-autoscroll-clone", "1");
@@ -16529,9 +16528,8 @@ try {
 
       function step() {
         if (!isHovered) {
-          rail.scrollLeft += 0.25; // 🔧 SPEED (lower = slower)
+          rail.scrollLeft += 0.2; // slightly slower (better feel)
 
-          // 🔥 TRUE seamless loop
           if (rail.scrollLeft >= loopWidth) {
             rail.scrollLeft -= loopWidth;
           }
@@ -16544,8 +16542,8 @@ try {
     });
   }
 
-  // 🔑 IMPORTANT: run AFTER renderDealRanked completes
   window.initAllDealsAutoscroll = initAllDealsAutoscroll;
 })();
+</script>
 </body>
 </html>

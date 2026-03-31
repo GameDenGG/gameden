@@ -11594,8 +11594,8 @@ input:focus-visible {
                 title: "All Deals",
                 initialCount: HOMEPAGE_ALL_DEALS_INITIAL_COUNT,
             });
+       initAllDealsAutoscroll();
         }
-
         function renderOpportunities() {
             const filtered = resolveDiscoveryFeedRows(state.opportunitiesNow, {
                 targetCount: 12,
@@ -16280,13 +16280,12 @@ try {
         function wireHorizontalRailContinuation() {
             if (wireHorizontalRailContinuation._wired) return;
             const sections = [
-                { key: "dealRankedGrid", render: renderDealRanked, onNearEnd: maybeLoadMoreAllDealsHomepageCatalog },
-                { key: "opportunitiesGrid", render: renderOpportunities },
-                { key: "worthBuyingGrid", render: renderWorthBuyingNow },
-                { key: "trendingDealsGrid", render: renderTrendingDeals },
-                { key: "newHistoricalLowsGrid", render: renderNewHistoricalLows },
-                { key: "newDealsGrid", render: renderNewDeals },
-            ];
+    { key: "opportunitiesGrid", render: renderOpportunities },
+    { key: "worthBuyingGrid", render: renderWorthBuyingNow },
+    { key: "trendingDealsGrid", render: renderTrendingDeals },
+    { key: "newHistoricalLowsGrid", render: renderNewHistoricalLows },
+    { key: "newDealsGrid", render: renderNewDeals },
+];
             sections.forEach(({ key, render, onNearEnd }) => {
                 enableHorizontalRailContinuation(key, render, { onNearEnd });
             });
@@ -16471,85 +16470,52 @@ try {
                 scheduleDeferredHomepageStage();
             }
         }
+let allDealsAutoscrollTimer = null;
+let allDealsAutoscrollBuiltFor = "";
 
-        init();
-    </script>
-<script>
-(function () {
-  const TARGET_ID = "dealRankedGrid";
-  const SPEED = 0.45;
-  const TICK_MS = 16;
+function stopAllDealsAutoscroll() {
+  if (allDealsAutoscrollTimer !== null) {
+    clearInterval(allDealsAutoscrollTimer);
+    allDealsAutoscrollTimer = null;
+  }
+}
 
-  let scrollTimer = null;
-  let setupTimer = null;
+function initAllDealsAutoscroll() {
+  const rail = document.getElementById("dealRankedGrid");
+  if (!(rail instanceof HTMLElement)) return;
 
-  function getRail() {
-    const rail = document.getElementById(TARGET_ID);
-    return rail instanceof HTMLElement ? rail : null;
+  const signature = String(rail.dataset.renderSignature || rail.dataset.renderedCount || rail.children.length || "");
+  if (allDealsAutoscrollBuiltFor === signature && allDealsAutoscrollTimer !== null) {
+    return;
   }
 
-  function getRealChildren(rail) {
-    return Array.from(rail.children).filter(
-      (node) => node instanceof HTMLElement && node.dataset.autoscrollClone !== "1"
-    );
-  }
+  stopAllDealsAutoscroll();
 
-  function removeClones(rail) {
-    rail.querySelectorAll('[data-autoscroll-clone="1"]').forEach((node) => node.remove());
-  }
+  rail.querySelectorAll('[data-autoscroll-clone="1"]').forEach((node) => node.remove());
 
-  function stopScroll() {
-    if (scrollTimer !== null) {
-      clearInterval(scrollTimer);
-      scrollTimer = null;
-    }
-  }
+  const realChildren = Array.from(rail.children).filter(
+    (node) => node instanceof HTMLElement && node.dataset.autoscrollClone !== "1"
+  );
 
-  function buildLoop(rail) {
-    removeClones(rail);
+  if (realChildren.length < 2) return;
 
-    const realChildren = getRealChildren(rail);
-    if (realChildren.length < 2) return false;
+  realChildren.forEach((child) => {
+    const clone = child.cloneNode(true);
+    clone.setAttribute("data-autoscroll-clone", "1");
+    rail.appendChild(clone);
+  });
 
-    realChildren.forEach((child) => {
-      const clone = child.cloneNode(true);
-      clone.setAttribute("data-autoscroll-clone", "1");
-      rail.appendChild(clone);
-    });
+  const first = realChildren[0];
+  const last = realChildren[realChildren.length - 1];
+  const realTrackWidth = (last.offsetLeft + last.offsetWidth) - first.offsetLeft;
 
-    rail.scrollLeft = 0;
-    rail.style.scrollSnapType = "none";
-    rail.dataset.pauseAutoscroll = rail.dataset.pauseAutoscroll || "0";
+  if (!(realTrackWidth > rail.clientWidth + 4)) return;
 
-    return rail.scrollWidth > rail.clientWidth + 4;
-  }
+  rail.scrollLeft = 0;
+  rail.style.scrollSnapType = "none";
+  rail.dataset.pauseAutoscroll = rail.dataset.pauseAutoscroll || "0";
 
-  function startScroll(rail) {
-    stopScroll();
-    rail.style.scrollSnapType = "none";
-
-    scrollTimer = setInterval(() => {
-      if (!document.body.contains(rail)) {
-        stopScroll();
-        return;
-      }
-
-      if (rail.dataset.pauseAutoscroll === "1") return;
-
-      const loopWidth = rail.scrollWidth / 2;
-      if (loopWidth <= rail.clientWidth + 4) return;
-
-      rail.scrollLeft += SPEED;
-
-      if (rail.scrollLeft >= loopWidth) {
-        rail.scrollLeft -= loopWidth;
-      }
-    }, TICK_MS);
-  }
-
-  function wireHandlers(rail) {
-    if (rail.dataset.autoscrollHandlersBound === "1") return;
-
+  if (rail.dataset.autoscrollHandlersBound !== "1") {
     rail.addEventListener("mouseenter", () => {
       rail.dataset.pauseAutoscroll = "1";
       rail.style.scrollSnapType = "";
@@ -16566,8 +16532,8 @@ try {
     });
 
     window.addEventListener("pointerup", () => {
-      const currentRail = getRail();
-      if (!currentRail) return;
+      const currentRail = document.getElementById("dealRankedGrid");
+      if (!(currentRail instanceof HTMLElement)) return;
       currentRail.dataset.pauseAutoscroll = "0";
       currentRail.style.scrollSnapType = "none";
     });
@@ -16575,57 +16541,25 @@ try {
     rail.dataset.autoscrollHandlersBound = "1";
   }
 
-  function initAutoscroll(forceRebuild = false) {
-    const rail = getRail();
-    if (!rail) return false;
+  allDealsAutoscrollBuiltFor = signature;
 
-    wireHandlers(rail);
-
-    const cloneCount = rail.querySelectorAll('[data-autoscroll-clone="1"]').length;
-    if (forceRebuild || cloneCount === 0) {
-      const ok = buildLoop(rail);
-      if (!ok) return false;
-    }
-
-    startScroll(rail);
-    return true;
-  }
-
-  function startSetupPolling() {
-    if (setupTimer !== null) {
-      clearInterval(setupTimer);
-    }
-
-    setupTimer = setInterval(() => {
-      initAutoscroll();
-    }, 1000);
-
-    setTimeout(() => {
-      if (setupTimer !== null) {
-        clearInterval(setupTimer);
-        setupTimer = null;
-      }
-    }, 15000);
-  }
-
-  setTimeout(() => initAutoscroll(true), 500);
-  setTimeout(() => initAutoscroll(true), 2000);
-  setTimeout(() => initAutoscroll(true), 4000);
-
-  startSetupPolling();
-
-  document.addEventListener("visibilitychange", () => {
-    const rail = getRail();
-    if (!rail) return;
-
-    if (document.hidden) {
-      stopScroll();
+  allDealsAutoscrollTimer = setInterval(() => {
+    if (!document.body.contains(rail)) {
+      stopAllDealsAutoscroll();
       return;
     }
 
-    initAutoscroll();
-  });
-})();
-</script>
+    if (rail.dataset.pauseAutoscroll === "1") return;
+
+    rail.scrollLeft += 0.45;
+
+    if (rail.scrollLeft >= realTrackWidth) {
+      rail.scrollLeft -= realTrackWidth;
+    }
+  }, 16);
+}
+
+        init();
+    </script>
 </body>
 </html>

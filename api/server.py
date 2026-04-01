@@ -5571,12 +5571,17 @@ def home():
 def all_results_page():
     return FileResponse("web/all-results.html")
 
-
-@app.get("/game")
 @app.get("/game/")
 def game_page():
     return FileResponse("web/game.html")
 
+@app.get("/game/{identifier}/")
+def game_page_with_identifier(identifier: str):
+    if not str(identifier or "").strip():
+        raise HTTPException(status_code=404, detail="Game page not found")
+    return FileResponse("web/game.html")
+
+from fastapi.responses import FileResponse
 
 @app.get("/game/{identifier}")
 @app.get("/game/{identifier}/")
@@ -5584,7 +5589,6 @@ def game_page_with_identifier(identifier: str):
     if not str(identifier or "").strip():
         raise HTTPException(status_code=404, detail="Game page not found")
     return FileResponse("web/game.html")
-
 
 @app.get("/history")
 def history_page():

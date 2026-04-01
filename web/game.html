@@ -2826,21 +2826,25 @@ function buildShareSummary(payload) {
 }
 
 function normalizeCanonicalGameRoute(payload) {
-    const canonicalPath = buildCanonicalGamePath(payload);
-    const currentPath = String(window.location.pathname || "").replace(/\/+$/, "") || "/";
-    const targetPath = String(canonicalPath || "/").replace(/\/+$/, "") || "/";
-    const params = new URLSearchParams(window.location.search);
-    params.delete("game_name");
-    params.delete("game_id");
-    const nextSearch = params.toString();
-    const nextUrl = `${targetPath}${nextSearch ? `?${nextSearch}` : ""}`;
-    const currentUrl = `${currentPath}${window.location.search || ""}`;
-    if (nextUrl === currentUrl) return;
-    try {
-        window.history.replaceState({}, "", nextUrl);
-    } catch {
-        // Ignore history normalization errors in restricted browsers.
+    const slug = payload?.slug || payload?.game_slug;
+    if (!slug) return;
+
+    const canonicalPath = `/game/${slug}`;
+    const currentPath = window.location.pathname;
+
+    if (currentPath !== canonicalPath) {
+        const nextUrl = `${canonicalPath}${window.location.search}${window.location.hash}`;
+        window.history.replaceState(window.history.state, "", nextUrl);
     }
+
+    let link = document.querySelector('link[rel="canonical"]');
+    if (!link) {
+        link = document.createElement("link");
+        link.rel = "canonical";
+        document.head.appendChild(link);
+    }
+
+    link.href = `${window.location.origin}${canonicalPath}`;
 }
 
 function applyGamePageMetadata(payload) {

@@ -5459,10 +5459,28 @@ from sqlalchemy import text
 def _collect_sitemap_game_paths():
     session = ReadSessionLocal()
     try:
-        sample = session.execute(text("SELECT * FROM games LIMIT 1"))
-        row = sample.mappings().first()
-        print("SITEMAP SAMPLE ROW:", row)
-        return []
+        result = session.execute(
+            text("""
+                SELECT id, appid
+                FROM games
+                WHERE
+                    (appid IS NOT NULL AND TRIM(appid) <> '')
+                    OR id IS NOT NULL
+            """)
+        )
+        rows = result.mappings().all()
+
+        paths = []
+        for row in rows:
+            appid = str(row.get("appid") or "").strip()
+            game_id = row.get("id")
+
+            if appid:
+                paths.append(f"/game/{appid}")
+            elif game_id is not None:
+                paths.append(f"/game/{int(game_id)}")
+
+        return paths
     except Exception as e:
         print("SITEMAP DB ERROR:", e)
         return []

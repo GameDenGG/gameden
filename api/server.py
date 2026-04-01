@@ -5454,34 +5454,28 @@ def site_manifest():
         media_type="application/manifest+json",
     )
 
+from sqlalchemy import text
 
 def _collect_sitemap_game_paths():
     paths = []
-    start = 0
-    batch_size = 1000
 
-    while True:
-        response = (
-            supabase
-            .table("games")
-            .select("slug,game_slug")
-            .range(start, start + batch_size - 1)
-            .execute()
+    session = ReadSessionLocal()
+    try:
+        result = session.execute(
+            text("SELECT slug, game_slug FROM games")
         )
-
-        rows = response.data or []
-        if not rows:
-            break
+        rows = result.fetchall()
 
         for row in rows:
-            slug = str(row.get("slug") or row.get("game_slug") or "").strip()
+            slug = str(row.slug or row.game_slug or "").strip()
             if slug:
                 paths.append(f"/game/{slug}")
 
-        if len(rows) < batch_size:
-            break
+    except Exception as e:
+        print("SITEMAP DB ERROR:", e)
 
-        start += batch_size
+    finally:
+        session.close()
 
     return paths
 

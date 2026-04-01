@@ -5536,6 +5536,18 @@ from fastapi.responses import FileResponse, RedirectResponse
 
 @app.get("/game/{identifier}")
 def game_page(identifier: str):
+    if str(identifier or "").isdigit():
+        session = ReadSessionLocal()
+        try:
+            game = _resolve_game_by_identifier(session, identifier)
+            if game is not None:
+                payload = _build_game_detail_response_payload(session, game, viewer_user_id=None)
+                slug = payload.get("slug") or payload.get("game_slug")
+                if slug:
+                    return RedirectResponse(url=f"/game/{slug}", status_code=301)
+        finally:
+            session.close()
+
     return FileResponse("web/game.html")
 
 @app.get("/history")

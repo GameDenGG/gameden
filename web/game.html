@@ -4600,7 +4600,6 @@ if (!payload || payload.error) {
     }
     currentGamePayload = payload;
     currentGameContext = resolveGameContext(payload);
-    normalizeCanonicalGameRoute(payload);
     if (shareDealButton instanceof HTMLButtonElement) {
         shareDealButton.disabled = !(Number.isFinite(currentGameId) && currentGameId > 0);
         shareDealButton.textContent = SHARE_BUTTON_DEFAULT_LABEL;
@@ -4608,6 +4607,7 @@ if (!payload || payload.error) {
     setStoreCta(resolveStoreUrl(payload));
     applyGamePageMetadata(payload);
     applyGameStructuredData(payload);
+    normalizeCanonicalGameRoute(payload);
 
     document.getElementById("gameTitle").innerText = payload.game_name || gameName;
     applyAdaptiveGameLayout(payload, currentGameContext);

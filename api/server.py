@@ -5444,10 +5444,7 @@ def _collect_sitemap_game_paths():
         seen = set()
 
         for row in rows:
-            slug = _canonical_game_slug(
-                row.get("name"),
-                fallback_identifier=row.get("appid") or row.get("id"),
-            )
+            slug = _canonical_game_slug(row.get("name"))
 
             if not slug:
                 continue

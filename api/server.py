@@ -602,19 +602,6 @@ def _run_quick_timeout_fallback_query(
     ).mappings().all()
 
 
-@app.middleware("http")
-async def canonical_host_redirect_middleware(request: Request, call_next):
-    if not CANONICAL_HOST_REDIRECT:
-        return await call_next(request)
-
-    request_host = _request_host(request)
-    if request_host and request_host != SITE_HOST and request_host in CANONICAL_REDIRECT_HOSTS:
-        target = _build_canonical_url(request.url.path, request.url.query)
-        return RedirectResponse(url=target, status_code=308)
-
-    return await call_next(request)
-
-
 def _new_anonymous_user_id() -> str:
     return f"anon_{uuid.uuid4().hex}"
 
@@ -778,6 +765,17 @@ async def viewer_identity_middleware(request: Request, call_next):
         _set_viewer_cookie(response, viewer_id)
     response.headers.setdefault("X-GameDen-Viewer", viewer_id)
     return response
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ALLOW_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["X-GameDen-Viewer", "X-GameDen-Auth-User", "ETag"],
+    max_age=86400,
+)
 
 
 class AlertCreateRequest(BaseModel):
@@ -5379,20 +5377,6 @@ def site_config():
 def site_branding():
     return FileResponse("web/site-branding.js", media_type="application/javascript")
 
-@app.get("/site-config.js", include_in_schema=False)
-def site_config_js():
-    payload = {
-        "site_name": SITE_NAME,
-        "site_url": SITE_URL.rstrip("/"),
-        "site_description": SITE_DESCRIPTION,
-    }
-    content = (
-        "window.__GAMEDEN_SITE__ = Object.freeze("
-        f"{json.dumps(payload, ensure_ascii=True)}"
-        ");\n"
-    )
-    return Response(content=content, media_type="application/javascript")
-
 @app.get("/runtime-config.js")
 def runtime_config():
     return FileResponse("web/runtime-config.js", media_type="application/javascript")
@@ -5536,16 +5520,6 @@ def sitemap_xml():
     )
 
     return Response(content=xml, media_type="application/xml")
-
-@app.get("/robots.txt", include_in_schema=False)
-def robots_txt():
-    body = (
-        "User-agent: *\n"
-        "Allow: /\n"
-        f"Sitemap: {_build_canonical_url('/sitemap.xml')}\n"
-    )
-    return Response(content=body, media_type="text/plain")
-
 
 @app.get("/")
 def home():

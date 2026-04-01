@@ -5375,7 +5375,7 @@ def build_game_detail_payload(session, game: Game, user_id: str | None = None):
 def robots_txt():
     body = (
         "User-agent: *\n"
-        "Allow: /\n\n"
+        "Allow: /\n"
         f"Sitemap: {SITE_URL.rstrip('/')}/sitemap.xml\n"
     )
     return PlainTextResponse(body)
@@ -5459,29 +5459,36 @@ def _collect_sitemap_game_paths(limit: int = SITEMAP_GAME_DETAIL_LIMIT) -> list[
         session.close()
 
 
+from fastapi import HTTPException
+from fastapi.responses import FileResponse, Response
+
 @app.get("/sitemap.xml", include_in_schema=False)
 def sitemap_xml():
-    today = utc_now().date().isoformat()
     ordered_paths: list[str] = []
     seen_paths: set[str] = set()
+
+    # Skip non-canonical shell routes that should not be indexed directly.
+    blocked_paths = {"/game", "/game/"}
+
     for path in (*SITEMAP_STATIC_PATHS, *_collect_sitemap_game_paths()):
         normalized = str(path or "").strip()
         if not normalized:
             continue
         if not normalized.startswith("/"):
             normalized = f"/{normalized}"
+        if normalized in blocked_paths:
+            continue
         if normalized in seen_paths:
             continue
         seen_paths.add(normalized)
         ordered_paths.append(normalized)
 
-    urls = []
+    urls: list[str] = []
     for path in ordered_paths:
         location = _build_canonical_url(path)
         urls.append(
             "  <url>\n"
             f"    <loc>{location}</loc>\n"
-            f"    <lastmod>{today}</lastmod>\n"
             "  </url>"
         )
 
@@ -5492,6 +5499,16 @@ def sitemap_xml():
         "</urlset>\n"
     )
     return Response(content=xml, media_type="application/xml")
+
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots_txt():
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        f"Sitemap: {_build_canonical_url('/sitemap.xml')}\n"
+    )
+    return Response(content=body, media_type="text/plain")
 
 
 @app.get("/")
@@ -5531,8 +5548,6 @@ def game_detail_page():
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return FileResponse("web/favicon.ico")
-
-
 @app.get("/share/deal/{game_id}", include_in_schema=False)
 def share_deal_card(game_id: int):
     started = _start_timer()

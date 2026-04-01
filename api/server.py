@@ -17,6 +17,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+import httpx
 from pydantic import BaseModel, EmailStr
 import requests
 from sqlalchemy import and_, case, func, or_, text
@@ -5581,13 +5582,29 @@ def game_page_with_identifier(identifier: str):
         raise HTTPException(status_code=404, detail="Game page not found")
     return FileResponse("web/game.html")
 
-from fastapi.responses import FileResponse
+from fastapi.responses import RedirectResponse
 
 @app.get("/game/{identifier}")
-@app.get("/game/{identifier}/")
-def game_page_with_identifier(identifier: str):
-    if not str(identifier or "").strip():
-        raise HTTPException(status_code=404, detail="Game page not found")
+@app.get("/game/{identifier}")
+async def game_page(identifier: str):
+
+    if identifier.isdigit():
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.get(f"http://127.0.0.1:8000/games/resolve/{identifier}")
+
+            if res.status_code == 200:
+                game = res.json()
+                slug = game.get("slug") or game.get("game_slug")
+
+                if slug:
+                    return RedirectResponse(
+                        url=f"/game/{slug}",
+                        status_code=301
+                    )
+        except Exception:
+            pass  # fail safely
+
     return FileResponse("web/game.html")
 
 @app.get("/history")

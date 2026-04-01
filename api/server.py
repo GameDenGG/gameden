@@ -5489,15 +5489,59 @@ def _collect_sitemap_game_paths():
 
 from fastapi import Response
 
+BASE_URL = "https://gameden.gg"
+
 @app.get("/sitemap.xml", include_in_schema=False)
 def sitemap_xml():
-    xml = """<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://gameden.gg/</loc>
-  </url>
-</urlset>
-"""
+    seen = set()
+    urls = []
+
+    def add_path(path: str):
+        normalized = str(path or "").strip()
+        if not normalized:
+            return
+        if not normalized.startswith("/"):
+            normalized = f"/{normalized}"
+        if normalized in {"/game", "/game/"}:
+            return
+        if normalized in seen:
+            return
+
+        seen.add(normalized)
+
+        # ✅ SAFE canonical (no helper)
+        loc = f"{BASE_URL}{normalized}"
+
+        urls.append(
+            "  <url>\n"
+            f"    <loc>{loc}</loc>\n"
+            "  </url>"
+        )
+
+    # homepage
+    add_path("/")
+
+    # static pages (SAFE GUARD)
+    try:
+        for path in SITEMAP_STATIC_PATHS:
+            add_path(path)
+    except Exception as e:
+        print("STATIC PATH ERROR:", e)
+
+    # games (SAFE GUARD)
+    try:
+        for path in _collect_sitemap_game_paths():
+            add_path(path)
+    except Exception as e:
+        print("GAME PATH ERROR:", e)
+
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{chr(10).join(urls)}\n"
+        "</urlset>\n"
+    )
+
     return Response(content=xml, media_type="application/xml")
 
 @app.get("/robots.txt", include_in_schema=False)

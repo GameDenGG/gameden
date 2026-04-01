@@ -5408,6 +5408,25 @@ def site_config_js():
     )
     return Response(content=content, media_type="application/javascript")
 
+@app.get("/runtime-config.js")
+def runtime_config():
+    return FileResponse("web/runtime-config.js", media_type="application/javascript")
+
+@app.get("/supabase-client.js")
+def supabase_client():
+    return FileResponse("web/supabase-client.js", media_type="application/javascript")
+
+@app.get("/auth-session.js")
+def auth_session():
+    return FileResponse("web/auth-session.js", media_type="application/javascript")
+
+@app.get("/auth-state-listener.js")
+def auth_state_listener():
+    return FileResponse("web/auth-state-listener.js", media_type="application/javascript")
+
+@app.get("/account-state.js")
+def account_state():
+    return FileResponse("web/account-state.js", media_type="application/javascript")
 
 @app.get("/site.webmanifest", include_in_schema=False)
 def site_manifest():

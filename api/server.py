@@ -5461,26 +5461,34 @@ def _collect_sitemap_game_paths():
     try:
         result = session.execute(
             text("""
-                SELECT id, appid
+                SELECT id, appid, name
                 FROM games
-                WHERE
-                    (appid IS NOT NULL AND TRIM(appid) <> '')
-                    OR id IS NOT NULL
+                WHERE name IS NOT NULL
+                  AND TRIM(name) <> ''
             """)
         )
         rows = result.mappings().all()
 
         paths = []
-        for row in rows:
-            appid = str(row.get("appid") or "").strip()
-            game_id = row.get("id")
+        seen = set()
 
-            if appid:
-                paths.append(f"/game/{appid}")
-            elif game_id is not None:
-                paths.append(f"/game/{int(game_id)}")
+        for row in rows:
+            slug = _canonical_game_slug(
+                row.get("name"),
+                fallback_identifier=row.get("appid") or row.get("id"),
+            )
+
+            if not slug:
+                continue
+
+            path = f"/game/{slug}"
+
+            if path not in seen:
+                seen.add(path)
+                paths.append(path)
 
         return paths
+
     except Exception as e:
         print("SITEMAP DB ERROR:", e)
         return []

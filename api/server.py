@@ -5571,12 +5571,6 @@ def home():
 def all_results_page():
     return FileResponse("web/all-results.html")
 
-@app.get("/game/{identifier}/")
-def game_page_with_identifier(identifier: str):
-    if not str(identifier or "").strip():
-        raise HTTPException(status_code=404, detail="Game page not found")
-    return FileResponse("web/game.html")
-
 from fastapi.responses import FileResponse, RedirectResponse
 
 @app.get("/game/{identifier}")

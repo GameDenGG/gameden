@@ -5581,7 +5581,7 @@ def game_page_with_identifier(identifier: str):
         raise HTTPException(status_code=404, detail="Game page not found")
     return FileResponse("web/game.html")
 
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 @app.get("/game/{identifier}")
 @app.get("/game/{identifier}")

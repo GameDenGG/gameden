@@ -112,6 +112,21 @@ class CacheControlStaticFiles(StaticFiles):
 
 app = FastAPI(title=f"{SITE_NAME} API", description=SITE_DESCRIPTION)
 
+from fastapi.responses import RedirectResponse
+
+@app.get("/game/{identifier}", include_in_schema=False)
+def force_game_redirect(identifier: str):
+    if identifier.isdigit():
+        session = ReadSessionLocal()
+        try:
+            game = _resolve_game_by_identifier(session, identifier)
+            if game:
+                slug = getattr(game, "slug", None) or getattr(game, "game_slug", None)
+                if slug:
+                    return RedirectResponse(url=f"/game/{slug}", status_code=301)
+        finally:
+            session.close()
+
 ALLOW_ALL_CORS = CORS_ALLOW_ALL_ORIGINS or "*" in CORS_ALLOW_ORIGINS
 app.add_middleware(
     CORSMiddleware,

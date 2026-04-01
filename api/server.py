@@ -5459,23 +5459,22 @@ from sqlalchemy import text
 def _collect_sitemap_game_paths():
     session = ReadSessionLocal()
     try:
-        # 1) Prove which table actually has game rows
-        result = session.execute(text("SELECT * FROM games LIMIT 3"))
+        result = session.execute(
+            text("""
+                SELECT canonical_game_slug
+                FROM games
+                WHERE canonical_game_slug IS NOT NULL
+                  AND TRIM(canonical_game_slug) <> ''
+            """)
+        )
         rows = result.mappings().all()
-        print("SITEMAP sample rows:", rows)
 
         paths = []
         for row in rows:
-            slug = str(
-                row.get("slug")
-                or row.get("game_slug")
-                or row.get("canonical_game_slug")
-                or ""
-            ).strip()
+            slug = str(row.get("canonical_game_slug") or "").strip()
             if slug:
                 paths.append(f"/game/{slug}")
 
-        print("SITEMAP sample paths:", paths)
         return paths
     except Exception as e:
         print("SITEMAP DB ERROR:", e)

@@ -5494,44 +5494,35 @@ def _collect_sitemap_game_paths(limit: int = SITEMAP_GAME_DETAIL_LIMIT) -> list[
 from fastapi import HTTPException
 from fastapi.responses import FileResponse, Response
 
-@app.get("/sitemap.xml", include_in_schema=False)
-def sitemap_xml():
-    ordered_paths: list[str] = []
-    seen_paths: set[str] = set()
+@app.get("/sitemap.xml", response_class=Response)
+def sitemap():
+    games = get_all_games()  # MUST return full dataset
 
-    # Skip non-canonical shell routes that should not be indexed directly.
-    blocked_paths = {"/game", "/game/"}
+    urls = []
+    urls.append("""
+    <url>
+        <loc>https://gameden.gg/</loc>
+    </url>
+    """)
 
-    for path in (*SITEMAP_STATIC_PATHS, *_collect_sitemap_game_paths()):
-        normalized = str(path or "").strip()
-        if not normalized:
+    for game in games:
+        slug = game.get("slug") or game.get("game_slug")
+        if not slug:
             continue
-        if not normalized.startswith("/"):
-            normalized = f"/{normalized}"
-        if normalized in blocked_paths:
-            continue
-        if normalized in seen_paths:
-            continue
-        seen_paths.add(normalized)
-        ordered_paths.append(normalized)
 
-    urls: list[str] = []
-    for path in ordered_paths:
-        location = _build_canonical_url(path)
-        urls.append(
-            "  <url>\n"
-            f"    <loc>{location}</loc>\n"
-            "  </url>"
-        )
+        urls.append(f"""
+        <url>
+            <loc>https://gameden.gg/game/{slug}</loc>
+        </url>
+        """)
 
-    xml = (
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-        "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"
-        f"{chr(10).join(urls)}\n"
-        "</urlset>\n"
-    )
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+        {''.join(urls)}
+    </urlset>
+    """
+
     return Response(content=xml, media_type="application/xml")
-
 
 @app.get("/robots.txt", include_in_schema=False)
 def robots_txt():

@@ -170,6 +170,8 @@ async def canonical_host_redirect_middleware(request: Request, call_next):
 
 
 app.mount("/web", CacheControlStaticFiles(directory="web"), name="web")
+if Path("web/assets").exists():
+    app.mount("/assets", CacheControlStaticFiles(directory="web/assets"), name="assets")
 if Path("public").exists():
     app.mount("/public", CacheControlStaticFiles(directory="public"), name="public")
 

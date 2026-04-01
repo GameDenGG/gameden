@@ -124,8 +124,13 @@ def force_game_redirect(identifier: str):
                 slug = getattr(game, "slug", None) or getattr(game, "game_slug", None)
                 if slug:
                     return RedirectResponse(url=f"/game/{slug}", status_code=301)
+        except Exception as e:
+            print("redirect error:", e)  # 👈 helps debug
         finally:
             session.close()
+
+    # 🔥 CRITICAL: always fallback
+    return FileResponse("web/game.html")
 
 ALLOW_ALL_CORS = CORS_ALLOW_ALL_ORIGINS or "*" in CORS_ALLOW_ORIGINS
 app.add_middleware(

@@ -5457,30 +5457,28 @@ def site_manifest():
 
 def _collect_sitemap_game_paths():
     paths = []
-
     start = 0
-    batch_size = 1000  # safe size for Supabase
+    batch_size = 1000
 
     while True:
         response = (
             supabase
             .table("games")
-            .select("game_slug")
+            .select("slug,game_slug")
             .range(start, start + batch_size - 1)
             .execute()
         )
 
-        data = response.data or []
-        if not data:
+        rows = response.data or []
+        if not rows:
             break
 
-        for row in data:
-            slug = (row.get("slug") or "").strip()
+        for row in rows:
+            slug = str(row.get("slug") or row.get("game_slug") or "").strip()
             if slug:
                 paths.append(f"/game/{slug}")
 
-        # if we got less than a full batch → we're done
-        if len(data) < batch_size:
+        if len(rows) < batch_size:
             break
 
         start += batch_size

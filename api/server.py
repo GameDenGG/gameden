@@ -116,21 +116,24 @@ from fastapi.responses import RedirectResponse
 
 @app.get("/game/{identifier}", include_in_schema=False)
 def force_game_redirect(identifier: str):
-    if identifier.isdigit():
-        session = ReadSessionLocal()
-        try:
-            game = _resolve_game_by_identifier(session, identifier)
-            if game:
-                slug = getattr(game, "slug", None) or getattr(game, "game_slug", None)
-                if slug:
-                    return RedirectResponse(url=f"/game/{slug}", status_code=301)
-        except Exception as e:
-            print("redirect error:", e)  # 👈 helps debug
-        finally:
-            session.close()
+    try:
+        if identifier.isdigit():
+            session = ReadSessionLocal()
+            try:
+                game = _resolve_game_by_identifier(session, identifier)
+                if game:
+                    slug = getattr(game, "slug", None) or getattr(game, "game_slug", None)
+                    if slug:
+                        return RedirectResponse(url=f"/game/{slug}", status_code=301)
+            finally:
+                session.close()
 
-    # 🔥 CRITICAL: always fallback
-    return FileResponse("web/game.html")
+        # ✅ ALWAYS return something
+        return FileResponse("web/game.html")
+
+    except Exception as e:
+        print("FATAL redirect error:", e)
+        return FileResponse("web/game.html")
 
 ALLOW_ALL_CORS = CORS_ALLOW_ALL_ORIGINS or "*" in CORS_ALLOW_ORIGINS
 app.add_middleware(

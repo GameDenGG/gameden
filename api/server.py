@@ -184,11 +184,15 @@ async def game_redirect_middleware(request: Request, call_next):
                 if game:
                     slug = getattr(game, "slug", None) or getattr(game, "game_slug", None)
                     if slug:
-                        return RedirectResponse(url=f"/game/{slug}", status_code=301)
+                        response = RedirectResponse(url=f"/game/{slug}", status_code=301)
+                        response.headers["X-GameDen-Redirect-Test"] = "redirect-hit"
+                        return response
             finally:
                 session.close()
 
-    return await call_next(request)
+    response = await call_next(request)
+    response.headers["X-GameDen-Redirect-Test"] = "pass-through"
+    return response
 
 def _normalize_host(value: str | None) -> str:
     if not value:

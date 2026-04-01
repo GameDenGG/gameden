@@ -5465,7 +5465,7 @@ def _collect_sitemap_game_paths():
         response = (
             supabase
             .table("games")
-            .select("slug")
+            .select("game_slug")
             .range(start, start + batch_size - 1)
             .execute()
         )

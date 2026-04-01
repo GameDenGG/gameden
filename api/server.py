@@ -5457,27 +5457,31 @@ def site_manifest():
 from sqlalchemy import text
 
 def _collect_sitemap_game_paths():
-    paths = []
-
     session = ReadSessionLocal()
     try:
-        result = session.execute(
-            text("SELECT slug, game_slug FROM games")
-        )
-        rows = result.fetchall()
+        # 1) Prove which table actually has game rows
+        result = session.execute(text("SELECT * FROM games LIMIT 3"))
+        rows = result.mappings().all()
+        print("SITEMAP sample rows:", rows)
 
+        paths = []
         for row in rows:
-            slug = str(row.slug or row.game_slug or "").strip()
+            slug = str(
+                row.get("slug")
+                or row.get("game_slug")
+                or row.get("canonical_game_slug")
+                or ""
+            ).strip()
             if slug:
                 paths.append(f"/game/{slug}")
 
+        print("SITEMAP sample paths:", paths)
+        return paths
     except Exception as e:
         print("SITEMAP DB ERROR:", e)
-
+        return []
     finally:
         session.close()
-
-    return paths
 
 from fastapi import Response
 

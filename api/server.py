@@ -5384,15 +5384,15 @@ from fastapi.responses import FileResponse
 
 @app.get("/site-runtime-loader.js")
 def runtime_loader():
-    return FileResponse("web/site-runtime-loader.js")
+    return FileResponse("web/site-runtime-loader.js", media_type="application/javascript")
 
 @app.get("/site-config.js")
 def site_config():
-    return FileResponse("web/site-config.js")
+    return FileResponse("web/site-config.js", media_type="application/javascript")
 
 @app.get("/site-branding.js")
 def site_branding():
-    return FileResponse("web/site-branding.js")
+    return FileResponse("web/site-branding.js", media_type="application/javascript")
 
 @app.get("/site-config.js", include_in_schema=False)
 def site_config_js():

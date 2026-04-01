@@ -5511,16 +5511,20 @@ def sitemap_xml():
             "  </url>"
         )
 
-    # ✅ homepage
+    # homepage
     add_path("/")
 
-    # ✅ static pages
+    # static pages
     for path in SITEMAP_STATIC_PATHS:
         add_path(path)
 
-    # ✅ ALL game pages (from fixed function)
-    for path in _collect_sitemap_game_paths():
-        add_path(path)
+    # 🔴 SAFE WRAP (prevents 500)
+    try:
+        game_paths = _collect_sitemap_game_paths()
+        for path in game_paths:
+            add_path(path)
+    except Exception as e:
+        print("SITEMAP ERROR:", e)
 
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'

@@ -5459,23 +5459,10 @@ from sqlalchemy import text
 def _collect_sitemap_game_paths():
     session = ReadSessionLocal()
     try:
-        result = session.execute(
-            text("""
-                SELECT canonical_game_slug
-                FROM games
-                WHERE canonical_game_slug IS NOT NULL
-                  AND TRIM(canonical_game_slug) <> ''
-            """)
-        )
-        rows = result.mappings().all()
-
-        paths = []
-        for row in rows:
-            slug = str(row.get("canonical_game_slug") or "").strip()
-            if slug:
-                paths.append(f"/game/{slug}")
-
-        return paths
+        sample = session.execute(text("SELECT * FROM games LIMIT 1"))
+        row = sample.mappings().first()
+        print("SITEMAP SAMPLE ROW:", row)
+        return []
     except Exception as e:
         print("SITEMAP DB ERROR:", e)
         return []

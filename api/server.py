@@ -170,6 +170,25 @@ async def security_and_cache_headers_middleware(request: Request, call_next):
 
     return response
 
+@app.middleware("http")
+async def game_redirect_middleware(request: Request, call_next):
+    path = request.url.path
+
+    if path.startswith("/game/"):
+        identifier = path.split("/game/")[1]
+
+        if identifier.isdigit():
+            session = ReadSessionLocal()
+            try:
+                game = _resolve_game_by_identifier(session, identifier)
+                if game:
+                    slug = getattr(game, "slug", None) or getattr(game, "game_slug", None)
+                    if slug:
+                        return RedirectResponse(url=f"/game/{slug}", status_code=301)
+            finally:
+                session.close()
+
+    return await call_next(request)
 
 def _normalize_host(value: str | None) -> str:
     if not value:

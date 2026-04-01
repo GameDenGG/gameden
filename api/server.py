@@ -114,43 +114,6 @@ app = FastAPI(title=f"{SITE_NAME} API", description=SITE_DESCRIPTION)
 
 from fastapi.responses import RedirectResponse
 
-@app.get("/game/{identifier}", include_in_schema=False)
-def force_game_redirect(identifier: str):
-    try:
-        if identifier.isdigit():
-            session = ReadSessionLocal()
-            try:
-                game = _resolve_game_by_identifier(session, identifier)
-                if game:
-                    slug = getattr(game, "slug", None) or getattr(game, "game_slug", None)
-                    if slug:
-                        return RedirectResponse(url=f"/game/{slug}", status_code=301)
-            finally:
-                session.close()
-
-        # ✅ ALWAYS return something
-        return FileResponse("web/game.html")
-
-    except Exception as e:
-        print("FATAL redirect error:", e)
-        return FileResponse("web/game.html")
-
-ALLOW_ALL_CORS = CORS_ALLOW_ALL_ORIGINS or "*" in CORS_ALLOW_ORIGINS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"] if ALLOW_ALL_CORS else CORS_ALLOW_ORIGINS,
-    allow_credentials=not ALLOW_ALL_CORS,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-)
-
-app.add_middleware(
-    GZipMiddleware,
-    minimum_size=1024,
-    compresslevel=5,
-)
-
-
 @app.middleware("http")
 async def security_and_cache_headers_middleware(request: Request, call_next):
     response = await call_next(request)
@@ -182,17 +145,14 @@ async def game_redirect_middleware(request: Request, call_next):
             try:
                 game = _resolve_game_by_identifier(session, identifier)
                 if game:
-                    slug = getattr(game, "slug", None) or getattr(game, "game_slug", None)
+                    payload = _build_game_detail_response_payload(session, game, viewer_user_id=None)
+                    slug = payload.get("slug") or payload.get("game_slug")
                     if slug:
-                        response = RedirectResponse(url=f"/game/{slug}", status_code=301)
-                        response.headers["X-GameDen-Redirect-Test"] = "redirect-hit"
-                        return response
+                        return RedirectResponse(url=f"/game/{slug}", status_code=301)
             finally:
                 session.close()
 
-    response = await call_next(request)
-    response.headers["X-GameDen-Redirect-Test"] = "pass-through"
-    return response
+    return await call_next(request)
 
 def _normalize_host(value: str | None) -> str:
     if not value:

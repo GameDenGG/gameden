@@ -5455,74 +5455,82 @@ def site_manifest():
     )
 
 
-def _collect_sitemap_game_paths(limit: int = SITEMAP_GAME_DETAIL_LIMIT) -> list[str]:
-    session = ReadSessionLocal()
-    try:
-        rows = (
-            session.query(GameSnapshot.game_id, GameSnapshot.game_name)
-            .filter(
-                GameSnapshot.game_id.isnot(None),
-                GameSnapshot.is_released == 1,
-                GameSnapshot.is_upcoming.is_(False),
-            )
-            .order_by(
-                case((GameSnapshot.popularity_score.is_(None), 1), else_=0).asc(),
-                GameSnapshot.popularity_score.desc(),
-                GameSnapshot.updated_at.desc(),
-                GameSnapshot.game_id.asc(),
-            )
-            .limit(max(1, int(limit)))
-            .all()
+def _collect_sitemap_game_paths():
+    paths = []
+
+    start = 0
+    batch_size = 1000  # safe size for Supabase
+
+    while True:
+        response = (
+            supabase
+            .table("games")
+            .select("slug")
+            .range(start, start + batch_size - 1)
+            .execute()
         )
-        paths: list[str] = []
-        seen_paths: set[str] = set()
-        for row in rows:
-            game_id = int(safe_num(getattr(row, "game_id", 0), 0.0))
-            if game_id <= 0:
-                continue
-            game_name = str(getattr(row, "game_name", "") or "").strip()
-            path = _canonical_game_detail_path(game_name, fallback_identifier=game_id)
-            if path in seen_paths:
-                continue
-            seen_paths.add(path)
-            paths.append(path)
-        return paths
-    finally:
-        session.close()
 
+        data = response.data or []
+        if not data:
+            break
 
-from fastapi import HTTPException
-from fastapi.responses import FileResponse, Response
+        for row in data:
+            slug = (row.get("slug") or "").strip()
+            if slug:
+                paths.append(f"/game/{slug}")
 
-@app.get("/sitemap.xml", response_class=Response)
-def sitemap():
-    games = get_all_games()  # MUST return full dataset
+        # if we got less than a full batch → we're done
+        if len(data) < batch_size:
+            break
 
+        start += batch_size
+
+    return paths
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap_xml():
+    seen = set()
     urls = []
-    urls.append("""
-    <url>
-        <loc>https://gameden.gg/</loc>
-    </url>
-    """)
 
-    for game in games:
-        slug = game.get("slug") or game.get("game_slug")
-        if not slug:
-            continue
+    def add_path(path: str):
+        normalized = str(path or "").strip()
+        if not normalized:
+            return
+        if not normalized.startswith("/"):
+            normalized = f"/{normalized}"
+        if normalized in {"/game", "/game/"}:
+            return
+        if normalized in seen:
+            return
+        seen.add(normalized)
 
-        urls.append(f"""
-        <url>
-            <loc>https://gameden.gg/game/{slug}</loc>
-        </url>
-        """)
+        loc = _build_canonical_url(normalized)
+        urls.append(
+            "  <url>\n"
+            f"    <loc>{loc}</loc>\n"
+            "  </url>"
+        )
 
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-        {''.join(urls)}
-    </urlset>
-    """
+    # ✅ homepage
+    add_path("/")
+
+    # ✅ static pages
+    for path in SITEMAP_STATIC_PATHS:
+        add_path(path)
+
+    # ✅ ALL game pages (from fixed function)
+    for path in _collect_sitemap_game_paths():
+        add_path(path)
+
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{chr(10).join(urls)}\n"
+        "</urlset>\n"
+    )
 
     return Response(content=xml, media_type="application/xml")
+
 
 @app.get("/robots.txt", include_in_schema=False)
 def robots_txt():

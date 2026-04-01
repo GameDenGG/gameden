@@ -5380,6 +5380,19 @@ def robots_txt():
     )
     return PlainTextResponse(body)
 
+from fastapi.responses import FileResponse
+
+@app.get("/site-runtime-loader.js")
+def runtime_loader():
+    return FileResponse("web/site-runtime-loader.js")
+
+@app.get("/site-config.js")
+def site_config():
+    return FileResponse("web/site-config.js")
+
+@app.get("/site-branding.js")
+def site_branding():
+    return FileResponse("web/site-branding.js")
 
 @app.get("/site-config.js", include_in_schema=False)
 def site_config_js():

@@ -17,7 +17,6 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
-import httpx
 from pydantic import BaseModel, EmailStr
 import requests
 from sqlalchemy import and_, case, func, or_, text
@@ -5586,24 +5585,17 @@ from fastapi.responses import RedirectResponse
 
 @app.get("/game/{identifier}")
 @app.get("/game/{identifier}")
-async def game_page(identifier: str):
-
+def game_page(identifier: str):
     if identifier.isdigit():
+        session = ReadSessionLocal()
         try:
-            async with httpx.AsyncClient() as client:
-                res = await client.get(f"http://127.0.0.1:8000/games/resolve/{identifier}")
-
-            if res.status_code == 200:
-                game = res.json()
-                slug = game.get("slug") or game.get("game_slug")
-
+            game = _resolve_game_by_identifier(session, identifier)
+            if game:
+                slug = getattr(game, "slug", None) or getattr(game, "game_slug", None)
                 if slug:
-                    return RedirectResponse(
-                        url=f"/game/{slug}",
-                        status_code=301
-                    )
-        except Exception:
-            pass  # fail safely
+                    return RedirectResponse(url=f"/game/{slug}", status_code=301)
+        finally:
+            session.close()
 
     return FileResponse("web/game.html")
 

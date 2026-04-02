@@ -1392,8 +1392,8 @@ a {
 
 .decision-hero {
     display: grid;
-    grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.05fr);
-    gap: 24px;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: end;
     padding: 24px;
     position: relative;
     overflow: hidden;
@@ -1403,6 +1403,7 @@ a {
         radial-gradient(circle at 82% 0%, rgba(111, 232, 255, 0.08), transparent 32%),
         linear-gradient(180deg, rgba(9, 19, 34, 0.98), rgba(6, 14, 28, 0.98));
     box-shadow: 0 22px 48px rgba(2, 8, 20, 0.34);
+    min-height: clamp(440px, 54vw, 620px);
 }
 
 .decision-hero::before {
@@ -1416,10 +1417,22 @@ a {
     opacity: 0.9;
 }
 
+.decision-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(90deg, rgba(6, 14, 28, 0.96) 0%, rgba(6, 14, 28, 0.9) 38%, rgba(6, 14, 28, 0.42) 68%, rgba(6, 14, 28, 0.72) 100%),
+        linear-gradient(180deg, rgba(6, 14, 28, 0.18) 0%, rgba(6, 14, 28, 0.86) 100%);
+}
+
 .decision-hero-media {
     min-width: 0;
-    position: relative;
-    z-index: 1;
+    position: absolute;
+    inset: 0 0 0 34%;
+    z-index: 0;
+    pointer-events: none;
 }
 
 .decision-hero .hero-banner {
@@ -1432,10 +1445,11 @@ a {
     background-repeat: no-repeat;
     background-position: center;
     background-color: rgba(8, 17, 32, 0.92);
-    border-color: rgba(154, 182, 255, 0.22);
-    box-shadow:
-        inset 0 1px 0 rgba(223, 236, 255, 0.08),
-        0 14px 30px rgba(3, 9, 21, 0.34);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    height: 100%;
+    min-height: clamp(440px, 54vw, 620px);
 }
 
 .decision-hero .hero-banner::before {
@@ -1474,6 +1488,8 @@ a {
     align-content: start;
     position: relative;
     z-index: 1;
+    max-width: min(640px, 100%);
+    padding-top: 6px;
 }
 
 .decision-hero-top {
@@ -1514,11 +1530,14 @@ a {
 .decision-hero-meta {
     display: grid;
     gap: 14px;
-    padding: 16px 18px 18px;
-    border: 1px solid rgba(154, 182, 255, 0.16);
-    border-radius: 18px;
-    background: linear-gradient(180deg, rgba(12, 23, 41, 0.74), rgba(8, 16, 29, 0.8));
-    box-shadow: inset 0 1px 0 rgba(223, 236, 255, 0.06);
+    padding: 18px 20px 20px;
+    border: 1px solid rgba(154, 182, 255, 0.18);
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(12, 23, 41, 0.72), rgba(8, 16, 29, 0.84));
+    box-shadow:
+        inset 0 1px 0 rgba(223, 236, 255, 0.06),
+        0 18px 34px rgba(2, 8, 20, 0.18);
+    backdrop-filter: blur(12px);
 }
 
 .decision-hero .hero-context-card {
@@ -1598,7 +1617,7 @@ a {
 
 .decision-editorial-flow {
     display: grid;
-    gap: 34px;
+    gap: 40px;
 }
 
 .decision-store-section {
@@ -1626,7 +1645,8 @@ a {
 
 .decision-store-section .panel-title,
 .decision-reviews-section .panel-title {
-    font-size: 19px;
+    font-size: 23px;
+    letter-spacing: -0.03em;
 }
 
 .decision-store-section .panel-subtitle,
@@ -1724,7 +1744,7 @@ a {
     grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1fr);
     gap: 22px;
     align-items: start;
-    padding: 2px 0 6px;
+    padding: 2px 0 12px;
     border-top: 1px solid rgba(154, 182, 255, 0.12);
     border-bottom: 1px solid rgba(154, 182, 255, 0.08);
 }
@@ -1823,9 +1843,9 @@ a {
 
 .decision-review-summary {
     margin: 0;
-    max-width: 58ch;
-    font-size: 14px;
-    line-height: 1.7;
+    max-width: 62ch;
+    font-size: 15px;
+    line-height: 1.85;
     color: #b4c7e4;
 }
 
@@ -1850,7 +1870,7 @@ a {
 .decision-review-side-copy {
     margin: 0;
     font-size: 14px;
-    line-height: 1.65;
+    line-height: 1.72;
     color: #dde8f8;
 }
 
@@ -1893,6 +1913,67 @@ a {
     max-width: 32ch;
 }
 
+.decision-deep-dive {
+    display: grid;
+    gap: 22px;
+}
+
+.decision-deep-dive-header {
+    display: grid;
+    gap: 6px;
+    max-width: 54ch;
+}
+
+.decision-deep-dive-kicker {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #88a4ce;
+    font-weight: 700;
+}
+
+.decision-deep-dive-title {
+    margin: 0;
+    font-size: clamp(24px, 2.9vw, 34px);
+    line-height: 1.06;
+    letter-spacing: -0.04em;
+    font-weight: 860;
+    color: #f2f8ff;
+}
+
+.decision-deep-dive-copy {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #94a9cc;
+}
+
+.decision-deep-dive .content-grid {
+    margin-bottom: 0;
+    gap: 22px;
+}
+
+.decision-deep-dive .panel,
+.decision-details-shell .panel {
+    border-radius: 24px;
+    border-color: rgba(154, 182, 255, 0.12);
+    background: linear-gradient(180deg, rgba(10, 21, 38, 0.95), rgba(7, 15, 29, 0.95));
+    box-shadow: 0 18px 32px rgba(1, 8, 20, 0.24);
+}
+
+.decision-deep-dive .panel-tertiary {
+    background: linear-gradient(180deg, rgba(11, 22, 39, 0.95), rgba(8, 16, 30, 0.95));
+}
+
+.decision-details-shell {
+    display: grid;
+    gap: 12px;
+}
+
+.decision-details-shell .panel-head {
+    padding: 18px 18px 0;
+}
+
 .decision-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -1910,10 +1991,10 @@ a {
 }
 
 .decision-details-shell details {
-    border: 1px solid rgba(154, 182, 255, 0.22);
-    border-radius: 12px;
-    background: rgba(10, 19, 35, 0.68);
-    padding: 11px 12px;
+    border: 1px solid rgba(154, 182, 255, 0.18);
+    border-radius: 20px;
+    background: rgba(9, 18, 33, 0.56);
+    padding: 14px 16px;
     transition:
         border-color var(--motion-base) ease,
         background var(--motion-base) ease,
@@ -1952,7 +2033,7 @@ a {
 
 .decision-details-shell details[open] {
     border-color: rgba(154, 182, 255, 0.3);
-    background: rgba(11, 22, 40, 0.72);
+    background: rgba(11, 22, 40, 0.7);
     box-shadow: 0 10px 24px rgba(2, 8, 20, 0.22);
 }
 
@@ -2014,6 +2095,11 @@ a {
 @media (max-width: 1080px) {
     .decision-hero {
         grid-template-columns: 1fr;
+        min-height: clamp(420px, 62vw, 560px);
+    }
+
+    .decision-hero-media {
+        inset: 0 0 0 18%;
     }
 
     .decision-summary-strip {
@@ -2026,6 +2112,23 @@ a {
 }
 
 @media (max-width: 760px) {
+    .decision-hero {
+        min-height: clamp(380px, 100vw, 500px);
+    }
+
+    .decision-hero-media {
+        inset: 0;
+        opacity: 0.58;
+    }
+
+    .decision-hero .hero-banner {
+        min-height: clamp(360px, 88vw, 500px);
+    }
+
+    .decision-hero-content {
+        max-width: 100%;
+    }
+
     .decision-reviews-layout,
     .decision-store-grid,
     .decision-summary-grid {
@@ -2074,8 +2177,8 @@ a {
         padding: 14px 15px 16px;
     }
 
-    .hero-banner {
-        height: clamp(152px, 52vw, 210px);
+    .decision-hero .hero-banner {
+        min-height: clamp(320px, 92vw, 420px);
     }
 
     .stats-grid {
@@ -2210,30 +2313,10 @@ a {
             </div>
         </section>
 
-        <section class="panel panel-secondary decision-store-section" id="storeSection">
-            <div class="panel-head">
-                <h2 class="panel-title">Available options</h2>
-                <div class="panel-subtitle">A quiet comparison of the current storefront offers.</div>
-            </div>
-            <div class="panel-body decision-store-grid">
-                <article class="decision-best-deal" id="bestDealCard">
-                    <div class="decision-best-label">Best current option</div>
-                    <div class="decision-best-price" id="bestDealPrice">--</div>
-                    <div class="decision-best-note" id="bestDealNote">Current lead among the listed stores.</div>
-                </article>
-                <div class="decision-store-list-wrap">
-                    <div class="decision-best-label">Other options</div>
-                    <ul class="decision-store-list" id="storeQuickList">
-                        <li>No alternate store offers available.</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
-
         <section class="panel panel-secondary decision-reviews-section" id="reviewSentimentSection">
             <div class="panel-head">
                 <h2 class="panel-title">Reviews &amp; sentiment</h2>
-                <div class="panel-subtitle">A concise read on how players feel about the game.</div>
+                <div class="panel-subtitle">A concise read on how players feel about the game and whether the broader reception supports buying in now.</div>
             </div>
             <div class="panel-body decision-reviews-layout">
                 <div class="decision-review-copy">
@@ -2260,81 +2343,109 @@ a {
                 </div>
             </div>
         </section>
+
+        <section class="panel panel-secondary decision-store-section" id="storeSection">
+            <div class="panel-head">
+                <h2 class="panel-title">Available options</h2>
+                <div class="panel-subtitle">A calm comparison of the stores currently carrying the game.</div>
+            </div>
+            <div class="panel-body decision-store-grid">
+                <article class="decision-best-deal" id="bestDealCard">
+                    <div class="decision-best-label">Best current option</div>
+                    <div class="decision-best-price" id="bestDealPrice">--</div>
+                    <div class="decision-best-note" id="bestDealNote">Current lead among the listed stores.</div>
+                </article>
+                <div class="decision-store-list-wrap">
+                    <div class="decision-best-label">Other options</div>
+                    <ul class="decision-store-list" id="storeQuickList">
+                        <li>No alternate store offers available.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
     </div>
+
+    <section class="decision-deep-dive">
+        <div class="decision-deep-dive-header">
+            <div class="decision-deep-dive-kicker">Deep dive</div>
+            <h2 class="decision-deep-dive-title">Price history, player activity, and nearby alternatives.</h2>
+            <p class="decision-deep-dive-copy">Use the history and neighboring titles below when the headline recommendation still needs more evidence.</p>
+        </div>
+        <div class="decision-layout content-grid">
+            <main class="decision-main left-column">
+                <section class="panel panel-primary decision-chart-panel" id="priceHistoryPanel">
+                    <div class="panel-head">
+                        <h2 class="panel-title" id="priceHistoryTitle">Price History</h2>
+                        <div class="panel-subtitle" id="priceHistorySubtitle">Price trend over time.</div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="range-row">
+                            <button class="range-btn price-range-btn" data-range="30d" type="button">30D</button>
+                            <button class="range-btn price-range-btn active" data-range="90d" type="button">90D</button>
+                            <button class="range-btn price-range-btn" data-range="1y" type="button">1Y</button>
+                            <button class="range-btn price-range-btn" data-range="all" type="button">ALL</button>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="priceChart" height="120"></canvas>
+                            <div class="chart-empty-state" id="priceChartEmpty" hidden>Price history is not available yet for this game.</div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel panel-secondary decision-chart-panel" id="playerHistoryPanel">
+                    <div class="panel-head">
+                        <h2 class="panel-title" id="playerHistoryTitle">Player Activity</h2>
+                        <div class="panel-subtitle" id="playerHistorySubtitle">Recent player trend.</div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="range-row player-range-row" role="group" aria-label="Player history time range">
+                            <button class="range-btn player-range-btn" data-player-range="7d" type="button">7D</button>
+                            <button class="range-btn player-range-btn" data-player-range="30d" type="button">30D</button>
+                            <button class="range-btn player-range-btn active" data-player-range="3m" type="button">3M</button>
+                            <button class="range-btn player-range-btn" data-player-range="1y" type="button">1Y</button>
+                            <button class="range-btn player-range-btn" data-player-range="all" type="button">ALL</button>
+                        </div>
+                        <div class="player-insight-row">
+                            <div class="player-trend-copy">
+                                <div class="player-trend-summary" id="playerTrendSummary">Player trend summary will appear once history loads.</div>
+                                <div class="player-trend-detail" id="playerTrendDetail"></div>
+                            </div>
+                            <div class="player-coverage-label" id="playerCoverageLabel" data-confidence="low">Low confidence — limited data</div>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="playerChart" height="120"></canvas>
+                            <div class="chart-empty-state" id="playerChartEmpty" hidden>Player history is not available yet for this game.</div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+            <aside class="right-column">
+                <section class="panel discovery-panel panel-tertiary">
+                    <div class="panel-head">
+                        <h2 class="panel-title">Related games</h2>
+                        <div class="panel-subtitle">Nearby games to compare before you commit.</div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="related-grid" id="relatedGames"></div>
+                    </div>
+                </section>
+            </aside>
+        </div>
+    </section>
 
     <section class="decision-details-shell">
         <details>
-            <summary>View details</summary>
+            <summary>More details</summary>
             <div class="decision-details-content">
-                <div class="decision-layout content-grid">
-                    <main class="decision-main left-column">
-                        <section class="panel panel-primary decision-chart-panel" id="priceHistoryPanel">
-                            <div class="panel-head">
-                                <h2 class="panel-title" id="priceHistoryTitle">Price History</h2>
-                                <div class="panel-subtitle" id="priceHistorySubtitle">Price trend over time.</div>
-                            </div>
-                            <div class="panel-body">
-                                <div class="range-row">
-                                    <button class="range-btn price-range-btn" data-range="30d" type="button">30D</button>
-                                    <button class="range-btn price-range-btn active" data-range="90d" type="button">90D</button>
-                                    <button class="range-btn price-range-btn" data-range="1y" type="button">1Y</button>
-                                    <button class="range-btn price-range-btn" data-range="all" type="button">ALL</button>
-                                </div>
-                                <div class="chart-wrap">
-                                    <canvas id="priceChart" height="120"></canvas>
-                                    <div class="chart-empty-state" id="priceChartEmpty" hidden>Price history is not available yet for this game.</div>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section class="panel panel-secondary decision-chart-panel" id="playerHistoryPanel">
-                            <div class="panel-head">
-                                <h2 class="panel-title" id="playerHistoryTitle">Player Activity</h2>
-                                <div class="panel-subtitle" id="playerHistorySubtitle">Recent player trend.</div>
-                            </div>
-                            <div class="panel-body">
-                                <div class="range-row player-range-row" role="group" aria-label="Player history time range">
-                                    <button class="range-btn player-range-btn" data-player-range="7d" type="button">7D</button>
-                                    <button class="range-btn player-range-btn" data-player-range="30d" type="button">30D</button>
-                                    <button class="range-btn player-range-btn active" data-player-range="3m" type="button">3M</button>
-                                    <button class="range-btn player-range-btn" data-player-range="1y" type="button">1Y</button>
-                                    <button class="range-btn player-range-btn" data-player-range="all" type="button">ALL</button>
-                                </div>
-                                <div class="player-insight-row">
-                                    <div class="player-trend-copy">
-                                        <div class="player-trend-summary" id="playerTrendSummary">Player trend summary will appear once history loads.</div>
-                                        <div class="player-trend-detail" id="playerTrendDetail"></div>
-                                    </div>
-                                    <div class="player-coverage-label" id="playerCoverageLabel" data-confidence="low">Low confidence — limited data</div>
-                                </div>
-                                <div class="chart-wrap">
-                                    <canvas id="playerChart" height="120"></canvas>
-                                    <div class="chart-empty-state" id="playerChartEmpty" hidden>Player history is not available yet for this game.</div>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section class="panel panel-secondary" id="marketSnapshotPanel">
-                            <div class="panel-head">
-                                <h2 class="panel-title">Quick Facts</h2>
-                                <div class="panel-subtitle" id="marketSnapshotSubtitle">Key stats at a glance.</div>
-                            </div>
-                            <div class="panel-body">
-                                <div class="info-list" id="marketInfo"></div>
-                            </div>
-                        </section>
-
-                        <section class="panel discovery-panel panel-tertiary">
-                            <div class="panel-head">
-                                <h2 class="panel-title">Related games</h2>
-                                <div class="panel-subtitle">Similar games you may like.</div>
-                            </div>
-                            <div class="panel-body">
-                                <div class="related-grid" id="relatedGames"></div>
-                            </div>
-                        </section>
-                    </main>
-                </div>
+                <section class="panel panel-secondary" id="marketSnapshotPanel">
+                    <div class="panel-head">
+                        <h2 class="panel-title">Quick Facts</h2>
+                        <div class="panel-subtitle" id="marketSnapshotSubtitle">Key stats at a glance.</div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="info-list" id="marketInfo"></div>
+                    </div>
+                </section>
             </div>
         </details>
     </section>

@@ -1479,6 +1479,14 @@ a {
     color: #f3fbff;
 }
 
+.decision-verdict-note {
+    margin: -2px 0 2px;
+    max-width: 64ch;
+    font-size: 14px;
+    line-height: 1.65;
+    color: #b6c8e4;
+}
+
 .decision-hero .hero-context-card {
     opacity: 0.94;
     border-color: rgba(154, 182, 255, 0.2);
@@ -1550,6 +1558,24 @@ a {
     box-shadow: 0 9px 22px rgba(13, 104, 70, 0.32);
 }
 
+.decision-store-section {
+    border-color: rgba(154, 182, 255, 0.11);
+    background: linear-gradient(180deg, rgba(10, 20, 38, 0.9), rgba(8, 17, 31, 0.9));
+    box-shadow: 0 12px 24px rgba(1, 8, 20, 0.2);
+}
+
+.decision-store-section .panel-head::after {
+    background: linear-gradient(90deg, rgba(154, 182, 255, 0.12), rgba(154, 182, 255, 0.04) 68%, transparent);
+}
+
+.decision-store-section .panel-title {
+    font-size: 19px;
+}
+
+.decision-store-section .panel-subtitle {
+    color: #8ca3c7;
+}
+
 .decision-action-row .hero-watch-btn {
     min-height: 44px;
     opacity: 1;
@@ -1567,9 +1593,9 @@ a {
 }
 
 .decision-best-deal {
-    border: 1px solid rgba(92, 228, 169, 0.34);
+    border: 1px solid rgba(154, 182, 255, 0.16);
     border-radius: 14px;
-    background: linear-gradient(180deg, rgba(17, 40, 30, 0.5), rgba(12, 30, 23, 0.45));
+    background: linear-gradient(180deg, rgba(13, 26, 46, 0.7), rgba(10, 20, 37, 0.68));
     padding: 12px;
     display: grid;
     gap: 6px;
@@ -1583,7 +1609,7 @@ a {
     font-size: 11px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #bdebd6;
+    color: #9eb6da;
     font-weight: 700;
 }
 
@@ -1595,7 +1621,7 @@ a {
 
 .decision-best-note {
     font-size: 13px;
-    color: #d7e6ff;
+    color: #b7c9e6;
 }
 
 .decision-store-list {
@@ -1620,14 +1646,14 @@ a {
 .decision-summary-strip {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 14px;
 }
 
 .decision-summary-chip {
-    border: 1px solid rgba(154, 182, 255, 0.2);
+    border: 1px solid rgba(154, 182, 255, 0.14);
     border-radius: 12px;
     padding: 11px 13px;
-    background: linear-gradient(180deg, rgba(12, 24, 43, 0.84), rgba(9, 18, 33, 0.84));
+    background: linear-gradient(180deg, rgba(11, 22, 39, 0.75), rgba(8, 16, 29, 0.75));
     display: grid;
     gap: 5px;
     transition:
@@ -1652,6 +1678,113 @@ a {
 
 .decision-summary-chip:nth-child(n + 3) {
     display: none;
+}
+
+.decision-reviews-section {
+    border-color: rgba(154, 182, 255, 0.12);
+    background:
+        radial-gradient(circle at 100% 0%, rgba(111, 232, 255, 0.06), transparent 38%),
+        linear-gradient(180deg, rgba(10, 20, 37, 0.92), rgba(8, 17, 31, 0.92));
+}
+
+.decision-reviews-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.decision-review-copy {
+    display: grid;
+    gap: 8px;
+}
+
+.decision-review-kicker {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #88a4ce;
+    font-weight: 700;
+}
+
+.decision-review-headline {
+    margin: 0;
+    font-size: clamp(23px, 2.8vw, 30px);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    font-weight: 840;
+    color: #f2f8ff;
+}
+
+.decision-review-summary {
+    margin: 0;
+    max-width: 58ch;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #b4c7e4;
+}
+
+.decision-review-side {
+    display: grid;
+    gap: 12px;
+    padding: 14px 15px;
+    border-radius: 14px;
+    border: 1px solid rgba(154, 182, 255, 0.12);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.decision-review-side-label {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #88a4ce;
+    font-weight: 700;
+}
+
+.decision-review-side-copy {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.65;
+    color: #dde8f8;
+}
+
+.decision-review-signal-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.decision-review-signal {
+    min-width: 108px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(154, 182, 255, 0.14);
+    background: rgba(9, 18, 33, 0.42);
+}
+
+.decision-review-signal span {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #88a4ce;
+    font-weight: 700;
+}
+
+.decision-review-signal strong {
+    display: block;
+    margin-top: 6px;
+    font-size: 17px;
+    line-height: 1.1;
+    color: #f2f8ff;
+    font-weight: 820;
+}
+
+.decision-review-support {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #93a8cb;
 }
 
 .decision-layout {
@@ -1777,6 +1910,7 @@ a {
 }
 
 @media (max-width: 760px) {
+    .decision-reviews-layout,
     .decision-summary-strip,
     .decision-store-grid {
         grid-template-columns: 1fr;
@@ -1882,6 +2016,7 @@ a {
                 <div class="hero-badge" id="dealBadge"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40" aria-hidden="true"></span></div>
             </div>
             <p class="decision-verdict" id="gameSub"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
+            <p class="decision-verdict-note" id="gameVerdictLine"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></p>
             <div class="hero-context-card gd-skeleton-surface" id="gameContextCard">
                 <div class="hero-context-title" id="gameContextTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></div>
                 <div class="hero-context-text" id="gameContextText"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></div>
@@ -1892,7 +2027,7 @@ a {
                 <span class="decision-price-discount" id="currentDiscount">--</span>
             </div>
             <div class="decision-action-row">
-                <a class="hero-store-cta is-disabled" id="storeCtaLink" href="#" aria-disabled="true" rel="noopener noreferrer" target="_blank">Buy Now</a>
+                <a class="hero-store-cta is-disabled" id="storeCtaLink" href="#" aria-disabled="true" rel="noopener noreferrer" target="_blank">View best offer</a>
                 <button class="hero-watch-btn" id="watchButton" type="button" aria-pressed="false">Watch</button>
                 <button class="hero-watch-btn" id="ownedButton" type="button" aria-pressed="false">Own</button>
                 <button class="hero-watch-btn hero-share-btn" id="shareDealButton" type="button" disabled>Share Deal</button>
@@ -1900,29 +2035,9 @@ a {
         </div>
     </section>
 
-    <section class="panel panel-secondary decision-store-section" id="storeSection">
-        <div class="panel-head">
-            <h2 class="panel-title">Where To Buy</h2>
-            <div class="panel-subtitle">Top option first.</div>
-        </div>
-        <div class="panel-body decision-store-grid">
-            <article class="decision-best-deal" id="bestDealCard">
-                <div class="decision-best-label">Best Deal</div>
-                <div class="decision-best-price" id="bestDealPrice">--</div>
-                <div class="decision-best-note" id="bestDealNote">Best available offer right now.</div>
-            </article>
-            <div class="decision-store-list-wrap">
-                <div class="decision-best-label">Other Stores</div>
-                <ul class="decision-store-list" id="storeQuickList">
-                    <li>No alternate store offers available.</li>
-                </ul>
-            </div>
-        </div>
-    </section>
-
-    <section class="decision-summary-strip" aria-label="Decision summary">
+    <section class="decision-summary-strip" aria-label="Decision insights">
         <article class="decision-summary-chip">
-            <span>Decision</span>
+            <span>Should you buy</span>
             <strong id="summaryDealQuality">--</strong>
         </article>
         <article class="decision-summary-chip">
@@ -1937,6 +2052,57 @@ a {
             <span>Recommendation</span>
             <strong id="summaryRecommendation">--</strong>
         </article>
+    </section>
+
+    <section class="panel panel-secondary decision-store-section" id="storeSection">
+        <div class="panel-head">
+            <h2 class="panel-title">Available options</h2>
+            <div class="panel-subtitle">A quiet comparison of the current storefront offers.</div>
+        </div>
+        <div class="panel-body decision-store-grid">
+            <article class="decision-best-deal" id="bestDealCard">
+                <div class="decision-best-label">Best current option</div>
+                <div class="decision-best-price" id="bestDealPrice">--</div>
+                <div class="decision-best-note" id="bestDealNote">Current lead among the listed stores.</div>
+            </article>
+            <div class="decision-store-list-wrap">
+                <div class="decision-best-label">Other options</div>
+                <ul class="decision-store-list" id="storeQuickList">
+                    <li>No alternate store offers available.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel panel-secondary decision-reviews-section" id="reviewSentimentSection">
+        <div class="panel-head">
+            <h2 class="panel-title">Reviews &amp; sentiment</h2>
+            <div class="panel-subtitle">A concise read on how players feel about the game.</div>
+        </div>
+        <div class="panel-body decision-reviews-layout">
+            <div class="decision-review-copy">
+                <div class="decision-review-kicker">Overall reviews</div>
+                <h3 class="decision-review-headline" id="reviewOverallHeadline"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></h3>
+                <p class="decision-review-summary" id="reviewOverallSummary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
+            </div>
+            <div class="decision-review-side">
+                <div>
+                    <div class="decision-review-side-label">Current sentiment</div>
+                    <p class="decision-review-side-copy" id="reviewRecentSummary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></p>
+                </div>
+                <div class="decision-review-signal-row">
+                    <div class="decision-review-signal">
+                        <span>Score</span>
+                        <strong id="reviewScoreSignal"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-24" aria-hidden="true"></span></strong>
+                    </div>
+                    <div class="decision-review-signal">
+                        <span>Coverage</span>
+                        <strong id="reviewCountSignal"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-32" aria-hidden="true"></span></strong>
+                    </div>
+                </div>
+                <p class="decision-review-support" id="reviewSupportLine"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></p>
+            </div>
+        </div>
     </section>
 
     <section class="decision-details-shell">
@@ -2308,19 +2474,18 @@ function setStoreCta(url) {
     if (!(storeCtaLink instanceof HTMLAnchorElement)) return;
     const normalizedUrl = String(url || "").trim();
     if (normalizedUrl) {
-        const isSteamStore = /store\.steampowered\.com/i.test(normalizedUrl);
         storeCtaLink.href = normalizedUrl;
         storeCtaLink.classList.remove("is-disabled");
         storeCtaLink.removeAttribute("aria-disabled");
-        storeCtaLink.textContent = isSteamStore ? "Buy on Steam" : "Buy now";
-        storeCtaLink.setAttribute("aria-label", `${isSteamStore ? "Buy on Steam" : "Buy now"} (opens in new tab)`);
+        storeCtaLink.textContent = "View best offer";
+        storeCtaLink.setAttribute("aria-label", "View best offer (opens in new tab)");
         return;
     }
 
     storeCtaLink.href = "#";
     storeCtaLink.classList.add("is-disabled");
     storeCtaLink.setAttribute("aria-disabled", "true");
-    storeCtaLink.textContent = "Buy now";
+    storeCtaLink.textContent = "View best offer";
     storeCtaLink.removeAttribute("aria-label");
 }
 
@@ -2354,6 +2519,13 @@ function renderGameLoadingSkeletons() {
     setHeroBannerArtwork("");
     setInlineSkeleton("gameTitle", "gd-skeleton-w-64");
     setInlineSkeleton("gameSub", "gd-skeleton-w-80");
+    setInlineSkeleton("gameVerdictLine", "gd-skeleton-w-72");
+    setInlineSkeleton("reviewOverallHeadline", "gd-skeleton-w-48");
+    setInlineSkeleton("reviewOverallSummary", "gd-skeleton-w-80");
+    setInlineSkeleton("reviewRecentSummary", "gd-skeleton-w-72");
+    setInlineSkeleton("reviewScoreSignal", "gd-skeleton-w-24");
+    setInlineSkeleton("reviewCountSignal", "gd-skeleton-w-32");
+    setInlineSkeleton("reviewSupportLine", "gd-skeleton-w-64");
     setInlineSkeleton("dealBadge", "gd-skeleton-w-40");
     setInlineSkeleton("currentPrice", "gd-skeleton-w-48");
     setInlineSkeleton("currentDiscount", "gd-skeleton-w-40");
@@ -3222,14 +3394,14 @@ function buildGameContextSummary(payload, context) {
         return {
             title: "Decision",
             text: timingReason || "Current deal timing is strong.",
-            heroSub: "Buy now.",
+            heroSub: "Strong value at today's price.",
         };
     }
     if (timingState === "good_time_to_buy") {
         return {
             title: "Decision",
             text: timingReason || "Current price is compelling for this title.",
-            heroSub: "Good time to buy.",
+            heroSub: "A solid moment to jump in.",
         };
     }
     if (timingState === "wait_for_better_drop") {
@@ -3251,6 +3423,93 @@ function buildGameContextSummary(payload, context) {
         text: timingReason || "Current signals are mixed.",
         heroSub: timingLabel,
     };
+}
+
+function buildHeroVerdictLine(payload, context = currentGameContext) {
+    const review = getNormalizedGameReview(payload);
+    const reviewLabel = String(review?.label || "").trim();
+    const reviewScoreText = String(review?.score_text || "").trim();
+    const reviewSummary = normalizeReasonSnippet(review?.summary);
+    const engagement = normalizeReasonSnippet(getEngagementText(payload));
+
+    let setup = "Live release.";
+    if (context?.mode === "free") setup = "Free-to-play release.";
+    if (context?.mode === "unreleased") setup = "Upcoming release.";
+
+    if (reviewLabel) {
+        const scoreSuffix = reviewScoreText ? ` (${reviewScoreText})` : "";
+        return `${setup} Review sentiment is ${reviewLabel}${scoreSuffix}.`;
+    }
+    if (reviewSummary) return `${setup} ${reviewSummary}.`;
+    if (engagement) return `${setup} ${engagement}.`;
+    return `${setup} Signals are still developing.`;
+}
+
+function buildReviewSentimentView(payload) {
+    const review = getNormalizedGameReview(payload);
+    const rawSummary = String(getReviewSummary(payload) || "").trim();
+    const reviewLabel = String(getReviewLabel(payload) || "").trim();
+    const reviewScoreText = String(getReviewScoreText(payload) || "").trim();
+    const reviewCount = Number.isFinite(Number(review?.count)) ? Number(review.count) : null;
+    const reviewSentiment = normalizeReasonSnippet(review?.sentiment);
+
+    const hasLabel = reviewLabel && reviewLabel !== "—";
+    const hasScore = reviewScoreText && reviewScoreText !== "—";
+    const hasSummary = rawSummary && rawSummary !== "—" && rawSummary !== reviewLabel && rawSummary !== reviewScoreText;
+
+    const headline = hasLabel
+        ? reviewLabel
+        : hasScore
+            ? `Review score ${reviewScoreText}`
+            : "Review signal still forming";
+
+    const summary = hasSummary
+        ? rawSummary
+        : hasLabel
+            ? `${reviewLabel} feedback across the current player reviews.`
+            : "Player reviews are still too thin to form a strong consensus.";
+
+    const recentSummary = reviewSentiment
+        || (hasSummary ? normalizeReasonSnippet(rawSummary) : "")
+        || (hasLabel ? `${reviewLabel} overall.` : "No separate sentiment read is available yet.");
+
+    const scoreSignal = hasScore ? reviewScoreText : "—";
+    const countSignal = reviewCount !== null ? fmtInt(reviewCount) : "—";
+
+    let supportLine = "Review coverage is still building.";
+    if (hasScore && reviewCount !== null) {
+        supportLine = `${reviewScoreText} across ${fmtInt(reviewCount)} player reviews.`;
+    } else if (reviewCount !== null) {
+        supportLine = `${fmtInt(reviewCount)} player reviews captured so far.`;
+    } else if (hasScore) {
+        supportLine = `Current review score sits at ${reviewScoreText}.`;
+    }
+
+    return {
+        headline,
+        summary,
+        recentSummary,
+        scoreSignal,
+        countSignal,
+        supportLine,
+    };
+}
+
+function renderReviewSentimentSection(payload) {
+    const overallHeadlineEl = document.getElementById("reviewOverallHeadline");
+    const overallSummaryEl = document.getElementById("reviewOverallSummary");
+    const recentSummaryEl = document.getElementById("reviewRecentSummary");
+    const scoreSignalEl = document.getElementById("reviewScoreSignal");
+    const countSignalEl = document.getElementById("reviewCountSignal");
+    const supportLineEl = document.getElementById("reviewSupportLine");
+    const view = buildReviewSentimentView(payload);
+
+    if (overallHeadlineEl) overallHeadlineEl.innerText = view.headline;
+    if (overallSummaryEl) overallSummaryEl.innerText = view.summary;
+    if (recentSummaryEl) recentSummaryEl.innerText = view.recentSummary;
+    if (scoreSignalEl) scoreSignalEl.innerText = view.scoreSignal;
+    if (countSignalEl) countSignalEl.innerText = view.countSignal;
+    if (supportLineEl) supportLineEl.innerText = view.supportLine;
 }
 
 function deriveDealQualityLabel(payload, context = currentGameContext) {
@@ -3388,12 +3647,12 @@ function renderStoreDecisionSection(payload) {
     const best = storeRows[0] || null;
     if (bestDealPriceEl) bestDealPriceEl.textContent = best?.price || "—";
     if (bestDealNoteEl) {
-        bestDealNoteEl.textContent = `Best now: ${best?.name || "Primary store"}`;
+        bestDealNoteEl.textContent = `Current lead: ${best?.name || "Primary store"}`;
     }
     if (!quickListEl) return;
     const alternates = storeRows.slice(1, 4);
     if (!alternates.length) {
-        quickListEl.innerHTML = "<li>No other live offers.</li>";
+        quickListEl.innerHTML = "<li>No other listed offers.</li>";
         return;
     }
     quickListEl.innerHTML = alternates
@@ -3904,10 +4163,13 @@ function applyAdaptiveGameLayout(payload, context) {
     const contextCard = document.getElementById("gameContextCard");
     const contextTitle = document.getElementById("gameContextTitle");
     const contextText = document.getElementById("gameContextText");
+    const verdictLine = document.getElementById("gameVerdictLine");
     if (contextCard) contextCard.classList.remove("gd-skeleton-surface");
     if (contextTitle) contextTitle.innerText = contextSummary.title;
     if (contextText) contextText.innerText = contextSummary.text;
     document.getElementById("gameSub").innerText = contextSummary.heroSub;
+    if (verdictLine) verdictLine.innerText = buildHeroVerdictLine(payload, context);
+    renderReviewSentimentSection(payload);
 
     const priceHistoryPanel = document.getElementById("priceHistoryPanel");
     const playerHistoryPanel = document.getElementById("playerHistoryPanel");

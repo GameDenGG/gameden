@@ -1387,26 +1387,26 @@ a {
 .decision-page {
     max-width: 1280px;
     display: grid;
-    gap: 38px;
+    gap: 42px;
 }
 
 .decision-hero {
     display: grid;
-    grid-template-columns: minmax(320px, 1.02fr) minmax(0, 0.98fr);
-    gap: 28px;
+    grid-template-columns: minmax(360px, 1.12fr) minmax(0, 0.88fr);
+    gap: 32px;
     align-items: stretch;
     padding: 24px;
     position: relative;
     overflow: hidden;
-    border-radius: 34px;
+    border-radius: 30px;
     border: 0;
     background:
-        radial-gradient(circle at 18% 18%, rgba(111, 232, 255, 0.18), transparent 28%),
-        radial-gradient(circle at 82% 0%, rgba(154, 182, 255, 0.14), transparent 26%),
-        linear-gradient(180deg, rgba(10, 20, 36, 0.99), rgba(5, 12, 24, 0.99));
+        radial-gradient(circle at 14% 18%, rgba(111, 232, 255, 0.14), transparent 24%),
+        radial-gradient(circle at 88% 2%, rgba(154, 182, 255, 0.1), transparent 24%),
+        linear-gradient(180deg, rgba(9, 18, 33, 0.94), rgba(5, 12, 24, 0.96));
     box-shadow:
-        0 30px 70px rgba(2, 8, 20, 0.42),
-        inset 0 1px 0 rgba(227, 238, 255, 0.05);
+        0 20px 44px rgba(2, 8, 20, 0.24),
+        inset 0 1px 0 rgba(227, 238, 255, 0.04);
 }
 
 .decision-hero::before {
@@ -1415,10 +1415,10 @@ a {
     inset: 0;
     pointer-events: none;
     background:
-        linear-gradient(90deg, rgba(154, 182, 255, 0.1), transparent 24%),
-        linear-gradient(180deg, rgba(223, 236, 255, 0.08), transparent 20%),
-        linear-gradient(180deg, transparent 0%, rgba(6, 14, 28, 0.28) 100%);
-    opacity: 0.95;
+        linear-gradient(90deg, rgba(154, 182, 255, 0.08), transparent 24%),
+        linear-gradient(180deg, rgba(223, 236, 255, 0.06), transparent 18%),
+        linear-gradient(180deg, transparent 0%, rgba(6, 14, 28, 0.18) 100%);
+    opacity: 0.88;
 }
 
 .decision-hero::after {
@@ -1427,8 +1427,8 @@ a {
     inset: 0;
     pointer-events: none;
     background:
-        linear-gradient(90deg, rgba(6, 14, 28, 0.08) 0%, rgba(6, 14, 28, 0.12) 18%, rgba(6, 14, 28, 0.44) 52%, rgba(6, 14, 28, 0.88) 100%),
-        linear-gradient(180deg, rgba(6, 14, 28, 0.12) 0%, rgba(6, 14, 28, 0.84) 100%);
+        linear-gradient(90deg, rgba(6, 14, 28, 0.02) 0%, rgba(6, 14, 28, 0.08) 16%, rgba(6, 14, 28, 0.38) 52%, rgba(6, 14, 28, 0.82) 100%),
+        linear-gradient(180deg, rgba(6, 14, 28, 0.08) 0%, rgba(6, 14, 28, 0.8) 100%);
 }
 
 .decision-hero-media {
@@ -1450,12 +1450,12 @@ a {
     background-position: center;
     background-color: rgba(8, 17, 32, 0.92);
     border: 0;
-    border-radius: 30px;
+    border-radius: 26px;
     box-shadow:
-        0 26px 44px rgba(1, 8, 20, 0.34),
-        inset 0 0 0 1px rgba(230, 240, 255, 0.07);
+        0 24px 42px rgba(1, 8, 20, 0.28),
+        inset 0 0 0 1px rgba(230, 240, 255, 0.05);
     height: 100%;
-    min-height: clamp(320px, 38vw, 460px);
+    min-height: clamp(360px, 42vw, 520px);
 }
 
 .decision-hero .hero-banner::before {
@@ -1468,9 +1468,9 @@ a {
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
-    filter: blur(16px) saturate(1.12) brightness(0.84);
-    transform: scale(1.12);
-    opacity: 0.84;
+    filter: blur(12px) saturate(1.14) brightness(0.88);
+    transform: scale(1.08);
+    opacity: 0.9;
 }
 
 .decision-hero .hero-banner::after {
@@ -1480,7 +1480,7 @@ a {
     pointer-events: none;
     z-index: 1;
     background-image:
-        linear-gradient(180deg, rgba(6, 13, 25, 0.04) 0%, rgba(6, 13, 25, 0.54) 100%),
+        linear-gradient(180deg, rgba(6, 13, 25, 0.02) 0%, rgba(6, 13, 25, 0.4) 100%),
         var(--hero-image);
     background-size: cover, contain;
     background-repeat: no-repeat, no-repeat;
@@ -1490,7 +1490,7 @@ a {
 .decision-hero-content {
     min-width: 0;
     display: grid;
-    gap: 18px;
+    gap: 20px;
     align-content: start;
     position: relative;
     z-index: 1;
@@ -1513,8 +1513,8 @@ a {
 .decision-hero-top h1 {
     margin: 0;
     max-width: 14ch;
-    font-size: clamp(42px, 5.8vw, 66px);
-    line-height: 0.92;
+    font-size: clamp(44px, 6.1vw, 70px);
+    line-height: 0.9;
     letter-spacing: -0.06em;
     font-weight: 900;
     text-wrap: balance;
@@ -1523,8 +1523,8 @@ a {
 .decision-verdict {
     margin: 0;
     max-width: 18ch;
-    font-size: clamp(32px, 4vw, 46px);
-    line-height: 1.02;
+    font-size: clamp(34px, 4.2vw, 50px);
+    line-height: 1;
     font-weight: 840;
     letter-spacing: -0.03em;
     color: #f3fbff;
@@ -1591,7 +1591,7 @@ a {
 }
 
 .decision-price-value {
-    font-size: clamp(38px, 4.2vw, 48px);
+    font-size: clamp(40px, 4.4vw, 52px);
     line-height: 1;
     color: #f4fff9;
     font-weight: 900;
@@ -1627,7 +1627,7 @@ a {
 
 .decision-editorial-flow {
     display: grid;
-    gap: 42px;
+    gap: 46px;
 }
 
 .decision-context-shelf {
@@ -1657,8 +1657,8 @@ a {
 .decision-media-section .panel-head::after,
 .decision-store-section .panel-head::after,
 .decision-reviews-section .panel-head::after {
-    margin-top: 14px;
-    background: linear-gradient(90deg, rgba(154, 182, 255, 0.12), rgba(154, 182, 255, 0.04) 68%, transparent);
+    margin-top: 12px;
+    background: linear-gradient(90deg, rgba(154, 182, 255, 0.14), rgba(154, 182, 255, 0.03) 64%, transparent);
 }
 
 .decision-insights-section .panel-head,
@@ -1786,14 +1786,14 @@ a {
 
 .decision-summary-rail {
     position: relative;
-    padding: 18px 22px;
-    border-radius: 26px;
+    padding: 18px 24px;
+    border-radius: 999px;
     background:
-        radial-gradient(circle at 0% 0%, rgba(111, 232, 255, 0.08), transparent 26%),
-        linear-gradient(180deg, rgba(12, 24, 42, 0.58), rgba(8, 16, 29, 0.34));
+        radial-gradient(circle at 0% 0%, rgba(111, 232, 255, 0.08), transparent 22%),
+        linear-gradient(180deg, rgba(12, 24, 42, 0.54), rgba(8, 16, 29, 0.24));
     box-shadow:
         inset 0 1px 0 rgba(223, 236, 255, 0.05),
-        0 18px 36px rgba(2, 8, 20, 0.18);
+        0 14px 32px rgba(2, 8, 20, 0.16);
     overflow: hidden;
 }
 
@@ -1803,14 +1803,14 @@ a {
     inset: 0;
     pointer-events: none;
     background:
-        linear-gradient(90deg, rgba(154, 182, 255, 0.08), transparent 32%),
-        linear-gradient(180deg, transparent 0%, rgba(6, 14, 28, 0.18) 100%);
+        linear-gradient(90deg, rgba(154, 182, 255, 0.06), transparent 28%),
+        linear-gradient(180deg, transparent 0%, rgba(6, 14, 28, 0.12) 100%);
 }
 
 .decision-summary-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0;
+    gap: 8px;
     padding-top: 0;
     border-top: 0;
     position: relative;
@@ -1819,13 +1819,13 @@ a {
 
 .decision-summary-chip {
     border: 0;
-    border-left: 1px solid rgba(154, 182, 255, 0.1);
+    border-left: 0;
     border-radius: 0;
-    padding: 6px 20px;
+    padding: 6px 14px;
     background: none;
     box-shadow: none;
     display: grid;
-    gap: 8px;
+    gap: 6px;
 }
 
 .decision-summary-chip:first-child {
@@ -1834,15 +1834,15 @@ a {
 }
 
 .decision-media-shell {
-    min-height: clamp(240px, 30vw, 360px);
-    border-radius: 30px;
+    min-height: clamp(320px, 36vw, 460px);
+    border-radius: 32px;
     background:
-        radial-gradient(circle at 18% 18%, rgba(111, 232, 255, 0.1), transparent 28%),
-        radial-gradient(circle at 82% 12%, rgba(154, 182, 255, 0.12), transparent 26%),
-        linear-gradient(135deg, rgba(13, 25, 45, 0.92), rgba(8, 16, 29, 0.96));
+        radial-gradient(circle at 18% 18%, rgba(111, 232, 255, 0.12), transparent 24%),
+        radial-gradient(circle at 82% 12%, rgba(154, 182, 255, 0.14), transparent 24%),
+        linear-gradient(135deg, rgba(14, 28, 49, 0.94), rgba(8, 16, 29, 0.98));
     box-shadow:
-        inset 0 1px 0 rgba(223, 236, 255, 0.06),
-        0 22px 46px rgba(2, 8, 20, 0.22);
+        inset 0 1px 0 rgba(223, 236, 255, 0.08),
+        0 26px 54px rgba(2, 8, 20, 0.22);
     position: relative;
     overflow: hidden;
 }
@@ -1852,34 +1852,35 @@ a {
     position: absolute;
     inset: 0;
     background:
-        linear-gradient(135deg, transparent 0%, transparent 44%, rgba(154, 182, 255, 0.08) 44.5%, transparent 45%, transparent 100%);
-    opacity: 0.65;
+        linear-gradient(135deg, transparent 0%, transparent 40%, rgba(154, 182, 255, 0.08) 40.5%, transparent 41%, transparent 100%),
+        linear-gradient(180deg, transparent 0%, rgba(7, 15, 29, 0.18) 100%);
+    opacity: 0.72;
 }
 
 .decision-media-shell::after {
     content: "Featured media stage";
     position: absolute;
-    left: 28px;
-    bottom: 24px;
+    left: 32px;
+    bottom: 28px;
     font-size: 11px;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: #8ba5cb;
+    color: #99afd0;
     font-weight: 700;
 }
 
 .decision-summary-chip span {
     font-size: 10px;
-    letter-spacing: 0.09em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #8ba5cb;
+    color: #95abcb;
     font-weight: 700;
 }
 
 .decision-summary-chip strong {
     max-width: 14ch;
-    font-size: 22px;
-    line-height: 1.2;
+    font-size: 21px;
+    line-height: 1.16;
     font-weight: 850;
     color: #eef6ff;
 }
@@ -2311,13 +2312,14 @@ a {
     }
 
     .decision-summary-rail {
-        padding: 16px 18px;
+        padding: 16px 20px;
+        border-radius: 28px;
     }
 
     .decision-summary-chip {
         padding-left: 0;
         border-left: 0;
-        border-top: 1px solid rgba(154, 182, 255, 0.12);
+        border-top: 1px solid rgba(154, 182, 255, 0.1);
         padding-top: 12px;
     }
 

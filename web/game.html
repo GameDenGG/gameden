@@ -45,6 +45,7 @@
 {}
 </script>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://cdn.dashjs.org" crossorigin>
 <link rel="preconnect" href="https://cdn.cloudflare.steamstatic.com" crossorigin>
 <script src="/site-runtime-loader.js?v=20260316-1"></script>
 <script>
@@ -1909,7 +1910,7 @@ a {
         filter var(--motion-slow) ease;
 }
 
-#featuredMediaStage.is-activated #featuredMediaPoster {
+#featuredMediaStage.is-playing #featuredMediaPoster {
     opacity: 0;
     transform: scale(1.018);
     filter: saturate(0.94);
@@ -1928,6 +1929,12 @@ a {
 }
 
 #featuredMediaOverlay.is-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+#featuredMediaStage.is-playing #featuredMediaOverlay {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -3128,6 +3135,12 @@ let currentGamePayload = null;
 let currentGameContext = null;
 let currentDealTarget = null;
 let shareButtonResetTimer = null;
+let featuredMediaPlaybackController = null;
+const FEATURED_MEDIA_SCRIPT_URLS = Object.freeze({
+    hls: "https://cdn.jsdelivr.net/npm/hls.js@1",
+    dash: "https://cdn.dashjs.org/latest/modern/umd/dash.all.min.js",
+});
+const featuredMediaScriptPromises = new Map();
 let cachedPriceHistoryGameId = null;
 let cachedPriceHistoryPayload = null;
 let priceHistoryInFlight = null;
@@ -4300,12 +4313,137 @@ function isInlinePlayableFeaturedMedia(url) {
     return [".mp4", ".webm", ".ogg", ".mov"].some((extension) => normalizedUrl.endsWith(extension));
 }
 
+function getFeaturedMediaPlaybackKind(url) {
+    const normalizedUrl = String(url || "").trim().toLowerCase().split("#")[0].split("?")[0];
+    if (!normalizedUrl) return null;
+    const nativeVideo = document.createElement("video");
+    if (normalizedUrl.endsWith(".m3u8")) {
+        if (nativeVideo.canPlayType && nativeVideo.canPlayType("application/vnd.apple.mpegurl")) {
+            return "direct";
+        }
+        return "hls";
+    }
+    if (normalizedUrl.endsWith(".mpd")) {
+        if (nativeVideo.canPlayType && nativeVideo.canPlayType("application/dash+xml")) {
+            return "direct";
+        }
+        return "dash";
+    }
+    if (isInlinePlayableFeaturedMedia(normalizedUrl)) return "direct";
+    return null;
+}
+
+function loadFeaturedMediaScriptOnce(kind) {
+    if (kind === "hls" && window.Hls) {
+        return Promise.resolve(window.Hls);
+    }
+    if (kind === "dash" && window.dashjs) {
+        return Promise.resolve(window.dashjs);
+    }
+
+    if (featuredMediaScriptPromises.has(kind)) {
+        return featuredMediaScriptPromises.get(kind);
+    }
+
+    const src = FEATURED_MEDIA_SCRIPT_URLS[kind];
+    if (!src) {
+        const rejection = Promise.reject(new Error(`Unsupported featured media script kind: ${kind}`));
+        rejection.catch(() => {});
+        featuredMediaScriptPromises.set(kind, rejection);
+        return rejection;
+    }
+
+    const promise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = src;
+        script.async = true;
+        script.defer = false;
+        script.addEventListener("load", () => {
+            if (kind === "hls" && window.Hls) {
+                resolve(window.Hls);
+                return;
+            }
+            if (kind === "dash" && window.dashjs) {
+                resolve(window.dashjs);
+                return;
+            }
+            reject(new Error(`Featured media script loaded without ${kind} runtime`));
+        }, { once: true });
+        script.addEventListener("error", () => reject(new Error(`Failed to load featured media script: ${src}`)), { once: true });
+        (document.head || document.documentElement).appendChild(script);
+    });
+
+    const guardedPromise = promise.catch((error) => {
+        featuredMediaScriptPromises.delete(kind);
+        throw error;
+    });
+
+    featuredMediaScriptPromises.set(kind, guardedPromise);
+    return guardedPromise;
+}
+
+function destroyFeaturedMediaPlayback() {
+    const controller = featuredMediaPlaybackController;
+    featuredMediaPlaybackController = null;
+    if (controller && typeof controller.destroy === "function") {
+        controller.destroy();
+    }
+    if (featuredMediaPlayer instanceof HTMLElement) {
+        featuredMediaPlayer.replaceChildren();
+    }
+}
+
+function setFeaturedMediaSteamFallback(payload, mediaTitle) {
+    const steamStoreUrl = resolveStoreUrl(payload);
+    destroyFeaturedMediaPlayback();
+
+    if (featuredMediaStage instanceof HTMLElement) {
+        featuredMediaStage.classList.remove("is-loading", "is-activated", "is-playing");
+        featuredMediaStage.setAttribute("aria-label", "Watch trailer on Steam");
+        featuredMediaStage.onclick = () => {
+            if (steamStoreUrl) {
+                window.open(steamStoreUrl, "_blank", "noopener,noreferrer");
+            }
+        };
+    }
+    if (featuredMediaOverlay instanceof HTMLElement) {
+        featuredMediaOverlay.classList.remove("is-hidden");
+    }
+    if (featuredMediaPlayButton instanceof HTMLButtonElement) {
+        featuredMediaPlayButton.classList.add("is-external");
+        featuredMediaPlayButton.hidden = false;
+        featuredMediaPlayButton.disabled = false;
+        featuredMediaPlayButton.innerHTML = `
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M8 6.5v11l9-5.5z"></path>
+            </svg>
+            <span class="featured-media-play-text">Watch trailer on Steam</span>
+        `;
+        featuredMediaPlayButton.setAttribute("aria-label", "Watch trailer on Steam");
+        featuredMediaPlayButton.title = "Watch trailer on Steam";
+        featuredMediaPlayButton.onclick = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (steamStoreUrl) {
+                window.open(steamStoreUrl, "_blank", "noopener,noreferrer");
+            }
+        };
+    }
+    if (featuredMediaPlayer instanceof HTMLElement && !featuredMediaPlayer.childElementCount) {
+        featuredMediaPlayer.replaceChildren();
+    }
+    if (featuredMediaLabel instanceof HTMLElement) {
+        featuredMediaLabel.textContent = firstNonEmptyText(mediaTitle, "Trailer");
+    }
+}
+
 function resetFeaturedMediaSection() {
+    destroyFeaturedMediaPlayback();
     if (featuredMediaSection instanceof HTMLElement) {
         featuredMediaSection.hidden = true;
     }
     if (featuredMediaStage instanceof HTMLElement) {
-        featuredMediaStage.classList.remove("is-activated");
+        featuredMediaStage.classList.remove("is-activated", "is-loading", "is-playing");
         featuredMediaStage.onclick = null;
     }
     if (featuredMediaOverlay instanceof HTMLElement) {
@@ -4331,41 +4469,149 @@ function resetFeaturedMediaSection() {
     if (featuredMediaLabel instanceof HTMLElement) {
         featuredMediaLabel.textContent = "Trailer";
     }
-    if (featuredMediaPlayer instanceof HTMLElement) {
-        featuredMediaPlayer.replaceChildren();
-    }
 }
 
-function activateFeaturedMediaStage(media, posterUrl) {
+function activateFeaturedMediaStage(media, posterUrl, payload, mediaTitle) {
     if (!(featuredMediaStage instanceof HTMLElement) || !(featuredMediaPlayer instanceof HTMLElement)) return;
 
-    featuredMediaStage.classList.add("is-activated");
+    const playbackKind = getFeaturedMediaPlaybackKind(media.embed_url);
+    if (!playbackKind) {
+        setFeaturedMediaSteamFallback(payload, mediaTitle);
+        return;
+    }
+
+    destroyFeaturedMediaPlayback();
+    featuredMediaStage.classList.add("is-activated", "is-loading");
     featuredMediaStage.onclick = null;
     if (featuredMediaPlayButton instanceof HTMLButtonElement) {
+        featuredMediaPlayButton.disabled = true;
         featuredMediaPlayButton.onclick = null;
     }
 
-    const mediaTitle = firstNonEmptyText(media?.title) || "featured trailer";
-    if (isInlinePlayableFeaturedMedia(media.embed_url)) {
-        const video = document.createElement("video");
-        video.className = "featured-media-video";
-        video.controls = true;
-        video.preload = "none";
-        video.playsInline = true;
-        video.src = media.embed_url;
-        if (posterUrl) {
-            video.poster = posterUrl;
-        }
-        featuredMediaPlayer.replaceChildren(video);
+    const video = document.createElement("video");
+    video.className = "featured-media-video";
+    video.controls = true;
+    video.preload = "none";
+    video.playsInline = true;
+    if (posterUrl) {
+        video.poster = posterUrl;
+    }
+    featuredMediaPlayer.replaceChildren(video);
+
+    const completePlayback = () => {
+        featuredMediaStage.classList.remove("is-loading");
+        featuredMediaStage.classList.add("is-playing");
         if (featuredMediaOverlay instanceof HTMLElement) {
             featuredMediaOverlay.classList.add("is-hidden");
         }
+        if (featuredMediaPlayButton instanceof HTMLButtonElement) {
+            featuredMediaPlayButton.hidden = true;
+            featuredMediaPlayButton.disabled = false;
+        }
+    };
+
+    const failPlayback = () => {
+        setFeaturedMediaSteamFallback(payload, mediaTitle);
+    };
+
+    const onVideoPlaying = () => {
+        completePlayback();
+    };
+
+    const onVideoError = () => {
+        failPlayback();
+    };
+
+    video.addEventListener("playing", onVideoPlaying, { once: true });
+    video.addEventListener("error", onVideoError, { once: true });
+
+    featuredMediaPlaybackController = {
+        destroy() {
+            video.removeEventListener("playing", onVideoPlaying);
+            video.removeEventListener("error", onVideoError);
+            try {
+                video.pause();
+            } catch (_error) {
+                // ignore
+            }
+            video.removeAttribute("src");
+            video.load();
+            if (this._engine && typeof this._engine.destroy === "function") {
+                this._engine.destroy();
+            }
+            if (this._engine && typeof this._engine.reset === "function") {
+                this._engine.reset();
+            }
+        },
+        _engine: null,
+    };
+
+    if (playbackKind === "direct") {
+        video.src = media.embed_url;
         const playPromise = video.play();
         if (playPromise && typeof playPromise.catch === "function") {
-            playPromise.catch(() => {});
+            playPromise.catch(() => {
+                failPlayback();
+            });
         }
         return;
     }
+
+    const loadManifestEngine = playbackKind === "hls"
+        ? loadFeaturedMediaScriptOnce("hls")
+        : loadFeaturedMediaScriptOnce("dash");
+
+    loadManifestEngine.then((engine) => {
+        if (featuredMediaPlaybackController == null) return;
+        if (playbackKind === "hls") {
+            if (!engine || typeof engine.isSupported !== "function" || !engine.isSupported()) {
+                failPlayback();
+                return;
+            }
+            const hls = new engine();
+            featuredMediaPlaybackController._engine = hls;
+            if (engine.Events && engine.Events.ERROR && typeof hls.on === "function") {
+                hls.on(engine.Events.ERROR, (_event, data) => {
+                    if (data && data.fatal) {
+                        failPlayback();
+                    }
+                });
+            }
+            hls.loadSource(media.embed_url);
+            hls.attachMedia(video);
+            try {
+                const playPromise = video.play();
+                if (playPromise && typeof playPromise.catch === "function") {
+                    playPromise.catch(() => {});
+                }
+            } catch (_error) {
+                failPlayback();
+            }
+            return;
+        }
+
+        if (!engine || !engine.MediaPlayer || typeof engine.MediaPlayer !== "function") {
+            failPlayback();
+            return;
+        }
+        const dashPlayer = engine.MediaPlayer().create();
+        featuredMediaPlaybackController._engine = dashPlayer;
+        if (engine.MediaPlayer.events && typeof dashPlayer.on === "function") {
+            dashPlayer.on(engine.MediaPlayer.events.PLAYBACK_ERROR, failPlayback);
+            dashPlayer.on(engine.MediaPlayer.events.PLAYBACK_NOT_ALLOWED, failPlayback);
+        }
+        dashPlayer.initialize(video, media.embed_url, false);
+        try {
+            const playPromise = video.play();
+            if (playPromise && typeof playPromise.catch === "function") {
+                playPromise.catch(() => {});
+            }
+        } catch (_error) {
+            failPlayback();
+        }
+    }).catch(() => {
+        failPlayback();
+    });
 }
 
 function renderFeaturedMedia(payload) {
@@ -4389,10 +4635,14 @@ function renderFeaturedMedia(payload) {
         if (!steamStoreUrl) return;
         window.open(steamStoreUrl, "_blank", "noopener,noreferrer");
     };
-    const canPlayInline = isInlinePlayableFeaturedMedia(media.embed_url);
-    const activate = canPlayInline
-        ? () => activateFeaturedMediaStage(media, posterUrl)
+    const playbackKind = getFeaturedMediaPlaybackKind(media.embed_url);
+    const activate = playbackKind
+        ? () => activateFeaturedMediaStage(media, posterUrl, payload, mediaTitle)
         : openSteamStore;
+
+    if (playbackKind === "hls" || playbackKind === "dash") {
+        loadFeaturedMediaScriptOnce(playbackKind).catch(() => {});
+    }
 
     if (featuredMediaSection instanceof HTMLElement) {
         featuredMediaSection.hidden = false;
@@ -4404,14 +4654,14 @@ function renderFeaturedMedia(payload) {
     if (featuredMediaStage instanceof HTMLElement) {
         featuredMediaStage.setAttribute(
             "aria-label",
-            canPlayInline
+            playbackKind
                 ? (mediaTitle || "Featured trailer stage")
                 : "Watch trailer on Steam",
         );
         featuredMediaStage.onclick = activate;
     }
     if (featuredMediaPlayButton instanceof HTMLButtonElement) {
-        if (canPlayInline) {
+        if (playbackKind) {
             featuredMediaPlayButton.classList.remove("is-external");
             featuredMediaPlayButton.innerHTML = `
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">

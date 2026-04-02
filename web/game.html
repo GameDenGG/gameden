@@ -1411,10 +1411,9 @@ a {
     inset: 0;
     pointer-events: none;
     background:
-        radial-gradient(circle at 18% 20%, rgba(111, 232, 255, 0.12), transparent 20%),
-        linear-gradient(180deg, rgba(223, 236, 255, 0.04), transparent 18%),
-        linear-gradient(180deg, transparent 0%, rgba(6, 14, 28, 0.16) 100%);
-    opacity: 0.94;
+        radial-gradient(circle at 16% 22%, rgba(111, 232, 255, 0.1), transparent 20%),
+        linear-gradient(180deg, rgba(223, 236, 255, 0.03), transparent 18%);
+    opacity: 0.78;
     z-index: 1;
 }
 
@@ -1424,8 +1423,8 @@ a {
     inset: 0;
     pointer-events: none;
     background:
-        linear-gradient(90deg, rgba(6, 14, 28, 0.1) 0%, rgba(6, 14, 28, 0.16) 24%, rgba(6, 14, 28, 0.54) 54%, rgba(6, 14, 28, 0.92) 100%),
-        linear-gradient(180deg, rgba(6, 14, 28, 0.04) 0%, rgba(6, 14, 28, 0.7) 100%);
+        linear-gradient(90deg, rgba(6, 14, 28, 0.72) 0%, rgba(6, 14, 28, 0.62) 20%, rgba(6, 14, 28, 0.36) 38%, rgba(6, 14, 28, 0.12) 56%, rgba(6, 14, 28, 0) 76%),
+        linear-gradient(180deg, rgba(6, 14, 28, 0.02) 0%, rgba(6, 14, 28, 0.22) 100%);
     z-index: 1;
 }
 
@@ -1476,8 +1475,8 @@ a {
     pointer-events: none;
     z-index: 1;
     background-image:
-        linear-gradient(90deg, rgba(6, 13, 25, 0.04) 0%, rgba(6, 13, 25, 0.1) 24%, rgba(6, 13, 25, 0.46) 54%, rgba(6, 13, 25, 0.9) 100%),
-        radial-gradient(circle at 18% 48%, rgba(111, 232, 255, 0.16), transparent 22%),
+        linear-gradient(90deg, rgba(6, 13, 25, 0.28) 0%, rgba(6, 13, 25, 0.18) 22%, rgba(6, 13, 25, 0.08) 40%, rgba(6, 13, 25, 0.02) 60%, rgba(6, 13, 25, 0) 78%),
+        radial-gradient(circle at 14% 48%, rgba(111, 232, 255, 0.1), transparent 22%),
         var(--hero-image);
     background-size: cover, cover, cover;
     background-repeat: no-repeat, no-repeat, no-repeat;
@@ -1502,10 +1501,7 @@ a {
 }
 
 .decision-hero-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
+    display: block;
 }
 
 .decision-hero-top h1 {
@@ -2459,7 +2455,6 @@ a {
             <div class="decision-hero-copy">
                 <div class="decision-hero-top">
                     <h1 id="gameTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></h1>
-                    <div class="hero-badge" id="dealBadge"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40" aria-hidden="true"></span></div>
                 </div>
                 <p class="decision-verdict" id="gameSub"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
                 <p class="decision-verdict-note" id="gameVerdictLine"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></p>
@@ -2997,7 +2992,6 @@ function renderGameLoadingSkeletons() {
     setInlineSkeleton("reviewScoreSignal", "gd-skeleton-w-24");
     setInlineSkeleton("reviewCountSignal", "gd-skeleton-w-32");
     setInlineSkeleton("reviewSupportLine", "gd-skeleton-w-64");
-    setInlineSkeleton("dealBadge", "gd-skeleton-w-40");
     setInlineSkeleton("currentPrice", "gd-skeleton-w-48");
     setInlineSkeleton("currentDiscount", "gd-skeleton-w-40");
     setInlineSkeleton("gameContextTitle", "gd-skeleton-w-48");
@@ -4543,37 +4537,6 @@ function renderHeroExplanation(payload, context = currentGameContext) {
     explainList.innerHTML = lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("");
 }
 
-function applyDealBadgeGlow(payload) {
-    const badge = document.getElementById("dealBadge");
-    if (!badge) return;
-
-    badge.classList.remove(
-        "signal-glow",
-        "signal-glow-low",
-        "signal-glow-discount",
-        "signal-glow-buy",
-    );
-    if (!currentGameContext || !currentGameContext.isPaidReleased) {
-        return;
-    }
-
-    const status = String(payload?.historical_status || "").trim();
-    const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
-    const discount = Number(payload?.discount_percent ?? payload?.latest_discount_percent ?? 0);
-
-    if (status === "new_historical_low" || status === "matches_historical_low") {
-        badge.classList.add("signal-glow", "signal-glow-low");
-        return;
-    }
-    if (recommendation === "BUY_NOW") {
-        badge.classList.add("signal-glow", "signal-glow-buy");
-        return;
-    }
-    if (Number.isFinite(discount) && discount >= HIGH_VALUE_DISCOUNT_THRESHOLD) {
-        badge.classList.add("signal-glow", "signal-glow-discount");
-    }
-}
-
 function applyHeroDecisionState(payload) {
     const hero = document.querySelector(".hero");
     if (!(hero instanceof HTMLElement)) return;
@@ -5347,17 +5310,6 @@ if (!payload || payload.error) {
     renderDecisionSummaryStrip(payload, currentGameContext);
     renderStoreDecisionSection(payload);
 
-    const confidenceForBadge = resolveDealConfidence(payload);
-    if (currentGameContext?.mode === "free") {
-        document.getElementById("dealBadge").innerText = "FP Free-to-Play";
-    } else if (currentGameContext?.mode === "unreleased") {
-        document.getElementById("dealBadge").innerText = "UP Upcoming";
-    } else {
-        document.getElementById("dealBadge").innerText = confidenceForBadge
-            ? `${confidenceForBadge.confidence_icon} ${confidenceForBadge.confidence_label}`
-            : (payload.deal_label || `Deal score ${payload.deal_score ?? "—"}`);
-    }
-    applyDealBadgeGlow(payload);
     applyHeroDecisionState(payload);
     document.getElementById("heroBanner").classList.remove("gd-skeleton-surface");
 

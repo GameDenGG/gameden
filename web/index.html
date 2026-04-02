@@ -6533,10 +6533,12 @@ input:focus-visible {
             const identityChanged = !!(previousUserId && nextUserId && previousUserId !== nextUserId);
             const shouldForceTrackedReload = !!opts.forceTrackedReload
                 && !isAnonymousOrGuestUserId(nextUserId || CURRENT_USER_ID);
-            if (identityChanged || shouldForceTrackedReload) {
+            const shouldForcePersonalizedReload = !isAnonymousOrGuestUserId(nextUserId || CURRENT_USER_ID)
+                && (!state.personalizedStatus.resolved || !state.personalizedStatus.personalized);
+            if (identityChanged || shouldForceTrackedReload || shouldForcePersonalizedReload) {
                 void loadPersonalSummary();
                 if (!isAnonymousOrGuestUserId(nextUserId || CURRENT_USER_ID)) {
-                    void loadPersonalizedDeals().then(() => {
+                    void loadPersonalizedDeals({ force: !identityChanged && shouldForcePersonalizedReload }).then(() => {
                         renderPersonalizedDeals();
                         syncCardActionButtonsFromState();
                     }).catch(() => {
@@ -14601,11 +14603,13 @@ try {
             return task;
         }
 
-        async function loadPersonalizedDeals() {
+        async function loadPersonalizedDeals(options = {}) {
+            const opts = options && typeof options === "object" ? options : {};
+            const forceReload = !!opts.force;
             const requestedUserId = String(CURRENT_USER_ID || "").trim();
             const knownUser = !isDefaultOrAnonymousUserId(requestedUserId);
             const inflight = loadPersonalizedDeals._inflight;
-            if (inflight && loadPersonalizedDeals._inflightUserId === requestedUserId) {
+            if (!forceReload && inflight && loadPersonalizedDeals._inflightUserId === requestedUserId) {
                 return inflight;
             }
 

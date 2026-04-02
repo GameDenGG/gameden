@@ -1456,15 +1456,15 @@ a {
 .decision-hero .hero-banner::before {
     content: "";
     position: absolute;
-    inset: 0;
+    inset: -2%;
     pointer-events: none;
     z-index: 0;
-    background-image: var(--hero-image);
-    background-size: cover;
+    background:
+        radial-gradient(circle at 18% 22%, rgba(111, 232, 255, 0.18), transparent 28%),
+        radial-gradient(circle at 82% 14%, rgba(154, 182, 255, 0.12), transparent 24%),
+        radial-gradient(ellipse at 50% 54%, rgba(7, 15, 29, 0), rgba(7, 15, 29, 0.18) 72%, rgba(7, 15, 29, 0.3) 100%),
+        linear-gradient(145deg, rgba(8, 18, 34, 0.95), rgba(6, 14, 28, 0.98));
     background-repeat: no-repeat;
-    background-position: center;
-    filter: blur(8px) saturate(1.18) brightness(0.9);
-    transform: scale(1.04);
     opacity: 1;
 }
 
@@ -1475,18 +1475,13 @@ a {
     pointer-events: none;
     z-index: 1;
     background-image:
-        linear-gradient(90deg, rgba(6, 13, 25, 0.28) 0%, rgba(6, 13, 25, 0.18) 22%, rgba(6, 13, 25, 0.08) 40%, rgba(6, 13, 25, 0.02) 60%, rgba(6, 13, 25, 0) 78%),
-        radial-gradient(circle at 14% 48%, rgba(111, 232, 255, 0.1), transparent 22%),
+        radial-gradient(ellipse 92% 84% at 50% 50%, rgba(6, 13, 25, 0) 60%, rgba(6, 13, 25, 0.08) 78%, rgba(6, 13, 25, 0.22) 100%),
+        linear-gradient(90deg, rgba(6, 13, 25, 0.22) 0%, rgba(6, 13, 25, 0.12) 18%, rgba(6, 13, 25, 0.04) 40%, rgba(6, 13, 25, 0) 68%),
+        radial-gradient(circle at 14% 48%, rgba(111, 232, 255, 0.08), transparent 22%),
         var(--hero-image);
-    background-size: cover, cover, contain;
-    background-repeat: no-repeat, no-repeat, no-repeat;
-    background-position: center, center, center center;
-    -webkit-mask-image: radial-gradient(ellipse 90% 84% at 50% 50%, #000 70%, rgba(0, 0, 0, 0.94) 78%, rgba(0, 0, 0, 0.78) 86%, transparent 100%);
-    mask-image: radial-gradient(ellipse 90% 84% at 50% 50%, #000 70%, rgba(0, 0, 0, 0.94) 78%, rgba(0, 0, 0, 0.78) 86%, transparent 100%);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
+    background-size: cover, cover, cover, contain;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+    background-position: center, center, center, center center;
 }
 
 .decision-hero-content {

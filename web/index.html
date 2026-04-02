@@ -6535,6 +6535,14 @@ input:focus-visible {
                 && !isAnonymousOrGuestUserId(nextUserId || CURRENT_USER_ID);
             if (identityChanged || shouldForceTrackedReload) {
                 void loadPersonalSummary();
+                if (!isAnonymousOrGuestUserId(nextUserId || CURRENT_USER_ID)) {
+                    void loadPersonalizedDeals().then(() => {
+                        renderPersonalizedDeals();
+                        syncCardActionButtonsFromState();
+                    }).catch(() => {
+                        renderPersonalizedDeals();
+                    });
+                }
                 void loadUserWishlist().then(() => {
                     renderWishlist();
                     renderBecauseYouOwn();
@@ -14596,11 +14604,16 @@ try {
         async function loadPersonalizedDeals() {
             const requestedUserId = String(CURRENT_USER_ID || "").trim();
             const knownUser = !isDefaultOrAnonymousUserId(requestedUserId);
+            const inflight = loadPersonalizedDeals._inflight;
+            if (inflight && loadPersonalizedDeals._inflightUserId === requestedUserId) {
+                return inflight;
+            }
+
             state.personalizedStatus.enabled = true;
             state.personalizedStatus.error = null;
             state.personalizedStatus.resolved = false;
             state.personalizedStatus.loading = true;
-            try {
+            const task = (async () => {
                 await ensureAuthRuntimeForUser(requestedUserId);
                 const includeOwnedParam = state.feedFilters?.showOwned ? "1" : "0";
                 const payload = await fetchJson(
@@ -14617,16 +14630,23 @@ try {
                 state.personalizedStatus.fallbackMode = !personalized;
                 state.personalizedStatus.resolved = true;
                 return items;
-            } catch (error) {
+            })().catch((error) => {
                 state.personalizedDeals = [];
                 state.personalizedStatus.error = error;
                 state.personalizedStatus.personalized = false;
                 state.personalizedStatus.fallbackMode = true;
                 state.personalizedStatus.resolved = true;
                 throw error;
-            } finally {
+            }).finally(() => {
                 state.personalizedStatus.loading = false;
-            }
+                if (loadPersonalizedDeals._inflight === task) {
+                    loadPersonalizedDeals._inflight = null;
+                    loadPersonalizedDeals._inflightUserId = "";
+                }
+            });
+            loadPersonalizedDeals._inflight = task;
+            loadPersonalizedDeals._inflightUserId = requestedUserId;
+            return task;
         }
 
         async function loadUserWatchlist() {

@@ -1392,18 +1392,19 @@ a {
 
 .decision-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-items: end;
+    grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+    gap: 26px;
+    align-items: stretch;
     padding: 24px;
     position: relative;
     overflow: hidden;
     border-radius: 28px;
-    border: 1px solid rgba(154, 182, 255, 0.18);
+    border: 0;
     background:
-        radial-gradient(circle at 82% 0%, rgba(111, 232, 255, 0.08), transparent 32%),
+        radial-gradient(circle at 80% 0%, rgba(111, 232, 255, 0.08), transparent 28%),
         linear-gradient(180deg, rgba(9, 19, 34, 0.98), rgba(6, 14, 28, 0.98));
     box-shadow: 0 22px 48px rgba(2, 8, 20, 0.34);
-    min-height: clamp(440px, 54vw, 620px);
+    min-height: clamp(460px, 54vw, 640px);
 }
 
 .decision-hero::before {
@@ -1423,16 +1424,16 @@ a {
     inset: 0;
     pointer-events: none;
     background:
-        linear-gradient(90deg, rgba(6, 14, 28, 0.96) 0%, rgba(6, 14, 28, 0.9) 38%, rgba(6, 14, 28, 0.42) 68%, rgba(6, 14, 28, 0.72) 100%),
+        linear-gradient(90deg, rgba(6, 14, 28, 0.18) 0%, rgba(6, 14, 28, 0.2) 24%, rgba(6, 14, 28, 0.58) 54%, rgba(6, 14, 28, 0.9) 100%),
         linear-gradient(180deg, rgba(6, 14, 28, 0.18) 0%, rgba(6, 14, 28, 0.86) 100%);
 }
 
 .decision-hero-media {
     min-width: 0;
-    position: absolute;
-    inset: 0 0 0 34%;
+    position: relative;
     z-index: 0;
     pointer-events: none;
+    display: grid;
 }
 
 .decision-hero .hero-banner {
@@ -1446,10 +1447,10 @@ a {
     background-position: center;
     background-color: rgba(8, 17, 32, 0.92);
     border: 0;
-    border-radius: 0;
+    border-radius: 24px;
     box-shadow: none;
     height: 100%;
-    min-height: clamp(440px, 54vw, 620px);
+    min-height: clamp(400px, 48vw, 560px);
 }
 
 .decision-hero .hero-banner::before {
@@ -1488,8 +1489,8 @@ a {
     align-content: start;
     position: relative;
     z-index: 1;
-    max-width: min(640px, 100%);
-    padding-top: 6px;
+    max-width: min(620px, 100%);
+    padding: 8px 0 8px;
 }
 
 .decision-hero-top {
@@ -1529,15 +1530,13 @@ a {
 
 .decision-hero-meta {
     display: grid;
-    gap: 14px;
-    padding: 18px 20px 20px;
-    border: 1px solid rgba(154, 182, 255, 0.18);
-    border-radius: 22px;
-    background: linear-gradient(180deg, rgba(12, 23, 41, 0.72), rgba(8, 16, 29, 0.84));
-    box-shadow:
-        inset 0 1px 0 rgba(223, 236, 255, 0.06),
-        0 18px 34px rgba(2, 8, 20, 0.18);
-    backdrop-filter: blur(12px);
+    gap: 16px;
+    padding: 6px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    backdrop-filter: none;
 }
 
 .decision-hero .hero-context-card {
@@ -1620,6 +1619,8 @@ a {
     gap: 40px;
 }
 
+.decision-insights-section,
+.decision-media-section,
 .decision-store-section {
     border: 0;
     background: none;
@@ -1627,28 +1628,38 @@ a {
     overflow: visible;
 }
 
+.decision-insights-section::before,
+.decision-media-section::before,
 .decision-store-section::before,
 .decision-reviews-section::before {
     display: none;
 }
 
+.decision-insights-section .panel-head::after,
+.decision-media-section .panel-head::after,
 .decision-store-section .panel-head::after,
 .decision-reviews-section .panel-head::after {
     margin-top: 14px;
     background: linear-gradient(90deg, rgba(154, 182, 255, 0.12), rgba(154, 182, 255, 0.04) 68%, transparent);
 }
 
+.decision-insights-section .panel-head,
+.decision-media-section .panel-head,
 .decision-store-section .panel-head,
 .decision-reviews-section .panel-head {
     padding: 0 0 12px;
 }
 
+.decision-insights-section .panel-title,
+.decision-media-section .panel-title,
 .decision-store-section .panel-title,
 .decision-reviews-section .panel-title {
     font-size: 23px;
     letter-spacing: -0.03em;
 }
 
+.decision-insights-section .panel-subtitle,
+.decision-media-section .panel-subtitle,
 .decision-store-section .panel-subtitle,
 .decision-reviews-section .panel-subtitle {
     max-width: 52ch;
@@ -1661,6 +1672,8 @@ a {
     background: rgba(255, 255, 255, 0.045);
 }
 
+.decision-insights-section .panel-body,
+.decision-media-section .panel-body,
 .decision-store-section .panel-body,
 .decision-reviews-section .panel-body {
     padding: 0;
@@ -1671,19 +1684,18 @@ a {
     grid-template-columns: minmax(220px, 0.45fr) minmax(0, 1fr);
     gap: 20px;
     align-items: start;
+    padding-top: 6px;
 }
 
 .decision-best-deal {
-    border: 1px solid rgba(154, 182, 255, 0.16);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.025);
-    padding: 16px 18px;
+    border: 0;
+    border-left: 1px solid rgba(154, 182, 255, 0.12);
+    border-radius: 0;
+    background: none;
+    padding: 2px 0 2px 18px;
     display: grid;
     gap: 8px;
-    transition:
-        border-color var(--motion-base) ease,
-        box-shadow var(--motion-base) ease,
-        transform var(--motion-fast) var(--ease-premium);
+    transition: opacity var(--motion-base) ease;
 }
 
 .decision-best-label {
@@ -1741,12 +1753,11 @@ a {
 
 .decision-summary-strip {
     display: grid;
-    grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1fr);
-    gap: 22px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
     align-items: start;
-    padding: 2px 0 12px;
-    border-top: 1px solid rgba(154, 182, 255, 0.12);
-    border-bottom: 1px solid rgba(154, 182, 255, 0.08);
+    padding: 0;
+    border: 0;
 }
 
 .decision-summary-intro {
@@ -1764,27 +1775,66 @@ a {
 
 .decision-summary-copy {
     margin: 0;
-    max-width: 28ch;
-    font-size: 13px;
-    line-height: 1.6;
+    max-width: 48ch;
+    font-size: 14px;
+    line-height: 1.7;
     color: #93a8cb;
 }
 
 .decision-summary-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px 18px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(154, 182, 255, 0.12);
 }
 
 .decision-summary-chip {
     border: 0;
-    border-left: 1px solid rgba(154, 182, 255, 0.12);
+    border-left: 1px solid rgba(154, 182, 255, 0.1);
     border-radius: 0;
-    padding: 2px 0 2px 16px;
+    padding: 0 0 0 18px;
     background: none;
     box-shadow: none;
     display: grid;
     gap: 5px;
+}
+
+.decision-summary-chip:first-child {
+    border-left: 0;
+    padding-left: 0;
+}
+
+.decision-media-shell {
+    min-height: clamp(220px, 32vw, 360px);
+    border-radius: 26px;
+    background:
+        radial-gradient(circle at 18% 18%, rgba(111, 232, 255, 0.08), transparent 28%),
+        linear-gradient(135deg, rgba(13, 25, 45, 0.88), rgba(8, 16, 29, 0.92));
+    box-shadow: inset 0 1px 0 rgba(223, 236, 255, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+.decision-media-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(135deg, transparent 0%, transparent 44%, rgba(154, 182, 255, 0.08) 44.5%, transparent 45%, transparent 100%);
+    opacity: 0.65;
+}
+
+.decision-media-shell::after {
+    content: "Featured media stage";
+    position: absolute;
+    left: 22px;
+    bottom: 20px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #8ba5cb;
+    font-weight: 700;
 }
 
 .decision-summary-chip span {
@@ -1799,10 +1849,6 @@ a {
     font-size: 19px;
     line-height: 1.1;
     font-weight: 850;
-}
-
-.decision-summary-chip:nth-child(n + 3) {
-    display: none;
 }
 
 .decision-reviews-section {
@@ -1852,7 +1898,7 @@ a {
 .decision-review-side {
     display: grid;
     gap: 14px;
-    padding: 8px 0 0 20px;
+    padding: 4px 0 0 24px;
     border: 0;
     border-left: 1px solid rgba(154, 182, 255, 0.12);
     border-radius: 0;
@@ -1955,23 +2001,33 @@ a {
 
 .decision-deep-dive .panel,
 .decision-details-shell .panel {
-    border-radius: 24px;
-    border-color: rgba(154, 182, 255, 0.12);
-    background: linear-gradient(180deg, rgba(10, 21, 38, 0.95), rgba(7, 15, 29, 0.95));
-    box-shadow: 0 18px 32px rgba(1, 8, 20, 0.24);
+    border-radius: 0;
+    border: 0;
+    border-top: 1px solid rgba(154, 182, 255, 0.12);
+    background: none;
+    box-shadow: none;
 }
 
 .decision-deep-dive .panel-tertiary {
-    background: linear-gradient(180deg, rgba(11, 22, 39, 0.95), rgba(8, 16, 30, 0.95));
+    background: none;
+}
+
+.decision-deep-dive .panel::before,
+.decision-details-shell .panel::before {
+    display: none;
+}
+
+.decision-deep-dive .panel-head,
+.decision-deep-dive .panel-body,
+.decision-details-shell .panel-head,
+.decision-details-shell .panel-body {
+    padding-left: 0;
+    padding-right: 0;
 }
 
 .decision-details-shell {
     display: grid;
     gap: 12px;
-}
-
-.decision-details-shell .panel-head {
-    padding: 18px 18px 0;
 }
 
 .decision-layout {
@@ -2079,14 +2135,21 @@ a {
     }
 
     .decision-best-deal:hover {
-        border-color: rgba(154, 182, 255, 0.22);
+        transform: none;
+    }
+
+    .decision-insights-section:hover,
+    .decision-media-section:hover,
+    .decision-store-section:hover,
+    .decision-reviews-section:hover {
+        border-color: transparent;
         box-shadow: none;
         transform: none;
     }
 
-    .decision-store-section:hover,
-    .decision-reviews-section:hover {
-        border-color: transparent;
+    .decision-deep-dive .panel:hover,
+    .decision-details-shell .panel:hover {
+        border-color: rgba(154, 182, 255, 0.12);
         box-shadow: none;
         transform: none;
     }
@@ -2099,11 +2162,17 @@ a {
     }
 
     .decision-hero-media {
-        inset: 0 0 0 18%;
+        position: absolute;
+        inset: 0;
+        opacity: 0.66;
     }
 
     .decision-summary-strip {
         grid-template-columns: 1fr;
+    }
+
+    .decision-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .decision-layout {
@@ -2147,6 +2216,13 @@ a {
         padding-top: 12px;
     }
 
+    .decision-best-deal {
+        padding-left: 0;
+        border-left: 0;
+        border-top: 1px solid rgba(154, 182, 255, 0.12);
+        padding-top: 12px;
+    }
+
     .decision-review-side {
         padding-left: 0;
         border-left: 0;
@@ -2174,7 +2250,7 @@ a {
     }
 
     .decision-hero-meta {
-        padding: 14px 15px 16px;
+        padding: 4px 0 0;
     }
 
     .decision-hero .hero-banner {
@@ -2288,28 +2364,44 @@ a {
     </section>
 
     <div class="decision-editorial-flow">
-        <section class="decision-summary-strip" aria-label="Decision insights">
-            <div class="decision-summary-intro">
-                <div class="decision-summary-kicker">Decision analysis</div>
-                <p class="decision-summary-copy">Supporting signals to read alongside the current price and review picture.</p>
+        <section class="panel panel-secondary decision-insights-section">
+            <div class="panel-head">
+                <h2 class="panel-title">Decision insights</h2>
+                <div class="panel-subtitle">The key signals shaping whether this is a good fit and a good time to buy.</div>
             </div>
-            <div class="decision-summary-grid">
-                <article class="decision-summary-chip">
-                    <span>Should you buy</span>
-                    <strong id="summaryDealQuality">--</strong>
-                </article>
-                <article class="decision-summary-chip">
-                    <span>Player activity</span>
-                    <strong id="summaryPlayerActivity">--</strong>
-                </article>
-                <article class="decision-summary-chip">
-                    <span>Confidence</span>
-                    <strong id="summaryConfidence">--</strong>
-                </article>
-                <article class="decision-summary-chip">
-                    <span>Recommendation</span>
-                    <strong id="summaryRecommendation">--</strong>
-                </article>
+            <div class="panel-body decision-summary-strip" aria-label="Decision insights">
+                <div class="decision-summary-intro">
+                    <div class="decision-summary-kicker">Current read</div>
+                    <p class="decision-summary-copy">Supporting signals to read alongside the headline verdict, current price, and review picture.</p>
+                </div>
+                <div class="decision-summary-grid">
+                    <article class="decision-summary-chip">
+                        <span>Should you buy</span>
+                        <strong id="summaryDealQuality">--</strong>
+                    </article>
+                    <article class="decision-summary-chip">
+                        <span>Player activity</span>
+                        <strong id="summaryPlayerActivity">--</strong>
+                    </article>
+                    <article class="decision-summary-chip">
+                        <span>Confidence</span>
+                        <strong id="summaryConfidence">--</strong>
+                    </article>
+                    <article class="decision-summary-chip">
+                        <span>Recommendation</span>
+                        <strong id="summaryRecommendation">--</strong>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel panel-secondary decision-media-section" aria-label="Featured media">
+            <div class="panel-head">
+                <h2 class="panel-title">Featured media</h2>
+                <div class="panel-subtitle">Reserved for a future trailer or gameplay feature without interrupting the decision flow.</div>
+            </div>
+            <div class="panel-body">
+                <div class="decision-media-shell" aria-hidden="true"></div>
             </div>
         </section>
 

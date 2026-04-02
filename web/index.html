@@ -5726,6 +5726,7 @@ input:focus-visible {
                 error: null,
                 personalized: false,
                 fallbackMode: false,
+                resolved: false,
             },
             dailyDigestStatus: {
                 loading: false,
@@ -6170,6 +6171,13 @@ input:focus-visible {
                     moreIntelExpanded: !!state.moreIntelExpanded,
                     analyticsPanelExpanded: !!state.analyticsPanelExpanded,
                     sections: getDashboardSnapshotSections(24),
+                    personalizedStatus: state.personalizedStatus?.resolved === true
+                        ? {
+                            personalized: !!state.personalizedStatus.personalized,
+                            fallbackMode: !!state.personalizedStatus.fallbackMode,
+                            resolved: true,
+                        }
+                        : null,
                 };
                 sessionStorage.setItem(DASHBOARD_SNAPSHOT_STORAGE_KEY, JSON.stringify(payload));
             } catch {
@@ -6262,6 +6270,17 @@ input:focus-visible {
                         ...state.feedFilters,
                         ...parsed.feedFilters,
                     };
+                }
+                const restoredPersonalizedStatus = parsed.personalizedStatus && typeof parsed.personalizedStatus === "object"
+                    ? parsed.personalizedStatus
+                    : null;
+                if (restoredPersonalizedStatus && restoredPersonalizedStatus.resolved === true) {
+                    state.personalizedStatus.enabled = true;
+                    state.personalizedStatus.personalized = restoredPersonalizedStatus.personalized === true;
+                    state.personalizedStatus.fallbackMode = restoredPersonalizedStatus.fallbackMode === true;
+                    state.personalizedStatus.resolved = true;
+                } else {
+                    state.personalizedStatus.resolved = false;
                 }
                 state.moreIntelExpanded = parsed.moreIntelExpanded === true;
                 state.analyticsPanelExpanded = !!parsed.analyticsPanelExpanded;
@@ -6488,6 +6507,8 @@ input:focus-visible {
                 state.personalSummaryLoaded = false;
                 state.personalizedDeals = [];
                 state.personalizedStatus.personalized = false;
+                state.personalizedStatus.fallbackMode = false;
+                state.personalizedStatus.resolved = false;
                 rerenderOwnedFilteredFeedSections();
             }
 
@@ -11813,8 +11834,8 @@ input:focus-visible {
             const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
             const loading = !!state.personalizedStatus?.loading;
             const error = state.personalizedStatus?.error;
+            const personalizedResolved = state.personalizedStatus?.resolved === true;
             const apiItems = safeArray(state.personalizedDeals);
-            const fallbackMode = !knownUser || !!state.personalizedStatus?.fallbackMode;
             const personalizedLimit = HOMEPAGE_SECTION_LIMITS.personalizedDeals;
             const protectedKeys = buildProtectedVisibleRailIdentitySet();
             const uniqueApiItems = filterRowsByIdentityExclusion(
@@ -11822,11 +11843,21 @@ input:focus-visible {
                 protectedKeys,
                 personalizedLimit,
             );
-            const useFallbackRows = fallbackMode && !uniqueApiItems.length;
+            const useFallbackRows = (!knownUser || (personalizedResolved && !state.personalizedStatus?.personalized)) && !uniqueApiItems.length;
             const fallbackRows = buildYourDealsFallbackRows(personalizedLimit, {
                 excludeKeys: protectedKeys,
                 seedRows: uniqueApiItems,
             });
+            if (error && !uniqueApiItems.length) {
+                renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");
+                setPanelVisibility(ui.recommendedForYouPanel, true);
+                return;
+            }
+            if (knownUser && !personalizedResolved && !uniqueApiItems.length) {
+                renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 1, { cardClass: "game-card" });
+                setPanelVisibility(ui.recommendedForYouPanel, true);
+                return;
+            }
             const displayItems = useFallbackRows
                 ? fallbackRows
                 : filterRowsByIdentityExclusion(
@@ -11838,15 +11869,15 @@ input:focus-visible {
                 targetCount: personalizedLimit,
                 includeFallback: false,
             });
-            const personalizedActive = knownUser && !fallbackMode && !!state.personalizedStatus?.personalized;
+            const personalizedActive = knownUser && personalizedResolved && !!state.personalizedStatus?.personalized;
 
             setPanelVisibility(ui.recommendedForYouPanel, true);
-            if (ui.yourDealsTodayTitle) {
+            if (ui.yourDealsTodayTitle && (!knownUser || personalizedResolved)) {
                 ui.yourDealsTodayTitle.textContent = personalizedActive
                     ? "Best Personal Opportunity"
                     : "Best Opportunity Right Now";
             }
-            if (ui.yourDealsTodaySubtitle) {
+            if (ui.yourDealsTodaySubtitle && (!knownUser || personalizedResolved)) {
                 ui.yourDealsTodaySubtitle.textContent = personalizedActive
                     ? "Your best next pick from Watch, Owned, and live prices."
                     : "Top pick right now based on live deal quality.";
@@ -11884,7 +11915,9 @@ input:focus-visible {
                 visibleKey: "personalizedDealsGrid",
                 toggleButton: null,
                 showAllButton: null,
-                view: personalizedActive ? "command-center-best-personalized" : "command-center-best-fallback",
+                view: personalizedActive || (knownUser && !personalizedResolved)
+                    ? "command-center-best-personalized"
+                    : "command-center-best-fallback",
                 title: "Best Personal Opportunity",
                 initialCount: 1,
             });
@@ -14565,9 +14598,7 @@ try {
             const knownUser = !isDefaultOrAnonymousUserId(requestedUserId);
             state.personalizedStatus.enabled = true;
             state.personalizedStatus.error = null;
-            state.personalizedStatus.personalized = false;
-            state.personalizedStatus.fallbackMode = !knownUser;
-
+            state.personalizedStatus.resolved = false;
             state.personalizedStatus.loading = true;
             try {
                 await ensureAuthRuntimeForUser(requestedUserId);
@@ -14584,12 +14615,14 @@ try {
                 sanitizePersonalizedDealsState();
                 state.personalizedStatus.personalized = personalized;
                 state.personalizedStatus.fallbackMode = !personalized;
+                state.personalizedStatus.resolved = true;
                 return items;
             } catch (error) {
                 state.personalizedDeals = [];
                 state.personalizedStatus.error = error;
                 state.personalizedStatus.personalized = false;
                 state.personalizedStatus.fallbackMode = true;
+                state.personalizedStatus.resolved = true;
                 throw error;
             } finally {
                 state.personalizedStatus.loading = false;
@@ -15092,8 +15125,6 @@ try {
                 state.personalizedStatus.enabled = true;
                 state.personalizedStatus.loading = false;
                 state.personalizedStatus.error = null;
-                state.personalizedStatus.personalized = false;
-                state.personalizedStatus.fallbackMode = true;
                 state.homepageLoad.criticalLoaded = true;
                 renderCriticalHomepageSections();
             } catch (error) {
@@ -15161,20 +15192,9 @@ try {
             if (state.homepageLoad.deferredStarted) return;
             state.homepageLoad.deferredStarted = true;
 
-            const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
-            const hasFallbackSeed = !!(
-                safeArray(state.trendingNow).length
-                || safeArray(state.discoveryTrending).length
-                || safeArray(state.dealRanked).length
-                || safeArray(state.opportunityRadar).length
-                || safeArray(state.worthBuyingNow).length
-            );
-            const allowFallback = !knownUser || hasFallbackSeed || state.personalizedStatus.fallbackMode;
             state.personalizedStatus.enabled = true;
             state.personalizedStatus.loading = false;
             state.personalizedStatus.error = null;
-            state.personalizedStatus.personalized = false;
-            state.personalizedStatus.fallbackMode = allowFallback;
             state.personalListStatus.wishlistLoading = false;
             state.personalListStatus.watchlistLoading = false;
             state.personalListStatus.wishlistError = null;

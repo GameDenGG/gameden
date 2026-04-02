@@ -1836,41 +1836,216 @@ a {
     padding-left: 0;
 }
 
-.decision-media-shell {
+.decision-media-section[hidden] {
+    display: none;
+}
+
+#featuredMediaInner {
+    display: grid;
+    gap: 14px;
+}
+
+#featuredMediaLabel {
+    display: inline-flex;
+    align-items: center;
+    padding-left: 4px;
+    color: #a8bedf;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+#featuredMediaStage {
+    position: relative;
     min-height: clamp(420px, 46vw, 620px);
     border-radius: 36px;
+    overflow: hidden;
     background:
-        radial-gradient(circle at 18% 18%, rgba(111, 232, 255, 0.14), transparent 22%),
+        radial-gradient(circle at 18% 18%, rgba(111, 232, 255, 0.16), transparent 22%),
         radial-gradient(circle at 82% 12%, rgba(154, 182, 255, 0.16), transparent 22%),
         linear-gradient(135deg, rgba(14, 28, 49, 0.96), rgba(8, 16, 29, 0.99));
     box-shadow:
         inset 0 1px 0 rgba(223, 236, 255, 0.09),
         0 34px 74px rgba(2, 8, 20, 0.28);
-    position: relative;
-    overflow: hidden;
+    isolation: isolate;
+    transition:
+        transform var(--motion-fast) var(--ease-premium),
+        box-shadow var(--motion-base) ease,
+        filter var(--motion-base) ease;
 }
 
-.decision-media-shell::before {
+#featuredMediaStage::before {
     content: "";
     position: absolute;
     inset: 0;
+    pointer-events: none;
     background:
-        linear-gradient(135deg, transparent 0%, transparent 36%, rgba(154, 182, 255, 0.08) 36.5%, transparent 37%, transparent 100%),
-        radial-gradient(circle at 50% 50%, rgba(7, 15, 29, 0), rgba(7, 15, 29, 0.18) 78%),
-        linear-gradient(180deg, transparent 0%, rgba(7, 15, 29, 0.22) 100%);
-    opacity: 0.78;
+        linear-gradient(180deg, rgba(5, 10, 20, 0.42) 0%, rgba(5, 10, 20, 0.08) 30%, rgba(5, 10, 20, 0.12) 68%, rgba(5, 10, 20, 0.48) 100%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 28%);
+    z-index: 2;
 }
 
-.decision-media-shell::after {
-    content: "Featured media stage";
+#featuredMediaStage:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        inset 0 1px 0 rgba(223, 236, 255, 0.1),
+        0 38px 82px rgba(2, 8, 20, 0.34);
+    filter: brightness(1.03);
+}
+
+#featuredMediaPoster {
     position: absolute;
-    left: 36px;
-    bottom: 32px;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    z-index: 0;
+    transition:
+        opacity var(--motion-slow) ease,
+        transform calc(var(--motion-slow) + 80ms) var(--ease-premium),
+        filter var(--motion-slow) ease;
+}
+
+#featuredMediaStage.is-activated #featuredMediaPoster {
+    opacity: 0;
+    transform: scale(1.018);
+    filter: saturate(0.94);
+}
+
+#featuredMediaOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: grid;
+    place-items: center;
+    padding: 26px;
+    transition:
+        opacity var(--motion-base) ease,
+        visibility var(--motion-base) ease;
+}
+
+#featuredMediaOverlay.is-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+#featuredMediaPlayButton {
+    width: 88px;
+    height: 88px;
+    border-radius: 999px;
+    border: 1px solid rgba(232, 241, 255, 0.24);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(184, 210, 255, 0.08));
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #f4f8ff;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.22),
+        0 16px 34px rgba(3, 10, 22, 0.34);
+    cursor: pointer;
+    transition:
+        transform var(--motion-fast) var(--ease-premium),
+        box-shadow var(--motion-base) ease,
+        background var(--motion-base) ease,
+        border-color var(--motion-base) ease;
+}
+
+#featuredMediaPlayButton:hover {
+    transform: scale(1.04);
+    border-color: rgba(232, 241, 255, 0.34);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(184, 210, 255, 0.12));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.26),
+        0 20px 40px rgba(3, 10, 22, 0.38);
+}
+
+#featuredMediaPlayButton:focus-visible {
+    outline: 2px solid rgba(111, 232, 255, 0.86);
+    outline-offset: 3px;
+}
+
+#featuredMediaPlayButton svg {
+    width: 28px;
+    height: 28px;
+    margin-left: 4px;
+}
+
+#featuredMediaPlayer {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: grid;
+    place-items: stretch;
+    pointer-events: none;
+}
+
+#featuredMediaStage.is-activated #featuredMediaPlayer {
+    pointer-events: auto;
+}
+
+.featured-media-video {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #02060d;
+    object-fit: cover;
+}
+
+.featured-media-fallback {
+    align-self: end;
+    justify-self: start;
+    margin: 24px;
+    max-width: min(420px, calc(100% - 48px));
+    padding: 16px 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(223, 236, 255, 0.16);
+    background: linear-gradient(180deg, rgba(9, 18, 33, 0.82), rgba(7, 14, 27, 0.9));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 18px 38px rgba(2, 8, 20, 0.28);
+}
+
+.featured-media-fallback-copy {
+    margin: 0 0 12px;
+    color: #d6e4fb;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.featured-media-open-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(111, 232, 255, 0.28);
+    background: rgba(111, 232, 255, 0.12);
+    color: #eef7ff;
     font-size: 12px;
-    letter-spacing: 0.1em;
+    font-weight: 800;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: #99afd0;
-    font-weight: 700;
+    transition:
+        transform var(--motion-fast) var(--ease-premium),
+        background var(--motion-base) ease,
+        border-color var(--motion-base) ease;
+}
+
+.featured-media-open-link:hover {
+    transform: translateY(-1px);
+    border-color: rgba(111, 232, 255, 0.42);
+    background: rgba(111, 232, 255, 0.18);
+}
+
+.featured-media-open-link:focus-visible {
+    outline: 2px solid rgba(111, 232, 255, 0.86);
+    outline-offset: 3px;
 }
 
 .decision-summary-chip span {
@@ -2262,6 +2437,11 @@ a {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    #featuredMediaStage {
+        min-height: clamp(360px, 54vw, 500px);
+        border-radius: 32px;
+    }
+
     .decision-layout {
         grid-template-columns: 1fr;
     }
@@ -2318,9 +2498,14 @@ a {
         padding: 22px 18px;
     }
 
-    .decision-media-shell {
+    #featuredMediaStage {
         min-height: clamp(300px, 70vw, 420px);
         border-radius: 28px;
+    }
+
+    #featuredMediaPlayButton {
+        width: 76px;
+        height: 76px;
     }
 }
 
@@ -2368,8 +2553,23 @@ a {
         font-size: clamp(34px, 9vw, 40px);
     }
 
-    .decision-media-shell {
+    #featuredMediaStage {
         min-height: clamp(240px, 72vw, 320px);
+    }
+
+    #featuredMediaOverlay {
+        padding: 18px;
+    }
+
+    #featuredMediaPlayButton {
+        width: 70px;
+        height: 70px;
+    }
+
+    .featured-media-fallback {
+        margin: 16px;
+        max-width: calc(100% - 32px);
+        padding: 14px 16px;
     }
 
     .chart-wrap {
@@ -2485,12 +2685,20 @@ a {
             </div>
         </section>
 
-        <section class="panel panel-secondary decision-media-section" aria-label="Featured media">
-            <div class="panel-head">
-                <h2 class="panel-title">Featured media</h2>
-            </div>
-            <div class="panel-body">
-                <div class="decision-media-shell" aria-hidden="true"></div>
+        <section class="panel panel-secondary decision-media-section" id="featuredMediaSection" aria-label="Featured media" hidden>
+            <div id="featuredMediaInner">
+                <div id="featuredMediaLabel">Trailer</div>
+                <div id="featuredMediaStage" aria-label="Featured trailer stage">
+                    <img id="featuredMediaPoster" alt="" loading="lazy" decoding="async">
+                    <div id="featuredMediaPlayer" aria-live="polite"></div>
+                    <div id="featuredMediaOverlay">
+                        <button id="featuredMediaPlayButton" type="button" aria-label="Play featured trailer">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path fill="currentColor" d="M8 6.5v11l9-5.5z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -2724,6 +2932,28 @@ function getNormalizedGameReview(payload) {
     return normalizeGameReview(payload);
 }
 
+function normalizeFeaturedMediaPayload(value) {
+    if (!value || typeof value !== "object") return null;
+
+    const kind = firstNonEmptyText(value.kind).toLowerCase();
+    const provider = firstNonEmptyText(value.provider).toLowerCase();
+    const embedUrl = firstNonEmptyText(value.embed_url, value.url);
+    const posterUrl = firstNonEmptyText(value.poster_url, value.poster, value.thumbnail);
+    const title = firstNonEmptyText(value.title, value.name);
+
+    if (!embedUrl) return null;
+    if (kind && !["video", "embed"].includes(kind)) return null;
+    if (provider && !["steam", "youtube"].includes(provider)) return null;
+
+    return {
+        kind: kind || "video",
+        provider: provider || "steam",
+        embed_url: embedUrl,
+        poster_url: posterUrl || "",
+        title: title || "",
+    };
+}
+
 function fallbackGameSlug(value) {
     return String(value || "")
         .trim()
@@ -2815,6 +3045,7 @@ function normalizeResolvedGamePayload(payload) {
         || fallbackGameSlug(normalizedName)
     ).trim();
     const normalizedReview = normalizeGameReview(payload);
+    const normalizedFeaturedMedia = normalizeFeaturedMediaPayload(payload.featured_media);
     const normalizedPlayers = firstFiniteNumber(
         payload.current_players,
         payload.currentPlayers,
@@ -2841,6 +3072,7 @@ function normalizeResolvedGamePayload(payload) {
         review_total_count: Number.isFinite(normalizedReview.count) ? normalizedReview.count : null,
         review_count: Number.isFinite(normalizedReview.count) ? normalizedReview.count : null,
         current_players: Number.isFinite(normalizedPlayers) ? normalizedPlayers : null,
+        featured_media: normalizedFeaturedMedia,
     };
 }
 const watchButton = document.getElementById("watchButton");
@@ -2852,6 +3084,13 @@ const targetDiscountInput = document.getElementById("targetDiscountInput");
 const saveTargetAlertButton = document.getElementById("saveTargetAlertButton");
 const clearTargetAlertButton = document.getElementById("clearTargetAlertButton");
 const targetAlertStatus = document.getElementById("targetAlertStatus");
+const featuredMediaSection = document.getElementById("featuredMediaSection");
+const featuredMediaLabel = document.getElementById("featuredMediaLabel");
+const featuredMediaStage = document.getElementById("featuredMediaStage");
+const featuredMediaPoster = document.getElementById("featuredMediaPoster");
+const featuredMediaOverlay = document.getElementById("featuredMediaOverlay");
+const featuredMediaPlayButton = document.getElementById("featuredMediaPlayButton");
+const featuredMediaPlayer = document.getElementById("featuredMediaPlayer");
 const relatedGamesEl = document.getElementById("relatedGames");
 const HIGH_VALUE_DISCOUNT_THRESHOLD = 60;
 const SHARE_BUTTON_DEFAULT_LABEL = "Share Deal";
@@ -2953,6 +3192,7 @@ function clearLoadingChrome() {
 function renderGameLoadingSkeletons() {
     setStoreCta("");
     setHeroBannerArtwork("");
+    renderFeaturedMedia(null);
     setInlineSkeleton("gameTitle", "gd-skeleton-w-64");
     setInlineSkeleton("reviewOverallHeadline", "gd-skeleton-w-48");
     setInlineSkeleton("reviewOverallSummary", "gd-skeleton-w-80");
@@ -3357,6 +3597,7 @@ function renderGameLoadErrorState(message, options = {}) {
     const allowRetry = options?.retry !== false;
     const contentGrid = document.querySelector(".content-grid");
     clearLoadingChrome();
+    renderFeaturedMedia(null);
     document.getElementById("gameTitle").innerText = title;
     if (!(contentGrid instanceof HTMLElement)) return;
     contentGrid.innerHTML = `
@@ -4025,6 +4266,137 @@ function renderStoreDecisionSection(payload) {
     quickListEl.innerHTML = alternates
         .map((row) => `<li><a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.name)} · ${escapeHtml(row.price)}</a></li>`)
         .join("");
+}
+
+function isInlinePlayableFeaturedMedia(url) {
+    const normalizedUrl = String(url || "").trim().toLowerCase().split("#")[0].split("?")[0];
+    if (!normalizedUrl) return false;
+    if (normalizedUrl.endsWith(".mpd") || normalizedUrl.endsWith(".m3u8")) return false;
+    return [".mp4", ".webm", ".ogg", ".mov"].some((extension) => normalizedUrl.endsWith(extension));
+}
+
+function resetFeaturedMediaSection() {
+    if (featuredMediaSection instanceof HTMLElement) {
+        featuredMediaSection.hidden = true;
+    }
+    if (featuredMediaStage instanceof HTMLElement) {
+        featuredMediaStage.classList.remove("is-activated");
+        featuredMediaStage.onclick = null;
+    }
+    if (featuredMediaOverlay instanceof HTMLElement) {
+        featuredMediaOverlay.classList.remove("is-hidden");
+    }
+    if (featuredMediaPlayButton instanceof HTMLButtonElement) {
+        featuredMediaPlayButton.hidden = false;
+        featuredMediaPlayButton.disabled = false;
+        featuredMediaPlayButton.setAttribute("aria-label", "Play featured trailer");
+        featuredMediaPlayButton.title = "";
+        featuredMediaPlayButton.onclick = null;
+    }
+    if (featuredMediaPoster instanceof HTMLImageElement) {
+        featuredMediaPoster.removeAttribute("src");
+        featuredMediaPoster.alt = "";
+    }
+    if (featuredMediaLabel instanceof HTMLElement) {
+        featuredMediaLabel.textContent = "Trailer";
+    }
+    if (featuredMediaPlayer instanceof HTMLElement) {
+        featuredMediaPlayer.replaceChildren();
+    }
+}
+
+function activateFeaturedMediaStage(media, posterUrl) {
+    if (!(featuredMediaStage instanceof HTMLElement) || !(featuredMediaPlayer instanceof HTMLElement)) return;
+
+    featuredMediaStage.classList.add("is-activated");
+    featuredMediaStage.onclick = null;
+    if (featuredMediaPlayButton instanceof HTMLButtonElement) {
+        featuredMediaPlayButton.onclick = null;
+    }
+
+    const mediaTitle = firstNonEmptyText(media?.title) || "featured trailer";
+    if (isInlinePlayableFeaturedMedia(media.embed_url)) {
+        const video = document.createElement("video");
+        video.className = "featured-media-video";
+        video.controls = true;
+        video.preload = "none";
+        video.playsInline = true;
+        video.src = media.embed_url;
+        if (posterUrl) {
+            video.poster = posterUrl;
+        }
+        featuredMediaPlayer.replaceChildren(video);
+        if (featuredMediaOverlay instanceof HTMLElement) {
+            featuredMediaOverlay.classList.add("is-hidden");
+        }
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === "function") {
+            playPromise.catch(() => {});
+        }
+        return;
+    }
+
+    if (featuredMediaOverlay instanceof HTMLElement) {
+        featuredMediaOverlay.classList.add("is-hidden");
+    }
+
+    const fallback = document.createElement("div");
+    fallback.className = "featured-media-fallback";
+
+    const copy = document.createElement("p");
+    copy.className = "featured-media-fallback-copy";
+    copy.textContent = `Open ${mediaTitle} in a new tab.`;
+
+    const link = document.createElement("a");
+    link.className = "featured-media-open-link";
+    link.href = media.embed_url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Open Trailer";
+    link.setAttribute("aria-label", `Open ${mediaTitle} in a new tab`);
+
+    fallback.append(copy, link);
+    featuredMediaPlayer.replaceChildren(fallback);
+}
+
+function renderFeaturedMedia(payload) {
+    resetFeaturedMediaSection();
+
+    const media = normalizeFeaturedMediaPayload(payload?.featured_media);
+    if (!media) return;
+
+    const posterUrl = firstNonEmptyText(
+        media.poster_url,
+        payload?.banner_url,
+        payload?.header_image,
+        payload?.banner_image,
+        payload?.steam_appid ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${payload.steam_appid}/header.jpg` : "",
+    );
+    if (!posterUrl) return;
+
+    const mediaTitle = firstNonEmptyText(media.title, payload?.game_name, payload?.name, "Trailer");
+    const activate = () => activateFeaturedMediaStage(media, posterUrl);
+
+    if (featuredMediaSection instanceof HTMLElement) {
+        featuredMediaSection.hidden = false;
+    }
+    if (featuredMediaPoster instanceof HTMLImageElement) {
+        featuredMediaPoster.src = posterUrl;
+        featuredMediaPoster.alt = mediaTitle ? `${mediaTitle} poster` : "Featured trailer poster";
+    }
+    if (featuredMediaStage instanceof HTMLElement) {
+        featuredMediaStage.setAttribute("aria-label", mediaTitle || "Featured trailer stage");
+        featuredMediaStage.onclick = activate;
+    }
+    if (featuredMediaPlayButton instanceof HTMLButtonElement) {
+        featuredMediaPlayButton.setAttribute("aria-label", `Play ${mediaTitle || "featured trailer"}`);
+        featuredMediaPlayButton.title = mediaTitle || "Featured trailer";
+        featuredMediaPlayButton.onclick = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            activate();
+        };
+    }
 }
 
 function normalizeReasonSnippet(value) {
@@ -5130,6 +5502,7 @@ function renderPlayerTrendInsights(insights) {
 
 async function loadGame() {
     setStoreCta("");
+    renderFeaturedMedia(null);
     const contentGrid = document.querySelector(".content-grid");
     const discoveryPanel = document.querySelector(".discovery-panel");
     if (discoveryPanel instanceof HTMLElement) {
@@ -5207,6 +5580,7 @@ if (!payload || payload.error) {
 
     document.getElementById("gameTitle").innerText = payload.game_name || gameName;
     applyAdaptiveGameLayout(payload, currentGameContext);
+    renderFeaturedMedia(payload);
     renderHeroStats(payload, currentGameContext);
     renderDecisionSummaryStrip(payload, currentGameContext);
     renderStoreDecisionSection(payload);

@@ -1497,7 +1497,7 @@ a {
 
 .decision-hero-copy {
     display: grid;
-    gap: 8px;
+    gap: 0;
 }
 
 .decision-hero-top {
@@ -1506,7 +1506,7 @@ a {
 
 .decision-hero-top h1 {
     margin: 0;
-    max-width: 14ch;
+    max-width: 18ch;
     font-size: clamp(44px, 6.1vw, 70px);
     line-height: 0.88;
     letter-spacing: -0.06em;
@@ -1820,6 +1820,7 @@ a {
     box-shadow: none;
     display: grid;
     gap: 6px;
+    min-width: 0;
 }
 
 .decision-summary-chip:first-child {
@@ -1873,11 +1874,14 @@ a {
 }
 
 .decision-summary-chip strong {
-    max-width: 14ch;
-    font-size: 21px;
-    line-height: 1.16;
+    max-width: none;
+    font-size: clamp(18px, 2vw, 21px);
+    line-height: 1.08;
     font-weight: 850;
     color: #eef6ff;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    font-variant-numeric: tabular-nums;
 }
 
 .decision-reviews-section {
@@ -2456,8 +2460,6 @@ a {
                 <div class="decision-hero-top">
                     <h1 id="gameTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></h1>
                 </div>
-                <p class="decision-verdict" id="gameSub"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
-                <p class="decision-verdict-note" id="gameVerdictLine"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></p>
             </div>
             <div class="decision-hero-meta">
                 <div class="hero-context-card gd-skeleton-surface" id="gameContextCard">
@@ -2489,19 +2491,19 @@ a {
                     <div class="decision-summary-grid">
                         <article class="decision-summary-chip">
                             <span>Should you buy</span>
-                            <strong id="summaryDealQuality">--</strong>
+                            <strong id="summaryShouldBuy">--</strong>
                         </article>
                         <article class="decision-summary-chip">
-                            <span>Player activity</span>
-                            <strong id="summaryPlayerActivity">--</strong>
+                            <span>Reviews</span>
+                            <strong id="summaryReviews">--</strong>
                         </article>
                         <article class="decision-summary-chip">
-                            <span>Confidence</span>
-                            <strong id="summaryConfidence">--</strong>
+                            <span>Current players</span>
+                            <strong id="summaryPlayers">--</strong>
                         </article>
                         <article class="decision-summary-chip">
-                            <span>Recommendation</span>
-                            <strong id="summaryRecommendation">--</strong>
+                            <span>Price position</span>
+                            <strong id="summaryPricePosition">--</strong>
                         </article>
                     </div>
                 </div>
@@ -2984,8 +2986,6 @@ function renderGameLoadingSkeletons() {
     setStoreCta("");
     setHeroBannerArtwork("");
     setInlineSkeleton("gameTitle", "gd-skeleton-w-64");
-    setInlineSkeleton("gameSub", "gd-skeleton-w-80");
-    setInlineSkeleton("gameVerdictLine", "gd-skeleton-w-72");
     setInlineSkeleton("reviewOverallHeadline", "gd-skeleton-w-48");
     setInlineSkeleton("reviewOverallSummary", "gd-skeleton-w-80");
     setInlineSkeleton("reviewRecentSummary", "gd-skeleton-w-72");
@@ -3838,70 +3838,48 @@ function shouldShowPlayerHistoryPanel(payload, context = currentGameContext) {
 
 function buildGameContextSummary(payload, context) {
     const timing = deriveTimingSignal(payload, context);
-    const timingLabel = String(timing?.label || "").trim() || "Watch for a sale";
     const timingReason = String(timing?.reason || "").trim();
     const timingState = String(timing?.state || "").trim().toLowerCase();
     if (context.mode === "unreleased") {
         return {
             title: "Decision",
             text: timingReason || "No live price yet.",
-            heroSub: "Wait for launch pricing.",
         };
     }
     if (context.mode === "free") {
         return {
             title: "Decision",
             text: timingReason || "No purchase needed.",
-            heroSub: "Free to play.",
         };
     }
     if (timingState === "buy_now") {
         return {
             title: "Decision",
             text: timingReason || "Current deal timing is strong.",
-            heroSub: "Strong value now",
         };
     }
     if (timingState === "good_time_to_buy") {
         return {
             title: "Decision",
             text: timingReason || "Current price is compelling for this title.",
-            heroSub: "Good time to buy",
         };
     }
     if (timingState === "wait_for_better_drop") {
         return {
             title: "Decision",
             text: timingReason || "History suggests better value later.",
-            heroSub: "Wait for a better price.",
         };
     }
     if (timingState === "low_confidence") {
         return {
             title: "Decision",
             text: timingReason || "Timing is still unclear.",
-            heroSub: "Low confidence. Watch this one.",
         };
     }
     return {
         title: "Decision",
         text: timingReason || "Current signals are mixed.",
-        heroSub: timingLabel,
     };
-}
-
-function buildHeroVerdictLine(payload, context = currentGameContext) {
-    const review = getNormalizedGameReview(payload);
-    const reviewLabel = String(review?.label || "").trim();
-    const reviewScoreText = String(review?.score_text || "").trim();
-    const reviewSummary = normalizeReasonSnippet(review?.summary);
-    const engagement = normalizeReasonSnippet(getEngagementText(payload));
-    if (reviewLabel) {
-        return reviewScoreText ? `${reviewLabel} · ${reviewScoreText}` : reviewLabel;
-    }
-    if (reviewSummary) return reviewSummary;
-    if (engagement && context?.mode !== "unreleased") return engagement;
-    return "";
 }
 
 function buildReviewSentimentView(payload) {
@@ -3971,41 +3949,6 @@ function renderReviewSentimentSection(payload) {
     if (supportLineEl) supportLineEl.innerText = view.supportLine;
 }
 
-function deriveDealQualityLabel(payload, context = currentGameContext) {
-    if (context?.mode !== "paid") return "Fair";
-    const recommendation = String(payload?.buy_recommendation || "").trim().toUpperCase();
-    const discount = Number(payload?.discount_percent ?? payload?.latest_discount_percent);
-    const historicalStatus = String(payload?.historical_status || "").trim().toLowerCase();
-    if (
-        recommendation === "BUY_NOW"
-        || historicalStatus === "new_historical_low"
-        || historicalStatus === "matches_historical_low"
-        || historicalStatus === "near_historical_low"
-        || (Number.isFinite(discount) && discount >= 55)
-    ) {
-        return "Good";
-    }
-    if (Number.isFinite(discount) && discount >= 25) return "Fair";
-    return "Weak";
-}
-
-function derivePlayerActivityLabel(payload, context = currentGameContext) {
-    const mode = String(context?.mode || "").toLowerCase();
-    if (mode === "unreleased") return "Rising";
-    const insights = getPlayerSignalInsights(payload);
-    const state = String(insights?.state || "").trim().toLowerCase();
-    if (state === "resurging") return "Rising";
-    if (state === "declining" || state === "launch_hype_dropoff") return "Declining";
-    return "Stable";
-}
-
-function deriveConfidenceLabel(payload) {
-    const confidenceText = String(getAuthoritativePlayerConfidenceText(payload) || "").toLowerCase();
-    if (confidenceText.startsWith("high confidence")) return "High";
-    if (confidenceText.startsWith("moderate confidence")) return "Medium";
-    return "Low";
-}
-
 function deriveTimingSignal(payload, context = currentGameContext) {
     const runtime = window.GameDenSite;
     const helper = runtime && typeof runtime.getDealTimingSignal === "function"
@@ -4037,17 +3980,36 @@ function deriveRecommendationLabel(payload, context = currentGameContext, timing
     return "Watch";
 }
 
+function derivePricePositionLabel(payload) {
+    const historicalStatus = String(payload?.historical_status || "").trim().toLowerCase();
+    const priceVsLowRatio = Number(payload?.price_vs_low_ratio);
+    if (
+        historicalStatus === "new_historical_low"
+        || historicalStatus === "matches_historical_low"
+        || historicalStatus === "near_historical_low"
+        || (Number.isFinite(priceVsLowRatio) && priceVsLowRatio <= 1.08)
+    ) {
+        return "Near historical low";
+    }
+    if (Number.isFinite(priceVsLowRatio)) {
+        if (priceVsLowRatio <= 1.25) return "Close to historical low";
+        return "Above historical low";
+    }
+    return "Price position unclear";
+}
+
 function renderDecisionSummaryStrip(payload, context = currentGameContext) {
-    const dealQualityEl = document.getElementById("summaryDealQuality");
-    const playerActivityEl = document.getElementById("summaryPlayerActivity");
-    const confidenceEl = document.getElementById("summaryConfidence");
-    const recommendationEl = document.getElementById("summaryRecommendation");
+    const shouldBuyEl = document.getElementById("summaryShouldBuy");
+    const reviewsEl = document.getElementById("summaryReviews");
+    const playersEl = document.getElementById("summaryPlayers");
+    const pricePositionEl = document.getElementById("summaryPricePosition");
     const timing = deriveTimingSignal(payload, context);
-    const timingLabel = String(timing?.label || "").trim();
-    if (dealQualityEl) dealQualityEl.textContent = timingLabel || deriveRecommendationLabel(payload, context, timing);
-    if (playerActivityEl) playerActivityEl.textContent = derivePlayerActivityLabel(payload, context);
-    if (confidenceEl) confidenceEl.textContent = deriveConfidenceLabel(payload);
-    if (recommendationEl) recommendationEl.textContent = deriveRecommendationLabel(payload, context, timing);
+    const reviewLabel = String(getReviewLabel(payload) || getReviewSummary(payload) || "").trim();
+    const currentPlayers = Number(payload?.current_players);
+    if (shouldBuyEl) shouldBuyEl.textContent = deriveRecommendationLabel(payload, context, timing);
+    if (reviewsEl) reviewsEl.textContent = reviewLabel || "—";
+    if (playersEl) playersEl.textContent = Number.isFinite(currentPlayers) && currentPlayers > 0 ? fmtInt(currentPlayers) : "—";
+    if (pricePositionEl) pricePositionEl.textContent = derivePricePositionLabel(payload);
 }
 
 function setHeroBannerArtwork(imageUrl) {
@@ -4591,17 +4553,10 @@ function applyAdaptiveGameLayout(payload, context) {
     const contextCard = document.getElementById("gameContextCard");
     const contextTitle = document.getElementById("gameContextTitle");
     const contextText = document.getElementById("gameContextText");
-    const verdictLine = document.getElementById("gameVerdictLine");
-    const verdictText = buildHeroVerdictLine(payload, context);
     if (contextCard) contextCard.classList.remove("gd-skeleton-surface");
     if (contextCard) contextCard.hidden = true;
     if (contextTitle) contextTitle.innerText = contextSummary.title;
     if (contextText) contextText.innerText = contextSummary.text;
-    document.getElementById("gameSub").innerText = contextSummary.heroSub;
-    if (verdictLine) {
-        verdictLine.hidden = !verdictText;
-        verdictLine.innerText = verdictText;
-    }
     renderReviewSentimentSection(payload);
 
     const priceHistoryPanel = document.getElementById("priceHistoryPanel");

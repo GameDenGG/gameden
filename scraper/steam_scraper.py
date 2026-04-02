@@ -163,10 +163,10 @@ def build_default_result() -> Dict[str, Any]:
 
 
 def _primary_movie_url(movie: Dict[str, Any]) -> str:
-    for source_key in ("mp4", "webm"):
+    for source_key in ("dash_h264", "hls_h264", "mp4", "webm"):
         source = movie.get(source_key)
         if isinstance(source, dict):
-            for quality_key in ("max", "480"):
+            for quality_key in ("max", "480", "720"):
                 url = str(source.get(quality_key) or "").strip()
                 if url:
                     return url
@@ -187,7 +187,7 @@ def _normalize_featured_media(movie: Dict[str, Any] | None, app_name: str) -> Di
 
     poster_url = str(movie.get("thumbnail") or "").strip() or None
     title = str(movie.get("name") or "").strip() or None
-    if title is None and app_name:
+    if not title and app_name:
         title = f"{app_name} trailer"
 
     return {

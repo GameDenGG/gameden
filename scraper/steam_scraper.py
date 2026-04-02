@@ -158,7 +158,56 @@ def build_default_result() -> Dict[str, Any]:
         "review_total_count": None,
         "developer": "",
         "publisher": "",
+        "featured_media": None,
     }
+
+
+def _primary_movie_url(movie: Dict[str, Any]) -> str:
+    for source_key in ("mp4", "webm"):
+        source = movie.get(source_key)
+        if isinstance(source, dict):
+            for quality_key in ("max", "480"):
+                url = str(source.get(quality_key) or "").strip()
+                if url:
+                    return url
+        else:
+            url = str(source or "").strip()
+            if url:
+                return url
+    return ""
+
+
+def _normalize_featured_media(movie: Dict[str, Any] | None, app_name: str) -> Dict[str, Any] | None:
+    if not isinstance(movie, dict):
+        return None
+
+    embed_url = _primary_movie_url(movie)
+    if not embed_url:
+        return None
+
+    poster_url = str(movie.get("thumbnail") or "").strip() or None
+    title = str(movie.get("name") or "").strip() or None
+    if title is None and app_name:
+        title = f"{app_name} trailer"
+
+    return {
+        "kind": "video",
+        "provider": "steam",
+        "embed_url": embed_url,
+        "poster_url": poster_url,
+        "title": title,
+    }
+
+
+def _select_primary_movie(movies: Any) -> Dict[str, Any] | None:
+    if not isinstance(movies, list):
+        return None
+
+    highlighted = next((movie for movie in movies if isinstance(movie, dict) and movie.get("highlight")), None)
+    if highlighted is not None:
+        return highlighted
+
+    return next((movie for movie in movies if isinstance(movie, dict)), None)
 
 
 def _wait_for_appdetails_delay() -> None:
@@ -317,6 +366,10 @@ def get_game_price_data(url: str) -> Optional[Dict[str, Any]]:
     result["platforms"] = normalize_platforms(inner.get("platforms"))
     result["developer"] = normalize_string_list(inner.get("developers"))
     result["publisher"] = normalize_string_list(inner.get("publishers"))
+    result["featured_media"] = _normalize_featured_media(
+        _select_primary_movie(inner.get("movies")),
+        str(inner.get("name") or "").strip(),
+    )
 
     # Tags are not reliably included in appdetails.
     # Preserve schema compatibility by returning an empty string when unavailable.

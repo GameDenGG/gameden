@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 from statistics import mean
 from types import SimpleNamespace
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
@@ -5269,6 +5269,7 @@ def _ensure_game_detail_contract(payload: dict) -> dict:
     normalized["wishlist_count"] = normalized_owned_count
     normalized["owned"] = bool(normalized.get("owned"))
     normalized["watchlisted"] = bool(normalized.get("watchlisted"))
+    normalized["featured_media"] = _normalize_featured_media(normalized.get("featured_media"))
     if normalized["game_id"] > 0:
         normalized["share_card_url"] = normalized.get("share_card_url") or _build_canonical_url(
             f"/share/deal/{normalized['game_id']}"
@@ -5276,6 +5277,27 @@ def _ensure_game_detail_contract(payload: dict) -> dict:
     else:
         normalized["share_card_url"] = normalized.get("share_card_url")
     return normalized
+
+
+def _normalize_featured_media(value: Any) -> dict | None:
+    if not isinstance(value, dict):
+        return None
+
+    kind = str(value.get("kind") or "").strip().lower()
+    provider = str(value.get("provider") or "").strip().lower()
+    embed_url = str(value.get("embed_url") or "").strip()
+    if kind not in {"embed", "video"} or provider not in {"steam", "youtube"} or not embed_url:
+        return None
+
+    poster_url = str(value.get("poster_url") or "").strip() or None
+    title = str(value.get("title") or "").strip() or None
+    return {
+        "kind": kind,
+        "provider": provider,
+        "embed_url": embed_url,
+        "poster_url": poster_url,
+        "title": title,
+    }
 
 
 def build_game_detail_payload(session, game: Game, user_id: str | None = None):
@@ -8644,6 +8666,7 @@ def _build_game_detail_response_payload(session: Session, game: Game, viewer_use
     else:
         payload = build_game_detail_payload(session, game, user_id=viewer_user_id)
         payload["share_card_url"] = _build_canonical_url(f"/share/deal/{game_id}")
+    payload["featured_media"] = game.featured_media or None
     payload["owned"] = _is_game_owned_for_user(session, game_id, viewer_user_id)
     payload["watchlisted"] = _is_game_watchlisted_for_user(session, game_id, viewer_user_id)
     return _ensure_game_detail_contract(payload)

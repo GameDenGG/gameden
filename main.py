@@ -90,6 +90,27 @@ def safe_text(value: Optional[Any], default: str = "") -> str:
     return str(value).strip()
 
 
+def normalize_featured_media(value: Optional[Any]) -> Optional[dict]:
+    if not isinstance(value, dict):
+        return None
+
+    kind = safe_text(value.get("kind")).lower()
+    provider = safe_text(value.get("provider")).lower()
+    embed_url = safe_text(value.get("embed_url"))
+    if kind not in {"embed", "video"} or provider not in {"steam", "youtube"} or not embed_url:
+        return None
+
+    poster_url = safe_text(value.get("poster_url")) or None
+    title = safe_text(value.get("title")) or None
+    return {
+        "kind": kind,
+        "provider": provider,
+        "embed_url": embed_url,
+        "poster_url": poster_url,
+        "title": title,
+    }
+
+
 def normalize_priority_tier(value: Optional[Any]) -> Optional[str]:
     tier = safe_text(value).upper()
     return tier if tier in VALID_PRIORITY_TIERS else None
@@ -313,6 +334,7 @@ def apply_game_updates(game: Game, price_data: Dict[str, Any]) -> Dict[str, bool
     new_review_total_count = safe_int(price_data.get("review_total_count"), default=None)
     new_developer = safe_text(price_data.get("developer"))
     new_publisher = safe_text(price_data.get("publisher"))
+    new_featured_media = normalize_featured_media(price_data.get("featured_media"))
 
     if game.is_released != new_is_released:
         game.is_released = new_is_released
@@ -352,6 +374,10 @@ def apply_game_updates(game: Game, price_data: Dict[str, Any]) -> Dict[str, bool
 
     if (game.publisher or "") != new_publisher:
         game.publisher = new_publisher or None
+        changes["metadata_changed"] = True
+
+    if game.featured_media != new_featured_media:
+        game.featured_media = new_featured_media
         changes["metadata_changed"] = True
 
     return changes

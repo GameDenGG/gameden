@@ -74,6 +74,7 @@ class Game(Base):
     genres = Column(String, nullable=True)
     tags = Column(String, nullable=True)
     platforms = Column(String, nullable=True)
+    featured_media = Column(JSON, nullable=True)
 
     review_score = Column(Integer, nullable=True)
     review_score_label = Column(String, nullable=True)

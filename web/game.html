@@ -1486,13 +1486,14 @@ a {
 .decision-hero-content {
     min-width: 0;
     display: grid;
-    gap: 20px;
-    align-content: end;
-    position: relative;
+    gap: 14px;
+    position: absolute;
+    left: clamp(22px, 2.6vw, 38px);
+    right: clamp(22px, 2.8vw, 40px);
+    bottom: clamp(22px, 2.8vw, 38px);
     z-index: 2;
-    max-width: min(620px, 58%);
-    min-height: clamp(400px, 50vw, 560px);
-    padding: clamp(18px, 2vw, 28px) 0 clamp(10px, 1.6vw, 20px);
+    max-width: min(640px, 56%);
+    padding: 0;
 }
 
 .decision-hero-copy {
@@ -1534,8 +1535,8 @@ a {
 
 .decision-hero-meta {
     display: grid;
-    gap: 12px;
-    padding: 6px 0 0;
+    gap: 10px;
+    padding: 0;
     border: 0;
     border-radius: 0;
     background: none;
@@ -1652,7 +1653,7 @@ a {
 .decision-store-section .panel-head::after,
 .decision-reviews-section .panel-head::after {
     margin-top: 12px;
-    background: linear-gradient(90deg, rgba(154, 182, 255, 0.14), rgba(154, 182, 255, 0.03) 64%, transparent);
+    background: linear-gradient(90deg, rgba(154, 182, 255, 0.18), rgba(154, 182, 255, 0.04) 68%, transparent);
 }
 
 .decision-insights-section .panel-head,
@@ -1894,7 +1895,7 @@ a {
 .decision-reviews-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 18px;
+    gap: 14px;
     align-items: start;
 }
 
@@ -1919,34 +1920,6 @@ a {
     font-size: 15px;
     line-height: 1.8;
     color: #bccde6;
-}
-
-.decision-review-side {
-    display: grid;
-    grid-template-columns: minmax(0, 1.25fr) auto;
-    gap: 18px 28px;
-    align-items: start;
-    padding: 0;
-    border: 0;
-    border-left: 0;
-    border-radius: 0;
-    background: none;
-}
-
-.decision-review-side-label {
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #88a4ce;
-    font-weight: 700;
-}
-
-.decision-review-side-copy {
-    margin: 0;
-    max-width: 40ch;
-    font-size: 14.5px;
-    line-height: 1.8;
-    color: #dde8f8;
 }
 
 .decision-review-signal-row {
@@ -2267,8 +2240,10 @@ a {
     }
 
     .decision-hero-content {
-        max-width: min(620px, 100%);
-        min-height: clamp(360px, 62vw, 520px);
+        left: 24px;
+        right: 24px;
+        bottom: 24px;
+        max-width: calc(100% - 48px);
     }
 
     .decision-context-shelf {
@@ -2305,9 +2280,10 @@ a {
     }
 
     .decision-hero-content {
+        left: 18px;
+        right: 18px;
+        bottom: 18px;
         max-width: 100%;
-        min-height: clamp(320px, 70vw, 460px);
-        padding: 12px 0 8px;
     }
 
     .decision-reviews-layout,
@@ -2519,35 +2495,28 @@ a {
             </div>
         </section>
 
-        <div class="decision-context-shelf">
-            <section class="panel panel-secondary decision-reviews-section" id="reviewSentimentSection">
-                <div class="panel-head">
-                    <h2 class="panel-title">Reviews &amp; sentiment</h2>
-                </div>
-                <div class="panel-body decision-reviews-layout">
-                    <div class="decision-review-copy">
-                        <h3 class="decision-review-headline" id="reviewOverallHeadline"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></h3>
-                        <p class="decision-review-summary" id="reviewOverallSummary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
-                    </div>
-                    <div class="decision-review-side">
-                        <div>
-                            <div class="decision-review-side-label">Current sentiment</div>
-                            <p class="decision-review-side-copy" id="reviewRecentSummary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></p>
+    <div class="decision-context-shelf">
+        <section class="panel panel-secondary decision-reviews-section" id="reviewSentimentSection">
+            <div class="panel-head">
+                <h2 class="panel-title">Reviews &amp; sentiment</h2>
+            </div>
+            <div class="panel-body decision-reviews-layout">
+                <div class="decision-review-copy">
+                    <h3 class="decision-review-headline" id="reviewOverallHeadline"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></h3>
+                    <p class="decision-review-summary" id="reviewOverallSummary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
+                    <div class="decision-review-signal-row">
+                        <div class="decision-review-signal">
+                            <span>Score</span>
+                            <strong id="reviewScoreSignal"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-24" aria-hidden="true"></span></strong>
                         </div>
-                        <div class="decision-review-signal-row">
-                            <div class="decision-review-signal">
-                                <span>Score</span>
-                                <strong id="reviewScoreSignal"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-24" aria-hidden="true"></span></strong>
-                            </div>
-                            <div class="decision-review-signal">
-                                <span>Coverage</span>
-                                <strong id="reviewCountSignal"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-32" aria-hidden="true"></span></strong>
-                            </div>
+                        <div class="decision-review-signal">
+                            <span>Coverage</span>
+                            <strong id="reviewCountSignal"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-32" aria-hidden="true"></span></strong>
                         </div>
-                        <p class="decision-review-support" id="reviewSupportLine"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></p>
                     </div>
                 </div>
-            </section>
+            </div>
+        </section>
 
             <section class="panel panel-secondary decision-store-section" id="storeSection">
                 <div class="panel-head">
@@ -2988,10 +2957,8 @@ function renderGameLoadingSkeletons() {
     setInlineSkeleton("gameTitle", "gd-skeleton-w-64");
     setInlineSkeleton("reviewOverallHeadline", "gd-skeleton-w-48");
     setInlineSkeleton("reviewOverallSummary", "gd-skeleton-w-80");
-    setInlineSkeleton("reviewRecentSummary", "gd-skeleton-w-72");
     setInlineSkeleton("reviewScoreSignal", "gd-skeleton-w-24");
     setInlineSkeleton("reviewCountSignal", "gd-skeleton-w-32");
-    setInlineSkeleton("reviewSupportLine", "gd-skeleton-w-64");
     setInlineSkeleton("currentPrice", "gd-skeleton-w-48");
     setInlineSkeleton("currentDiscount", "gd-skeleton-w-40");
     setInlineSkeleton("gameContextTitle", "gd-skeleton-w-48");
@@ -3888,7 +3855,6 @@ function buildReviewSentimentView(payload) {
     const reviewLabel = String(getReviewLabel(payload) || "").trim();
     const reviewScoreText = String(getReviewScoreText(payload) || "").trim();
     const reviewCount = Number.isFinite(Number(review?.count)) ? Number(review.count) : null;
-    const reviewSentiment = normalizeReasonSnippet(review?.sentiment);
 
     const hasLabel = reviewLabel && reviewLabel !== "—";
     const hasScore = reviewScoreText && reviewScoreText !== "—";
@@ -3903,50 +3869,31 @@ function buildReviewSentimentView(payload) {
     const summary = hasSummary
         ? rawSummary
         : hasLabel
-            ? `${reviewLabel} feedback across the current player reviews.`
+            ? "Current player reviews support this view."
             : "Player reviews are still too thin to form a strong consensus.";
-
-    const recentSummary = reviewSentiment
-        || (hasSummary ? normalizeReasonSnippet(rawSummary) : "")
-        || (hasLabel ? `${reviewLabel} overall.` : "No separate sentiment read is available yet.");
 
     const scoreSignal = hasScore ? reviewScoreText : "—";
     const countSignal = reviewCount !== null ? fmtInt(reviewCount) : "—";
 
-    let supportLine = "Review coverage is still building.";
-    if (hasScore && reviewCount !== null) {
-        supportLine = `${reviewScoreText} across ${fmtInt(reviewCount)} player reviews.`;
-    } else if (reviewCount !== null) {
-        supportLine = `${fmtInt(reviewCount)} player reviews captured so far.`;
-    } else if (hasScore) {
-        supportLine = `Current review score sits at ${reviewScoreText}.`;
-    }
-
     return {
         headline,
         summary,
-        recentSummary,
         scoreSignal,
         countSignal,
-        supportLine,
     };
 }
 
 function renderReviewSentimentSection(payload) {
     const overallHeadlineEl = document.getElementById("reviewOverallHeadline");
     const overallSummaryEl = document.getElementById("reviewOverallSummary");
-    const recentSummaryEl = document.getElementById("reviewRecentSummary");
     const scoreSignalEl = document.getElementById("reviewScoreSignal");
     const countSignalEl = document.getElementById("reviewCountSignal");
-    const supportLineEl = document.getElementById("reviewSupportLine");
     const view = buildReviewSentimentView(payload);
 
     if (overallHeadlineEl) overallHeadlineEl.innerText = view.headline;
     if (overallSummaryEl) overallSummaryEl.innerText = view.summary;
-    if (recentSummaryEl) recentSummaryEl.innerText = view.recentSummary;
     if (scoreSignalEl) scoreSignalEl.innerText = view.scoreSignal;
     if (countSignalEl) countSignalEl.innerText = view.countSignal;
-    if (supportLineEl) supportLineEl.innerText = view.supportLine;
 }
 
 function deriveTimingSignal(payload, context = currentGameContext) {

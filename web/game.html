@@ -1385,26 +1385,29 @@ a {
 
 /* Decision-engine layout override */
 .decision-page {
-    max-width: 1220px;
+    max-width: 1280px;
     display: grid;
-    gap: 30px;
+    gap: 44px;
 }
 
 .decision-hero {
     display: grid;
-    grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
-    gap: 26px;
+    grid-template-columns: minmax(320px, 1.02fr) minmax(0, 0.98fr);
+    gap: 32px;
     align-items: stretch;
-    padding: 24px;
+    padding: 30px;
     position: relative;
     overflow: hidden;
-    border-radius: 28px;
+    border-radius: 34px;
     border: 0;
     background:
-        radial-gradient(circle at 80% 0%, rgba(111, 232, 255, 0.08), transparent 28%),
-        linear-gradient(180deg, rgba(9, 19, 34, 0.98), rgba(6, 14, 28, 0.98));
-    box-shadow: 0 22px 48px rgba(2, 8, 20, 0.34);
-    min-height: clamp(460px, 54vw, 640px);
+        radial-gradient(circle at 18% 18%, rgba(111, 232, 255, 0.18), transparent 28%),
+        radial-gradient(circle at 82% 0%, rgba(154, 182, 255, 0.14), transparent 26%),
+        linear-gradient(180deg, rgba(10, 20, 36, 0.99), rgba(5, 12, 24, 0.99));
+    box-shadow:
+        0 30px 70px rgba(2, 8, 20, 0.42),
+        inset 0 1px 0 rgba(227, 238, 255, 0.05);
+    min-height: clamp(540px, 58vw, 720px);
 }
 
 .decision-hero::before {
@@ -1413,9 +1416,10 @@ a {
     inset: 0;
     pointer-events: none;
     background:
-        linear-gradient(90deg, rgba(154, 182, 255, 0.08), transparent 24%),
-        linear-gradient(180deg, rgba(223, 236, 255, 0.06), transparent 20%);
-    opacity: 0.9;
+        linear-gradient(90deg, rgba(154, 182, 255, 0.1), transparent 24%),
+        linear-gradient(180deg, rgba(223, 236, 255, 0.08), transparent 20%),
+        linear-gradient(180deg, transparent 0%, rgba(6, 14, 28, 0.28) 100%);
+    opacity: 0.95;
 }
 
 .decision-hero::after {
@@ -1424,8 +1428,8 @@ a {
     inset: 0;
     pointer-events: none;
     background:
-        linear-gradient(90deg, rgba(6, 14, 28, 0.18) 0%, rgba(6, 14, 28, 0.2) 24%, rgba(6, 14, 28, 0.58) 54%, rgba(6, 14, 28, 0.9) 100%),
-        linear-gradient(180deg, rgba(6, 14, 28, 0.18) 0%, rgba(6, 14, 28, 0.86) 100%);
+        linear-gradient(90deg, rgba(6, 14, 28, 0.08) 0%, rgba(6, 14, 28, 0.12) 18%, rgba(6, 14, 28, 0.44) 52%, rgba(6, 14, 28, 0.88) 100%),
+        linear-gradient(180deg, rgba(6, 14, 28, 0.12) 0%, rgba(6, 14, 28, 0.84) 100%);
 }
 
 .decision-hero-media {
@@ -1440,17 +1444,19 @@ a {
     --hero-image: none;
     isolation: isolate;
     background:
-        radial-gradient(circle at 24% 18%, rgba(111, 232, 255, 0.2), transparent 52%),
+        radial-gradient(circle at 24% 18%, rgba(111, 232, 255, 0.24), transparent 52%),
         linear-gradient(180deg, rgba(8, 18, 34, 0.92), rgba(6, 14, 28, 0.96));
     background-size: cover, cover;
     background-repeat: no-repeat;
     background-position: center;
     background-color: rgba(8, 17, 32, 0.92);
     border: 0;
-    border-radius: 24px;
-    box-shadow: none;
+    border-radius: 30px;
+    box-shadow:
+        0 26px 44px rgba(1, 8, 20, 0.34),
+        inset 0 0 0 1px rgba(230, 240, 255, 0.07);
     height: 100%;
-    min-height: clamp(400px, 48vw, 560px);
+    min-height: clamp(440px, 50vw, 620px);
 }
 
 .decision-hero .hero-banner::before {
@@ -1463,9 +1469,9 @@ a {
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
-    filter: blur(20px) saturate(1.1) brightness(0.84);
-    transform: scale(1.16);
-    opacity: 0.7;
+    filter: blur(16px) saturate(1.12) brightness(0.84);
+    transform: scale(1.12);
+    opacity: 0.84;
 }
 
 .decision-hero .hero-banner::after {
@@ -1475,22 +1481,64 @@ a {
     pointer-events: none;
     z-index: 1;
     background-image:
-        linear-gradient(180deg, rgba(6, 13, 25, 0.1) 0%, rgba(6, 13, 25, 0.4) 100%),
+        linear-gradient(180deg, rgba(6, 13, 25, 0.04) 0%, rgba(6, 13, 25, 0.54) 100%),
         var(--hero-image);
     background-size: cover, contain;
     background-repeat: no-repeat, no-repeat;
     background-position: center, center;
 }
 
+.decision-hero-art-caption {
+    position: absolute;
+    left: 24px;
+    bottom: 22px;
+    z-index: 2;
+    display: grid;
+    gap: 4px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(7, 15, 29, 0.56), rgba(7, 15, 29, 0.82));
+    box-shadow: 0 14px 28px rgba(2, 8, 20, 0.26);
+    backdrop-filter: blur(10px);
+}
+
+.decision-hero-art-caption span {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #8ea7cb;
+    font-weight: 700;
+}
+
+.decision-hero-art-caption strong {
+    font-size: 13px;
+    line-height: 1.35;
+    color: #eef6ff;
+    font-weight: 760;
+}
+
 .decision-hero-content {
     min-width: 0;
     display: grid;
-    gap: 18px;
-    align-content: start;
+    gap: 24px;
+    align-content: center;
     position: relative;
     z-index: 1;
-    max-width: min(620px, 100%);
-    padding: 8px 0 8px;
+    max-width: min(600px, 100%);
+    padding: 16px 0 18px;
+}
+
+.decision-hero-copy {
+    display: grid;
+    gap: 12px;
+}
+
+.decision-hero-kicker {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #93b0da;
+    font-weight: 700;
 }
 
 .decision-hero-top {
@@ -1503,35 +1551,35 @@ a {
 .decision-hero-top h1 {
     margin: 0;
     max-width: 14ch;
-    font-size: clamp(38px, 5vw, 56px);
-    line-height: 0.96;
-    letter-spacing: -0.05em;
+    font-size: clamp(42px, 5.8vw, 66px);
+    line-height: 0.92;
+    letter-spacing: -0.06em;
     font-weight: 900;
     text-wrap: balance;
 }
 
 .decision-verdict {
     margin: 0;
-    max-width: 26ch;
-    font-size: clamp(30px, 3.9vw, 42px);
-    line-height: 1.06;
+    max-width: 18ch;
+    font-size: clamp(32px, 4vw, 46px);
+    line-height: 1.02;
     font-weight: 840;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.03em;
     color: #f3fbff;
 }
 
 .decision-verdict-note {
-    margin: -2px 0 2px;
-    max-width: 60ch;
-    font-size: 14px;
-    line-height: 1.65;
-    color: #b6c8e4;
+    margin: 0;
+    max-width: 54ch;
+    font-size: 14.5px;
+    line-height: 1.8;
+    color: #c0d0e8;
 }
 
 .decision-hero-meta {
     display: grid;
-    gap: 16px;
-    padding: 6px 0 0;
+    gap: 18px;
+    padding: 14px 0 0;
     border: 0;
     border-radius: 0;
     background: none;
@@ -1548,26 +1596,27 @@ a {
 }
 
 .decision-hero .hero-context-title {
-    font-size: 10px;
-    letter-spacing: 0.07em;
+    font-size: 11px;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
 }
 
 .decision-hero .hero-context-text {
-    font-size: 12.5px;
-    color: #afc3e4;
+    font-size: 13.5px;
+    line-height: 1.75;
+    color: #b8c9e4;
 }
 
 .decision-price-line {
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 14px;
     border: 0;
-    border-top: 1px solid rgba(154, 182, 255, 0.12);
+    border-top: 1px solid rgba(154, 182, 255, 0.16);
     border-radius: 0;
     background: none;
-    padding: 14px 0 0;
+    padding: 18px 0 0;
     box-shadow: none;
 }
 
@@ -1580,7 +1629,7 @@ a {
 }
 
 .decision-price-value {
-    font-size: clamp(34px, 4vw, 42px);
+    font-size: clamp(38px, 4.2vw, 48px);
     line-height: 1;
     color: #f4fff9;
     font-weight: 900;
@@ -1588,7 +1637,7 @@ a {
 }
 
 .decision-price-discount {
-    font-size: 15px;
+    font-size: 16px;
     line-height: 1.2;
     color: #c7f8de;
     font-weight: 760;
@@ -1597,9 +1646,9 @@ a {
 .decision-action-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
-    padding-top: 2px;
+    padding-top: 6px;
 }
 
 .decision-action-row .hero-store-cta {
@@ -1607,16 +1656,23 @@ a {
     justify-content: center;
     text-align: center;
     line-height: 1.1;
-    min-height: 44px;
-    min-width: 198px;
+    min-height: 48px;
+    min-width: 212px;
     font-weight: 900;
     letter-spacing: 0.02em;
-    box-shadow: 0 9px 22px rgba(13, 104, 70, 0.32);
+    box-shadow: 0 12px 28px rgba(13, 104, 70, 0.28);
 }
 
 .decision-editorial-flow {
     display: grid;
-    gap: 40px;
+    gap: 52px;
+}
+
+.decision-context-shelf {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+    gap: 44px;
+    align-items: start;
 }
 
 .decision-insights-section,
@@ -1647,27 +1703,29 @@ a {
 .decision-media-section .panel-head,
 .decision-store-section .panel-head,
 .decision-reviews-section .panel-head {
-    padding: 0 0 12px;
+    padding: 0 0 16px;
 }
 
 .decision-insights-section .panel-title,
 .decision-media-section .panel-title,
 .decision-store-section .panel-title,
 .decision-reviews-section .panel-title {
-    font-size: 23px;
-    letter-spacing: -0.03em;
+    font-size: 26px;
+    line-height: 1.04;
+    letter-spacing: -0.04em;
 }
 
 .decision-insights-section .panel-subtitle,
 .decision-media-section .panel-subtitle,
 .decision-store-section .panel-subtitle,
 .decision-reviews-section .panel-subtitle {
-    max-width: 52ch;
-    color: #8ca3c7;
+    max-width: 56ch;
+    color: #93a9ca;
+    line-height: 1.7;
 }
 
 .decision-action-row .hero-watch-btn {
-    min-height: 44px;
+    min-height: 48px;
     opacity: 1;
     background: rgba(255, 255, 255, 0.045);
 }
@@ -1681,20 +1739,20 @@ a {
 
 .decision-store-grid {
     display: grid;
-    grid-template-columns: minmax(220px, 0.45fr) minmax(0, 1fr);
-    gap: 20px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
     align-items: start;
-    padding-top: 6px;
+    padding-top: 10px;
 }
 
 .decision-best-deal {
     border: 0;
-    border-left: 1px solid rgba(154, 182, 255, 0.12);
+    border-top: 1px solid rgba(154, 182, 255, 0.12);
     border-radius: 0;
     background: none;
-    padding: 2px 0 2px 18px;
+    padding: 18px 0 0;
     display: grid;
-    gap: 8px;
+    gap: 10px;
     transition: opacity var(--motion-base) ease;
 }
 
@@ -1707,18 +1765,21 @@ a {
 }
 
 .decision-best-price {
-    font-size: 28px;
+    font-size: clamp(30px, 3.2vw, 38px);
     line-height: 1;
     font-weight: 800;
+    letter-spacing: -0.04em;
 }
 
 .decision-best-note {
-    font-size: 13px;
+    max-width: 28ch;
+    font-size: 13.5px;
+    line-height: 1.65;
     color: #b7c9e6;
 }
 
 .decision-store-list-wrap {
-    padding-top: 4px;
+    padding-top: 2px;
 }
 
 .decision-store-list {
@@ -1726,13 +1787,14 @@ a {
     padding: 0;
     list-style: none;
     display: grid;
-    gap: 10px;
-    color: #9bb0d2;
-    font-size: 12px;
+    gap: 14px;
+    color: #a4b7d6;
+    font-size: 13px;
+    line-height: 1.7;
 }
 
 .decision-store-list li {
-    padding-bottom: 10px;
+    padding-bottom: 14px;
     border-bottom: 1px solid rgba(154, 182, 255, 0.1);
 }
 
@@ -1754,7 +1816,7 @@ a {
 .decision-summary-strip {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 18px;
+    gap: 22px;
     align-items: start;
     padding: 0;
     border: 0;
@@ -1762,7 +1824,7 @@ a {
 
 .decision-summary-intro {
     display: grid;
-    gap: 6px;
+    gap: 8px;
 }
 
 .decision-summary-kicker {
@@ -1775,29 +1837,54 @@ a {
 
 .decision-summary-copy {
     margin: 0;
-    max-width: 48ch;
-    font-size: 14px;
-    line-height: 1.7;
-    color: #93a8cb;
+    max-width: 58ch;
+    font-size: 15px;
+    line-height: 1.8;
+    color: #9bb0d1;
+}
+
+.decision-summary-rail {
+    position: relative;
+    padding: 24px 28px;
+    border-radius: 26px;
+    background:
+        radial-gradient(circle at 0% 0%, rgba(111, 232, 255, 0.08), transparent 26%),
+        linear-gradient(180deg, rgba(12, 24, 42, 0.58), rgba(8, 16, 29, 0.34));
+    box-shadow:
+        inset 0 1px 0 rgba(223, 236, 255, 0.05),
+        0 18px 36px rgba(2, 8, 20, 0.18);
+    overflow: hidden;
+}
+
+.decision-summary-rail::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(90deg, rgba(154, 182, 255, 0.08), transparent 32%),
+        linear-gradient(180deg, transparent 0%, rgba(6, 14, 28, 0.18) 100%);
 }
 
 .decision-summary-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 18px;
-    padding-top: 18px;
-    border-top: 1px solid rgba(154, 182, 255, 0.12);
+    gap: 0;
+    padding-top: 0;
+    border-top: 0;
+    position: relative;
+    z-index: 1;
 }
 
 .decision-summary-chip {
     border: 0;
     border-left: 1px solid rgba(154, 182, 255, 0.1);
     border-radius: 0;
-    padding: 0 0 0 18px;
+    padding: 6px 20px;
     background: none;
     box-shadow: none;
     display: grid;
-    gap: 5px;
+    gap: 8px;
 }
 
 .decision-summary-chip:first-child {
@@ -1806,12 +1893,15 @@ a {
 }
 
 .decision-media-shell {
-    min-height: clamp(220px, 32vw, 360px);
-    border-radius: 26px;
+    min-height: clamp(280px, 36vw, 430px);
+    border-radius: 30px;
     background:
-        radial-gradient(circle at 18% 18%, rgba(111, 232, 255, 0.08), transparent 28%),
-        linear-gradient(135deg, rgba(13, 25, 45, 0.88), rgba(8, 16, 29, 0.92));
-    box-shadow: inset 0 1px 0 rgba(223, 236, 255, 0.05);
+        radial-gradient(circle at 18% 18%, rgba(111, 232, 255, 0.1), transparent 28%),
+        radial-gradient(circle at 82% 12%, rgba(154, 182, 255, 0.12), transparent 26%),
+        linear-gradient(135deg, rgba(13, 25, 45, 0.92), rgba(8, 16, 29, 0.96));
+    box-shadow:
+        inset 0 1px 0 rgba(223, 236, 255, 0.06),
+        0 22px 46px rgba(2, 8, 20, 0.22);
     position: relative;
     overflow: hidden;
 }
@@ -1828,8 +1918,8 @@ a {
 .decision-media-shell::after {
     content: "Featured media stage";
     position: absolute;
-    left: 22px;
-    bottom: 20px;
+    left: 28px;
+    bottom: 24px;
     font-size: 11px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -1839,16 +1929,18 @@ a {
 
 .decision-summary-chip span {
     font-size: 10px;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
     color: #8ba5cb;
     font-weight: 700;
 }
 
 .decision-summary-chip strong {
-    font-size: 19px;
-    line-height: 1.1;
+    max-width: 14ch;
+    font-size: 22px;
+    line-height: 1.2;
     font-weight: 850;
+    color: #eef6ff;
 }
 
 .decision-reviews-section {
@@ -1860,14 +1952,16 @@ a {
 
 .decision-reviews-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.65fr);
-    gap: 26px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
     align-items: start;
 }
 
 .decision-review-copy {
     display: grid;
-    gap: 10px;
+    gap: 12px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid rgba(154, 182, 255, 0.1);
 }
 
 .decision-review-kicker {
@@ -1880,27 +1974,30 @@ a {
 
 .decision-review-headline {
     margin: 0;
-    font-size: clamp(23px, 2.8vw, 30px);
-    line-height: 1.08;
-    letter-spacing: -0.03em;
+    max-width: 20ch;
+    font-size: clamp(28px, 3vw, 38px);
+    line-height: 1.04;
+    letter-spacing: -0.045em;
     font-weight: 840;
     color: #f2f8ff;
 }
 
 .decision-review-summary {
     margin: 0;
-    max-width: 62ch;
-    font-size: 15px;
-    line-height: 1.85;
-    color: #b4c7e4;
+    max-width: 70ch;
+    font-size: 15.5px;
+    line-height: 1.9;
+    color: #bccde6;
 }
 
 .decision-review-side {
     display: grid;
-    gap: 14px;
-    padding: 4px 0 0 24px;
+    grid-template-columns: minmax(0, 1.25fr) auto;
+    gap: 18px 28px;
+    align-items: start;
+    padding: 0;
     border: 0;
-    border-left: 1px solid rgba(154, 182, 255, 0.12);
+    border-left: 0;
     border-radius: 0;
     background: none;
 }
@@ -1915,15 +2012,17 @@ a {
 
 .decision-review-side-copy {
     margin: 0;
-    font-size: 14px;
-    line-height: 1.72;
+    max-width: 40ch;
+    font-size: 14.5px;
+    line-height: 1.8;
     color: #dde8f8;
 }
 
 .decision-review-signal-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 18px;
+    align-items: flex-start;
 }
 
 .decision-review-signal {
@@ -1945,7 +2044,7 @@ a {
 .decision-review-signal strong {
     display: block;
     margin-top: 6px;
-    font-size: 17px;
+    font-size: 18px;
     line-height: 1.1;
     color: #f2f8ff;
     font-weight: 820;
@@ -1953,21 +2052,70 @@ a {
 
 .decision-review-support {
     margin: 0;
-    font-size: 12.5px;
-    line-height: 1.6;
+    grid-column: 1 / -1;
+    max-width: 46ch;
+    font-size: 13px;
+    line-height: 1.75;
     color: #93a8cb;
-    max-width: 32ch;
+}
+
+.decision-store-section {
+    padding-top: 2px;
+}
+
+.decision-store-section .panel-head {
+    padding-bottom: 10px;
+}
+
+.decision-store-section .panel-title {
+    font-size: 22px;
+}
+
+.decision-store-section .panel-subtitle {
+    max-width: 34ch;
+    font-size: 13.5px;
 }
 
 .decision-deep-dive {
+    position: relative;
     display: grid;
-    gap: 22px;
+    gap: 28px;
+    padding: 32px;
+    border-radius: 32px;
+    background:
+        radial-gradient(circle at 84% 0%, rgba(154, 182, 255, 0.12), transparent 24%),
+        linear-gradient(180deg, rgba(11, 22, 39, 0.9), rgba(7, 15, 29, 0.8));
+    box-shadow:
+        inset 0 1px 0 rgba(223, 236, 255, 0.05),
+        0 24px 52px rgba(2, 8, 20, 0.24);
+    overflow: hidden;
+}
+
+.decision-deep-dive::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(90deg, rgba(154, 182, 255, 0.06), transparent 26%),
+        linear-gradient(180deg, transparent 0%, rgba(6, 14, 28, 0.2) 100%);
+}
+
+.decision-deep-dive::after {
+    content: "";
+    position: absolute;
+    inset: 20px;
+    pointer-events: none;
+    border-radius: 24px;
+    border: 1px solid rgba(223, 236, 255, 0.04);
 }
 
 .decision-deep-dive-header {
     display: grid;
-    gap: 6px;
-    max-width: 54ch;
+    gap: 8px;
+    max-width: 60ch;
+    position: relative;
+    z-index: 1;
 }
 
 .decision-deep-dive-kicker {
@@ -1980,8 +2128,8 @@ a {
 
 .decision-deep-dive-title {
     margin: 0;
-    font-size: clamp(24px, 2.9vw, 34px);
-    line-height: 1.06;
+    font-size: clamp(28px, 3.3vw, 40px);
+    line-height: 1.02;
     letter-spacing: -0.04em;
     font-weight: 860;
     color: #f2f8ff;
@@ -1989,21 +2137,23 @@ a {
 
 .decision-deep-dive-copy {
     margin: 0;
-    font-size: 14px;
-    line-height: 1.7;
-    color: #94a9cc;
+    font-size: 14.5px;
+    line-height: 1.8;
+    color: #9cb1d0;
 }
 
 .decision-deep-dive .content-grid {
     margin-bottom: 0;
-    gap: 22px;
+    gap: 28px;
+    position: relative;
+    z-index: 1;
 }
 
 .decision-deep-dive .panel,
 .decision-details-shell .panel {
     border-radius: 0;
     border: 0;
-    border-top: 1px solid rgba(154, 182, 255, 0.12);
+    border-top: 1px solid rgba(154, 182, 255, 0.14);
     background: none;
     box-shadow: none;
 }
@@ -2033,17 +2183,45 @@ a {
 .decision-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 18px;
+    gap: 24px;
     align-items: start;
 }
 
 .decision-main {
     display: grid;
-    gap: 18px;
+    gap: 26px;
 }
 
 .decision-chart-panel .panel-subtitle {
     color: #9cb3d8;
+}
+
+.decision-chart-panel .panel-title,
+.decision-deep-dive .discovery-panel .panel-title {
+    font-size: 26px;
+    letter-spacing: -0.04em;
+}
+
+.decision-deep-dive .range-row {
+    margin-bottom: 14px;
+}
+
+.decision-deep-dive .chart-wrap {
+    padding: 14px 0 0;
+    min-height: 260px;
+    background: none;
+    border: 0;
+}
+
+.decision-deep-dive .player-insight-row {
+    padding: 14px 0;
+    border-top: 1px solid rgba(154, 182, 255, 0.1);
+    border-bottom: 1px solid rgba(154, 182, 255, 0.08);
+    background: none;
+}
+
+.decision-deep-dive .related-grid {
+    gap: 14px;
 }
 
 .decision-details-shell details {
@@ -2158,21 +2336,26 @@ a {
 @media (max-width: 1080px) {
     .decision-hero {
         grid-template-columns: 1fr;
-        min-height: clamp(420px, 62vw, 560px);
+        min-height: clamp(480px, 70vw, 640px);
     }
 
     .decision-hero-media {
         position: absolute;
         inset: 0;
-        opacity: 0.66;
+        opacity: 0.62;
     }
 
-    .decision-summary-strip {
+    .decision-context-shelf {
         grid-template-columns: 1fr;
+        gap: 38px;
     }
 
     .decision-summary-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .decision-review-side {
+        grid-template-columns: 1fr;
     }
 
     .decision-layout {
@@ -2182,20 +2365,28 @@ a {
 
 @media (max-width: 760px) {
     .decision-hero {
-        min-height: clamp(380px, 100vw, 500px);
+        padding: 22px;
+        min-height: clamp(420px, 100vw, 560px);
     }
 
     .decision-hero-media {
         inset: 0;
-        opacity: 0.58;
+        opacity: 0.54;
     }
 
     .decision-hero .hero-banner {
-        min-height: clamp(360px, 88vw, 500px);
+        min-height: clamp(380px, 92vw, 540px);
     }
 
     .decision-hero-content {
         max-width: 100%;
+        padding: 8px 0 12px;
+    }
+
+    .decision-hero-art-caption {
+        left: 18px;
+        right: 18px;
+        bottom: 18px;
     }
 
     .decision-reviews-layout,
@@ -2204,9 +2395,8 @@ a {
         grid-template-columns: 1fr;
     }
 
-    .decision-summary-strip {
-        grid-template-columns: 1fr;
-        gap: 14px;
+    .decision-summary-rail {
+        padding: 18px 20px;
     }
 
     .decision-summary-chip {
@@ -2224,25 +2414,22 @@ a {
     }
 
     .decision-review-side {
-        padding-left: 0;
-        border-left: 0;
-        border-top: 1px solid rgba(154, 182, 255, 0.12);
         padding-top: 14px;
     }
 
-    .decision-store-grid {
-        grid-template-columns: 1fr;
+    .decision-deep-dive {
+        padding: 24px 20px;
     }
 }
 
 @media (max-width: 520px) {
     .decision-hero-top h1 {
-        font-size: clamp(30px, 9vw, 40px);
+        font-size: clamp(34px, 9vw, 44px);
         line-height: 1;
     }
 
     .decision-verdict {
-        font-size: clamp(24px, 7.6vw, 32px);
+        font-size: clamp(28px, 7.8vw, 36px);
     }
 
     .decision-hero {
@@ -2250,11 +2437,11 @@ a {
     }
 
     .decision-hero-meta {
-        padding: 4px 0 0;
+        padding: 8px 0 0;
     }
 
     .decision-hero .hero-banner {
-        min-height: clamp(320px, 92vw, 420px);
+        min-height: clamp(340px, 92vw, 440px);
     }
 
     .stats-grid {
@@ -2275,7 +2462,7 @@ a {
     }
 
     .decision-price-value {
-        font-size: clamp(30px, 9vw, 36px);
+        font-size: clamp(34px, 9vw, 40px);
     }
 
     .chart-wrap {
@@ -2335,14 +2522,21 @@ a {
     <section class="hero decision-hero">
         <div class="decision-hero-media">
             <div class="hero-banner" id="heroBanner"></div>
+            <div class="decision-hero-art-caption">
+                <span>Featured art</span>
+                <strong>A cinematic read on the game before you decide whether now is the right time to jump in.</strong>
+            </div>
         </div>
         <div class="decision-hero-content">
-            <div class="decision-hero-top">
-                <h1 id="gameTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></h1>
-                <div class="hero-badge" id="dealBadge"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40" aria-hidden="true"></span></div>
+            <div class="decision-hero-copy">
+                <div class="decision-hero-kicker">Game decision</div>
+                <div class="decision-hero-top">
+                    <h1 id="gameTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></h1>
+                    <div class="hero-badge" id="dealBadge"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40" aria-hidden="true"></span></div>
+                </div>
+                <p class="decision-verdict" id="gameSub"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
+                <p class="decision-verdict-note" id="gameVerdictLine"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></p>
             </div>
-            <p class="decision-verdict" id="gameSub"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
-            <p class="decision-verdict-note" id="gameVerdictLine"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></p>
             <div class="decision-hero-meta">
                 <div class="hero-context-card gd-skeleton-surface" id="gameContextCard">
                     <div class="hero-context-title" id="gameContextTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></div>
@@ -2374,23 +2568,25 @@ a {
                     <div class="decision-summary-kicker">Current read</div>
                     <p class="decision-summary-copy">Supporting signals to read alongside the headline verdict, current price, and review picture.</p>
                 </div>
-                <div class="decision-summary-grid">
-                    <article class="decision-summary-chip">
-                        <span>Should you buy</span>
-                        <strong id="summaryDealQuality">--</strong>
-                    </article>
-                    <article class="decision-summary-chip">
-                        <span>Player activity</span>
-                        <strong id="summaryPlayerActivity">--</strong>
-                    </article>
-                    <article class="decision-summary-chip">
-                        <span>Confidence</span>
-                        <strong id="summaryConfidence">--</strong>
-                    </article>
-                    <article class="decision-summary-chip">
-                        <span>Recommendation</span>
-                        <strong id="summaryRecommendation">--</strong>
-                    </article>
+                <div class="decision-summary-rail">
+                    <div class="decision-summary-grid">
+                        <article class="decision-summary-chip">
+                            <span>Should you buy</span>
+                            <strong id="summaryDealQuality">--</strong>
+                        </article>
+                        <article class="decision-summary-chip">
+                            <span>Player activity</span>
+                            <strong id="summaryPlayerActivity">--</strong>
+                        </article>
+                        <article class="decision-summary-chip">
+                            <span>Confidence</span>
+                            <strong id="summaryConfidence">--</strong>
+                        </article>
+                        <article class="decision-summary-chip">
+                            <span>Recommendation</span>
+                            <strong id="summaryRecommendation">--</strong>
+                        </article>
+                    </div>
                 </div>
             </div>
         </section>
@@ -2405,56 +2601,58 @@ a {
             </div>
         </section>
 
-        <section class="panel panel-secondary decision-reviews-section" id="reviewSentimentSection">
-            <div class="panel-head">
-                <h2 class="panel-title">Reviews &amp; sentiment</h2>
-                <div class="panel-subtitle">A concise read on how players feel about the game and whether the broader reception supports buying in now.</div>
-            </div>
-            <div class="panel-body decision-reviews-layout">
-                <div class="decision-review-copy">
-                    <div class="decision-review-kicker">Overall reviews</div>
-                    <h3 class="decision-review-headline" id="reviewOverallHeadline"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></h3>
-                    <p class="decision-review-summary" id="reviewOverallSummary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
+        <div class="decision-context-shelf">
+            <section class="panel panel-secondary decision-reviews-section" id="reviewSentimentSection">
+                <div class="panel-head">
+                    <h2 class="panel-title">Reviews &amp; sentiment</h2>
+                    <div class="panel-subtitle">A concise read on how players feel about the game and whether the broader reception supports buying in now.</div>
                 </div>
-                <div class="decision-review-side">
-                    <div>
-                        <div class="decision-review-side-label">Current sentiment</div>
-                        <p class="decision-review-side-copy" id="reviewRecentSummary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></p>
+                <div class="panel-body decision-reviews-layout">
+                    <div class="decision-review-copy">
+                        <div class="decision-review-kicker">Overall reviews</div>
+                        <h3 class="decision-review-headline" id="reviewOverallHeadline"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></h3>
+                        <p class="decision-review-summary" id="reviewOverallSummary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
                     </div>
-                    <div class="decision-review-signal-row">
-                        <div class="decision-review-signal">
-                            <span>Score</span>
-                            <strong id="reviewScoreSignal"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-24" aria-hidden="true"></span></strong>
+                    <div class="decision-review-side">
+                        <div>
+                            <div class="decision-review-side-label">Current sentiment</div>
+                            <p class="decision-review-side-copy" id="reviewRecentSummary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></p>
                         </div>
-                        <div class="decision-review-signal">
-                            <span>Coverage</span>
-                            <strong id="reviewCountSignal"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-32" aria-hidden="true"></span></strong>
+                        <div class="decision-review-signal-row">
+                            <div class="decision-review-signal">
+                                <span>Score</span>
+                                <strong id="reviewScoreSignal"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-24" aria-hidden="true"></span></strong>
+                            </div>
+                            <div class="decision-review-signal">
+                                <span>Coverage</span>
+                                <strong id="reviewCountSignal"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-32" aria-hidden="true"></span></strong>
+                            </div>
                         </div>
+                        <p class="decision-review-support" id="reviewSupportLine"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></p>
                     </div>
-                    <p class="decision-review-support" id="reviewSupportLine"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></p>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <section class="panel panel-secondary decision-store-section" id="storeSection">
-            <div class="panel-head">
-                <h2 class="panel-title">Available options</h2>
-                <div class="panel-subtitle">A calm comparison of the stores currently carrying the game.</div>
-            </div>
-            <div class="panel-body decision-store-grid">
-                <article class="decision-best-deal" id="bestDealCard">
-                    <div class="decision-best-label">Best current option</div>
-                    <div class="decision-best-price" id="bestDealPrice">--</div>
-                    <div class="decision-best-note" id="bestDealNote">Current lead among the listed stores.</div>
-                </article>
-                <div class="decision-store-list-wrap">
-                    <div class="decision-best-label">Other options</div>
-                    <ul class="decision-store-list" id="storeQuickList">
-                        <li>No alternate store offers available.</li>
-                    </ul>
+            <section class="panel panel-secondary decision-store-section" id="storeSection">
+                <div class="panel-head">
+                    <h2 class="panel-title">Available options</h2>
+                    <div class="panel-subtitle">A calm comparison of the stores currently carrying the game.</div>
                 </div>
-            </div>
-        </section>
+                <div class="panel-body decision-store-grid">
+                    <article class="decision-best-deal" id="bestDealCard">
+                        <div class="decision-best-label">Best current option</div>
+                        <div class="decision-best-price" id="bestDealPrice">--</div>
+                        <div class="decision-best-note" id="bestDealNote">Current lead among the listed stores.</div>
+                    </article>
+                    <div class="decision-store-list-wrap">
+                        <div class="decision-best-label">Other options</div>
+                        <ul class="decision-store-list" id="storeQuickList">
+                            <li>No alternate store offers available.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </div>
     </div>
 
     <section class="decision-deep-dive">

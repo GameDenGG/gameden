@@ -11849,7 +11849,7 @@ input:focus-visible {
             const personalizedLimit = HOMEPAGE_SECTION_LIMITS.personalizedDeals;
             const protectedKeys = buildProtectedVisibleRailIdentitySet();
             const uniqueApiItems = filterRowsByIdentityExclusion(
-                filterProtectedDealRailRows(apiItems),
+                uniqueGamesByIdentity(apiItems),
                 protectedKeys,
                 personalizedLimit,
             );
@@ -11868,17 +11868,21 @@ input:focus-visible {
                 setPanelVisibility(ui.recommendedForYouPanel, true);
                 return;
             }
+            // Personalized opportunities can legitimately lack an active discount,
+            // so avoid the discovery-feed deal gate here and render the personalized
+            // ranking directly.
             const displayItems = useFallbackRows
                 ? fallbackRows
                 : filterRowsByIdentityExclusion(
-                    filterProtectedDealRailRows([...uniqueApiItems, ...fallbackRows]),
+                    [...uniqueApiItems, ...fallbackRows],
                     protectedKeys,
                     personalizedLimit,
                 );
-            const filteredDisplay = resolveDiscoveryFeedRows(displayItems, {
-                targetCount: personalizedLimit,
-                includeFallback: false,
-            });
+            const filteredDisplay = {
+                rows: displayItems,
+                hiddenOwnedCount: 0,
+                totalCount: displayItems.length,
+            };
             const personalizedActive = knownUser && personalizedResolved && !!state.personalizedStatus?.personalized;
 
             setPanelVisibility(ui.recommendedForYouPanel, true);

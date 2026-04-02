@@ -1861,6 +1861,7 @@ a {
     min-height: clamp(420px, 46vw, 620px);
     border-radius: 36px;
     overflow: hidden;
+    cursor: pointer;
     background:
         radial-gradient(circle at 18% 18%, rgba(111, 232, 255, 0.16), transparent 22%),
         radial-gradient(circle at 82% 12%, rgba(154, 182, 255, 0.16), transparent 22%),
@@ -1973,6 +1974,30 @@ a {
     width: 28px;
     height: 28px;
     margin-left: 4px;
+}
+
+#featuredMediaPlayButton.is-external {
+    width: auto;
+    min-width: 0;
+    height: auto;
+    padding: 14px 20px 14px 18px;
+    gap: 10px;
+}
+
+#featuredMediaPlayButton.is-external svg {
+    margin-left: 0;
+}
+
+.featured-media-play-text {
+    display: none;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+}
+
+#featuredMediaPlayButton.is-external .featured-media-play-text {
+    display: inline-block;
 }
 
 #featuredMediaPlayer {
@@ -4287,6 +4312,12 @@ function resetFeaturedMediaSection() {
         featuredMediaOverlay.classList.remove("is-hidden");
     }
     if (featuredMediaPlayButton instanceof HTMLButtonElement) {
+        featuredMediaPlayButton.classList.remove("is-external");
+        featuredMediaPlayButton.innerHTML = `
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M8 6.5v11l9-5.5z"></path>
+            </svg>
+        `;
         featuredMediaPlayButton.hidden = false;
         featuredMediaPlayButton.disabled = false;
         featuredMediaPlayButton.setAttribute("aria-label", "Play featured trailer");
@@ -4335,28 +4366,6 @@ function activateFeaturedMediaStage(media, posterUrl) {
         }
         return;
     }
-
-    if (featuredMediaOverlay instanceof HTMLElement) {
-        featuredMediaOverlay.classList.add("is-hidden");
-    }
-
-    const fallback = document.createElement("div");
-    fallback.className = "featured-media-fallback";
-
-    const copy = document.createElement("p");
-    copy.className = "featured-media-fallback-copy";
-    copy.textContent = `Open ${mediaTitle} in a new tab.`;
-
-    const link = document.createElement("a");
-    link.className = "featured-media-open-link";
-    link.href = media.embed_url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = "Open Trailer";
-    link.setAttribute("aria-label", `Open ${mediaTitle} in a new tab`);
-
-    fallback.append(copy, link);
-    featuredMediaPlayer.replaceChildren(fallback);
 }
 
 function renderFeaturedMedia(payload) {
@@ -4375,7 +4384,15 @@ function renderFeaturedMedia(payload) {
     if (!posterUrl) return;
 
     const mediaTitle = firstNonEmptyText(media.title, payload?.game_name, payload?.name, "Trailer");
-    const activate = () => activateFeaturedMediaStage(media, posterUrl);
+    const steamStoreUrl = resolveStoreUrl(payload);
+    const openSteamStore = () => {
+        if (!steamStoreUrl) return;
+        window.open(steamStoreUrl, "_blank", "noopener,noreferrer");
+    };
+    const canPlayInline = isInlinePlayableFeaturedMedia(media.embed_url);
+    const activate = canPlayInline
+        ? () => activateFeaturedMediaStage(media, posterUrl)
+        : openSteamStore;
 
     if (featuredMediaSection instanceof HTMLElement) {
         featuredMediaSection.hidden = false;
@@ -4385,12 +4402,35 @@ function renderFeaturedMedia(payload) {
         featuredMediaPoster.alt = mediaTitle ? `${mediaTitle} poster` : "Featured trailer poster";
     }
     if (featuredMediaStage instanceof HTMLElement) {
-        featuredMediaStage.setAttribute("aria-label", mediaTitle || "Featured trailer stage");
+        featuredMediaStage.setAttribute(
+            "aria-label",
+            canPlayInline
+                ? (mediaTitle || "Featured trailer stage")
+                : "Watch trailer on Steam",
+        );
         featuredMediaStage.onclick = activate;
     }
     if (featuredMediaPlayButton instanceof HTMLButtonElement) {
-        featuredMediaPlayButton.setAttribute("aria-label", `Play ${mediaTitle || "featured trailer"}`);
-        featuredMediaPlayButton.title = mediaTitle || "Featured trailer";
+        if (canPlayInline) {
+            featuredMediaPlayButton.classList.remove("is-external");
+            featuredMediaPlayButton.innerHTML = `
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M8 6.5v11l9-5.5z"></path>
+                </svg>
+            `;
+            featuredMediaPlayButton.setAttribute("aria-label", `Play ${mediaTitle || "featured trailer"}`);
+            featuredMediaPlayButton.title = mediaTitle || "Featured trailer";
+        } else {
+            featuredMediaPlayButton.classList.add("is-external");
+            featuredMediaPlayButton.innerHTML = `
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M8 6.5v11l9-5.5z"></path>
+                </svg>
+                <span class="featured-media-play-text">Watch trailer on Steam</span>
+            `;
+            featuredMediaPlayButton.setAttribute("aria-label", "Watch trailer on Steam");
+            featuredMediaPlayButton.title = "Watch trailer on Steam";
+        }
         featuredMediaPlayButton.onclick = (event) => {
             event.preventDefault();
             event.stopPropagation();

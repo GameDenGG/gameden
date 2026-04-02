@@ -1387,15 +1387,15 @@ a {
 .decision-page {
     max-width: 1280px;
     display: grid;
-    gap: 44px;
+    gap: 38px;
 }
 
 .decision-hero {
     display: grid;
     grid-template-columns: minmax(320px, 1.02fr) minmax(0, 0.98fr);
-    gap: 32px;
+    gap: 28px;
     align-items: stretch;
-    padding: 30px;
+    padding: 24px;
     position: relative;
     overflow: hidden;
     border-radius: 34px;
@@ -1407,7 +1407,6 @@ a {
     box-shadow:
         0 30px 70px rgba(2, 8, 20, 0.42),
         inset 0 1px 0 rgba(227, 238, 255, 0.05);
-    min-height: clamp(540px, 58vw, 720px);
 }
 
 .decision-hero::before {
@@ -1456,7 +1455,7 @@ a {
         0 26px 44px rgba(1, 8, 20, 0.34),
         inset 0 0 0 1px rgba(230, 240, 255, 0.07);
     height: 100%;
-    min-height: clamp(440px, 50vw, 620px);
+    min-height: clamp(320px, 38vw, 460px);
 }
 
 .decision-hero .hero-banner::before {
@@ -1488,57 +1487,20 @@ a {
     background-position: center, center;
 }
 
-.decision-hero-art-caption {
-    position: absolute;
-    left: 24px;
-    bottom: 22px;
-    z-index: 2;
-    display: grid;
-    gap: 4px;
-    padding: 14px 16px;
-    border-radius: 18px;
-    background: linear-gradient(180deg, rgba(7, 15, 29, 0.56), rgba(7, 15, 29, 0.82));
-    box-shadow: 0 14px 28px rgba(2, 8, 20, 0.26);
-    backdrop-filter: blur(10px);
-}
-
-.decision-hero-art-caption span {
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #8ea7cb;
-    font-weight: 700;
-}
-
-.decision-hero-art-caption strong {
-    font-size: 13px;
-    line-height: 1.35;
-    color: #eef6ff;
-    font-weight: 760;
-}
-
 .decision-hero-content {
     min-width: 0;
     display: grid;
-    gap: 24px;
-    align-content: center;
+    gap: 18px;
+    align-content: start;
     position: relative;
     z-index: 1;
     max-width: min(600px, 100%);
-    padding: 16px 0 18px;
+    padding: 6px 0 8px;
 }
 
 .decision-hero-copy {
     display: grid;
-    gap: 12px;
-}
-
-.decision-hero-kicker {
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #93b0da;
-    font-weight: 700;
+    gap: 10px;
 }
 
 .decision-hero-top {
@@ -1570,16 +1532,16 @@ a {
 
 .decision-verdict-note {
     margin: 0;
-    max-width: 54ch;
-    font-size: 14.5px;
-    line-height: 1.8;
+    max-width: 48ch;
+    font-size: 14px;
+    line-height: 1.7;
     color: #c0d0e8;
 }
 
 .decision-hero-meta {
     display: grid;
-    gap: 18px;
-    padding: 14px 0 0;
+    gap: 16px;
+    padding: 10px 0 0;
     border: 0;
     border-radius: 0;
     background: none;
@@ -1602,8 +1564,8 @@ a {
 }
 
 .decision-hero .hero-context-text {
-    font-size: 13.5px;
-    line-height: 1.75;
+    font-size: 13px;
+    line-height: 1.65;
     color: #b8c9e4;
 }
 
@@ -1616,7 +1578,7 @@ a {
     border-top: 1px solid rgba(154, 182, 255, 0.16);
     border-radius: 0;
     background: none;
-    padding: 18px 0 0;
+    padding: 14px 0 0;
     box-shadow: none;
 }
 
@@ -1648,7 +1610,7 @@ a {
     flex-wrap: wrap;
     gap: 12px;
     align-items: center;
-    padding-top: 6px;
+    padding-top: 2px;
 }
 
 .decision-action-row .hero-store-cta {
@@ -1665,13 +1627,13 @@ a {
 
 .decision-editorial-flow {
     display: grid;
-    gap: 52px;
+    gap: 42px;
 }
 
 .decision-context-shelf {
     display: grid;
     grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
-    gap: 44px;
+    gap: 36px;
     align-items: start;
 }
 
@@ -1703,7 +1665,7 @@ a {
 .decision-media-section .panel-head,
 .decision-store-section .panel-head,
 .decision-reviews-section .panel-head {
-    padding: 0 0 16px;
+    padding: 0 0 10px;
 }
 
 .decision-insights-section .panel-title,
@@ -1719,9 +1681,9 @@ a {
 .decision-media-section .panel-subtitle,
 .decision-store-section .panel-subtitle,
 .decision-reviews-section .panel-subtitle {
-    max-width: 56ch;
+    max-width: 44ch;
     color: #93a9ca;
-    line-height: 1.7;
+    line-height: 1.55;
 }
 
 .decision-action-row .hero-watch-btn {
@@ -1740,9 +1702,9 @@ a {
 .decision-store-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 24px;
+    gap: 18px;
     align-items: start;
-    padding-top: 10px;
+    padding-top: 4px;
 }
 
 .decision-best-deal {
@@ -1816,36 +1778,15 @@ a {
 .decision-summary-strip {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 22px;
+    gap: 14px;
     align-items: start;
     padding: 0;
     border: 0;
 }
 
-.decision-summary-intro {
-    display: grid;
-    gap: 8px;
-}
-
-.decision-summary-kicker {
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #88a4ce;
-    font-weight: 700;
-}
-
-.decision-summary-copy {
-    margin: 0;
-    max-width: 58ch;
-    font-size: 15px;
-    line-height: 1.8;
-    color: #9bb0d1;
-}
-
 .decision-summary-rail {
     position: relative;
-    padding: 24px 28px;
+    padding: 18px 22px;
     border-radius: 26px;
     background:
         radial-gradient(circle at 0% 0%, rgba(111, 232, 255, 0.08), transparent 26%),
@@ -1893,7 +1834,7 @@ a {
 }
 
 .decision-media-shell {
-    min-height: clamp(280px, 36vw, 430px);
+    min-height: clamp(240px, 30vw, 360px);
     border-radius: 30px;
     background:
         radial-gradient(circle at 18% 18%, rgba(111, 232, 255, 0.1), transparent 28%),
@@ -1953,23 +1894,13 @@ a {
 .decision-reviews-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 24px;
+    gap: 18px;
     align-items: start;
 }
 
 .decision-review-copy {
     display: grid;
-    gap: 12px;
-    padding-bottom: 18px;
-    border-bottom: 1px solid rgba(154, 182, 255, 0.1);
-}
-
-.decision-review-kicker {
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #88a4ce;
-    font-weight: 700;
+    gap: 10px;
 }
 
 .decision-review-headline {
@@ -1984,9 +1915,9 @@ a {
 
 .decision-review-summary {
     margin: 0;
-    max-width: 70ch;
-    font-size: 15.5px;
-    line-height: 1.9;
+    max-width: 62ch;
+    font-size: 15px;
+    line-height: 1.8;
     color: #bccde6;
 }
 
@@ -2053,18 +1984,18 @@ a {
 .decision-review-support {
     margin: 0;
     grid-column: 1 / -1;
-    max-width: 46ch;
-    font-size: 13px;
-    line-height: 1.75;
+    max-width: 38ch;
+    font-size: 12.5px;
+    line-height: 1.65;
     color: #93a8cb;
 }
 
 .decision-store-section {
-    padding-top: 2px;
+    padding-top: 0;
 }
 
 .decision-store-section .panel-head {
-    padding-bottom: 10px;
+    padding-bottom: 6px;
 }
 
 .decision-store-section .panel-title {
@@ -2072,15 +2003,15 @@ a {
 }
 
 .decision-store-section .panel-subtitle {
-    max-width: 34ch;
-    font-size: 13.5px;
+    max-width: 28ch;
+    font-size: 13px;
 }
 
 .decision-deep-dive {
     position: relative;
     display: grid;
-    gap: 28px;
-    padding: 32px;
+    gap: 22px;
+    padding: 28px;
     border-radius: 32px;
     background:
         radial-gradient(circle at 84% 0%, rgba(154, 182, 255, 0.12), transparent 24%),
@@ -2112,18 +2043,10 @@ a {
 
 .decision-deep-dive-header {
     display: grid;
-    gap: 8px;
-    max-width: 60ch;
+    gap: 6px;
+    max-width: 52ch;
     position: relative;
     z-index: 1;
-}
-
-.decision-deep-dive-kicker {
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #88a4ce;
-    font-weight: 700;
 }
 
 .decision-deep-dive-title {
@@ -2137,8 +2060,8 @@ a {
 
 .decision-deep-dive-copy {
     margin: 0;
-    font-size: 14.5px;
-    line-height: 1.8;
+    font-size: 14px;
+    line-height: 1.65;
     color: #9cb1d0;
 }
 
@@ -2336,7 +2259,6 @@ a {
 @media (max-width: 1080px) {
     .decision-hero {
         grid-template-columns: 1fr;
-        min-height: clamp(480px, 70vw, 640px);
     }
 
     .decision-hero-media {
@@ -2347,7 +2269,7 @@ a {
 
     .decision-context-shelf {
         grid-template-columns: 1fr;
-        gap: 38px;
+        gap: 30px;
     }
 
     .decision-summary-grid {
@@ -2366,7 +2288,6 @@ a {
 @media (max-width: 760px) {
     .decision-hero {
         padding: 22px;
-        min-height: clamp(420px, 100vw, 560px);
     }
 
     .decision-hero-media {
@@ -2375,18 +2296,12 @@ a {
     }
 
     .decision-hero .hero-banner {
-        min-height: clamp(380px, 92vw, 540px);
+        min-height: clamp(300px, 74vw, 400px);
     }
 
     .decision-hero-content {
         max-width: 100%;
-        padding: 8px 0 12px;
-    }
-
-    .decision-hero-art-caption {
-        left: 18px;
-        right: 18px;
-        bottom: 18px;
+        padding: 2px 0 8px;
     }
 
     .decision-reviews-layout,
@@ -2396,7 +2311,7 @@ a {
     }
 
     .decision-summary-rail {
-        padding: 18px 20px;
+        padding: 16px 18px;
     }
 
     .decision-summary-chip {
@@ -2418,7 +2333,7 @@ a {
     }
 
     .decision-deep-dive {
-        padding: 24px 20px;
+        padding: 22px 18px;
     }
 }
 
@@ -2437,11 +2352,11 @@ a {
     }
 
     .decision-hero-meta {
-        padding: 8px 0 0;
+        padding: 6px 0 0;
     }
 
     .decision-hero .hero-banner {
-        min-height: clamp(340px, 92vw, 440px);
+        min-height: clamp(260px, 72vw, 340px);
     }
 
     .stats-grid {
@@ -2522,14 +2437,9 @@ a {
     <section class="hero decision-hero">
         <div class="decision-hero-media">
             <div class="hero-banner" id="heroBanner"></div>
-            <div class="decision-hero-art-caption">
-                <span>Featured art</span>
-                <strong>A cinematic read on the game before you decide whether now is the right time to jump in.</strong>
-            </div>
         </div>
         <div class="decision-hero-content">
             <div class="decision-hero-copy">
-                <div class="decision-hero-kicker">Game decision</div>
                 <div class="decision-hero-top">
                     <h1 id="gameTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></h1>
                     <div class="hero-badge" id="dealBadge"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-40" aria-hidden="true"></span></div>
@@ -2561,13 +2471,8 @@ a {
         <section class="panel panel-secondary decision-insights-section">
             <div class="panel-head">
                 <h2 class="panel-title">Decision insights</h2>
-                <div class="panel-subtitle">The key signals shaping whether this is a good fit and a good time to buy.</div>
             </div>
             <div class="panel-body decision-summary-strip" aria-label="Decision insights">
-                <div class="decision-summary-intro">
-                    <div class="decision-summary-kicker">Current read</div>
-                    <p class="decision-summary-copy">Supporting signals to read alongside the headline verdict, current price, and review picture.</p>
-                </div>
                 <div class="decision-summary-rail">
                     <div class="decision-summary-grid">
                         <article class="decision-summary-chip">
@@ -2594,7 +2499,6 @@ a {
         <section class="panel panel-secondary decision-media-section" aria-label="Featured media">
             <div class="panel-head">
                 <h2 class="panel-title">Featured media</h2>
-                <div class="panel-subtitle">Reserved for a future trailer or gameplay feature without interrupting the decision flow.</div>
             </div>
             <div class="panel-body">
                 <div class="decision-media-shell" aria-hidden="true"></div>
@@ -2605,11 +2509,9 @@ a {
             <section class="panel panel-secondary decision-reviews-section" id="reviewSentimentSection">
                 <div class="panel-head">
                     <h2 class="panel-title">Reviews &amp; sentiment</h2>
-                    <div class="panel-subtitle">A concise read on how players feel about the game and whether the broader reception supports buying in now.</div>
                 </div>
                 <div class="panel-body decision-reviews-layout">
                     <div class="decision-review-copy">
-                        <div class="decision-review-kicker">Overall reviews</div>
                         <h3 class="decision-review-headline" id="reviewOverallHeadline"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></h3>
                         <p class="decision-review-summary" id="reviewOverallSummary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
                     </div>
@@ -2636,7 +2538,6 @@ a {
             <section class="panel panel-secondary decision-store-section" id="storeSection">
                 <div class="panel-head">
                     <h2 class="panel-title">Available options</h2>
-                    <div class="panel-subtitle">A calm comparison of the stores currently carrying the game.</div>
                 </div>
                 <div class="panel-body decision-store-grid">
                     <article class="decision-best-deal" id="bestDealCard">
@@ -2657,9 +2558,7 @@ a {
 
     <section class="decision-deep-dive">
         <div class="decision-deep-dive-header">
-            <div class="decision-deep-dive-kicker">Deep dive</div>
             <h2 class="decision-deep-dive-title">Price history, player activity, and nearby alternatives.</h2>
-            <p class="decision-deep-dive-copy">Use the history and neighboring titles below when the headline recommendation still needs more evidence.</p>
         </div>
         <div class="decision-layout content-grid">
             <main class="decision-main left-column">

@@ -1498,7 +1498,7 @@ a {
 
 .decision-hero-copy {
     display: grid;
-    gap: 10px;
+    gap: 8px;
 }
 
 .decision-hero-top {
@@ -1520,7 +1520,7 @@ a {
 
 .decision-verdict {
     margin: 0;
-    max-width: 16ch;
+    max-width: 22ch;
     font-size: clamp(34px, 4.2vw, 50px);
     line-height: 0.96;
     font-weight: 840;
@@ -1530,16 +1530,16 @@ a {
 
 .decision-verdict-note {
     margin: 0;
-    max-width: 42ch;
+    max-width: 26ch;
     font-size: 14px;
-    line-height: 1.7;
+    line-height: 1.45;
     color: #c0d0e8;
 }
 
 .decision-hero-meta {
     display: grid;
-    gap: 16px;
-    padding: 10px 0 0;
+    gap: 12px;
+    padding: 6px 0 0;
     border: 0;
     border-radius: 0;
     background: none;
@@ -3865,14 +3865,14 @@ function buildGameContextSummary(payload, context) {
         return {
             title: "Decision",
             text: timingReason || "Current deal timing is strong.",
-            heroSub: "Strong value at today's price.",
+            heroSub: "Strong value now",
         };
     }
     if (timingState === "good_time_to_buy") {
         return {
             title: "Decision",
             text: timingReason || "Current price is compelling for this title.",
-            heroSub: "A solid moment to jump in.",
+            heroSub: "Good time to buy",
         };
     }
     if (timingState === "wait_for_better_drop") {
@@ -3902,18 +3902,12 @@ function buildHeroVerdictLine(payload, context = currentGameContext) {
     const reviewScoreText = String(review?.score_text || "").trim();
     const reviewSummary = normalizeReasonSnippet(review?.summary);
     const engagement = normalizeReasonSnippet(getEngagementText(payload));
-
-    let setup = "Live release.";
-    if (context?.mode === "free") setup = "Free-to-play release.";
-    if (context?.mode === "unreleased") setup = "Upcoming release.";
-
     if (reviewLabel) {
-        const scoreSuffix = reviewScoreText ? ` (${reviewScoreText})` : "";
-        return `${setup} Review sentiment is ${reviewLabel}${scoreSuffix}.`;
+        return reviewScoreText ? `${reviewLabel} · ${reviewScoreText}` : reviewLabel;
     }
-    if (reviewSummary) return `${setup} ${reviewSummary}.`;
-    if (engagement) return `${setup} ${engagement}.`;
-    return `${setup} Signals are still developing.`;
+    if (reviewSummary) return reviewSummary;
+    if (engagement && context?.mode !== "unreleased") return engagement;
+    return "";
 }
 
 function buildReviewSentimentView(payload) {
@@ -4635,11 +4629,16 @@ function applyAdaptiveGameLayout(payload, context) {
     const contextTitle = document.getElementById("gameContextTitle");
     const contextText = document.getElementById("gameContextText");
     const verdictLine = document.getElementById("gameVerdictLine");
+    const verdictText = buildHeroVerdictLine(payload, context);
     if (contextCard) contextCard.classList.remove("gd-skeleton-surface");
+    if (contextCard) contextCard.hidden = true;
     if (contextTitle) contextTitle.innerText = contextSummary.title;
     if (contextText) contextText.innerText = contextSummary.text;
     document.getElementById("gameSub").innerText = contextSummary.heroSub;
-    if (verdictLine) verdictLine.innerText = buildHeroVerdictLine(payload, context);
+    if (verdictLine) {
+        verdictLine.hidden = !verdictText;
+        verdictLine.innerText = verdictText;
+    }
     renderReviewSentimentSection(payload);
 
     const priceHistoryPanel = document.getElementById("priceHistoryPanel");

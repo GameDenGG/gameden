@@ -1387,18 +1387,39 @@ a {
 .decision-page {
     max-width: 1220px;
     display: grid;
-    gap: 22px;
+    gap: 30px;
 }
 
 .decision-hero {
     display: grid;
     grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.05fr);
-    gap: 18px;
-    padding: 18px;
+    gap: 24px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 28px;
+    border: 1px solid rgba(154, 182, 255, 0.18);
+    background:
+        radial-gradient(circle at 82% 0%, rgba(111, 232, 255, 0.08), transparent 32%),
+        linear-gradient(180deg, rgba(9, 19, 34, 0.98), rgba(6, 14, 28, 0.98));
+    box-shadow: 0 22px 48px rgba(2, 8, 20, 0.34);
+}
+
+.decision-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(90deg, rgba(154, 182, 255, 0.08), transparent 24%),
+        linear-gradient(180deg, rgba(223, 236, 255, 0.06), transparent 20%);
+    opacity: 0.9;
 }
 
 .decision-hero-media {
     min-width: 0;
+    position: relative;
+    z-index: 1;
 }
 
 .decision-hero .hero-banner {
@@ -1449,7 +1470,10 @@ a {
 .decision-hero-content {
     min-width: 0;
     display: grid;
-    gap: 14px;
+    gap: 18px;
+    align-content: start;
+    position: relative;
+    z-index: 1;
 }
 
 .decision-hero-top {
@@ -1481,16 +1505,28 @@ a {
 
 .decision-verdict-note {
     margin: -2px 0 2px;
-    max-width: 64ch;
+    max-width: 60ch;
     font-size: 14px;
     line-height: 1.65;
     color: #b6c8e4;
 }
 
+.decision-hero-meta {
+    display: grid;
+    gap: 14px;
+    padding: 16px 18px 18px;
+    border: 1px solid rgba(154, 182, 255, 0.16);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(12, 23, 41, 0.74), rgba(8, 16, 29, 0.8));
+    box-shadow: inset 0 1px 0 rgba(223, 236, 255, 0.06);
+}
+
 .decision-hero .hero-context-card {
-    opacity: 0.94;
-    border-color: rgba(154, 182, 255, 0.2);
-    background: linear-gradient(180deg, rgba(11, 22, 41, 0.82), rgba(9, 18, 34, 0.82));
+    opacity: 1;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    padding: 0;
 }
 
 .decision-hero .hero-context-title {
@@ -1509,11 +1545,12 @@ a {
     align-items: baseline;
     flex-wrap: wrap;
     gap: 12px;
-    border: 1px solid rgba(108, 221, 170, 0.55);
-    border-radius: 12px;
-    background: linear-gradient(180deg, rgba(14, 42, 32, 0.68), rgba(9, 30, 22, 0.62));
-    padding: 12px 15px;
-    box-shadow: inset 0 1px 0 rgba(185, 250, 221, 0.08);
+    border: 0;
+    border-top: 1px solid rgba(154, 182, 255, 0.12);
+    border-radius: 0;
+    background: none;
+    padding: 14px 0 0;
+    box-shadow: none;
 }
 
 .decision-price-label {
@@ -1544,6 +1581,7 @@ a {
     flex-wrap: wrap;
     gap: 10px;
     align-items: center;
+    padding-top: 2px;
 }
 
 .decision-action-row .hero-store-cta {
@@ -1558,21 +1596,42 @@ a {
     box-shadow: 0 9px 22px rgba(13, 104, 70, 0.32);
 }
 
-.decision-store-section {
-    border-color: rgba(154, 182, 255, 0.11);
-    background: linear-gradient(180deg, rgba(10, 20, 38, 0.9), rgba(8, 17, 31, 0.9));
-    box-shadow: 0 12px 24px rgba(1, 8, 20, 0.2);
+.decision-editorial-flow {
+    display: grid;
+    gap: 34px;
 }
 
-.decision-store-section .panel-head::after {
+.decision-store-section {
+    border: 0;
+    background: none;
+    box-shadow: none;
+    overflow: visible;
+}
+
+.decision-store-section::before,
+.decision-reviews-section::before {
+    display: none;
+}
+
+.decision-store-section .panel-head::after,
+.decision-reviews-section .panel-head::after {
+    margin-top: 14px;
     background: linear-gradient(90deg, rgba(154, 182, 255, 0.12), rgba(154, 182, 255, 0.04) 68%, transparent);
 }
 
-.decision-store-section .panel-title {
+.decision-store-section .panel-head,
+.decision-reviews-section .panel-head {
+    padding: 0 0 12px;
+}
+
+.decision-store-section .panel-title,
+.decision-reviews-section .panel-title {
     font-size: 19px;
 }
 
-.decision-store-section .panel-subtitle {
+.decision-store-section .panel-subtitle,
+.decision-reviews-section .panel-subtitle {
+    max-width: 52ch;
     color: #8ca3c7;
 }
 
@@ -1582,23 +1641,25 @@ a {
     background: rgba(255, 255, 255, 0.045);
 }
 
-.decision-store-section .panel-body {
-    padding-top: 10px;
+.decision-store-section .panel-body,
+.decision-reviews-section .panel-body {
+    padding: 0;
 }
 
 .decision-store-grid {
     display: grid;
     grid-template-columns: minmax(220px, 0.45fr) minmax(0, 1fr);
-    gap: 14px;
+    gap: 20px;
+    align-items: start;
 }
 
 .decision-best-deal {
     border: 1px solid rgba(154, 182, 255, 0.16);
     border-radius: 14px;
-    background: linear-gradient(180deg, rgba(13, 26, 46, 0.7), rgba(10, 20, 37, 0.68));
-    padding: 12px;
+    background: rgba(255, 255, 255, 0.025);
+    padding: 16px 18px;
     display: grid;
-    gap: 6px;
+    gap: 8px;
     transition:
         border-color var(--motion-base) ease,
         box-shadow var(--motion-base) ease,
@@ -1624,13 +1685,28 @@ a {
     color: #b7c9e6;
 }
 
+.decision-store-list-wrap {
+    padding-top: 4px;
+}
+
 .decision-store-list {
     margin: 0;
-    padding-left: 18px;
+    padding: 0;
+    list-style: none;
     display: grid;
-    gap: 6px;
+    gap: 10px;
     color: #9bb0d2;
     font-size: 12px;
+}
+
+.decision-store-list li {
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(154, 182, 255, 0.1);
+}
+
+.decision-store-list li:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
 }
 
 .decision-store-list a {
@@ -1645,21 +1721,50 @@ a {
 
 .decision-summary-strip {
     display: grid;
+    grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1fr);
+    gap: 22px;
+    align-items: start;
+    padding: 2px 0 6px;
+    border-top: 1px solid rgba(154, 182, 255, 0.12);
+    border-bottom: 1px solid rgba(154, 182, 255, 0.08);
+}
+
+.decision-summary-intro {
+    display: grid;
+    gap: 6px;
+}
+
+.decision-summary-kicker {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #88a4ce;
+    font-weight: 700;
+}
+
+.decision-summary-copy {
+    margin: 0;
+    max-width: 28ch;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #93a8cb;
+}
+
+.decision-summary-grid {
+    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
+    gap: 14px 18px;
 }
 
 .decision-summary-chip {
-    border: 1px solid rgba(154, 182, 255, 0.14);
-    border-radius: 12px;
-    padding: 11px 13px;
-    background: linear-gradient(180deg, rgba(11, 22, 39, 0.75), rgba(8, 16, 29, 0.75));
+    border: 0;
+    border-left: 1px solid rgba(154, 182, 255, 0.12);
+    border-radius: 0;
+    padding: 2px 0 2px 16px;
+    background: none;
+    box-shadow: none;
     display: grid;
     gap: 5px;
-    transition:
-        border-color var(--motion-base) ease,
-        box-shadow var(--motion-base) ease,
-        transform var(--motion-fast) var(--ease-premium);
 }
 
 .decision-summary-chip span {
@@ -1681,22 +1786,22 @@ a {
 }
 
 .decision-reviews-section {
-    border-color: rgba(154, 182, 255, 0.12);
-    background:
-        radial-gradient(circle at 100% 0%, rgba(111, 232, 255, 0.06), transparent 38%),
-        linear-gradient(180deg, rgba(10, 20, 37, 0.92), rgba(8, 17, 31, 0.92));
+    border: 0;
+    background: none;
+    box-shadow: none;
+    overflow: visible;
 }
 
 .decision-reviews-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
-    gap: 18px;
+    grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.65fr);
+    gap: 26px;
     align-items: start;
 }
 
 .decision-review-copy {
     display: grid;
-    gap: 8px;
+    gap: 10px;
 }
 
 .decision-review-kicker {
@@ -1726,11 +1831,12 @@ a {
 
 .decision-review-side {
     display: grid;
-    gap: 12px;
-    padding: 14px 15px;
-    border-radius: 14px;
-    border: 1px solid rgba(154, 182, 255, 0.12);
-    background: rgba(255, 255, 255, 0.03);
+    gap: 14px;
+    padding: 8px 0 0 20px;
+    border: 0;
+    border-left: 1px solid rgba(154, 182, 255, 0.12);
+    border-radius: 0;
+    background: none;
 }
 
 .decision-review-side-label {
@@ -1755,11 +1861,10 @@ a {
 }
 
 .decision-review-signal {
-    min-width: 108px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(154, 182, 255, 0.14);
-    background: rgba(9, 18, 33, 0.42);
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
 }
 
 .decision-review-signal span {
@@ -1785,6 +1890,7 @@ a {
     font-size: 12.5px;
     line-height: 1.6;
     color: #93a8cb;
+    max-width: 32ch;
 }
 
 .decision-layout {
@@ -1887,20 +1993,30 @@ a {
     }
 
     .decision-summary-chip:hover {
-        border-color: rgba(171, 198, 255, 0.3);
-        box-shadow: 0 10px 20px rgba(2, 8, 20, 0.2);
-        transform: translateY(-1px);
+        box-shadow: none;
+        transform: none;
     }
 
     .decision-best-deal:hover {
-        border-color: rgba(123, 234, 188, 0.5);
-        box-shadow: 0 12px 22px rgba(12, 72, 48, 0.25);
-        transform: translateY(-1px);
+        border-color: rgba(154, 182, 255, 0.22);
+        box-shadow: none;
+        transform: none;
+    }
+
+    .decision-store-section:hover,
+    .decision-reviews-section:hover {
+        border-color: transparent;
+        box-shadow: none;
+        transform: none;
     }
 }
 
 @media (max-width: 1080px) {
     .decision-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .decision-summary-strip {
         grid-template-columns: 1fr;
     }
 
@@ -1911,7 +2027,30 @@ a {
 
 @media (max-width: 760px) {
     .decision-reviews-layout,
-    .decision-summary-strip,
+    .decision-store-grid,
+    .decision-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .decision-summary-strip {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .decision-summary-chip {
+        padding-left: 0;
+        border-left: 0;
+        border-top: 1px solid rgba(154, 182, 255, 0.12);
+        padding-top: 12px;
+    }
+
+    .decision-review-side {
+        padding-left: 0;
+        border-left: 0;
+        border-top: 1px solid rgba(154, 182, 255, 0.12);
+        padding-top: 14px;
+    }
+
     .decision-store-grid {
         grid-template-columns: 1fr;
     }
@@ -1925,6 +2064,14 @@ a {
 
     .decision-verdict {
         font-size: clamp(24px, 7.6vw, 32px);
+    }
+
+    .decision-hero {
+        padding: 18px;
+    }
+
+    .decision-hero-meta {
+        padding: 14px 15px 16px;
     }
 
     .hero-banner {
@@ -2017,93 +2164,103 @@ a {
             </div>
             <p class="decision-verdict" id="gameSub"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
             <p class="decision-verdict-note" id="gameVerdictLine"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></p>
-            <div class="hero-context-card gd-skeleton-surface" id="gameContextCard">
-                <div class="hero-context-title" id="gameContextTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></div>
-                <div class="hero-context-text" id="gameContextText"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></div>
-            </div>
-            <div class="decision-price-line">
-                <span class="decision-price-label" id="heroStatLabelPrimary">Best price today</span>
-                <strong class="decision-price-value" id="currentPrice">--</strong>
-                <span class="decision-price-discount" id="currentDiscount">--</span>
-            </div>
-            <div class="decision-action-row">
-                <a class="hero-store-cta is-disabled" id="storeCtaLink" href="#" aria-disabled="true" rel="noopener noreferrer" target="_blank">View best offer</a>
-                <button class="hero-watch-btn" id="watchButton" type="button" aria-pressed="false">Watch</button>
-                <button class="hero-watch-btn" id="ownedButton" type="button" aria-pressed="false">Own</button>
-                <button class="hero-watch-btn hero-share-btn" id="shareDealButton" type="button" disabled>Share Deal</button>
-            </div>
-        </div>
-    </section>
-
-    <section class="decision-summary-strip" aria-label="Decision insights">
-        <article class="decision-summary-chip">
-            <span>Should you buy</span>
-            <strong id="summaryDealQuality">--</strong>
-        </article>
-        <article class="decision-summary-chip">
-            <span>Player activity</span>
-            <strong id="summaryPlayerActivity">--</strong>
-        </article>
-        <article class="decision-summary-chip">
-            <span>Confidence</span>
-            <strong id="summaryConfidence">--</strong>
-        </article>
-        <article class="decision-summary-chip">
-            <span>Recommendation</span>
-            <strong id="summaryRecommendation">--</strong>
-        </article>
-    </section>
-
-    <section class="panel panel-secondary decision-store-section" id="storeSection">
-        <div class="panel-head">
-            <h2 class="panel-title">Available options</h2>
-            <div class="panel-subtitle">A quiet comparison of the current storefront offers.</div>
-        </div>
-        <div class="panel-body decision-store-grid">
-            <article class="decision-best-deal" id="bestDealCard">
-                <div class="decision-best-label">Best current option</div>
-                <div class="decision-best-price" id="bestDealPrice">--</div>
-                <div class="decision-best-note" id="bestDealNote">Current lead among the listed stores.</div>
-            </article>
-            <div class="decision-store-list-wrap">
-                <div class="decision-best-label">Other options</div>
-                <ul class="decision-store-list" id="storeQuickList">
-                    <li>No alternate store offers available.</li>
-                </ul>
-            </div>
-        </div>
-    </section>
-
-    <section class="panel panel-secondary decision-reviews-section" id="reviewSentimentSection">
-        <div class="panel-head">
-            <h2 class="panel-title">Reviews &amp; sentiment</h2>
-            <div class="panel-subtitle">A concise read on how players feel about the game.</div>
-        </div>
-        <div class="panel-body decision-reviews-layout">
-            <div class="decision-review-copy">
-                <div class="decision-review-kicker">Overall reviews</div>
-                <h3 class="decision-review-headline" id="reviewOverallHeadline"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></h3>
-                <p class="decision-review-summary" id="reviewOverallSummary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
-            </div>
-            <div class="decision-review-side">
-                <div>
-                    <div class="decision-review-side-label">Current sentiment</div>
-                    <p class="decision-review-side-copy" id="reviewRecentSummary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></p>
+            <div class="decision-hero-meta">
+                <div class="hero-context-card gd-skeleton-surface" id="gameContextCard">
+                    <div class="hero-context-title" id="gameContextTitle"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></div>
+                    <div class="hero-context-text" id="gameContextText"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></div>
                 </div>
-                <div class="decision-review-signal-row">
-                    <div class="decision-review-signal">
-                        <span>Score</span>
-                        <strong id="reviewScoreSignal"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-24" aria-hidden="true"></span></strong>
-                    </div>
-                    <div class="decision-review-signal">
-                        <span>Coverage</span>
-                        <strong id="reviewCountSignal"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-32" aria-hidden="true"></span></strong>
-                    </div>
+                <div class="decision-price-line">
+                    <span class="decision-price-label" id="heroStatLabelPrimary">Best price today</span>
+                    <strong class="decision-price-value" id="currentPrice">--</strong>
+                    <span class="decision-price-discount" id="currentDiscount">--</span>
                 </div>
-                <p class="decision-review-support" id="reviewSupportLine"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></p>
+                <div class="decision-action-row">
+                    <a class="hero-store-cta is-disabled" id="storeCtaLink" href="#" aria-disabled="true" rel="noopener noreferrer" target="_blank">View best offer</a>
+                    <button class="hero-watch-btn" id="watchButton" type="button" aria-pressed="false">Watch</button>
+                    <button class="hero-watch-btn" id="ownedButton" type="button" aria-pressed="false">Own</button>
+                    <button class="hero-watch-btn hero-share-btn" id="shareDealButton" type="button" disabled>Share Deal</button>
+                </div>
             </div>
         </div>
     </section>
+
+    <div class="decision-editorial-flow">
+        <section class="decision-summary-strip" aria-label="Decision insights">
+            <div class="decision-summary-intro">
+                <div class="decision-summary-kicker">Decision analysis</div>
+                <p class="decision-summary-copy">Supporting signals to read alongside the current price and review picture.</p>
+            </div>
+            <div class="decision-summary-grid">
+                <article class="decision-summary-chip">
+                    <span>Should you buy</span>
+                    <strong id="summaryDealQuality">--</strong>
+                </article>
+                <article class="decision-summary-chip">
+                    <span>Player activity</span>
+                    <strong id="summaryPlayerActivity">--</strong>
+                </article>
+                <article class="decision-summary-chip">
+                    <span>Confidence</span>
+                    <strong id="summaryConfidence">--</strong>
+                </article>
+                <article class="decision-summary-chip">
+                    <span>Recommendation</span>
+                    <strong id="summaryRecommendation">--</strong>
+                </article>
+            </div>
+        </section>
+
+        <section class="panel panel-secondary decision-store-section" id="storeSection">
+            <div class="panel-head">
+                <h2 class="panel-title">Available options</h2>
+                <div class="panel-subtitle">A quiet comparison of the current storefront offers.</div>
+            </div>
+            <div class="panel-body decision-store-grid">
+                <article class="decision-best-deal" id="bestDealCard">
+                    <div class="decision-best-label">Best current option</div>
+                    <div class="decision-best-price" id="bestDealPrice">--</div>
+                    <div class="decision-best-note" id="bestDealNote">Current lead among the listed stores.</div>
+                </article>
+                <div class="decision-store-list-wrap">
+                    <div class="decision-best-label">Other options</div>
+                    <ul class="decision-store-list" id="storeQuickList">
+                        <li>No alternate store offers available.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel panel-secondary decision-reviews-section" id="reviewSentimentSection">
+            <div class="panel-head">
+                <h2 class="panel-title">Reviews &amp; sentiment</h2>
+                <div class="panel-subtitle">A concise read on how players feel about the game.</div>
+            </div>
+            <div class="panel-body decision-reviews-layout">
+                <div class="decision-review-copy">
+                    <div class="decision-review-kicker">Overall reviews</div>
+                    <h3 class="decision-review-headline" id="reviewOverallHeadline"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-48" aria-hidden="true"></span></h3>
+                    <p class="decision-review-summary" id="reviewOverallSummary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-80" aria-hidden="true"></span></p>
+                </div>
+                <div class="decision-review-side">
+                    <div>
+                        <div class="decision-review-side-label">Current sentiment</div>
+                        <p class="decision-review-side-copy" id="reviewRecentSummary"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-72" aria-hidden="true"></span></p>
+                    </div>
+                    <div class="decision-review-signal-row">
+                        <div class="decision-review-signal">
+                            <span>Score</span>
+                            <strong id="reviewScoreSignal"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-24" aria-hidden="true"></span></strong>
+                        </div>
+                        <div class="decision-review-signal">
+                            <span>Coverage</span>
+                            <strong id="reviewCountSignal"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-32" aria-hidden="true"></span></strong>
+                        </div>
+                    </div>
+                    <p class="decision-review-support" id="reviewSupportLine"><span class="gd-skeleton-block gd-skeleton-line gd-skeleton-w-64" aria-hidden="true"></span></p>
+                </div>
+            </div>
+        </section>
+    </div>
 
     <section class="decision-details-shell">
         <details>

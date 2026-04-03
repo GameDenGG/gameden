@@ -15854,24 +15854,7 @@ try {
                 syncSearchInteractionVisualState();
                 const query = String(catalogQueryState.query || "").trim();
                 if (!query) return;
-                const queryKey = normalizeSearchQueryKey(query);
-                if (state.search.phase === SEARCH_PHASE_RESULTS || state.search.phase === SEARCH_PHASE_NO_RESULTS) {
-                    renderSearchResults();
-                    return;
-                }
-                if (!queryKey || queryKey.length < SEARCH_MIN_QUERY_CHARS) {
-                    renderSearchResults();
-                    return;
-                }
-                if (hasLiveSearchRequestForQuery(queryKey)) {
-                    renderSearchResults();
-                    return;
-                }
-                if (searchInputTimer) {
-                    clearTimeout(searchInputTimer);
-                    searchInputTimer = null;
-                }
-                void refreshSearchResults();
+                renderSearchResults();
             });
 
             ui.searchInput.addEventListener("blur", () => {

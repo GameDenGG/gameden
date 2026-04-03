@@ -2028,6 +2028,100 @@ a {
     object-fit: cover;
 }
 
+.featured-media-controls {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    z-index: 6;
+    pointer-events: auto;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 18px;
+    border: 1px solid rgba(223, 236, 255, 0.12);
+    background: linear-gradient(180deg, rgba(8, 16, 29, 0.76), rgba(5, 10, 20, 0.9));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 16px 36px rgba(2, 8, 20, 0.28);
+}
+
+#featuredMediaStage.is-playing .featured-media-controls,
+#featuredMediaStage.is-loading .featured-media-controls {
+    display: grid;
+}
+
+.featured-media-control-button {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    border: 1px solid rgba(232, 241, 255, 0.18);
+    background: rgba(255, 255, 255, 0.08);
+    color: #f4f8ff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+        transform var(--motion-fast) var(--ease-premium),
+        background var(--motion-base) ease,
+        border-color var(--motion-base) ease;
+}
+
+.featured-media-control-button:hover {
+    transform: translateY(-1px);
+    border-color: rgba(232, 241, 255, 0.32);
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.featured-media-control-button:focus-visible,
+.featured-media-seek-wrap input:focus-visible,
+.featured-media-volume-wrap input:focus-visible {
+    outline: 2px solid rgba(111, 232, 255, 0.86);
+    outline-offset: 2px;
+}
+
+.featured-media-control-button svg {
+    width: 20px;
+    height: 20px;
+}
+
+.featured-media-seek-wrap,
+.featured-media-volume-wrap {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+
+.featured-media-seek-wrap {
+    width: 100%;
+}
+
+.featured-media-volume-wrap {
+    width: min(150px, 18vw);
+}
+
+.featured-media-seek-wrap input,
+.featured-media-volume-wrap input {
+    width: 100%;
+    accent-color: #74dcff;
+    cursor: pointer;
+}
+
+.featured-media-seek-wrap input {
+    height: 22px;
+}
+
+.featured-media-volume-wrap input {
+    height: 18px;
+}
+
+#featuredMediaStage.is-loading .featured-media-controls {
+    opacity: 0.7;
+}
+
 .featured-media-fallback {
     align-self: end;
     justify-self: start;
@@ -2598,6 +2692,24 @@ a {
         height: 70px;
     }
 
+    .featured-media-controls {
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        gap: 8px;
+        padding: 10px 12px;
+        border-radius: 16px;
+    }
+
+    .featured-media-control-button {
+        width: 38px;
+        height: 38px;
+    }
+
+    .featured-media-volume-wrap {
+        width: 92px;
+    }
+
     .featured-media-fallback {
         margin: 16px;
         max-width: calc(100% - 32px);
@@ -2723,6 +2835,29 @@ a {
                 <div id="featuredMediaStage" aria-label="Featured trailer stage">
                     <img id="featuredMediaPoster" alt="" loading="lazy" decoding="async">
                     <div id="featuredMediaPlayer" aria-live="polite"></div>
+                    <div id="featuredMediaControls" class="featured-media-controls" hidden>
+                        <button id="featuredMediaToggleButton" type="button" class="featured-media-control-button" aria-label="Pause trailer">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path fill="currentColor" d="M7 6.5h3v11H7zm7 0h3v11h-3z"></path>
+                            </svg>
+                        </button>
+                        <div class="featured-media-seek-wrap">
+                            <input id="featuredMediaSeekInput" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek trailer">
+                        </div>
+                        <button id="featuredMediaMuteButton" type="button" class="featured-media-control-button" aria-label="Unmute trailer">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path fill="currentColor" d="M5 10v4h3l4 4V6l-4 4H5zm11.25 2a3.75 3.75 0 0 0-2.25-3.42v6.84A3.75 3.75 0 0 0 16.25 12zm-2.25-7.62v2.13a8 8 0 0 1 0 11.98v2.13a10 10 0 0 0 0-16.24z"></path>
+                            </svg>
+                        </button>
+                        <div class="featured-media-volume-wrap">
+                            <input id="featuredMediaVolumeInput" type="range" min="0" max="1" value="1" step="0.05" aria-label="Trailer volume">
+                        </div>
+                        <button id="featuredMediaFullscreenButton" type="button" class="featured-media-control-button" aria-label="Enter fullscreen">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path fill="currentColor" d="M7 14H5v5h5v-2H7zm0-4h3V7h5v3h2V5H7zm10 9h-3v2h5v-5h-2zM14 7v2h3v3h2V5h-5z"></path>
+                            </svg>
+                        </button>
+                    </div>
                     <div id="featuredMediaOverlay">
                         <button id="featuredMediaPlayButton" type="button" aria-label="Play featured trailer">
                             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -3123,6 +3258,12 @@ const featuredMediaPoster = document.getElementById("featuredMediaPoster");
 const featuredMediaOverlay = document.getElementById("featuredMediaOverlay");
 const featuredMediaPlayButton = document.getElementById("featuredMediaPlayButton");
 const featuredMediaPlayer = document.getElementById("featuredMediaPlayer");
+const featuredMediaControls = document.getElementById("featuredMediaControls");
+const featuredMediaToggleButton = document.getElementById("featuredMediaToggleButton");
+const featuredMediaSeekInput = document.getElementById("featuredMediaSeekInput");
+const featuredMediaMuteButton = document.getElementById("featuredMediaMuteButton");
+const featuredMediaVolumeInput = document.getElementById("featuredMediaVolumeInput");
+const featuredMediaFullscreenButton = document.getElementById("featuredMediaFullscreenButton");
 const relatedGamesEl = document.getElementById("relatedGames");
 const HIGH_VALUE_DISCOUNT_THRESHOLD = 60;
 const SHARE_BUTTON_DEFAULT_LABEL = "Share Deal";
@@ -4382,6 +4523,180 @@ function loadFeaturedMediaScriptOnce(kind) {
     return guardedPromise;
 }
 
+function setFeaturedMediaControlIcon(button, iconType) {
+    if (!(button instanceof HTMLButtonElement)) return;
+    const icons = {
+        play: `
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M8 6.5v11l9-5.5z"></path>
+            </svg>
+        `,
+        pause: `
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M7 6.5h3v11H7zm7 0h3v11h-3z"></path>
+            </svg>
+        `,
+        mute: `
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M5 10v4h3l4 4V6l-4 4H5zm11.25 2a3.75 3.75 0 0 0-2.25-3.42v6.84A3.75 3.75 0 0 0 16.25 12zm-2.25-7.62v2.13a8 8 0 0 1 0 11.98v2.13a10 10 0 0 0 0-16.24z"></path>
+            </svg>
+        `,
+        unmute: `
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M5 10v4h3l4 4V6l-4 4H5zm9.5 2a4.5 4.5 0 0 0-1.5-3.36v6.72A4.5 4.5 0 0 0 14.5 12zm2.5 0a7 7 0 0 1-3 5.73v-2.1A4.99 4.99 0 0 0 17 12a4.99 4.99 0 0 0-3-4.63V5.27A7 7 0 0 1 17 12zm2 0a9 9 0 0 1-4 7.5v-2.03A7.01 7.01 0 0 0 19 12a7.01 7.01 0 0 0-4-5.47V4.5A9 9 0 0 1 19 12z"></path>
+            </svg>
+        `,
+        fullscreen: `
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M7 14H5v5h5v-2H7zm0-4h3V7h5v3h2V5H7zm10 9h-3v2h5v-5h-2zM14 7v2h3v3h2V5h-5z"></path>
+            </svg>
+        `,
+        fullscreenExit: `
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M9 3H7v3H4v2h5zm10 5V6h-3V3h-2v5zm-5 13h2v-3h3v-2h-5zM9 15H4v2h3v3h2z"></path>
+            </svg>
+        `,
+    };
+    button.innerHTML = icons[iconType] || icons.play;
+}
+
+function bindFeaturedMediaControls(video) {
+    if (
+        !(featuredMediaControls instanceof HTMLElement)
+        || !(featuredMediaToggleButton instanceof HTMLButtonElement)
+        || !(featuredMediaSeekInput instanceof HTMLInputElement)
+        || !(featuredMediaMuteButton instanceof HTMLButtonElement)
+        || !(featuredMediaVolumeInput instanceof HTMLInputElement)
+        || !(featuredMediaFullscreenButton instanceof HTMLButtonElement)
+    ) {
+        return () => {};
+    }
+
+    featuredMediaControls.hidden = false;
+
+    const syncState = () => {
+        const duration = Number(video.duration);
+        const currentTime = Number(video.currentTime);
+        const canSeek = Number.isFinite(duration) && duration > 0;
+        featuredMediaSeekInput.disabled = !canSeek;
+        featuredMediaSeekInput.value = canSeek
+            ? String(Math.max(0, Math.min(1000, Math.round((currentTime / duration) * 1000))))
+            : "0";
+        featuredMediaMuteButton.setAttribute("aria-label", video.muted || video.volume === 0 ? "Unmute trailer" : "Mute trailer");
+        setFeaturedMediaControlIcon(featuredMediaMuteButton, video.muted || video.volume === 0 ? "mute" : "unmute");
+        featuredMediaToggleButton.setAttribute("aria-label", video.paused ? "Play trailer" : "Pause trailer");
+        setFeaturedMediaControlIcon(featuredMediaToggleButton, video.paused ? "play" : "pause");
+        featuredMediaVolumeInput.value = String(Math.max(0, Math.min(1, Number.isFinite(video.volume) ? video.volume : 1)));
+        featuredMediaFullscreenButton.disabled = !(document.fullscreenEnabled !== false && (
+            (featuredMediaStage instanceof HTMLElement && typeof featuredMediaStage.requestFullscreen === "function")
+            || typeof video.requestFullscreen === "function"
+        ));
+        featuredMediaFullscreenButton.setAttribute(
+            "aria-label",
+            document.fullscreenElement ? "Exit fullscreen" : "Enter fullscreen",
+        );
+        setFeaturedMediaControlIcon(featuredMediaFullscreenButton, document.fullscreenElement ? "fullscreenExit" : "fullscreen");
+    };
+
+    const onTogglePlayback = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (video.paused) {
+            const playPromise = video.play();
+            if (playPromise && typeof playPromise.catch === "function") {
+                playPromise.catch(() => {});
+            }
+        } else {
+            video.pause();
+        }
+        syncState();
+    };
+
+    const onSeekInput = () => {
+        const duration = Number(video.duration);
+        if (!Number.isFinite(duration) || duration <= 0) return;
+        const nextTime = (Number(featuredMediaSeekInput.value) / 1000) * duration;
+        if (Number.isFinite(nextTime)) {
+            video.currentTime = Math.max(0, Math.min(duration, nextTime));
+        }
+    };
+
+    const onVolumeInput = () => {
+        const nextVolume = Math.max(0, Math.min(1, Number(featuredMediaVolumeInput.value)));
+        video.volume = nextVolume;
+        video.muted = nextVolume === 0 ? true : false;
+        syncState();
+    };
+
+    const onMuteToggle = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (video.muted || video.volume === 0) {
+            const restoredVolume = Number.isFinite(video.volume) && video.volume > 0 ? video.volume : 0.8;
+            video.muted = false;
+            if (restoredVolume <= 0) {
+                video.volume = 0.8;
+            }
+        } else {
+            video.muted = true;
+        }
+        syncState();
+    };
+
+    const onFullscreenToggle = async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const fullscreenTarget = featuredMediaStage instanceof HTMLElement ? featuredMediaStage : video;
+        try {
+            if (document.fullscreenElement) {
+                await document.exitFullscreen();
+            } else if (fullscreenTarget.requestFullscreen) {
+                await fullscreenTarget.requestFullscreen();
+            }
+        } catch (_error) {
+            // ignore
+        }
+        syncState();
+    };
+
+    const onFullscreenChange = () => syncState();
+
+    const onEnded = () => syncState();
+
+    video.addEventListener("play", syncState);
+    video.addEventListener("pause", syncState);
+    video.addEventListener("timeupdate", syncState);
+    video.addEventListener("loadedmetadata", syncState);
+    video.addEventListener("durationchange", syncState);
+    video.addEventListener("volumechange", syncState);
+    video.addEventListener("ended", onEnded);
+    featuredMediaToggleButton.addEventListener("click", onTogglePlayback);
+    featuredMediaSeekInput.addEventListener("input", onSeekInput);
+    featuredMediaVolumeInput.addEventListener("input", onVolumeInput);
+    featuredMediaMuteButton.addEventListener("click", onMuteToggle);
+    featuredMediaFullscreenButton.addEventListener("click", onFullscreenToggle);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+
+    syncState();
+
+    return () => {
+        video.removeEventListener("play", syncState);
+        video.removeEventListener("pause", syncState);
+        video.removeEventListener("timeupdate", syncState);
+        video.removeEventListener("loadedmetadata", syncState);
+        video.removeEventListener("durationchange", syncState);
+        video.removeEventListener("volumechange", syncState);
+        video.removeEventListener("ended", onEnded);
+        featuredMediaToggleButton.removeEventListener("click", onTogglePlayback);
+        featuredMediaSeekInput.removeEventListener("input", onSeekInput);
+        featuredMediaVolumeInput.removeEventListener("input", onVolumeInput);
+        featuredMediaMuteButton.removeEventListener("click", onMuteToggle);
+        featuredMediaFullscreenButton.removeEventListener("click", onFullscreenToggle);
+        document.removeEventListener("fullscreenchange", onFullscreenChange);
+        featuredMediaControls.hidden = true;
+    };
+}
+
 function destroyFeaturedMediaPlayback() {
     const controller = featuredMediaPlaybackController;
     featuredMediaPlaybackController = null;
@@ -4462,6 +4777,9 @@ function resetFeaturedMediaSection() {
         featuredMediaPlayButton.title = "";
         featuredMediaPlayButton.onclick = null;
     }
+    if (featuredMediaControls instanceof HTMLElement) {
+        featuredMediaControls.hidden = true;
+    }
     if (featuredMediaPoster instanceof HTMLImageElement) {
         featuredMediaPoster.removeAttribute("src");
         featuredMediaPoster.alt = "";
@@ -4490,7 +4808,7 @@ function activateFeaturedMediaStage(media, posterUrl, payload, mediaTitle) {
 
     const video = document.createElement("video");
     video.className = "featured-media-video";
-    video.controls = true;
+    video.controls = false;
     video.preload = "none";
     video.playsInline = true;
     video.muted = true;
@@ -4544,8 +4862,12 @@ function activateFeaturedMediaStage(media, posterUrl, payload, mediaTitle) {
             if (this._engine && typeof this._engine.reset === "function") {
                 this._engine.reset();
             }
+            if (typeof this._uiDestroy === "function") {
+                this._uiDestroy();
+            }
         },
         _engine: null,
+        _uiDestroy: bindFeaturedMediaControls(video),
     };
 
     if (playbackKind === "direct") {

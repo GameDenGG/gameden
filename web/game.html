@@ -4689,9 +4689,8 @@ function bindFeaturedMediaControls(video) {
             return;
         }
 
-        if (!featuredMediaControls.classList.contains("is-hidden") && !controlAutoHideTimer) {
-            scheduleControlAutoHide();
-        }
+        featuredMediaControls.classList.remove("is-hidden");
+        scheduleControlAutoHide();
     };
 
     const revealControls = () => {
@@ -4734,7 +4733,6 @@ function bindFeaturedMediaControls(video) {
             document.fullscreenElement ? "Exit fullscreen" : "Enter fullscreen",
         );
         setFeaturedMediaControlIcon(featuredMediaFullscreenButton, document.fullscreenElement ? "fullscreenExit" : "fullscreen");
-        maintainControlVisibility();
     };
 
     const onTogglePlayback = (event) => {
@@ -4856,16 +4854,33 @@ function bindFeaturedMediaControls(video) {
         syncState();
     };
 
-    const onFullscreenToggle = async (event) => {
+    const onFullscreenToggle = (event) => {
         event.preventDefault();
         event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === "function") {
+            event.stopImmediatePropagation();
+        }
         revealControls();
         const fullscreenTarget = featuredMediaStage instanceof HTMLElement ? featuredMediaStage : video;
         try {
             if (document.fullscreenElement) {
-                await document.exitFullscreen();
-            } else if (fullscreenTarget.requestFullscreen) {
-                await fullscreenTarget.requestFullscreen();
+                const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+                if (exitFullscreen) {
+                    const exitResult = exitFullscreen.call(document);
+                    if (exitResult && typeof exitResult.catch === "function") {
+                        exitResult.catch(() => {});
+                    }
+                }
+            } else {
+                const requestFullscreen = fullscreenTarget.requestFullscreen
+                    || fullscreenTarget.webkitRequestFullscreen
+                    || fullscreenTarget.msRequestFullscreen;
+                if (requestFullscreen) {
+                    const requestResult = requestFullscreen.call(fullscreenTarget);
+                    if (requestResult && typeof requestResult.catch === "function") {
+                        requestResult.catch(() => {});
+                    }
+                }
             }
         } catch (_error) {
             // ignore
@@ -4876,6 +4891,15 @@ function bindFeaturedMediaControls(video) {
     const onFullscreenChange = () => syncState();
 
     const onEnded = () => syncState();
+
+    const syncControlsForPlaybackState = () => {
+        if (video.paused || video.ended) {
+            clearControlAutoHideTimer();
+            featuredMediaControls.classList.remove("is-hidden");
+            return;
+        }
+        maintainControlVisibility();
+    };
 
     video.addEventListener("play", syncState);
     video.addEventListener("pause", syncState);
@@ -4903,6 +4927,9 @@ function bindFeaturedMediaControls(video) {
     featuredMediaMuteButton.addEventListener("click", onMuteToggle);
     featuredMediaFullscreenButton.addEventListener("click", onFullscreenToggle);
     document.addEventListener("fullscreenchange", onFullscreenChange);
+    video.addEventListener("play", syncControlsForPlaybackState);
+    video.addEventListener("pause", syncControlsForPlaybackState);
+    video.addEventListener("ended", syncControlsForPlaybackState);
 
     syncState();
 
@@ -4915,6 +4942,9 @@ function bindFeaturedMediaControls(video) {
         video.removeEventListener("volumechange", syncState);
         video.removeEventListener("ended", onEnded);
         video.removeEventListener("click", onSurfaceToggle);
+        video.removeEventListener("play", syncControlsForPlaybackState);
+        video.removeEventListener("pause", syncControlsForPlaybackState);
+        video.removeEventListener("ended", syncControlsForPlaybackState);
         featuredMediaStage.removeEventListener("pointermove", onStagePointerMove);
         featuredMediaStage.removeEventListener("pointerenter", onStagePointerEnter);
         featuredMediaStage.removeEventListener("pointerleave", onStagePointerLeave);

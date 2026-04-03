@@ -2026,26 +2026,29 @@ a {
     border: 0;
     background: #02060d;
     object-fit: cover;
+    cursor: pointer;
 }
 
 .featured-media-controls {
     position: absolute;
-    left: 16px;
-    right: 16px;
-    bottom: 16px;
+    left: 18px;
+    right: 18px;
+    bottom: 18px;
     z-index: 6;
     pointer-events: auto;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto auto auto;
     align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    border-radius: 18px;
-    border: 1px solid rgba(223, 236, 255, 0.12);
-    background: linear-gradient(180deg, rgba(8, 16, 29, 0.76), rgba(5, 10, 20, 0.9));
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    box-shadow: 0 16px 36px rgba(2, 8, 20, 0.28);
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(223, 236, 255, 0.09);
+    background:
+        linear-gradient(180deg, rgba(9, 16, 28, 0.55), rgba(5, 10, 18, 0.72)),
+        rgba(8, 14, 24, 0.35);
+    backdrop-filter: blur(18px) saturate(125%);
+    -webkit-backdrop-filter: blur(18px) saturate(125%);
+    box-shadow: 0 12px 28px rgba(2, 8, 20, 0.18);
 }
 
 #featuredMediaStage.is-playing .featured-media-controls,
@@ -2054,12 +2057,14 @@ a {
 }
 
 .featured-media-control-button {
-    width: 42px;
-    height: 42px;
+    width: 38px;
+    height: 38px;
     border-radius: 999px;
-    border: 1px solid rgba(232, 241, 255, 0.18);
-    background: rgba(255, 255, 255, 0.08);
-    color: #f4f8ff;
+    border: 1px solid rgba(232, 241, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: #eef4ff;
+    backdrop-filter: blur(12px) saturate(120%);
+    -webkit-backdrop-filter: blur(12px) saturate(120%);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2067,13 +2072,20 @@ a {
     transition:
         transform var(--motion-fast) var(--ease-premium),
         background var(--motion-base) ease,
-        border-color var(--motion-base) ease;
+        border-color var(--motion-base) ease,
+        box-shadow var(--motion-base) ease;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 8px 18px rgba(2, 8, 20, 0.16);
 }
 
 .featured-media-control-button:hover {
     transform: translateY(-1px);
-    border-color: rgba(232, 241, 255, 0.32);
-    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(232, 241, 255, 0.24);
+    background: rgba(255, 255, 255, 0.09);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        0 10px 20px rgba(2, 8, 20, 0.2);
 }
 
 .featured-media-control-button:focus-visible,
@@ -2084,8 +2096,8 @@ a {
 }
 
 .featured-media-control-button svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
 }
 
 .featured-media-seek-wrap,
@@ -2100,22 +2112,67 @@ a {
 }
 
 .featured-media-volume-wrap {
-    width: min(150px, 18vw);
+    width: min(136px, 18vw);
 }
 
 .featured-media-seek-wrap input,
 .featured-media-volume-wrap input {
     width: 100%;
-    accent-color: #74dcff;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
     cursor: pointer;
 }
 
 .featured-media-seek-wrap input {
-    height: 22px;
+    height: 20px;
 }
 
 .featured-media-volume-wrap input {
-    height: 18px;
+    height: 16px;
+}
+
+.featured-media-seek-wrap input::-webkit-slider-runnable-track,
+.featured-media-volume-wrap input::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(116, 220, 255, 0.92), rgba(154, 182, 255, 0.46));
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.featured-media-seek-wrap input::-webkit-slider-thumb,
+.featured-media-volume-wrap input::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    background: linear-gradient(180deg, #ffffff, #d9ebff);
+    box-shadow:
+        0 0 0 4px rgba(116, 220, 255, 0.12),
+        0 8px 16px rgba(2, 8, 20, 0.22);
+}
+
+.featured-media-seek-wrap input::-moz-range-track,
+.featured-media-volume-wrap input::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(116, 220, 255, 0.92), rgba(154, 182, 255, 0.46));
+    border: 0;
+}
+
+.featured-media-seek-wrap input::-moz-range-thumb,
+.featured-media-volume-wrap input::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    background: linear-gradient(180deg, #ffffff, #d9ebff);
+    box-shadow:
+        0 0 0 4px rgba(116, 220, 255, 0.12),
+        0 8px 16px rgba(2, 8, 20, 0.22);
 }
 
 #featuredMediaStage.is-loading .featured-media-controls {
@@ -4612,6 +4669,12 @@ function bindFeaturedMediaControls(video) {
         syncState();
     };
 
+    const onSurfaceToggle = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onTogglePlayback(event);
+    };
+
     const onSeekInput = () => {
         const duration = Number(video.duration);
         if (!Number.isFinite(duration) || duration <= 0) return;
@@ -4670,6 +4733,7 @@ function bindFeaturedMediaControls(video) {
     video.addEventListener("durationchange", syncState);
     video.addEventListener("volumechange", syncState);
     video.addEventListener("ended", onEnded);
+    video.addEventListener("click", onSurfaceToggle);
     featuredMediaToggleButton.addEventListener("click", onTogglePlayback);
     featuredMediaSeekInput.addEventListener("input", onSeekInput);
     featuredMediaVolumeInput.addEventListener("input", onVolumeInput);
@@ -4687,6 +4751,7 @@ function bindFeaturedMediaControls(video) {
         video.removeEventListener("durationchange", syncState);
         video.removeEventListener("volumechange", syncState);
         video.removeEventListener("ended", onEnded);
+        video.removeEventListener("click", onSurfaceToggle);
         featuredMediaToggleButton.removeEventListener("click", onTogglePlayback);
         featuredMediaSeekInput.removeEventListener("input", onSeekInput);
         featuredMediaVolumeInput.removeEventListener("input", onVolumeInput);

@@ -459,6 +459,9 @@ def _build_canonical_url(path: str, query: str = "") -> str:
 
 
 def _search_scope_key(request: Request) -> str:
+    search_session_scope = str(request.headers.get("x-gameden-search-session") or "").strip()
+    if search_session_scope:
+        return f"search-session:{search_session_scope}"
     viewer_scope = (
         request.headers.get("x-gameden-viewer")
         or request.cookies.get("gameden_viewer_id")

@@ -43,6 +43,14 @@ def _build_cache_key(request: Request) -> str:
     return f"{request.url.path}:{qp_items}:viewer={viewer_scope}"
 
 
+def _should_skip_ttl_cache(request: Request) -> bool:
+    search_sequence_header = str(request.headers.get("x-search-seq") or "").strip()
+    if search_sequence_header:
+        return True
+    search_sequence_query = str(request.query_params.get("seq") or "").strip()
+    return bool(search_sequence_query and search_sequence_query != "0")
+
+
 def ttl_cache(ttl_seconds: int, endpoint_key: str | None = None) -> Callable:
     def decorator(func: Callable) -> Callable:
         if iscoroutinefunction(func):
@@ -50,6 +58,8 @@ def ttl_cache(ttl_seconds: int, endpoint_key: str | None = None) -> Callable:
             async def async_wrapper(*args: Any, **kwargs: Any):
                 request = _extract_request(args, kwargs)
                 if request is None or request.method.upper() != "GET":
+                    return await func(*args, **kwargs)
+                if _should_skip_ttl_cache(request):
                     return await func(*args, **kwargs)
 
                 cache_endpoint = endpoint_key or request.url.path
@@ -79,6 +89,8 @@ def ttl_cache(ttl_seconds: int, endpoint_key: str | None = None) -> Callable:
         def sync_wrapper(*args: Any, **kwargs: Any):
             request = _extract_request(args, kwargs)
             if request is None or request.method.upper() != "GET":
+                return func(*args, **kwargs)
+            if _should_skip_ttl_cache(request):
                 return func(*args, **kwargs)
 
             cache_endpoint = endpoint_key or request.url.path

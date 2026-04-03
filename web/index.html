@@ -5268,6 +5268,7 @@ input:focus-visible {
         const HERO_LOGO_FADE_DURATION_MS = 340;
         const SEARCH_INPUT_DEBOUNCE_MS = 180;
         const SEARCH_MIN_QUERY_CHARS = 2;
+        const SEARCH_REQUEST_TIMEOUT_MS = 3400;
         const SEARCH_CACHE_TTL_MS = 60 * 1000;
         const SEARCH_INITIAL_VISIBLE_RESULTS = 3;
         const SEARCH_MAX_VISIBLE_RESULTS = 10;
@@ -13085,6 +13086,33 @@ input:focus-visible {
             clearSearchRequest();
             const requestId = Number(state.search.requestId || 0) + 1;
             const controller = new AbortController();
+            let didTimeout = false;
+            let requestTimeoutId = setTimeout(() => {
+                if (!isActiveSearchRequest(requestId, controller, queryKey)) {
+                    return;
+                }
+                didTimeout = true;
+                if (previousQueryResults.length) {
+                    setSearchPhase(SEARCH_PHASE_RESULTS, {
+                        results: previousQueryResults,
+                        queryKey,
+                        errorMessage: "",
+                    });
+                    state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
+                } else {
+                    setSearchPhase(SEARCH_PHASE_ERROR, {
+                        results: [],
+                        queryKey,
+                        errorMessage: "Search timed out. Please try again.",
+                    });
+                }
+                renderSearchResults();
+            }, SEARCH_REQUEST_TIMEOUT_MS);
+            const clearRequestTimeout = () => {
+                if (requestTimeoutId === null) return;
+                clearTimeout(requestTimeoutId);
+                requestTimeoutId = null;
+            };
 
             state.search.requestId = requestId;
             state.search.controller = controller;
@@ -13109,6 +13137,7 @@ input:focus-visible {
                     },
                 });
                 if (!isActiveSearchRequest(requestId, controller, queryKey)) {
+                    clearRequestTimeout();
                     return;
                 }
 
@@ -13124,27 +13153,54 @@ input:focus-visible {
                 setCachedSearchEntry(queryKey, phase, remoteRows);
                 renderSearchResults();
             } catch (error) {
-                if (isAbortLikeError(error)) {
+                if (isAbortLikeError(error) && !didTimeout) {
+                    clearRequestTimeout();
                     return;
                 }
                 if (state.search.requestId !== requestId || state.search.controller !== controller) {
+                    clearRequestTimeout();
                     return;
                 }
 
                 state.search.controller = null;
+                if (didTimeout && previousQueryResults.length) {
+                    setSearchPhase(SEARCH_PHASE_RESULTS, {
+                        results: previousQueryResults,
+                        queryKey,
+                        errorMessage: "",
+                    });
+                    state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
+                    renderSearchResults();
+                    return;
+                }
                 setSearchPhase(SEARCH_PHASE_ERROR, {
                     results: [],
                     queryKey,
-                    errorMessage: resolveSearchErrorMessage(error),
+                    errorMessage: didTimeout
+                        ? "Search timed out. Please try again."
+                        : resolveSearchErrorMessage(error),
                 });
                 renderSearchResults();
+            } finally {
+                clearRequestTimeout();
             }
         }
 
         function renderSearchResults() {
             syncSearchInteractionVisualState();
             const query = String(catalogQueryState.query || "").trim();
+            const queryKey = normalizeSearchQueryKey(query);
             const results = safeArray(state.search.results);
+            const isPendingCurrentQuery = (
+                !!queryKey
+                && query.length >= SEARCH_MIN_QUERY_CHARS
+                && state.search.resultsQueryKey === queryKey
+                && !!state.search.loading
+            );
+            const canRenderResults = results.length > 0 && (
+                state.search.phase === SEARCH_PHASE_RESULTS
+                || isPendingCurrentQuery
+            );
 
             if (!query || !isHomepageSearchContext()) {
                 closeSearchResults();
@@ -13158,7 +13214,7 @@ input:focus-visible {
                 return;
             }
 
-            if (state.search.loading && !results.length) {
+            if (isPendingCurrentQuery && !results.length) {
                 renderSkeleton(ui.searchResultsList, "search-results", 4);
                 openSearchResults();
                 return;
@@ -13176,7 +13232,7 @@ input:focus-visible {
                 return;
             }
 
-            if (state.search.phase !== SEARCH_PHASE_RESULTS || !results.length) {
+            if (!canRenderResults) {
                 closeSearchResults();
                 ui.searchResultsList.innerHTML = "";
                 return;
@@ -15806,7 +15862,7 @@ try {
                     return;
                 }
 
-                setSearchPhase(SEARCH_PHASE_IDLE, {
+                setSearchPhase(SEARCH_PHASE_LOADING, {
                     results: [],
                     queryKey,
                     errorMessage: "",

@@ -4620,6 +4620,12 @@ function setFeaturedMediaControlIcon(button, iconType) {
                 <path fill="currentColor" d="M8 6.5v11l9-5.5z"></path>
             </svg>
         `,
+        replay: `
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6.5 7.5a8 8 0 1 1-1.2 7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path fill="currentColor" d="M5.2 7.4V11h3.6z"></path>
+            </svg>
+        `,
         pause: `
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path fill="currentColor" d="M7 6.5h3v11H7zm7 0h3v11h-3z"></path>
@@ -4649,6 +4655,18 @@ function setFeaturedMediaControlIcon(button, iconType) {
         `,
     };
     button.innerHTML = icons[iconType] || icons.play;
+}
+
+function getFeaturedMediaFullscreenElement() {
+    if (!(document instanceof Document)) return null;
+    return document.fullscreenElement
+        || document.webkitFullscreenElement
+        || document.msFullscreenElement
+        || null;
+}
+
+function isFeaturedMediaFullscreenActive() {
+    return Boolean(getFeaturedMediaFullscreenElement());
 }
 
 function bindFeaturedMediaControls(video) {
@@ -4751,8 +4769,9 @@ function bindFeaturedMediaControls(video) {
             : "0";
         featuredMediaMuteButton.setAttribute("aria-label", video.muted || video.volume === 0 ? "Unmute trailer" : "Mute trailer");
         setFeaturedMediaControlIcon(featuredMediaMuteButton, video.muted || video.volume === 0 ? "mute" : "unmute");
-        featuredMediaToggleButton.setAttribute("aria-label", video.paused ? "Play trailer" : "Pause trailer");
-        setFeaturedMediaControlIcon(featuredMediaToggleButton, video.paused ? "play" : "pause");
+        const showReplayState = video.ended;
+        featuredMediaToggleButton.setAttribute("aria-label", showReplayState ? "Replay trailer" : (video.paused ? "Play trailer" : "Pause trailer"));
+        setFeaturedMediaControlIcon(featuredMediaToggleButton, showReplayState ? "replay" : (video.paused ? "play" : "pause"));
         featuredMediaVolumeInput.value = String(Math.max(0, Math.min(1, Number.isFinite(video.volume) ? video.volume : 1)));
         featuredMediaFullscreenButton.disabled = !(document.fullscreenEnabled !== false && (
             (featuredMediaStage instanceof HTMLElement && typeof featuredMediaStage.requestFullscreen === "function")
@@ -4760,16 +4779,23 @@ function bindFeaturedMediaControls(video) {
         ));
         featuredMediaFullscreenButton.setAttribute(
             "aria-label",
-            document.fullscreenElement ? "Exit fullscreen" : "Enter fullscreen",
+            isFeaturedMediaFullscreenActive() ? "Exit fullscreen" : "Enter fullscreen",
         );
-        setFeaturedMediaControlIcon(featuredMediaFullscreenButton, document.fullscreenElement ? "fullscreenExit" : "fullscreen");
+        setFeaturedMediaControlIcon(featuredMediaFullscreenButton, isFeaturedMediaFullscreenActive() ? "fullscreenExit" : "fullscreen");
     };
 
     const onTogglePlayback = (event) => {
         event.preventDefault();
         event.stopPropagation();
         revealControls();
-        if (video.paused) {
+        if (video.ended) {
+            try {
+                video.currentTime = 0;
+            } catch (_error) {
+                // ignore
+            }
+        }
+        if (video.paused || video.ended) {
             const playPromise = video.play();
             if (playPromise && typeof playPromise.catch === "function") {
                 playPromise.catch(() => {});
@@ -4898,7 +4924,7 @@ function bindFeaturedMediaControls(video) {
         revealControls();
         const fullscreenTarget = featuredMediaStage instanceof HTMLElement ? featuredMediaStage : video;
         try {
-            if (document.fullscreenElement) {
+            if (isFeaturedMediaFullscreenActive()) {
                 const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
                 if (exitFullscreen) {
                     const exitResult = exitFullscreen.call(document);
@@ -4965,6 +4991,9 @@ function bindFeaturedMediaControls(video) {
     featuredMediaMuteButton.addEventListener("click", onMuteToggle);
     featuredMediaFullscreenButton.addEventListener("click", onFullscreenToggle);
     document.addEventListener("fullscreenchange", onFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
+    document.addEventListener("MSFullscreenChange", onFullscreenChange);
+    document.addEventListener("msfullscreenchange", onFullscreenChange);
     video.addEventListener("play", syncControlsForPlaybackState);
     video.addEventListener("pause", syncControlsForPlaybackState);
     video.addEventListener("ended", syncControlsForPlaybackState);
@@ -5001,6 +5030,9 @@ function bindFeaturedMediaControls(video) {
         featuredMediaMuteButton.removeEventListener("click", onMuteToggle);
         featuredMediaFullscreenButton.removeEventListener("click", onFullscreenToggle);
         document.removeEventListener("fullscreenchange", onFullscreenChange);
+        document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
+        document.removeEventListener("MSFullscreenChange", onFullscreenChange);
+        document.removeEventListener("msfullscreenchange", onFullscreenChange);
         clearControlAutoHideTimer();
         featuredMediaControls.hidden = true;
     };

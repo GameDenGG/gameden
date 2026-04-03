@@ -4689,6 +4689,7 @@ function bindFeaturedMediaControls(video) {
     let controlsAreFocused = false;
     let controlIsPressed = false;
     let controlFocusSuppressionUntil = 0;
+    let controlStateSyncFrame = 0;
 
     const clearControlAutoHideTimer = () => {
         if (controlAutoHideTimer) {
@@ -4746,6 +4747,16 @@ function bindFeaturedMediaControls(video) {
         scheduleControlAutoHide();
     };
 
+    const requestStateSync = () => {
+        if (controlStateSyncFrame) {
+            return;
+        }
+        controlStateSyncFrame = window.requestAnimationFrame(() => {
+            controlStateSyncFrame = 0;
+            syncState();
+        });
+    };
+
     const setControlPressed = (nextValue) => {
         controlIsPressed = nextValue;
         if (controlIsPressed) {
@@ -4763,13 +4774,14 @@ function bindFeaturedMediaControls(video) {
         const duration = Number(video.duration);
         const currentTime = Number(video.currentTime);
         const canSeek = Number.isFinite(duration) && duration > 0;
+        const reachedEnd = canSeek && !video.seeking && currentTime >= Math.max(0, duration - 0.1);
         featuredMediaSeekInput.disabled = !canSeek;
         featuredMediaSeekInput.value = canSeek
             ? String(Math.max(0, Math.min(1000, Math.round((currentTime / duration) * 1000))))
             : "0";
         featuredMediaMuteButton.setAttribute("aria-label", video.muted || video.volume === 0 ? "Unmute trailer" : "Mute trailer");
         setFeaturedMediaControlIcon(featuredMediaMuteButton, video.muted || video.volume === 0 ? "mute" : "unmute");
-        const showReplayState = video.ended;
+        const showReplayState = video.ended || reachedEnd;
         featuredMediaToggleButton.setAttribute("aria-label", showReplayState ? "Replay trailer" : (video.paused ? "Play trailer" : "Pause trailer"));
         setFeaturedMediaControlIcon(featuredMediaToggleButton, showReplayState ? "replay" : (video.paused ? "play" : "pause"));
         featuredMediaVolumeInput.value = String(Math.max(0, Math.min(1, Number.isFinite(video.volume) ? video.volume : 1)));
@@ -4787,6 +4799,9 @@ function bindFeaturedMediaControls(video) {
     const onTogglePlayback = (event) => {
         event.preventDefault();
         event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === "function") {
+            event.stopImmediatePropagation();
+        }
         revealControls();
         if (video.ended) {
             try {
@@ -4800,10 +4815,13 @@ function bindFeaturedMediaControls(video) {
             if (playPromise && typeof playPromise.catch === "function") {
                 playPromise.catch(() => {});
             }
+            if (playPromise && typeof playPromise.then === "function") {
+                playPromise.then(requestStateSync, requestStateSync);
+            }
         } else {
             video.pause();
         }
-        syncState();
+        requestStateSync();
     };
 
     const onSurfaceToggle = (event) => {
@@ -4896,7 +4914,7 @@ function bindFeaturedMediaControls(video) {
         video.volume = nextVolume;
         video.muted = nextVolume === 0 ? true : false;
         revealControls();
-        syncState();
+        requestStateSync();
     };
 
     const onMuteToggle = (event) => {
@@ -4912,7 +4930,7 @@ function bindFeaturedMediaControls(video) {
             video.muted = true;
         }
         revealControls();
-        syncState();
+        requestStateSync();
     };
 
     const onFullscreenToggle = (event) => {
@@ -4931,6 +4949,9 @@ function bindFeaturedMediaControls(video) {
                     if (exitResult && typeof exitResult.catch === "function") {
                         exitResult.catch(() => {});
                     }
+                    if (exitResult && typeof exitResult.then === "function") {
+                        exitResult.then(requestStateSync, requestStateSync);
+                    }
                 }
             } else {
                 const requestFullscreen = fullscreenTarget.requestFullscreen
@@ -4941,17 +4962,18 @@ function bindFeaturedMediaControls(video) {
                     if (requestResult && typeof requestResult.catch === "function") {
                         requestResult.catch(() => {});
                     }
+                    if (requestResult && typeof requestResult.then === "function") {
+                        requestResult.then(requestStateSync, requestStateSync);
+                    }
                 }
             }
         } catch (_error) {
             // ignore
         }
-        syncState();
+        requestStateSync();
     };
 
-    const onFullscreenChange = () => syncState();
-
-    const onEnded = () => syncState();
+    const onFullscreenChange = () => requestStateSync();
 
     const syncControlsForPlaybackState = () => {
         if (video.paused || video.ended) {
@@ -4965,13 +4987,15 @@ function bindFeaturedMediaControls(video) {
         maintainControlVisibility();
     };
 
-    video.addEventListener("play", syncState);
-    video.addEventListener("pause", syncState);
-    video.addEventListener("timeupdate", syncState);
-    video.addEventListener("loadedmetadata", syncState);
-    video.addEventListener("durationchange", syncState);
-    video.addEventListener("volumechange", syncState);
-    video.addEventListener("ended", onEnded);
+    video.addEventListener("play", requestStateSync);
+    video.addEventListener("pause", requestStateSync);
+    video.addEventListener("timeupdate", requestStateSync);
+    video.addEventListener("loadedmetadata", requestStateSync);
+    video.addEventListener("durationchange", requestStateSync);
+    video.addEventListener("volumechange", requestStateSync);
+    video.addEventListener("ended", requestStateSync);
+    video.addEventListener("seeked", requestStateSync);
+    video.addEventListener("playing", requestStateSync);
     video.addEventListener("click", onSurfaceToggle);
     featuredMediaStage.addEventListener("pointermove", onStagePointerMove);
     featuredMediaStage.addEventListener("pointerenter", onStagePointerEnter);
@@ -5001,13 +5025,19 @@ function bindFeaturedMediaControls(video) {
     syncState();
 
     return () => {
-        video.removeEventListener("play", syncState);
-        video.removeEventListener("pause", syncState);
-        video.removeEventListener("timeupdate", syncState);
-        video.removeEventListener("loadedmetadata", syncState);
-        video.removeEventListener("durationchange", syncState);
-        video.removeEventListener("volumechange", syncState);
-        video.removeEventListener("ended", onEnded);
+        if (controlStateSyncFrame) {
+            window.cancelAnimationFrame(controlStateSyncFrame);
+            controlStateSyncFrame = 0;
+        }
+        video.removeEventListener("play", requestStateSync);
+        video.removeEventListener("pause", requestStateSync);
+        video.removeEventListener("timeupdate", requestStateSync);
+        video.removeEventListener("loadedmetadata", requestStateSync);
+        video.removeEventListener("durationchange", requestStateSync);
+        video.removeEventListener("volumechange", requestStateSync);
+        video.removeEventListener("ended", requestStateSync);
+        video.removeEventListener("seeked", requestStateSync);
+        video.removeEventListener("playing", requestStateSync);
         video.removeEventListener("click", onSurfaceToggle);
         video.removeEventListener("play", syncControlsForPlaybackState);
         video.removeEventListener("pause", syncControlsForPlaybackState);

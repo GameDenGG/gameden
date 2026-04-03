@@ -13108,6 +13108,9 @@ input:focus-visible {
                 params.set("mode", "quick");
                 const payload = await fetchJson(`/search?${params.toString()}`, {
                     signal: controller.signal,
+                    headers: {
+                        "x-search-seq": String(requestId),
+                    },
                 });
                 if (!isActiveSearchRequest(requestId, controller, queryKey)) {
                     clearRequestTimeout();

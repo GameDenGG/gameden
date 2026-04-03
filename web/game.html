@@ -5017,6 +5017,18 @@ function bindFeaturedMediaControls(video) {
     featuredMediaVolumeInput.addEventListener("input", onVolumeInput);
     featuredMediaMuteButton.addEventListener("click", onMuteToggle);
     featuredMediaFullscreenButton.addEventListener("click", onFullscreenToggle);
+    if (featuredMediaStage instanceof HTMLElement) {
+        featuredMediaStage.addEventListener("fullscreenchange", updateFullscreenIcon);
+        featuredMediaStage.addEventListener("webkitfullscreenchange", updateFullscreenIcon);
+        featuredMediaStage.addEventListener("MSFullscreenChange", updateFullscreenIcon);
+        featuredMediaStage.addEventListener("msfullscreenchange", updateFullscreenIcon);
+    }
+    if (video instanceof HTMLVideoElement) {
+        video.addEventListener("fullscreenchange", updateFullscreenIcon);
+        video.addEventListener("webkitfullscreenchange", updateFullscreenIcon);
+        video.addEventListener("MSFullscreenChange", updateFullscreenIcon);
+        video.addEventListener("msfullscreenchange", updateFullscreenIcon);
+    }
     document.addEventListener("fullscreenchange", updateFullscreenIcon);
     document.addEventListener("webkitfullscreenchange", updateFullscreenIcon);
     document.addEventListener("MSFullscreenChange", updateFullscreenIcon);
@@ -5063,6 +5075,18 @@ function bindFeaturedMediaControls(video) {
         featuredMediaVolumeInput.removeEventListener("input", onVolumeInput);
         featuredMediaMuteButton.removeEventListener("click", onMuteToggle);
         featuredMediaFullscreenButton.removeEventListener("click", onFullscreenToggle);
+        if (featuredMediaStage instanceof HTMLElement) {
+            featuredMediaStage.removeEventListener("fullscreenchange", updateFullscreenIcon);
+            featuredMediaStage.removeEventListener("webkitfullscreenchange", updateFullscreenIcon);
+            featuredMediaStage.removeEventListener("MSFullscreenChange", updateFullscreenIcon);
+            featuredMediaStage.removeEventListener("msfullscreenchange", updateFullscreenIcon);
+        }
+        if (video instanceof HTMLVideoElement) {
+            video.removeEventListener("fullscreenchange", updateFullscreenIcon);
+            video.removeEventListener("webkitfullscreenchange", updateFullscreenIcon);
+            video.removeEventListener("MSFullscreenChange", updateFullscreenIcon);
+            video.removeEventListener("msfullscreenchange", updateFullscreenIcon);
+        }
         document.removeEventListener("fullscreenchange", updateFullscreenIcon);
         document.removeEventListener("webkitfullscreenchange", updateFullscreenIcon);
         document.removeEventListener("MSFullscreenChange", updateFullscreenIcon);

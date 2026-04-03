@@ -4670,6 +4670,7 @@ function bindFeaturedMediaControls(video) {
     let controlsAreHovered = false;
     let controlsAreFocused = false;
     let controlIsPressed = false;
+    let controlFocusSuppressionUntil = 0;
 
     const clearControlAutoHideTimer = () => {
         if (controlAutoHideTimer) {
@@ -4818,6 +4819,9 @@ function bindFeaturedMediaControls(video) {
     };
 
     const onControlsFocusIn = () => {
+        if (Date.now() < controlFocusSuppressionUntil) {
+            return;
+        }
         controlsAreFocused = true;
         maintainControlVisibility();
     };
@@ -4837,6 +4841,8 @@ function bindFeaturedMediaControls(video) {
 
     const onControlPointerDown = () => {
         if (!controlIsPressed) {
+            controlFocusSuppressionUntil = Date.now() + 650;
+            controlsAreFocused = false;
             setControlPressed(true);
         }
     };

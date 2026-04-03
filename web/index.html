@@ -5743,6 +5743,7 @@ input:focus-visible {
                 renderLimit: SEARCH_MAX_VISIBLE_RESULTS,
                 requestId: 0,
                 controller: null,
+                activeRequestQueryKey: "",
                 cache: new Map(),
             },
             catalog: {
@@ -12961,6 +12962,7 @@ input:focus-visible {
             return (
                 state.search.requestId === requestId
                 && state.search.controller === controller
+                && state.search.activeRequestQueryKey === queryKey
                 && state.search.resultsQueryKey === queryKey
                 && controller
                 && !controller.signal.aborted
@@ -12970,7 +12972,7 @@ input:focus-visible {
         function hasLiveSearchRequestForQuery(queryKey) {
             return (
                 !!queryKey
-                && state.search.resultsQueryKey === queryKey
+                && state.search.activeRequestQueryKey === queryKey
                 && state.search.controller
                 && !state.search.controller.signal.aborted
             );
@@ -13116,6 +13118,7 @@ input:focus-visible {
 
             state.search.requestId = requestId;
             state.search.controller = controller;
+            state.search.activeRequestQueryKey = queryKey;
             setSearchPhase(SEARCH_PHASE_LOADING, {
                 results: previousQueryResults,
                 queryKey,
@@ -13149,6 +13152,7 @@ input:focus-visible {
                     errorMessage: "",
                 });
                 state.search.controller = null;
+                state.search.activeRequestQueryKey = "";
                 state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
                 setCachedSearchEntry(queryKey, phase, remoteRows);
                 renderSearchResults();
@@ -13163,6 +13167,7 @@ input:focus-visible {
                 }
 
                 state.search.controller = null;
+                state.search.activeRequestQueryKey = "";
                 if (didTimeout && previousQueryResults.length) {
                     setSearchPhase(SEARCH_PHASE_RESULTS, {
                         results: previousQueryResults,
@@ -13377,6 +13382,7 @@ input:focus-visible {
                 state.search.controller.abort();
                 state.search.controller = null;
             }
+            state.search.activeRequestQueryKey = "";
         }
 
         function abortCatalogInFlightControllers() {
@@ -15862,6 +15868,7 @@ try {
                     return;
                 }
 
+                clearSearchRequest();
                 setSearchPhase(SEARCH_PHASE_LOADING, {
                     results: [],
                     queryKey,

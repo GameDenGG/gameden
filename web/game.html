@@ -4669,6 +4669,16 @@ function isFeaturedMediaFullscreenActive() {
     return Boolean(getFeaturedMediaFullscreenElement());
 }
 
+function updateFullscreenIcon() {
+    if (!(featuredMediaFullscreenButton instanceof HTMLButtonElement)) return;
+    const fullscreenActive = isFeaturedMediaFullscreenActive();
+    featuredMediaFullscreenButton.setAttribute(
+        "aria-label",
+        fullscreenActive ? "Exit fullscreen" : "Enter fullscreen",
+    );
+    setFeaturedMediaControlIcon(featuredMediaFullscreenButton, fullscreenActive ? "fullscreenExit" : "fullscreen");
+}
+
 function bindFeaturedMediaControls(video) {
     if (
         !(featuredMediaControls instanceof HTMLElement)
@@ -4789,11 +4799,6 @@ function bindFeaturedMediaControls(video) {
             (featuredMediaStage instanceof HTMLElement && typeof featuredMediaStage.requestFullscreen === "function")
             || typeof video.requestFullscreen === "function"
         ));
-        featuredMediaFullscreenButton.setAttribute(
-            "aria-label",
-            isFeaturedMediaFullscreenActive() ? "Exit fullscreen" : "Enter fullscreen",
-        );
-        setFeaturedMediaControlIcon(featuredMediaFullscreenButton, isFeaturedMediaFullscreenActive() ? "fullscreenExit" : "fullscreen");
     };
 
     const onTogglePlayback = (event) => {
@@ -4973,8 +4978,6 @@ function bindFeaturedMediaControls(video) {
         requestStateSync();
     };
 
-    const onFullscreenChange = () => requestStateSync();
-
     const syncControlsForPlaybackState = () => {
         if (video.paused || video.ended) {
             clearControlAutoHideTimer();
@@ -5014,14 +5017,15 @@ function bindFeaturedMediaControls(video) {
     featuredMediaVolumeInput.addEventListener("input", onVolumeInput);
     featuredMediaMuteButton.addEventListener("click", onMuteToggle);
     featuredMediaFullscreenButton.addEventListener("click", onFullscreenToggle);
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
-    document.addEventListener("MSFullscreenChange", onFullscreenChange);
-    document.addEventListener("msfullscreenchange", onFullscreenChange);
+    document.addEventListener("fullscreenchange", updateFullscreenIcon);
+    document.addEventListener("webkitfullscreenchange", updateFullscreenIcon);
+    document.addEventListener("MSFullscreenChange", updateFullscreenIcon);
+    document.addEventListener("msfullscreenchange", updateFullscreenIcon);
     video.addEventListener("play", syncControlsForPlaybackState);
     video.addEventListener("pause", syncControlsForPlaybackState);
     video.addEventListener("ended", syncControlsForPlaybackState);
 
+    updateFullscreenIcon();
     syncState();
 
     return () => {
@@ -5059,10 +5063,10 @@ function bindFeaturedMediaControls(video) {
         featuredMediaVolumeInput.removeEventListener("input", onVolumeInput);
         featuredMediaMuteButton.removeEventListener("click", onMuteToggle);
         featuredMediaFullscreenButton.removeEventListener("click", onFullscreenToggle);
-        document.removeEventListener("fullscreenchange", onFullscreenChange);
-        document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
-        document.removeEventListener("MSFullscreenChange", onFullscreenChange);
-        document.removeEventListener("msfullscreenchange", onFullscreenChange);
+        document.removeEventListener("fullscreenchange", updateFullscreenIcon);
+        document.removeEventListener("webkitfullscreenchange", updateFullscreenIcon);
+        document.removeEventListener("MSFullscreenChange", updateFullscreenIcon);
+        document.removeEventListener("msfullscreenchange", updateFullscreenIcon);
         clearControlAutoHideTimer();
         featuredMediaControls.hidden = true;
     };

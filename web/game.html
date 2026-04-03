@@ -2122,6 +2122,9 @@ a {
     height: 17px;
     display: block;
     flex: none;
+    aspect-ratio: 1 / 1;
+    overflow: visible;
+    shape-rendering: geometricPrecision;
 }
 
 .featured-media-seek-wrap,
@@ -2201,6 +2204,10 @@ a {
 
 #featuredMediaStage.is-loading .featured-media-controls {
     opacity: 0.7;
+}
+
+#featuredMediaStage.is-loading .featured-media-controls.is-hidden {
+    opacity: 0;
 }
 
 .featured-media-fallback {
@@ -2926,16 +2933,17 @@ a {
                             <input id="featuredMediaSeekInput" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek trailer">
                         </div>
                         <button id="featuredMediaMuteButton" type="button" class="featured-media-control-button" aria-label="Unmute trailer">
-                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                <path fill="currentColor" d="M5 10v4h3l4 4V6l-4 4H5zm11.25 2a3.75 3.75 0 0 0-2.25-3.42v6.84A3.75 3.75 0 0 0 16.25 12zm-2.25-7.62v2.13a8 8 0 0 1 0 11.98v2.13a10 10 0 0 0 0-16.24z"></path>
+                            <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+                                <path fill="currentColor" d="M5.5 10.5V13.5H9.1l4.4 3.6V7l-4.4 3.5H5.5z"></path>
+                                <path d="M15.1 9a4.6 4.6 0 0 1 0 6m2.6-8.5a8.6 8.6 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
                             </svg>
                         </button>
                         <div class="featured-media-volume-wrap">
                             <input id="featuredMediaVolumeInput" type="range" min="0" max="1" value="1" step="0.05" aria-label="Trailer volume">
                         </div>
                         <button id="featuredMediaFullscreenButton" type="button" class="featured-media-control-button" aria-label="Enter fullscreen">
-                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                <path fill="currentColor" d="M7 14H5v5h5v-2H7zm0-4h3V7h5v3h2V5H7zm10 9h-3v2h5v-5h-2zM14 7v2h3v3h2V5h-5z"></path>
+                            <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+                                <path d="M8 4H4v4M16 4h4v4M20 16v4h-4M4 16v4h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
                             </svg>
                         </button>
                     </div>
@@ -4618,24 +4626,24 @@ function setFeaturedMediaControlIcon(button, iconType) {
             </svg>
         `,
         mute: `
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path fill="currentColor" d="M5 10v4h4l5 4V6l-5 4H5z"></path>
+            <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M5.5 10.5V13.5H9.1l4.4 3.6V7l-4.4 3.5H5.5z"></path>
                 <path d="M16.2 8.2 21 13m0-4.8-4.8 4.8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
         `,
         unmute: `
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path fill="currentColor" d="M5 10v4h4l5 4V6l-5 4H5z"></path>
-                <path d="M15.2 9a4.6 4.6 0 0 1 0 6m2.5-8.5a8.6 8.6 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
+            <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M5.5 10.5V13.5H9.1l4.4 3.6V7l-4.4 3.5H5.5z"></path>
+                <path d="M15.1 9a4.6 4.6 0 0 1 0 6m2.6-8.5a8.6 8.6 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
         `,
         fullscreen: `
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
                 <path d="M8 4H4v4M16 4h4v4M20 16v4h-4M4 16v4h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
         `,
         fullscreenExit: `
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
                 <path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
         `,

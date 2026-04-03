@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-export DATABASE_URL='postgresql://gameden:6SiNdmGLaJCTvhTwHlGx8DP4SfFBBhIe@dpg-d6p59enkijhs73fibimg-a.oregon-postgres.render.com/gameden'
 export PYTHONUNBUFFERED=1
 
 echo "Starting GameDen pipeline..."
-
-echo "Using database:"
-echo $DATABASE_URL
+echo "DATABASE_URL is set: ${DATABASE_URL:+yes}"
 echo ""
 
 echo "Starting ingestion worker..."
@@ -20,11 +18,13 @@ SNAP_PID=$!
 echo "Workers started:"
 echo "Ingestion PID: $INGEST_PID"
 echo "Snapshot PID: $SNAP_PID"
-echo "Press Ctrl+C to stop everything."
 
 cleanup() {
-  kill $INGEST_PID $SNAP_PID 2>/dev/null
-  exit
+  echo ""
+  echo "Shutting down workers..."
+  kill "$INGEST_PID" "$SNAP_PID" 2>/dev/null || true
+  wait "$INGEST_PID" "$SNAP_PID" 2>/dev/null || true
+  exit 0
 }
 
 trap cleanup INT TERM
@@ -33,7 +33,7 @@ while true; do
   echo ""
   echo "---- GameDen Health Stats ----"
 
-python - << 'PYEOF'
+  python - <<'PYEOF'
 from sqlalchemy import text
 from database.models import Session
 
@@ -47,6 +47,16 @@ try:
 finally:
     s.close()
 PYEOF
+
+  if ! kill -0 "$INGEST_PID" 2>/dev/null; then
+    echo "Ingestion worker died. Exiting so Render can restart."
+    exit 1
+  fi
+
+  if ! kill -0 "$SNAP_PID" 2>/dev/null; then
+    echo "Snapshot worker died. Exiting so Render can restart."
+    exit 1
+  fi
 
   sleep 60
 done

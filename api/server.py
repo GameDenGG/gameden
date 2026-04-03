@@ -5517,15 +5517,35 @@ def sitemap_xml():
     def xml_escape(value):
         return escape(str(value or "").strip())
 
-    def build_video_block(
-        *,
-        page_loc: str,
-        title: str | None,
-        description: str | None,
-        thumbnail_url: str | None,
-        duration: int | None = None,
-    ) -> str:
-        if not thumbnail_url:
+        def _build_video_xml(row):
+            media = row.get("featured_media") or []
+            if not media:
+                return ""
+
+            for m in media:
+                if m.get("kind") != "video":
+                    continue
+
+                embed_url = m.get("embed_url")
+                title = (row.get("name") or "Game Trailer").replace("&", "&amp;")
+
+                # Detect direct file vs embed
+                if embed_url and (".mp4" in embed_url or ".webm" in embed_url):
+                    return (
+                        "    <video:video>\n"
+                        f"      <video:title>{title}</video:title>\n"
+                        f"      <video:content_loc>{embed_url}</video:content_loc>\n"
+                        "    </video:video>\n"
+                    )
+
+                elif embed_url:
+                    return (
+                        "    <video:video>\n"
+                        f"      <video:title>{title}</video:title>\n"
+                        f"      <video:player_loc>{embed_url}</video:player_loc>\n"
+                        "    </video:video>\n"
+                    )
+
             return ""
 
         safe_title = xml_escape(title or "Game trailer")

@@ -12967,15 +12967,6 @@ input:focus-visible {
             );
         }
 
-        function hasLiveSearchRequestForQuery(queryKey) {
-            const controller = state.search.controller;
-            return !!(
-                controller
-                && !controller.signal.aborted
-                && state.search.resultsQueryKey === String(queryKey || "")
-            );
-        }
-
         function normalizeSearchQueryKey(query) {
             return String(query || "")
                 .toLowerCase()
@@ -13062,7 +13053,7 @@ input:focus-visible {
                 return;
             }
 
-            if (!force && hasLiveSearchRequestForQuery(queryKey)) {
+            if (!force && state.search.loading && state.search.resultsQueryKey === queryKey) {
                 renderSearchResults();
                 return;
             }
@@ -13089,23 +13080,9 @@ input:focus-visible {
             let didTimeout = false;
             let requestTimeoutId = setTimeout(() => {
                 didTimeout = true;
-                if (!isActiveSearchRequest(requestId, controller, queryKey)) return;
-                if (previousQueryResults.length) {
-                    setSearchPhase(SEARCH_PHASE_RESULTS, {
-                        results: previousQueryResults,
-                        queryKey,
-                        errorMessage: "",
-                    });
-                    state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
-                    renderSearchResults();
-                    return;
+                if (isActiveSearchRequest(requestId, controller, queryKey)) {
+                    controller.abort();
                 }
-                setSearchPhase(SEARCH_PHASE_ERROR, {
-                    results: [],
-                    queryKey,
-                    errorMessage: "Search timed out. Please try again.",
-                });
-                renderSearchResults();
             }, SEARCH_REQUEST_TIMEOUT_MS);
             const clearRequestTimeout = () => {
                 if (requestTimeoutId === null) return;
@@ -15874,10 +15851,6 @@ try {
                     return;
                 }
                 if (!queryKey || queryKey.length < SEARCH_MIN_QUERY_CHARS) {
-                    renderSearchResults();
-                    return;
-                }
-                if (hasLiveSearchRequestForQuery(queryKey)) {
                     renderSearchResults();
                     return;
                 }

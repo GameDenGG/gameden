@@ -5463,12 +5463,12 @@ def site_manifest():
 
 from sqlalchemy import text
 
-def _collect_sitemap_game_paths():
+def _collect_sitemap_games():
     session = ReadSessionLocal()
     try:
         result = session.execute(
             text("""
-                SELECT id, appid, name
+                SELECT steam_appid, appid, name, featured_media
                 FROM games
                 WHERE name IS NOT NULL
                   AND TRIM(name) <> ''
@@ -5476,22 +5476,28 @@ def _collect_sitemap_game_paths():
         )
         rows = result.mappings().all()
 
-        paths = []
+        items = []
         seen = set()
 
         for row in rows:
             slug = _canonical_game_slug(row.get("name"))
-
             if not slug:
                 continue
 
             path = f"/game/{slug}"
+            if path in seen:
+                continue
 
-            if path not in seen:
-                seen.add(path)
-                paths.append(path)
+            seen.add(path)
+            items.append(
+                {
+                    "path": path,
+                    "name": row.get("name"),
+                    "featured_media": row.get("featured_media"),
+                }
+            )
 
-        return paths
+        return items
 
     except Exception as e:
         print("SITEMAP DB ERROR:", e)
@@ -5500,13 +5506,46 @@ def _collect_sitemap_game_paths():
         session.close()
 
 from fastapi import Response
+from xml.sax.saxutils import escape
 
 BASE_URL = "https://gameden.gg"
-
 @app.get("/sitemap.xml", include_in_schema=False)
 def sitemap_xml():
     seen = set()
     urls = []
+
+    def xml_escape(value):
+        return escape(str(value or "").strip())
+
+    def build_video_block(
+        *,
+        page_loc: str,
+        title: str | None,
+        description: str | None,
+        thumbnail_url: str | None,
+        duration: int | None = None,
+    ) -> str:
+        if not thumbnail_url:
+            return ""
+
+        safe_title = xml_escape(title or "Game trailer")
+        safe_description = xml_escape(description or "Watch the trailer on GameDen.")
+        safe_thumb = xml_escape(thumbnail_url)
+        safe_player = xml_escape(page_loc)
+
+        duration_line = ""
+        if isinstance(duration, int) and duration > 0:
+            duration_line = f"      <video:duration>{duration}</video:duration>\n"
+
+        return (
+            "    <video:video>\n"
+            f"      <video:thumbnail_loc>{safe_thumb}</video:thumbnail_loc>\n"
+            f"      <video:title>{safe_title}</video:title>\n"
+            f"      <video:description>{safe_description}</video:description>\n"
+            f"      <video:player_loc allow_embed=\"yes\">{safe_player}</video:player_loc>\n"
+            f"{duration_line}"
+            "    </video:video>\n"
+        )
 
     def add_path(path: str):
         normalized = str(path or "").strip()
@@ -5520,36 +5559,79 @@ def sitemap_xml():
             return
 
         seen.add(normalized)
-
-        # ✅ SAFE canonical (no helper)
         loc = f"{BASE_URL}{normalized}"
 
         urls.append(
             "  <url>\n"
-            f"    <loc>{loc}</loc>\n"
+            f"    <loc>{xml_escape(loc)}</loc>\n"
+            "  </url>"
+        )
+
+    def add_game_url(
+        *,
+        path: str,
+        game_name: str | None = None,
+        featured_media: dict | None = None,
+    ):
+        normalized = str(path or "").strip()
+        if not normalized:
+            return
+        if not normalized.startswith("/"):
+            normalized = f"/{normalized}"
+        if normalized in {"/game", "/game/"}:
+            return
+        if normalized in seen:
+            return
+
+        seen.add(normalized)
+        loc = f"{BASE_URL}{normalized}"
+
+        media = featured_media or {}
+        poster_url = media.get("poster_url")
+        trailer_title = media.get("title") or (f"{game_name} Trailer" if game_name else "Game Trailer")
+
+        video_block = ""
+        if poster_url:
+            video_block = build_video_block(
+                page_loc=loc,
+                title=trailer_title,
+                description=f"Watch the trailer for {game_name or 'this game'} on GameDen.",
+                thumbnail_url=poster_url,
+                duration=media.get("duration"),
+            )
+
+        urls.append(
+            "  <url>\n"
+            f"    <loc>{xml_escape(loc)}</loc>\n"
+            f"{video_block}"
             "  </url>"
         )
 
     # homepage
     add_path("/")
 
-    # static pages (SAFE GUARD)
+    # static pages
     try:
         for path in SITEMAP_STATIC_PATHS:
             add_path(path)
     except Exception as e:
         print("STATIC PATH ERROR:", e)
 
-    # games (SAFE GUARD)
+    # games
     try:
-        for path in _collect_sitemap_game_paths():
-            add_path(path)
+        for game in _collect_sitemap_games():
+            add_game_url(
+                path=game["path"],
+                game_name=game.get("name"),
+                featured_media=game.get("featured_media"),
+            )
     except Exception as e:
         print("GAME PATH ERROR:", e)
 
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
+        '        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">\n'
         f"{chr(10).join(urls)}\n"
         "</urlset>\n"
     )

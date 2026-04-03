@@ -5268,7 +5268,6 @@ input:focus-visible {
         const HERO_LOGO_FADE_DURATION_MS = 340;
         const SEARCH_INPUT_DEBOUNCE_MS = 180;
         const SEARCH_MIN_QUERY_CHARS = 2;
-        const SEARCH_REQUEST_TIMEOUT_MS = 3400;
         const SEARCH_CACHE_TTL_MS = 60 * 1000;
         const SEARCH_INITIAL_VISIBLE_RESULTS = 3;
         const SEARCH_MAX_VISIBLE_RESULTS = 10;
@@ -13086,33 +13085,6 @@ input:focus-visible {
             clearSearchRequest();
             const requestId = Number(state.search.requestId || 0) + 1;
             const controller = new AbortController();
-            let didTimeout = false;
-            let requestTimeoutId = setTimeout(() => {
-                if (!isActiveSearchRequest(requestId, controller, queryKey)) {
-                    return;
-                }
-                didTimeout = true;
-                if (previousQueryResults.length) {
-                    setSearchPhase(SEARCH_PHASE_RESULTS, {
-                        results: previousQueryResults,
-                        queryKey,
-                        errorMessage: "",
-                    });
-                    state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
-                } else {
-                    setSearchPhase(SEARCH_PHASE_ERROR, {
-                        results: [],
-                        queryKey,
-                        errorMessage: "Search timed out. Please try again.",
-                    });
-                }
-                renderSearchResults();
-            }, SEARCH_REQUEST_TIMEOUT_MS);
-            const clearRequestTimeout = () => {
-                if (requestTimeoutId === null) return;
-                clearTimeout(requestTimeoutId);
-                requestTimeoutId = null;
-            };
 
             state.search.requestId = requestId;
             state.search.controller = controller;
@@ -13137,7 +13109,6 @@ input:focus-visible {
                     },
                 });
                 if (!isActiveSearchRequest(requestId, controller, queryKey)) {
-                    clearRequestTimeout();
                     return;
                 }
 
@@ -13153,36 +13124,20 @@ input:focus-visible {
                 setCachedSearchEntry(queryKey, phase, remoteRows);
                 renderSearchResults();
             } catch (error) {
-                if (isAbortLikeError(error) && !didTimeout) {
-                    clearRequestTimeout();
+                if (isAbortLikeError(error)) {
                     return;
                 }
                 if (state.search.requestId !== requestId || state.search.controller !== controller) {
-                    clearRequestTimeout();
                     return;
                 }
 
                 state.search.controller = null;
-                if (didTimeout && previousQueryResults.length) {
-                    setSearchPhase(SEARCH_PHASE_RESULTS, {
-                        results: previousQueryResults,
-                        queryKey,
-                        errorMessage: "",
-                    });
-                    state.search.renderLimit = SEARCH_MAX_VISIBLE_RESULTS;
-                    renderSearchResults();
-                    return;
-                }
                 setSearchPhase(SEARCH_PHASE_ERROR, {
                     results: [],
                     queryKey,
-                    errorMessage: didTimeout
-                        ? "Search timed out. Please try again."
-                        : resolveSearchErrorMessage(error),
+                    errorMessage: resolveSearchErrorMessage(error),
                 });
                 renderSearchResults();
-            } finally {
-                clearRequestTimeout();
             }
         }
 

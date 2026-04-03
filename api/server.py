@@ -5468,11 +5468,11 @@ def _collect_sitemap_games():
     try:
         result = session.execute(
             text("""
-                SELECT steam_appid, appid, name, featured_media
-                FROM games
-                WHERE name IS NOT NULL
-                  AND TRIM(name) <> ''
-            """)
+                 SELECT name, featured_media
+                 FROM games
+                 WHERE name IS NOT NULL
+                   AND TRIM(name) <> ''
+                 """)
         )
         rows = result.mappings().all()
 

@@ -1864,7 +1864,8 @@ LIMIT :limit
         and not tokenized_query.startswith("%")
     )
 
-    should_run_prefix_probe = len(normalized_query) >= 3
+    is_single_token = len(query_tokens) == 1
+    should_run_prefix_probe = is_single_token and len(normalized_query) >= 3
     should_run_numeral_prefix_probe = (
         bool(numeral_equivalent_query)
         and numeral_equivalent_query != normalized_query

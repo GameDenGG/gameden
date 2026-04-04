@@ -6349,10 +6349,6 @@ input:focus-visible {
         function loadHomepageRailSessionState() {
             try {
                 const currentUserId = String(CURRENT_USER_ID || "").trim();
-                if (isAnonymousOrGuestUserId(currentUserId)) {
-                    state.homepageRailSession = createEmptyHomepageRailSession();
-                    return false;
-                }
                 const raw = sessionStorage.getItem(HOMEPAGE_RAIL_SESSION_STORAGE_KEY);
                 if (!raw) {
                     state.homepageRailSession = createEmptyHomepageRailSession();
@@ -6364,7 +6360,15 @@ input:focus-visible {
                     return false;
                 }
                 const storedUserId = String(parsed.user_id || "").trim();
-                if (storedUserId && currentUserId && storedUserId !== currentUserId) {
+                const currentIsAuthenticated = isAuthenticatedAccountUserId(currentUserId);
+                const storedIsAuthenticated = isAuthenticatedAccountUserId(storedUserId);
+                if (
+                    storedUserId
+                    && currentUserId
+                    && storedUserId !== currentUserId
+                    && currentIsAuthenticated
+                    && storedIsAuthenticated
+                ) {
                     state.homepageRailSession = createEmptyHomepageRailSession();
                     return false;
                 }
@@ -6628,6 +6632,8 @@ input:focus-visible {
             if (nextUserId) {
                 CURRENT_USER_ID = nextUserId;
             }
+            const previousWasAuthenticated = isAuthenticatedAccountUserId(previousUserId);
+            const nextIsAuthenticated = isAuthenticatedAccountUserId(nextUserId);
             if (previousUserId && nextUserId && previousUserId !== nextUserId) {
                 try {
                     sessionStorage.removeItem(DASHBOARD_SNAPSHOT_STORAGE_KEY);
@@ -6642,7 +6648,9 @@ input:focus-visible {
                 state.personalizedDealsSource = [];
                 state.personalizedDealsDisplaySignature = "";
                 state.personalizedDealsDisplayRows = [];
-                clearHomepageRailSessionState();
+                if (previousWasAuthenticated && (nextIsAuthenticated ? previousUserId !== nextUserId : true)) {
+                    clearHomepageRailSessionState();
+                }
                 state.personalizedStatus.personalized = false;
                 state.personalizedStatus.fallbackMode = false;
                 state.personalizedStatus.resolved = false;
@@ -11579,7 +11587,6 @@ input:focus-visible {
                 ui.becauseYouOwnPanel,
                 knownUser && (hasOwnedItems || wishlistLoading || wishlistError || hasStickyResult),
             );
-
             if (hasStickyResult && (wishlistLoading || wishlistError || !hasOwnedItems)) {
                 if (ui.becauseYouOwnTitle && stickyEntry.title) {
                     ui.becauseYouOwnTitle.textContent = stickyEntry.title;
@@ -11592,7 +11599,6 @@ input:focus-visible {
                     .join("");
                 return;
             }
-
             if (ui.becauseYouOwnTitle) {
                 ui.becauseYouOwnTitle.textContent = "Because You Own...";
             }
@@ -11669,7 +11675,9 @@ input:focus-visible {
                     ? "Closest available matches while we wait for stronger overlap signals."
                     : "Based on games you own.";
             }
-            if (recommendationsAreStrong) {
+            const shouldPromoteBecauseYouOwnResult = safeArray(recommendations.items).length > 0
+                && (!hasStickyResult || recommendationsAreStrong);
+            if (shouldPromoteBecauseYouOwnResult) {
                 setHomepageRailSessionEntry("becauseYouOwn", {
                     items: recommendations.items.slice(0, 3),
                     title: ui.becauseYouOwnTitle ? String(ui.becauseYouOwnTitle.textContent || "").trim() : "",
@@ -12089,8 +12097,23 @@ input:focus-visible {
                 hiddenOwnedCount: 0,
                 totalCount: displayItems.length,
             };
+            if (personalizedActive && filteredDisplay.rows.length) {
+                state.personalizedDealsDisplaySignature = sourceSignature;
+                state.personalizedDealsDisplayRows = filteredDisplay.rows.slice(0, 1);
+            }
             const personalizedResultIsStrong = personalizedActive && filteredDisplay.rows.length > 0;
-            if (hasStickyResult && !personalizedResultIsStrong) {
+            const shouldPromotePersonalizedResult = filteredDisplay.rows.length > 0
+                && (!hasStickyResult || personalizedActive);
+            if (shouldPromotePersonalizedResult) {
+                setHomepageRailSessionEntry("personalizedDeals", {
+                    items: filteredDisplay.rows.slice(0, 1),
+                    title: personalizedLabel,
+                    subtitle: personalizedSubtitle,
+                    view: personalizedActive || (knownUser && !personalizedResolved)
+                        ? "command-center-best-personalized"
+                        : "command-center-best-fallback",
+                });
+            } else if (hasStickyResult) {
                 if (ui.yourDealsTodayTitle && stickyEntry.title) {
                     ui.yourDealsTodayTitle.textContent = stickyEntry.title;
                 }
@@ -12111,20 +12134,6 @@ input:focus-visible {
                     initialCount: 1,
                 });
                 return;
-            }
-            if (personalizedResultIsStrong) {
-                state.personalizedDealsDisplaySignature = sourceSignature;
-                state.personalizedDealsDisplayRows = filteredDisplay.rows.slice(0, 1);
-            }
-            if (personalizedResultIsStrong) {
-                setHomepageRailSessionEntry("personalizedDeals", {
-                    items: filteredDisplay.rows.slice(0, 1),
-                    title: personalizedLabel,
-                    subtitle: personalizedSubtitle,
-                    view: personalizedActive || (knownUser && !personalizedResolved)
-                        ? "command-center-best-personalized"
-                        : "command-center-best-fallback",
-                });
             }
             if (error && !uniqueApiItems.length) {
                 renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");

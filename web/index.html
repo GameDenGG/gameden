@@ -5695,6 +5695,8 @@ input:focus-visible {
             opportunityRadar: [],
             personalizedDeals: [],
             personalizedDealsSource: [],
+            personalizedDealsDisplaySignature: "",
+            personalizedDealsDisplayRows: [],
             worthBuyingNow: [],
             buyNowPicks: [],
             waitPicks: [],
@@ -6230,6 +6232,8 @@ input:focus-visible {
                 state.opportunityRadar = uniqueGamesByName(sections.opportunityRadar || []);
                 state.personalizedDeals = uniqueGamesByName(sections.personalizedDeals || []);
                 state.personalizedDealsSource = uniqueGamesByName(sections.personalizedDeals || []);
+                state.personalizedDealsDisplaySignature = "";
+                state.personalizedDealsDisplayRows = [];
                 state.worthBuyingNow = uniqueGamesByName(sections.worthBuyingNow || []);
                 state.trendingDeals = uniqueGamesByName(sections.trendingDeals || []);
                 state.newHistoricalLows = uniqueGamesByName(sections.newHistoricalLows || []);
@@ -6521,6 +6525,8 @@ input:focus-visible {
                 state.personalSummaryLoaded = false;
                 state.personalizedDeals = [];
                 state.personalizedDealsSource = [];
+                state.personalizedDealsDisplaySignature = "";
+                state.personalizedDealsDisplayRows = [];
                 state.personalizedStatus.personalized = false;
                 state.personalizedStatus.fallbackMode = false;
                 state.personalizedStatus.resolved = false;
@@ -11855,6 +11861,10 @@ input:focus-visible {
                 .map((entry) => entry.game);
         }
 
+        function buildPersonalizedDealsDisplaySignature(rows) {
+            return JSON.stringify(uniqueGamesByIdentity(rows));
+        }
+
         function renderPersonalizedDeals() {
             const knownUser = !isDefaultOrAnonymousUserId(CURRENT_USER_ID);
             const loading = !!state.personalizedStatus?.loading;
@@ -11862,7 +11872,45 @@ input:focus-visible {
             const personalizedResolved = state.personalizedStatus?.resolved === true;
             const sourceItems = safeArray(state.personalizedDealsSource);
             const apiItems = sourceItems.length ? sourceItems : safeArray(state.personalizedDeals);
+            const sourceSignature = buildPersonalizedDealsDisplaySignature(apiItems);
+            const lockedRows = state.personalizedDealsDisplaySignature === sourceSignature
+                ? safeArray(state.personalizedDealsDisplayRows)
+                : [];
             const personalizedLimit = HOMEPAGE_SECTION_LIMITS.personalizedDeals;
+            const personalizedActive = knownUser && personalizedResolved && !!state.personalizedStatus?.personalized;
+            const personalizedTitleVisible = !knownUser || personalizedResolved;
+            const personalizedLabel = personalizedActive
+                ? "Best Personal Opportunity"
+                : "Best Opportunity Right Now";
+            const personalizedSubtitle = personalizedActive
+                ? "Your best next pick from Watch, Owned, and live prices."
+                : "Top pick right now based on live deal quality.";
+
+            setPanelVisibility(ui.recommendedForYouPanel, true);
+            if (ui.yourDealsTodayTitle && personalizedTitleVisible) {
+                ui.yourDealsTodayTitle.textContent = personalizedLabel;
+            }
+            if (ui.yourDealsTodaySubtitle && personalizedTitleVisible) {
+                ui.yourDealsTodaySubtitle.textContent = personalizedSubtitle;
+            }
+
+            if (lockedRows.length) {
+                renderPagedCards({
+                    container: ui.personalizedDealsGrid,
+                    items: lockedRows.slice(0, 1),
+                    renderer: gameCardHtml,
+                    visibleKey: "personalizedDealsGrid",
+                    toggleButton: null,
+                    showAllButton: null,
+                    view: personalizedActive || (knownUser && !personalizedResolved)
+                        ? "command-center-best-personalized"
+                        : "command-center-best-fallback",
+                    title: "Best Personal Opportunity",
+                    initialCount: 1,
+                });
+                return;
+            }
+
             const protectedKeys = buildProtectedVisibleRailIdentitySet();
             const uniqueApiItems = filterRowsByIdentityExclusion(
                 uniqueGamesByIdentity(apiItems),
@@ -11874,19 +11922,6 @@ input:focus-visible {
                 excludeKeys: protectedKeys,
                 seedRows: apiItems,
             });
-            if (error && !uniqueApiItems.length) {
-                renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");
-                setPanelVisibility(ui.recommendedForYouPanel, true);
-                return;
-            }
-            if (knownUser && !personalizedResolved && !uniqueApiItems.length) {
-                renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 1, { cardClass: "game-card" });
-                setPanelVisibility(ui.recommendedForYouPanel, true);
-                return;
-            }
-            // Personalized opportunities can legitimately lack an active discount,
-            // so avoid the discovery-feed deal gate here and render the personalized
-            // ranking directly.
             const displayItems = useFallbackRows
                 ? fallbackRows
                 : filterRowsByIdentityExclusion(
@@ -11899,19 +11934,21 @@ input:focus-visible {
                 hiddenOwnedCount: 0,
                 totalCount: displayItems.length,
             };
-            const personalizedActive = knownUser && personalizedResolved && !!state.personalizedStatus?.personalized;
-
-            setPanelVisibility(ui.recommendedForYouPanel, true);
-            if (ui.yourDealsTodayTitle && (!knownUser || personalizedResolved)) {
-                ui.yourDealsTodayTitle.textContent = personalizedActive
-                    ? "Best Personal Opportunity"
-                    : "Best Opportunity Right Now";
+            if (personalizedActive && filteredDisplay.rows.length) {
+                state.personalizedDealsDisplaySignature = sourceSignature;
+                state.personalizedDealsDisplayRows = filteredDisplay.rows.slice(0, 1);
             }
-            if (ui.yourDealsTodaySubtitle && (!knownUser || personalizedResolved)) {
-                ui.yourDealsTodaySubtitle.textContent = personalizedActive
-                    ? "Your best next pick from Watch, Owned, and live prices."
-                    : "Top pick right now based on live deal quality.";
+            if (error && !uniqueApiItems.length) {
+                renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");
+                return;
             }
+            if (knownUser && !personalizedResolved && !uniqueApiItems.length) {
+                renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 1, { cardClass: "game-card" });
+                return;
+            }
+            // Personalized opportunities can legitimately lack an active discount,
+            // so avoid the discovery-feed deal gate here and render the personalized
+            // ranking directly.
 
             if (loading && !filteredDisplay.rows.length) {
                 renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 1, { cardClass: "game-card" });

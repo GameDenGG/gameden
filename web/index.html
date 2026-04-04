@@ -5721,6 +5721,7 @@ input:focus-visible {
             catalogSummary: null,
             lastVisitTs: 0,
             wishlist: [],
+            ownedCount: null,
             watchlist: [],
             personalListStatus: {
                 wishlistLoading: false,
@@ -11562,7 +11563,7 @@ input:focus-visible {
                 return;
             }
             const primaryOwned = normalizeGameRow(wishlistItems[0]);
-            const ownedCount = wishlistItems.length;
+            const ownedCount = state.ownedCount ?? wishlistItems.length;
             const countLabel = ownedCount === 1
                 ? "1 owned game"
                 : `${fmtInt(ownedCount)} owned games`;
@@ -14545,6 +14546,7 @@ try {
             const wishlistItems = uniqueGamesByName(payload?.owned || payload?.wishlist || []);
             const watchlistItems = uniqueGamesByName(payload?.watchlist || []);
             const alertItems = uniqueAlertSignals(payload?.alerts || []);
+            const ownedCountValue = payload?.owned_count;
             let applied = false;
 
             const previousWishlist = JSON.stringify(uniqueGamesByIdentity(safeArray(state.wishlist)));
@@ -14553,6 +14555,7 @@ try {
                 state.wishlist = wishlistItems;
                 applied = true;
             }
+            state.ownedCount = Number.isFinite(Number(ownedCountValue)) ? Number(ownedCountValue) : null;
             const previousWatchlist = JSON.stringify(uniqueGamesByIdentity(safeArray(state.watchlist)));
             const nextWatchlist = JSON.stringify(uniqueGamesByIdentity(watchlistItems));
             if (previousWatchlist !== nextWatchlist) {

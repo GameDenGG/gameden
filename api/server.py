@@ -9553,6 +9553,12 @@ def get_home_personal_summary(
             .limit(min(3, normalized_limit))
             .all()
         )
+        owned_count = (
+            session.query(func.count(WishlistItem.id))
+            .filter(WishlistItem.user_id == normalized_user_id)
+            .scalar()
+            or 0
+        )
 
         game_ids: set[int] = set()
         for game_id, _ in wishlist_rows:
@@ -9621,6 +9627,7 @@ def get_home_personal_summary(
             "personalized": True,
             "owned": wishlist_payload,
             "wishlist": wishlist_payload,
+            "owned_count": int(owned_count),
             "watchlist": watchlist_payload,
             "alerts": alerts_payload,
             "generated_at": utc_now().isoformat(),

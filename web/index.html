@@ -5303,6 +5303,7 @@ input:focus-visible {
             "personalizedDealsGrid",
         ]);
         const DASHBOARD_SNAPSHOT_STORAGE_KEY = "gameden.dashboard.snapshot.v1";
+        const HOMEPAGE_RAIL_SESSION_STORAGE_KEY = "gameden.homepage.rail-session.v1";
         const TRACKED_SYNC_STORAGE_KEY = "gameden.tracked.sync.v1";
         const AUTH_SYNC_STORAGE_KEY = "gameden.auth.sync.v1";
         const DASHBOARD_SNAPSHOT_MAX_AGE_MS = 5 * 60 * 1000;
@@ -5697,6 +5698,7 @@ input:focus-visible {
             personalizedDealsSource: [],
             personalizedDealsDisplaySignature: "",
             personalizedDealsDisplayRows: [],
+            homepageRailSession: createEmptyHomepageRailSession(),
             worthBuyingNow: [],
             buyNowPicks: [],
             waitPicks: [],
@@ -6321,6 +6323,119 @@ input:focus-visible {
             }
         }
 
+        function createEmptyHomepageRailSession() {
+            return {
+                personalizedDeals: null,
+                becauseYouOwn: null,
+            };
+        }
+
+        function normalizeHomepageRailSessionEntry(entry, key) {
+            if (!entry || typeof entry !== "object") return null;
+            const rawItems = safeArray(entry.items);
+            const items = key === "personalizedDeals"
+                ? uniqueGamesByIdentity(rawItems)
+                : rawItems.filter(Boolean);
+            if (!items.length) return null;
+            return {
+                ...entry,
+                items,
+                title: String(entry.title || "").trim(),
+                subtitle: String(entry.subtitle || "").trim(),
+                view: String(entry.view || "").trim(),
+            };
+        }
+
+        function loadHomepageRailSessionState() {
+            try {
+                const currentUserId = String(CURRENT_USER_ID || "").trim();
+                if (isAnonymousOrGuestUserId(currentUserId)) {
+                    state.homepageRailSession = createEmptyHomepageRailSession();
+                    return false;
+                }
+                const raw = sessionStorage.getItem(HOMEPAGE_RAIL_SESSION_STORAGE_KEY);
+                if (!raw) {
+                    state.homepageRailSession = createEmptyHomepageRailSession();
+                    return false;
+                }
+                const parsed = JSON.parse(raw);
+                if (!parsed || typeof parsed !== "object") {
+                    state.homepageRailSession = createEmptyHomepageRailSession();
+                    return false;
+                }
+                const storedUserId = String(parsed.user_id || "").trim();
+                if (storedUserId && currentUserId && storedUserId !== currentUserId) {
+                    state.homepageRailSession = createEmptyHomepageRailSession();
+                    return false;
+                }
+                state.homepageRailSession = {
+                    personalizedDeals: normalizeHomepageRailSessionEntry(parsed.personalizedDeals, "personalizedDeals"),
+                    becauseYouOwn: normalizeHomepageRailSessionEntry(parsed.becauseYouOwn, "becauseYouOwn"),
+                };
+                return !!(state.homepageRailSession.personalizedDeals || state.homepageRailSession.becauseYouOwn);
+            } catch {
+                state.homepageRailSession = createEmptyHomepageRailSession();
+                return false;
+            }
+        }
+
+        function persistHomepageRailSessionState() {
+            try {
+                const currentUserId = String(CURRENT_USER_ID || "").trim();
+                const payload = {
+                    user_id: currentUserId,
+                    personalizedDeals: state.homepageRailSession?.personalizedDeals,
+                    becauseYouOwn: state.homepageRailSession?.becauseYouOwn,
+                };
+                if (!payload.personalizedDeals && !payload.becauseYouOwn) {
+                    sessionStorage.removeItem(HOMEPAGE_RAIL_SESSION_STORAGE_KEY);
+                    return;
+                }
+                sessionStorage.setItem(HOMEPAGE_RAIL_SESSION_STORAGE_KEY, JSON.stringify(payload));
+            } catch {
+                // Ignore storage failures.
+            }
+        }
+
+        function getHomepageRailSessionEntry(key) {
+            const session = state.homepageRailSession && typeof state.homepageRailSession === "object"
+                ? state.homepageRailSession
+                : createEmptyHomepageRailSession();
+            const entry = session[key] && typeof session[key] === "object" ? session[key] : null;
+            const items = safeArray(entry?.items);
+            if (!items.length) return null;
+            return {
+                ...entry,
+                items,
+            };
+        }
+
+        function setHomepageRailSessionEntry(key, entry) {
+            const items = safeArray(entry?.items);
+            if (!key || !items.length) return false;
+            const session = state.homepageRailSession && typeof state.homepageRailSession === "object"
+                ? state.homepageRailSession
+                : createEmptyHomepageRailSession();
+            state.homepageRailSession = {
+                ...session,
+                [key]: {
+                    ...entry,
+                    items,
+                },
+            };
+            persistHomepageRailSessionState();
+            return true;
+        }
+
+        function clearHomepageRailSessionState() {
+            state.homepageRailSession = createEmptyHomepageRailSession();
+            try {
+                sessionStorage.removeItem(HOMEPAGE_RAIL_SESSION_STORAGE_KEY);
+            } catch {
+                // Ignore storage failures.
+            }
+        }
+
         function parseTrackedSyncPayload(rawValue) {
             if (!rawValue) return null;
             try {
@@ -6527,6 +6642,7 @@ input:focus-visible {
                 state.personalizedDealsSource = [];
                 state.personalizedDealsDisplaySignature = "";
                 state.personalizedDealsDisplayRows = [];
+                clearHomepageRailSessionState();
                 state.personalizedStatus.personalized = false;
                 state.personalizedStatus.fallbackMode = false;
                 state.personalizedStatus.resolved = false;
@@ -11451,6 +11567,8 @@ input:focus-visible {
             const wishlistLoading = !!state.personalListStatus?.wishlistLoading;
             const wishlistError = !!state.personalListStatus?.wishlistError;
             const hasOwnedItems = wishlistItems.length > 0;
+            const stickyEntry = getHomepageRailSessionEntry("becauseYouOwn");
+            const hasStickyResult = !!stickyEntry;
 
             if (!knownUser && !wishlistLoading) {
                 setPanelVisibility(ui.becauseYouOwnPanel, false);
@@ -11459,8 +11577,22 @@ input:focus-visible {
 
             setPanelVisibility(
                 ui.becauseYouOwnPanel,
-                knownUser && (hasOwnedItems || wishlistLoading || wishlistError),
+                knownUser && (hasOwnedItems || wishlistLoading || wishlistError || hasStickyResult),
             );
+
+            if (hasStickyResult && (wishlistLoading || wishlistError || !hasOwnedItems)) {
+                if (ui.becauseYouOwnTitle && stickyEntry.title) {
+                    ui.becauseYouOwnTitle.textContent = stickyEntry.title;
+                }
+                if (ui.becauseYouOwnSubtitle && stickyEntry.subtitle) {
+                    ui.becauseYouOwnSubtitle.textContent = stickyEntry.subtitle;
+                }
+                ui.becauseYouOwnList.innerHTML = stickyEntry.items
+                    .map((entry) => becauseYouOwnItemHtml(entry))
+                    .join("");
+                return;
+            }
+
             if (ui.becauseYouOwnTitle) {
                 ui.becauseYouOwnTitle.textContent = "Because You Own...";
             }
@@ -11494,6 +11626,20 @@ input:focus-visible {
             } catch (error) {
                 console.warn("Because-you-own recommendation build failed", error);
             }
+            const recommendationsAreStrong = !!safeArray(recommendations.items).length
+                && String(recommendations.reason || "").trim().toLowerCase() !== "weak_fallback";
+            if (hasStickyResult && !recommendationsAreStrong) {
+                if (ui.becauseYouOwnTitle && stickyEntry.title) {
+                    ui.becauseYouOwnTitle.textContent = stickyEntry.title;
+                }
+                if (ui.becauseYouOwnSubtitle && stickyEntry.subtitle) {
+                    ui.becauseYouOwnSubtitle.textContent = stickyEntry.subtitle;
+                }
+                ui.becauseYouOwnList.innerHTML = stickyEntry.items
+                    .map((entry) => becauseYouOwnItemHtml(entry))
+                    .join("");
+                return;
+            }
             if (recommendations.anchorName && ui.becauseYouOwnTitle) {
                 const anchor = recommendations.anchorName.length > 34
                     ? `${recommendations.anchorName.slice(0, 31).trimEnd()}...`
@@ -11522,6 +11668,13 @@ input:focus-visible {
                 ui.becauseYouOwnSubtitle.textContent = recommendations.reason === "weak_fallback"
                     ? "Closest available matches while we wait for stronger overlap signals."
                     : "Based on games you own.";
+            }
+            if (recommendationsAreStrong) {
+                setHomepageRailSessionEntry("becauseYouOwn", {
+                    items: recommendations.items.slice(0, 3),
+                    title: ui.becauseYouOwnTitle ? String(ui.becauseYouOwnTitle.textContent || "").trim() : "",
+                    subtitle: ui.becauseYouOwnSubtitle ? String(ui.becauseYouOwnSubtitle.textContent || "").trim() : "",
+                });
             }
             ui.becauseYouOwnList.innerHTML = recommendations.items
                 .map((entry) => becauseYouOwnItemHtml(entry))
@@ -11876,6 +12029,8 @@ input:focus-visible {
             const lockedRows = state.personalizedDealsDisplaySignature === sourceSignature
                 ? safeArray(state.personalizedDealsDisplayRows)
                 : [];
+            const stickyEntry = getHomepageRailSessionEntry("personalizedDeals");
+            const hasStickyResult = !!stickyEntry;
             const personalizedLimit = HOMEPAGE_SECTION_LIMITS.personalizedDeals;
             const personalizedActive = knownUser && personalizedResolved && !!state.personalizedStatus?.personalized;
             const personalizedTitleVisible = !knownUser || personalizedResolved;
@@ -11934,9 +12089,42 @@ input:focus-visible {
                 hiddenOwnedCount: 0,
                 totalCount: displayItems.length,
             };
-            if (personalizedActive && filteredDisplay.rows.length) {
+            const personalizedResultIsStrong = personalizedActive && filteredDisplay.rows.length > 0;
+            if (hasStickyResult && !personalizedResultIsStrong) {
+                if (ui.yourDealsTodayTitle && stickyEntry.title) {
+                    ui.yourDealsTodayTitle.textContent = stickyEntry.title;
+                }
+                if (ui.yourDealsTodaySubtitle && stickyEntry.subtitle) {
+                    ui.yourDealsTodaySubtitle.textContent = stickyEntry.subtitle;
+                }
+                renderPagedCards({
+                    container: ui.personalizedDealsGrid,
+                    items: stickyEntry.items.slice(0, 1),
+                    renderer: gameCardHtml,
+                    visibleKey: "personalizedDealsGrid",
+                    toggleButton: null,
+                    showAllButton: null,
+                    view: stickyEntry.view || (personalizedActive || (knownUser && !personalizedResolved)
+                        ? "command-center-best-personalized"
+                        : "command-center-best-fallback"),
+                    title: "Best Personal Opportunity",
+                    initialCount: 1,
+                });
+                return;
+            }
+            if (personalizedResultIsStrong) {
                 state.personalizedDealsDisplaySignature = sourceSignature;
                 state.personalizedDealsDisplayRows = filteredDisplay.rows.slice(0, 1);
+            }
+            if (personalizedResultIsStrong) {
+                setHomepageRailSessionEntry("personalizedDeals", {
+                    items: filteredDisplay.rows.slice(0, 1),
+                    title: personalizedLabel,
+                    subtitle: personalizedSubtitle,
+                    view: personalizedActive || (knownUser && !personalizedResolved)
+                        ? "command-center-best-personalized"
+                        : "command-center-best-fallback",
+                });
             }
             if (error && !uniqueApiItems.length) {
                 renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");
@@ -15129,7 +15317,9 @@ try {
         function renderCriticalHomepageSkeletons() {
             renderSkeleton(ui.dealRankedGrid, "deal-cards", HOMEPAGE_ALL_DEALS_INITIAL_COUNT, { cardClass: "game-card" });
             renderSkeleton(ui.opportunitiesGrid, "deal-cards", 6, { cardClass: "game-card" });
-            renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 1, { cardClass: "game-card" });
+            if (!getHomepageRailSessionEntry("personalizedDeals")) {
+                renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 1, { cardClass: "game-card" });
+            }
             renderSkeleton(ui.dailyDigestList, "panel-list", 1, { itemClass: "digest-item" });
             renderSkeleton(ui.dealRadarFeed, "radar-list", 4, { itemClass: "deal-radar-card", thumbClass: "deal-radar-thumb" });
         }
@@ -15193,7 +15383,8 @@ try {
             renderSkeleton(ui.leaderboardList, "mini-list", 4, { itemClass: "mini-item" });
             const showPersonalizedSkeleton = !!state.personalizedStatus?.loading
                 && !safeArray(state.personalizedDealsSource).length
-                && !state.personalizedStatus?.fallbackMode;
+                && !state.personalizedStatus?.fallbackMode
+                && !getHomepageRailSessionEntry("personalizedDeals");
             if (showPersonalizedSkeleton) {
                 renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 1, { cardClass: "game-card" });
             }
@@ -16526,6 +16717,11 @@ try {
             window.addEventListener("pageshow", (event) => {
                 if (!event.persisted) return;
                 const restored = restoreDashboardSnapshot();
+                const restoredRailSession = loadHomepageRailSessionState();
+                if (restoredRailSession) {
+                    renderPersonalizedDeals();
+                    renderBecauseYouOwn();
+                }
                 syncTrackedStateFromStorage();
                 if (restored) {
                     renderCriticalHomepageSections();
@@ -16563,6 +16759,11 @@ try {
                 wireResponsiveHomepageLayout();
                 state.lastVisitTs = getStoredLastVisitTs();
                 const restoredSnapshot = restoreDashboardSnapshot();
+                const restoredRailSession = loadHomepageRailSessionState();
+                if (restoredRailSession) {
+                    renderPersonalizedDeals();
+                    renderBecauseYouOwn();
+                }
                 syncTrackedStateFromStorage();
                 if (!restoredSnapshot) {
                     renderCriticalHomepageSkeletons();

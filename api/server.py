@@ -266,7 +266,8 @@ SITEMAP_STATIC_PATHS = (
     "/under-20",
     "/popular-discounts",
 )
-SITEMAP_GAME_DETAIL_LIMIT = 1200
+SITEMAP_BASE_URL = SITE_URL.rstrip("/")
+SITEMAP_GAME_PAGE_SIZE = 1000
 EXTENDED_PLATFORM_FILTER_OPTIONS = ("Steam Deck", "VR Compatibility")
 PERSONALIZATION_BROAD_TOKENS = {
     "action",
@@ -5635,58 +5636,69 @@ def site_manifest():
         media_type="application/manifest+json",
     )
 
-from sqlalchemy import text
-
-def _collect_sitemap_games():
-    session = ReadSessionLocal()
-    try:
-        result = session.execute(
-            text("""
-                 SELECT name, featured_media
-                 FROM games
-                 WHERE name IS NOT NULL
-                   AND TRIM(name) <> ''
-                 """)
-        )
-        rows = result.mappings().all()
-
-        items = []
-        seen = set()
-
-        for row in rows:
-            slug = _canonical_game_slug(row.get("name"))
-            if not slug:
-                continue
-
-            path = f"/game/{slug}"
-            if path in seen:
-                continue
-
-            seen.add(path)
-            items.append(
-                {
-                    "path": path,
-                    "name": row.get("name"),
-                    "featured_media": row.get("featured_media"),
-                }
-            )
-
-        return items
-
-    except Exception as e:
-        print("SITEMAP DB ERROR:", e)
-        return []
-    finally:
-        session.close()
-
-from fastapi import Response
 from xml.sax.saxutils import escape
-from sqlalchemy import text
 
-BASE_URL = "https://gameden.gg"
+SITEMAP_GAME_CTE_SQL = """
+WITH eligible_games AS (
+    SELECT
+        id,
+        name,
+        featured_media,
+        trim(both '-' from regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g')) AS slug
+    FROM games
+    WHERE name IS NOT NULL
+      AND TRIM(name) <> ''
+),
+deduped_games AS (
+    SELECT DISTINCT ON (slug)
+        id,
+        name,
+        featured_media,
+        slug
+    FROM eligible_games
+    WHERE slug <> ''
+    ORDER BY slug ASC, id ASC
+)
+"""
+
 
 def _xml_escape(value):
     return escape(str(value or "").strip())
+
+
+def _sitemap_loc(path: str) -> str:
+    normalized = str(path or "").strip()
+    if not normalized:
+        return SITEMAP_BASE_URL
+    if not normalized.startswith("/"):
+        normalized = f"/{normalized}"
+    return f"{SITEMAP_BASE_URL}{normalized}"
+
+
+def _build_sitemap_urlset_xml(url_entries: list[str], *, include_video_namespace: bool = False) -> str:
+    if include_video_namespace:
+        header = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
+            '        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">\n'
+        )
+    else:
+        header = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        )
+    body = "\n".join(url_entries)
+    return f"{header}{body}\n</urlset>\n"
+
+
+def _build_sitemap_index_xml(index_entries: list[str]) -> str:
+    body = "\n".join(index_entries)
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{body}\n"
+        "</sitemapindex>\n"
+    )
 
 
 def _normalize_sitemap_video_media(featured_media):
@@ -5771,52 +5783,30 @@ def _build_video_block(*, page_loc: str, game_name: str | None, featured_media: 
     )
 
 
-def _collect_sitemap_games():
-    session = ReadSessionLocal()
-    try:
-        result = session.execute(
-            text("""
-                SELECT name, featured_media
-                FROM games
-                WHERE name IS NOT NULL
-                  AND TRIM(name) <> ''
-            """)
-        )
-        rows = result.mappings().all()
-
-        items = []
-        seen = set()
-
-        for row in rows:
-            name = row.get("name")
-            slug = _canonical_game_slug(name)
-            if not slug:
-                continue
-
-            path = f"/game/{slug}"
-            if path in seen:
-                continue
-
-            seen.add(path)
-            items.append(
-                {
-                    "path": path,
-                    "name": name,
-                    "featured_media": row.get("featured_media"),
-                }
-            )
-
-        return items
-
-    except Exception as e:
-        print("SITEMAP DB ERROR:", repr(e))
-        return []
-    finally:
-        session.close()
+def _count_sitemap_game_pages(session) -> int:
+    result = session.execute(text(SITEMAP_GAME_CTE_SQL + "SELECT count(*) FROM deduped_games"))
+    return int(result.scalar_one() or 0)
 
 
-@app.get("/sitemap.xml", include_in_schema=False)
-def sitemap_xml():
+def _fetch_sitemap_game_rows(session, page: int) -> list[dict]:
+    offset = max(0, (page - 1) * SITEMAP_GAME_PAGE_SIZE)
+    result = session.execute(
+        text(
+            SITEMAP_GAME_CTE_SQL
+            + """
+            SELECT id, name, featured_media
+            FROM deduped_games
+            ORDER BY id ASC
+            OFFSET :offset
+            LIMIT :limit
+            """
+        ),
+        {"offset": offset, "limit": SITEMAP_GAME_PAGE_SIZE},
+    )
+    return result.mappings().all()
+
+
+def _build_static_sitemap_entries() -> list[str]:
     seen = set()
     urls = []
 
@@ -5832,34 +5822,39 @@ def sitemap_xml():
             return
 
         seen.add(normalized)
-        loc = f"{BASE_URL}{normalized}"
-
         urls.append(
             "  <url>\n"
-            f"    <loc>{_xml_escape(loc)}</loc>\n"
+            f"    <loc>{_xml_escape(_sitemap_loc(normalized))}</loc>\n"
             "  </url>"
         )
 
-    def add_game_url(*, path: str, game_name: str | None = None, featured_media: dict | None = None):
-        normalized = str(path or "").strip()
-        if not normalized:
-            return
-        if not normalized.startswith("/"):
-            normalized = f"/{normalized}"
-        if normalized in {"/game", "/game/"}:
-            return
-        if normalized in seen:
-            return
+    add_path("/")
+    for path in SITEMAP_STATIC_PATHS:
+        add_path(path)
+    return urls
 
-        seen.add(normalized)
-        loc = f"{BASE_URL}{normalized}"
 
+def _build_game_sitemap_entries(rows: list[dict]) -> list[str]:
+    seen = set()
+    urls = []
+
+    for row in rows:
+        name = row.get("name")
+        slug = _canonical_game_slug(name)
+        if not slug:
+            continue
+
+        path = f"/game/{slug}"
+        if path in seen:
+            continue
+
+        seen.add(path)
+        loc = _sitemap_loc(path)
         video_block = _build_video_block(
             page_loc=loc,
-            game_name=game_name,
-            featured_media=featured_media,
+            game_name=name,
+            featured_media=row.get("featured_media"),
         )
-
         urls.append(
             "  <url>\n"
             f"    <loc>{_xml_escape(loc)}</loc>\n"
@@ -5867,35 +5862,65 @@ def sitemap_xml():
             "  </url>"
         )
 
-    # Homepage
-    add_path("/")
+    return urls
 
-    # Static pages
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap_xml():
+    session = ReadSessionLocal()
     try:
-        for path in SITEMAP_STATIC_PATHS:
-            add_path(path)
-    except Exception as e:
-        print("STATIC PATH ERROR:", repr(e))
+        total_game_urls = _count_sitemap_game_pages(session)
+    except Exception as exc:
+        print("SITEMAP INDEX DB ERROR:", repr(exc))
+        total_game_urls = 0
+    finally:
+        session.close()
 
-    # Game pages
+    game_page_count = math.ceil(total_game_urls / SITEMAP_GAME_PAGE_SIZE) if total_game_urls else 0
+    index_entries = [
+        "  <sitemap>\n"
+        f"    <loc>{_xml_escape(_sitemap_loc('/sitemaps/pages.xml'))}</loc>\n"
+        "  </sitemap>",
+    ]
+    for page in range(1, game_page_count + 1):
+        index_entries.append(
+            "  <sitemap>\n"
+            f"    <loc>{_xml_escape(_sitemap_loc(f'/sitemaps/games-{page}.xml'))}</loc>\n"
+            "  </sitemap>"
+        )
+
+    xml = _build_sitemap_index_xml(index_entries)
+    return Response(content=xml, media_type="application/xml")
+
+
+@app.get("/sitemaps/pages.xml", include_in_schema=False)
+def sitemap_pages_xml():
+    xml = _build_sitemap_urlset_xml(_build_static_sitemap_entries())
+    return Response(content=xml, media_type="application/xml")
+
+
+@app.get("/sitemaps/games-{page}.xml", include_in_schema=False)
+def sitemap_games_xml(page: int):
+    if page < 1:
+        raise HTTPException(status_code=404, detail="Sitemap page not found")
+
+    session = ReadSessionLocal()
     try:
-        for game in _collect_sitemap_games():
-            add_game_url(
-                path=game["path"],
-                game_name=game.get("name"),
-                featured_media=game.get("featured_media"),
-            )
-    except Exception as e:
-        print("GAME PATH ERROR:", repr(e))
+        total_games = _count_sitemap_game_pages(session)
+        total_pages = math.ceil(total_games / SITEMAP_GAME_PAGE_SIZE) if total_games else 0
+        if total_pages == 0 or page > total_pages:
+            raise HTTPException(status_code=404, detail="Sitemap page not found")
 
-    xml = (
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
-        '        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">\n'
-        f"{chr(10).join(urls)}\n"
-        "</urlset>\n"
-    )
+        rows = _fetch_sitemap_game_rows(session, page)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print("SITEMAP PAGE DB ERROR:", repr(exc))
+        raise HTTPException(status_code=503, detail="Sitemap unavailable")
+    finally:
+        session.close()
 
+    xml = _build_sitemap_urlset_xml(_build_game_sitemap_entries(rows), include_video_namespace=True)
     return Response(content=xml, media_type="application/xml")
 
 @app.get("/")

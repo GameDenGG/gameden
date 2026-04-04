@@ -1644,13 +1644,9 @@ def _run_quick_find_search_v1(
     prefix_match_ids_sql = """
         SELECT g.id
         FROM games g
-        WHERE
-            lower(g.name) LIKE (:query_value || '%')
-        ORDER BY
-            CASE WHEN lower(g.name) = :query_value THEN 0 ELSE 1 END,
-            length(g.name) ASC,
-            g.name ASC
-        LIMIT :limit
+WHERE
+    lower(g.name) LIKE (:query_value || '%')
+LIMIT :limit
     """
     fallback_ids_sql = """
         SELECT g.id

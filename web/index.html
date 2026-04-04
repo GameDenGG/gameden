@@ -14653,10 +14653,13 @@ try {
                 state.personalizedStatus.resolved = true;
                 return items;
             })().catch((error) => {
-                state.personalizedDeals = [];
+                const hasExistingItems = safeArray(state.personalizedDeals).length > 0;
                 state.personalizedStatus.error = error;
-                state.personalizedStatus.personalized = false;
-                state.personalizedStatus.fallbackMode = true;
+                if (!hasExistingItems) {
+                    state.personalizedDeals = [];
+                    state.personalizedStatus.personalized = false;
+                    state.personalizedStatus.fallbackMode = true;
+                }
                 state.personalizedStatus.resolved = true;
                 throw error;
             }).finally(() => {

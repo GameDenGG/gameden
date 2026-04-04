@@ -14286,6 +14286,8 @@ input:focus-visible {
             }
             if (hasDealRadarPayload) renderDealRadar();
             if (hasDailyDigestPayload) renderDailyDigest();
+            renderPersonalizedDeals();
+            renderBecauseYouOwn();
             scheduleDashboardSnapshotPersist();
         }
 

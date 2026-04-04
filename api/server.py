@@ -1635,19 +1635,22 @@ def _run_quick_find_search_v1(
             g.name ASC
         LIMIT :limit
     """
-    timeout_safe_ids_sql = """
+    exact_match_ids_sql = """
+        SELECT g.id
+        FROM games g
+        WHERE lower(g.name) = :query_value
+        ORDER BY
+            length(g.name) ASC,
+            g.name ASC
+        LIMIT :limit
+    """
+    prefix_match_ids_sql = """
         SELECT g.id
         FROM games g
         WHERE
-            lower(g.name) = :normalized_q
-            OR (:normalized_q_numeral <> '' AND lower(g.name) = :normalized_q_numeral)
-            OR lower(g.name) LIKE (:normalized_q || '%')
-            OR (:normalized_q_numeral <> '' AND lower(g.name) LIKE (:normalized_q_numeral || '%'))
+            lower(g.name) LIKE (:query_value || '%')
         ORDER BY
-            CASE WHEN lower(g.name) = :normalized_q THEN 0 ELSE 1 END,
-            CASE WHEN :normalized_q_numeral <> '' AND lower(g.name) = :normalized_q_numeral THEN 0 ELSE 1 END,
-            CASE WHEN lower(g.name) LIKE (:normalized_q || '%') THEN 0 ELSE 1 END,
-            CASE WHEN :normalized_q_numeral <> '' AND lower(g.name) LIKE (:normalized_q_numeral || '%') THEN 0 ELSE 1 END,
+            CASE WHEN lower(g.name) = :query_value THEN 0 ELSE 1 END,
             length(g.name) ASC,
             g.name ASC
         LIMIT :limit
@@ -1706,6 +1709,51 @@ def _run_quick_find_search_v1(
             f"time_ms={(time.time() - id_started) * 1000:.2f}"
         )
         return game_ids
+
+    def run_staged_id_queries(
+        stages: list[tuple[str, str, str]],
+        candidate_limit: int,
+    ) -> list[int]:
+        collected_ids: list[int] = []
+        seen_ids: set[int] = set()
+        total_limit = max(1, int(candidate_limit))
+
+        for stage_name, query_sql, query_value in stages:
+            if len(collected_ids) >= total_limit:
+                break
+            if not query_value:
+                continue
+            if is_stale_request():
+                print(f"[QFS STAGED IDS STOP] stale stage={stage_name}")
+                break
+
+            remaining_limit = total_limit - len(collected_ids)
+            stage_limit = max(1, min(total_limit, remaining_limit + 4))
+            stage_started = time.time()
+            print(
+                f"[QFS STAGED IDS START] stage={stage_name} limit={stage_limit} "
+                f"query_value='{query_value}'"
+            )
+            result_rows = session.execute(
+                text(query_sql),
+                {"query_value": query_value, "limit": stage_limit},
+            ).fetchall()
+            stage_ids: list[int] = []
+            for row in result_rows:
+                game_id = int(safe_num(row[0], 0.0))
+                if game_id <= 0 or game_id in seen_ids:
+                    continue
+                seen_ids.add(game_id)
+                collected_ids.append(game_id)
+                stage_ids.append(game_id)
+                if len(collected_ids) >= total_limit:
+                    break
+            print(
+                f"[QFS STAGED IDS DONE] stage={stage_name} stage_count={len(stage_ids)} "
+                f"total_count={len(collected_ids)} time_ms={(time.time() - stage_started) * 1000:.2f}"
+            )
+
+        return collected_ids
 
     def load_candidate_rows(game_ids: list[int]) -> list[dict]:
         if not game_ids:
@@ -1816,24 +1864,73 @@ def _run_quick_find_search_v1(
                 return True
         return False
 
-    try:
-        print(f"[QFS STRONG IDS START] limit={strong_candidate_limit}")
-        candidate_ids = run_id_query(strong_ids_sql, strong_candidate_limit)
-        print(f"[QFS STRONG IDS DONE] count={len(candidate_ids)}")
-    except Exception as error:
-        print(f"[QFS STRONG IDS ERROR] {error}")
-        if not _is_statement_timeout_error(error):
-            raise
-        recover_after_statement_timeout()
+    should_run_tokenized_prefix_probe = (
+        quick_mode
+        and bool(tokenized_query)
+        and tokenized_query != normalized_query
+        and not tokenized_query.startswith("%")
+    )
+
+    quick_strong_stages: list[tuple[str, str, str]] = [
+        ("exact", exact_match_ids_sql, normalized_query),
+        ("prefix", prefix_match_ids_sql, normalized_query),
+    ]
+    if numeral_equivalent_query and numeral_equivalent_query != normalized_query:
+        quick_strong_stages.extend(
+            [
+                ("numeral_exact", exact_match_ids_sql, numeral_equivalent_query),
+                ("numeral_prefix", prefix_match_ids_sql, numeral_equivalent_query),
+            ]
+        )
+    if should_run_tokenized_prefix_probe:
+        quick_strong_stages.append(("tokenized_prefix", prefix_match_ids_sql, tokenized_query))
+
+    quick_timeout_safe_stages: list[tuple[str, str, str]] = [
+        ("exact", exact_match_ids_sql, normalized_query),
+        ("prefix", prefix_match_ids_sql, normalized_query),
+    ]
+    if numeral_equivalent_query and numeral_equivalent_query != normalized_query:
+        quick_timeout_safe_stages.extend(
+            [
+                ("numeral_exact", exact_match_ids_sql, numeral_equivalent_query),
+                ("numeral_prefix", prefix_match_ids_sql, numeral_equivalent_query),
+            ]
+        )
+
+    if quick_mode:
         try:
-            print(f"[QFS TIMEOUT SAFE IDS START] limit={max(8, normalized_limit * 3)}")
-            candidate_ids = run_id_query(timeout_safe_ids_sql, max(8, normalized_limit * 3))
-            print(f"[QFS TIMEOUT SAFE IDS DONE] count={len(candidate_ids)}")
-        except Exception as timeout_safe_error:
-            print(f"[QFS TIMEOUT SAFE IDS ERROR] {timeout_safe_error}")
-            if _is_statement_timeout_error(timeout_safe_error):
-                recover_after_statement_timeout()
-                raise HTTPException(status_code=504, detail="search_timeout")
+            print(f"[QFS STRONG IDS START] limit={strong_candidate_limit} staged={len(quick_strong_stages)}")
+            candidate_ids = run_staged_id_queries(quick_strong_stages, strong_candidate_limit)
+            print(f"[QFS STRONG IDS DONE] count={len(candidate_ids)}")
+        except Exception as error:
+            print(f"[QFS STRONG IDS ERROR] {error}")
+            if not _is_statement_timeout_error(error):
+                raise
+            recover_after_statement_timeout()
+            try:
+                timeout_safe_limit = max(8, normalized_limit * 3)
+                print(
+                    f"[QFS TIMEOUT SAFE IDS START] limit={timeout_safe_limit} "
+                    f"staged={len(quick_timeout_safe_stages)}"
+                )
+                candidate_ids = run_staged_id_queries(quick_timeout_safe_stages, timeout_safe_limit)
+                print(f"[QFS TIMEOUT SAFE IDS DONE] count={len(candidate_ids)}")
+            except Exception as timeout_safe_error:
+                print(f"[QFS TIMEOUT SAFE IDS ERROR] {timeout_safe_error}")
+                if _is_statement_timeout_error(timeout_safe_error):
+                    recover_after_statement_timeout()
+                    raise HTTPException(status_code=504, detail="search_timeout")
+                raise
+    else:
+        try:
+            print(f"[QFS STRONG IDS START] limit={strong_candidate_limit}")
+            candidate_ids = run_id_query(strong_ids_sql, strong_candidate_limit)
+            print(f"[QFS STRONG IDS DONE] count={len(candidate_ids)}")
+        except Exception as error:
+            print(f"[QFS STRONG IDS ERROR] {error}")
+            if not _is_statement_timeout_error(error):
+                raise
+            recover_after_statement_timeout()
             raise
 
     if is_stale_request():

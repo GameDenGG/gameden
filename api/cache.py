@@ -234,4 +234,7 @@ def _apply_etag(request: Request | None, result: Any) -> Any:
     if client_etag == etag_hash:
         return Response(status_code=304, headers={"ETag": etag_value})
 
-    return JSONResponse(content=result, headers={"ETag": etag_value})
+    from fastapi.encoders import jsonable_encoder
+
+    safe_result = jsonable_encoder(result)
+    return JSONResponse(content=safe_result, headers={"ETag": etag_value})

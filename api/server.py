@@ -6414,6 +6414,7 @@ def get_trending_games(limit: int = Query(default=20, ge=1, le=100)):
     finally:
         session.close()
 
+import time
 
 @app.get("/search")
 @json_etag()
@@ -6426,17 +6427,26 @@ def search_games_fast(
     mode: str = Query(default="quick"),
     seq: int = Query(default=0, ge=0, le=10_000_000),
 ):
+    start_time = time.time()
+    print(f"[SEARCH START] q='{q}' limit={limit} mode={mode} seq={seq}")
+
     started = _start_timer()
     session = ReadSessionLocal()
+
     try:
         query_text = q.strip()
         if not query_text:
+            print("[SEARCH EARLY RETURN] empty query")
             return []
+
+        # ---- sequence / scope setup ----
+        t_seq = time.time()
 
         search_sequence = max(0, int(seq or 0))
         header_search_sequence = str(request.headers.get("x-search-seq") or "").strip()
         if header_search_sequence.isdigit():
             search_sequence = max(search_sequence, int(header_search_sequence))
+
         normalized_mode = str(mode or "").strip().lower()
         quick_mode = normalized_mode in {"", "quick", "quick-find", "homepage"}
 
@@ -6445,7 +6455,10 @@ def search_games_fast(
             search_scope_key = _search_scope_key(request)
             _register_search_sequence(search_scope_key, int(search_sequence))
             if _is_search_sequence_stale(search_scope_key, int(search_sequence)):
+                print("[SEARCH STALE BEFORE RUN]")
                 return []
+
+        print(f"[SEARCH SEQ DONE] time_ms={(time.time()-t_seq)*1000:.2f}")
 
         def is_stale_request() -> bool:
             return bool(
@@ -6455,6 +6468,10 @@ def search_games_fast(
                 and _is_search_sequence_stale(search_scope_key, int(search_sequence))
             )
 
+        # ---- MAIN SEARCH CALL ----
+        t_run = time.time()
+        print("[SEARCH RUN START]")
+
         rows = _run_quick_find_search_v1(
             session,
             query_text=query_text,
@@ -6462,13 +6479,28 @@ def search_games_fast(
             mode=mode,
             is_stale=is_stale_request if quick_mode and search_sequence > 0 else None,
         )
+
+        print(f"[SEARCH RUN DONE] rows={len(rows)} time_ms={(time.time()-t_run)*1000:.2f}")
+
+        # ---- stale check after ----
         if is_stale_request():
+            print("[SEARCH STALE AFTER RUN]")
             return []
+
+        total_ms = (time.time() - start_time) * 1000
+        print(f"[SEARCH SUCCESS] total_ms={total_ms:.2f}")
+
         return rows
+
+    except Exception as e:
+        total_ms = (time.time() - start_time) * 1000
+        print(f"[SEARCH ERROR] after_ms={total_ms:.2f} error={str(e)}")
+        raise
+
     finally:
         session.close()
         _log_timing("/search", started)
-
+        print("[SEARCH END]")
 
 @app.get("/games/search")
 def search_games(q: str = Query(default="", min_length=0)):

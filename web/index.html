@@ -5694,6 +5694,7 @@ input:focus-visible {
             opportunitiesNow: [],
             opportunityRadar: [],
             personalizedDeals: [],
+            personalizedDealsSource: [],
             worthBuyingNow: [],
             buyNowPicks: [],
             waitPicks: [],
@@ -6228,6 +6229,7 @@ input:focus-visible {
                 state.opportunitiesNow = uniqueGamesByName(sections.opportunitiesNow || []);
                 state.opportunityRadar = uniqueGamesByName(sections.opportunityRadar || []);
                 state.personalizedDeals = uniqueGamesByName(sections.personalizedDeals || []);
+                state.personalizedDealsSource = uniqueGamesByName(sections.personalizedDeals || []);
                 state.worthBuyingNow = uniqueGamesByName(sections.worthBuyingNow || []);
                 state.trendingDeals = uniqueGamesByName(sections.trendingDeals || []);
                 state.newHistoricalLows = uniqueGamesByName(sections.newHistoricalLows || []);
@@ -6518,6 +6520,7 @@ input:focus-visible {
                 state.alertSignals = [];
                 state.personalSummaryLoaded = false;
                 state.personalizedDeals = [];
+                state.personalizedDealsSource = [];
                 state.personalizedStatus.personalized = false;
                 state.personalizedStatus.fallbackMode = false;
                 state.personalizedStatus.resolved = false;
@@ -11857,7 +11860,8 @@ input:focus-visible {
             const loading = !!state.personalizedStatus?.loading;
             const error = state.personalizedStatus?.error;
             const personalizedResolved = state.personalizedStatus?.resolved === true;
-            const apiItems = safeArray(state.personalizedDeals);
+            const sourceItems = safeArray(state.personalizedDealsSource);
+            const apiItems = sourceItems.length ? sourceItems : safeArray(state.personalizedDeals);
             const personalizedLimit = HOMEPAGE_SECTION_LIMITS.personalizedDeals;
             const protectedKeys = buildProtectedVisibleRailIdentitySet();
             const uniqueApiItems = filterRowsByIdentityExclusion(
@@ -11868,7 +11872,7 @@ input:focus-visible {
             const useFallbackRows = (!knownUser || (personalizedResolved && !state.personalizedStatus?.personalized)) && !uniqueApiItems.length;
             const fallbackRows = buildYourDealsFallbackRows(personalizedLimit, {
                 excludeKeys: protectedKeys,
-                seedRows: uniqueApiItems,
+                seedRows: apiItems,
             });
             if (error && !uniqueApiItems.length) {
                 renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");
@@ -14642,10 +14646,13 @@ try {
                     `/api/personalized-deals?user_id=${encodeURIComponent(requestedUserId)}&limit=${HOMEPAGE_SECTION_LIMITS.personalizedDeals}&include_owned=${includeOwnedParam}`,
                 );
                 if (String(CURRENT_USER_ID || "").trim() !== requestedUserId) {
-                    return safeArray(state.personalizedDeals);
+                    return safeArray(state.personalizedDealsSource).length
+                        ? safeArray(state.personalizedDealsSource)
+                        : safeArray(state.personalizedDeals);
                 }
                 const items = uniqueGamesByName(payload?.items || payload || []);
                 const personalized = !!payload?.personalized && knownUser;
+                state.personalizedDealsSource = items;
                 state.personalizedDeals = items;
                 sanitizePersonalizedDealsState();
                 state.personalizedStatus.personalized = personalized;
@@ -14653,9 +14660,10 @@ try {
                 state.personalizedStatus.resolved = true;
                 return items;
             })().catch((error) => {
-                const hasExistingItems = safeArray(state.personalizedDeals).length > 0;
+                const hasExistingItems = safeArray(state.personalizedDealsSource).length > 0;
                 state.personalizedStatus.error = error;
                 if (!hasExistingItems) {
+                    state.personalizedDealsSource = [];
                     state.personalizedDeals = [];
                     state.personalizedStatus.personalized = false;
                     state.personalizedStatus.fallbackMode = true;
@@ -14785,7 +14793,7 @@ try {
             const hasWatchlistSeed = safeArray(state.watchlist).length > 0;
             const hasWishlistSeed = safeArray(state.wishlist).length > 0;
             const hasAlertSeed = !!state.personalSummaryLoaded && safeArray(state.alertSignals).length > 0;
-            const hasPersonalizedSeed = safeArray(state.personalizedDeals).length > 0;
+            const hasPersonalizedSeed = safeArray(state.personalizedDealsSource).length > 0 || safeArray(state.personalizedDeals).length > 0;
 
             const watchlistPromise = canLoadPersonalData && eagerPersonalLists && !hasWatchlistSeed
                 ? loadUserWatchlist().catch((error) => {
@@ -14833,9 +14841,14 @@ try {
                     console.warn("Failed to load personalized deals", error);
                     return [];
                 })
-                : Promise.resolve(safeArray(state.personalizedDeals));
+                : Promise.resolve(
+                    safeArray(state.personalizedDealsSource).length
+                        ? state.personalizedDealsSource
+                        : safeArray(state.personalizedDeals),
+                );
             personalizedPromise.then((personalizedDeals) => {
                 if (!state.personalizedStatus.error) {
+                    state.personalizedDealsSource = uniqueGamesByName(personalizedDeals || []);
                     state.personalizedDeals = uniqueGamesByName(personalizedDeals || []);
                     sanitizePersonalizedDealsState();
                 }
@@ -15009,7 +15022,7 @@ try {
                     node: ui.recommendedForYouPanel || document.getElementById("recommendedForYouPanel"),
                     shouldLoad: () => (
                         knownUser
-                        && !safeArray(state.personalizedDeals).length
+                        && !safeArray(state.personalizedDealsSource).length
                         && !state.personalizedStatus?.loading
                         && !state.personalizedStatus?.error
                     ),
@@ -15017,6 +15030,7 @@ try {
                         () => loadPersonalizedDeals()
                             .then((items) => {
                                 if (!state.personalizedStatus.error) {
+                                    state.personalizedDealsSource = uniqueGamesByName(items || []);
                                     state.personalizedDeals = uniqueGamesByName(items || []);
                                     sanitizePersonalizedDealsState();
                                 }
@@ -15139,7 +15153,7 @@ try {
             }
             renderSkeleton(ui.leaderboardList, "mini-list", 4, { itemClass: "mini-item" });
             const showPersonalizedSkeleton = !!state.personalizedStatus?.loading
-                && !safeArray(state.personalizedDeals).length
+                && !safeArray(state.personalizedDealsSource).length
                 && !state.personalizedStatus?.fallbackMode;
             if (showPersonalizedSkeleton) {
                 renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 1, { cardClass: "game-card" });

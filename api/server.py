@@ -1864,30 +1864,35 @@ LIMIT :limit
         and not tokenized_query.startswith("%")
     )
 
+    should_run_prefix_probe = len(normalized_query) >= 3
+    should_run_numeral_prefix_probe = (
+        bool(numeral_equivalent_query)
+        and numeral_equivalent_query != normalized_query
+        and len(numeral_equivalent_query) >= 3
+    )
+    should_run_tokenized_prefix_stage = (
+        should_run_tokenized_prefix_probe
+        and len(tokenized_query.replace("%", "")) >= 3
+    )
+
     quick_strong_stages: list[tuple[str, str, str]] = [
         ("exact", exact_match_ids_sql, normalized_query),
-        ("prefix", prefix_match_ids_sql, normalized_query),
     ]
+    if should_run_prefix_probe:
+        quick_strong_stages.append(("prefix", prefix_match_ids_sql, normalized_query))
     if numeral_equivalent_query and numeral_equivalent_query != normalized_query:
-        quick_strong_stages.extend(
-            [
-                ("numeral_exact", exact_match_ids_sql, numeral_equivalent_query),
-                ("numeral_prefix", prefix_match_ids_sql, numeral_equivalent_query),
-            ]
-        )
-    if should_run_tokenized_prefix_probe:
+        quick_strong_stages.append(("numeral_exact", exact_match_ids_sql, numeral_equivalent_query))
+        if should_run_numeral_prefix_probe:
+            quick_strong_stages.append(("numeral_prefix", prefix_match_ids_sql, numeral_equivalent_query))
+    if should_run_tokenized_prefix_stage:
         quick_strong_stages.append(("tokenized_prefix", prefix_match_ids_sql, tokenized_query))
 
-    quick_timeout_safe_stages: list[tuple[str, str, str]] = [
-        ("prefix", prefix_match_ids_sql, normalized_query),
-    ]
-    if numeral_equivalent_query and numeral_equivalent_query != normalized_query:
-        quick_timeout_safe_stages.extend(
-            [
-                ("numeral_prefix", prefix_match_ids_sql, numeral_equivalent_query),
-            ]
-        )
-
+    quick_timeout_safe_stages: list[tuple[str, str, str]] = []
+    if should_run_prefix_probe:
+        quick_timeout_safe_stages.append(("prefix", prefix_match_ids_sql, normalized_query))
+    if should_run_numeral_prefix_probe:
+        quick_timeout_safe_stages.append(("numeral_prefix", prefix_match_ids_sql, numeral_equivalent_query))
+        
     if quick_mode:
         try:
             print(f"[QFS STRONG IDS START] limit={strong_candidate_limit} staged={len(quick_strong_stages)}")

@@ -1892,7 +1892,7 @@ LIMIT :limit
         quick_timeout_safe_stages.append(("prefix", prefix_match_ids_sql, normalized_query))
     if should_run_numeral_prefix_probe:
         quick_timeout_safe_stages.append(("numeral_prefix", prefix_match_ids_sql, numeral_equivalent_query))
-        
+
     if quick_mode:
         try:
             print(f"[QFS STRONG IDS START] limit={strong_candidate_limit} staged={len(quick_strong_stages)}")
@@ -1936,7 +1936,11 @@ LIMIT :limit
     rows = load_candidate_rows(candidate_ids)
     print(f"[QFS PRIMARY ROWS DONE] count={len(rows)}")
 
-    if len(rows) < normalized_limit and not has_strong_title_match(rows):
+    if (
+            len(normalized_query) >= 3
+            and len(rows) < normalized_limit
+            and not has_strong_title_match(rows)
+    ):
         print(
             f"[QFS FALLBACK CHECK] len(rows)={len(rows)} normalized_limit={normalized_limit} "
             f"strong_match={has_strong_title_match(rows)}"

@@ -5865,7 +5865,7 @@ def _build_game_sitemap_entries(rows: list[dict]) -> list[str]:
     return urls
 
 
-@app.get("/sitemap.xml", include_in_schema=False)
+@app.api_route("/sitemap.xml", methods=["GET", "HEAD"], include_in_schema=False)
 def sitemap_xml():
     session = ReadSessionLocal()
     try:
@@ -5893,13 +5893,13 @@ def sitemap_xml():
     return Response(content=xml, media_type="application/xml")
 
 
-@app.get("/sitemaps/pages.xml", include_in_schema=False)
+@app.api_route("/sitemaps/pages.xml", methods=["GET", "HEAD"], include_in_schema=False)
 def sitemap_pages_xml():
     xml = _build_sitemap_urlset_xml(_build_static_sitemap_entries())
     return Response(content=xml, media_type="application/xml")
 
 
-@app.get("/sitemaps/games-{page}.xml", include_in_schema=False)
+@app.api_route("/sitemaps/games-{page}.xml", methods=["GET", "HEAD"], include_in_schema=False)
 def sitemap_games_xml(page: int):
     if page < 1:
         raise HTTPException(status_code=404, detail="Sitemap page not found")

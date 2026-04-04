@@ -1527,7 +1527,6 @@ def _serialize_quick_find_row(row: dict) -> dict:
         "quick_find_instant_action": bool(row.get("_quick_instant_action")),
     }
 
-
 def _run_quick_find_search_v1(
     session,
     *,
@@ -1536,6 +1535,11 @@ def _run_quick_find_search_v1(
     mode: str,
     is_stale: Any | None = None,
 ) -> list[dict]:
+    import time
+
+    qfs_started = time.time()
+    print(f"[QFS START] query='{query_text}' limit={limit} mode={mode}")
+
     normalized_limit = max(1, min(int(limit), 20))
     normalized_mode = str(mode or "").strip().lower()
     quick_mode = normalized_mode in {"", "quick", "quick-find", "homepage"}
@@ -1546,9 +1550,12 @@ def _run_quick_find_search_v1(
     requested_normalized_query = _normalize_search_text(query_text)
     alias_query = _resolve_quick_search_alias(requested_normalized_query)
     normalized_query = alias_query or requested_normalized_query
+    print(f"[QFS NORMALIZED] requested='{requested_normalized_query}' normalized='{normalized_query}' alias_applied={bool(alias_query)}")
     if not normalized_query:
+        print("[QFS EXIT] empty normalized query")
         return []
     if is_stale_request():
+        print("[QFS EXIT] stale before work")
         return []
 
     alias_applied = bool(alias_query)
@@ -1571,16 +1578,22 @@ def _run_quick_find_search_v1(
     if quick_mode:
         try:
             session.execute(text(f"SET LOCAL statement_timeout TO '{QUICK_SEARCH_STATEMENT_TIMEOUT_MS}ms'"))
-        except Exception:
+            print(f"[QFS TIMEOUT SET] ms={QUICK_SEARCH_STATEMENT_TIMEOUT_MS}")
+        except Exception as timeout_setup_error:
+            print(f"[QFS TIMEOUT SET ERROR] {timeout_setup_error}")
             pass
 
     def recover_after_statement_timeout() -> None:
+        print("[QFS RECOVER AFTER TIMEOUT] rollback start")
         session.rollback()
         if not quick_mode:
+            print("[QFS RECOVER AFTER TIMEOUT] non-quick mode, done")
             return
         try:
             session.execute(text(f"SET LOCAL statement_timeout TO '{QUICK_SEARCH_STATEMENT_TIMEOUT_MS}ms'"))
-        except Exception:
+            print(f"[QFS RECOVER AFTER TIMEOUT] timeout reset ms={QUICK_SEARCH_STATEMENT_TIMEOUT_MS}")
+        except Exception as timeout_reset_error:
+            print(f"[QFS RECOVER AFTER TIMEOUT ERROR] {timeout_reset_error}")
             pass
 
     use_compact_probe = (
@@ -1675,18 +1688,40 @@ def _run_quick_find_search_v1(
     }
 
     def run_id_query(query_sql: str, candidate_limit: int) -> list[int]:
+        id_started = time.time()
         query_params = dict(id_query_params)
         query_params["limit"] = max(1, int(candidate_limit))
-        return [int(row[0]) for row in session.execute(text(query_sql), query_params).fetchall()]
+        print(
+            f"[QFS ID QUERY START] limit={query_params['limit']} "
+            f"normalized_q='{query_params['normalized_q']}' "
+            f"tokenized_q='{query_params['tokenized_q']}' "
+            f"normalized_q_numeral='{query_params['normalized_q_numeral']}' "
+            f"tokenized_q_numeral='{query_params['tokenized_q_numeral']}' "
+            f"compact_probe='{query_params['compact_probe']}'"
+        )
+        result_rows = session.execute(text(query_sql), query_params).fetchall()
+        game_ids = [int(row[0]) for row in result_rows]
+        print(
+            f"[QFS ID QUERY DONE] count={len(game_ids)} "
+            f"time_ms={(time.time() - id_started) * 1000:.2f}"
+        )
+        return game_ids
 
     def load_candidate_rows(game_ids: list[int]) -> list[dict]:
         if not game_ids:
+            print("[QFS HYDRATION SKIP] empty game_ids")
             return []
+        hydration_started = time.time()
+        print(f"[QFS HYDRATION START] game_ids_count={len(game_ids)}")
         rows = (
             session.query(Game, GameSnapshot)
             .outerjoin(GameSnapshot, GameSnapshot.game_id == Game.id)
             .filter(Game.id.in_(game_ids))
             .all()
+        )
+        print(
+            f"[QFS HYDRATION QUERY DONE] raw_rows={len(rows)} "
+            f"time_ms={(time.time() - hydration_started) * 1000:.2f}"
         )
         row_by_id: dict[int, dict] = {}
         for game, snapshot in rows:
@@ -1751,6 +1786,10 @@ def _run_quick_find_search_v1(
             row = row_by_id.get(int(game_id))
             if row:
                 ordered_rows.append(row)
+        print(
+            f"[QFS HYDRATION DONE] ordered_rows={len(ordered_rows)} "
+            f"time_ms={(time.time() - hydration_started) * 1000:.2f}"
+        )
         return ordered_rows
 
     def has_strong_title_match(candidates: list[dict]) -> bool:
@@ -1778,31 +1817,46 @@ def _run_quick_find_search_v1(
         return False
 
     try:
+        print(f"[QFS STRONG IDS START] limit={strong_candidate_limit}")
         candidate_ids = run_id_query(strong_ids_sql, strong_candidate_limit)
+        print(f"[QFS STRONG IDS DONE] count={len(candidate_ids)}")
     except Exception as error:
+        print(f"[QFS STRONG IDS ERROR] {error}")
         if not _is_statement_timeout_error(error):
             raise
-        # Postgres marks the transaction as failed after statement timeout;
-        # retry must happen after rollback or it will fail with InFailedSqlTransaction.
         recover_after_statement_timeout()
         try:
+            print(f"[QFS TIMEOUT SAFE IDS START] limit={max(8, normalized_limit * 3)}")
             candidate_ids = run_id_query(timeout_safe_ids_sql, max(8, normalized_limit * 3))
+            print(f"[QFS TIMEOUT SAFE IDS DONE] count={len(candidate_ids)}")
         except Exception as timeout_safe_error:
+            print(f"[QFS TIMEOUT SAFE IDS ERROR] {timeout_safe_error}")
             if _is_statement_timeout_error(timeout_safe_error):
                 recover_after_statement_timeout()
                 raise HTTPException(status_code=504, detail="search_timeout")
             raise
 
     if is_stale_request():
+        print("[QFS EXIT] stale after strong ids")
         return []
+
     rows = load_candidate_rows(candidate_ids)
+    print(f"[QFS PRIMARY ROWS DONE] count={len(rows)}")
 
     if len(rows) < normalized_limit and not has_strong_title_match(rows):
+        print(
+            f"[QFS FALLBACK CHECK] len(rows)={len(rows)} normalized_limit={normalized_limit} "
+            f"strong_match={has_strong_title_match(rows)}"
+        )
         if is_stale_request():
+            print("[QFS EXIT] stale before fallback")
             return []
         try:
+            print(f"[QFS FALLBACK IDS START] limit={fallback_candidate_limit}")
             fallback_ids = run_id_query(fallback_ids_sql, fallback_candidate_limit)
+            print(f"[QFS FALLBACK IDS DONE] count={len(fallback_ids)}")
         except Exception as error:
+            print(f"[QFS FALLBACK IDS ERROR] {error}")
             if _is_statement_timeout_error(error):
                 recover_after_statement_timeout()
                 fallback_ids = []
@@ -1819,20 +1873,39 @@ def _run_quick_find_search_v1(
                 merged_ids.append(normalized_game_id)
                 if len(merged_ids) >= max(strong_candidate_limit, fallback_candidate_limit):
                     break
+            print(
+                f"[QFS MERGED IDS DONE] merged_count={len(merged_ids)} "
+                f"candidate_count={len(candidate_ids)} fallback_count={len(fallback_ids)}"
+            )
             if is_stale_request():
+                print("[QFS EXIT] stale before merged hydration")
                 return []
             rows = load_candidate_rows(merged_ids)
+            print(f"[QFS MERGED ROWS DONE] count={len(rows)}")
 
     if is_stale_request():
+        print("[QFS EXIT] stale before ranking")
         return []
+
+    rank_started = time.time()
+    print(f"[QFS RANK START] rows={len(rows)} normalized_limit={normalized_limit}")
     ranked_rows = _rank_quick_find_rows_v1(
         rows,
         normalized_query=normalized_query,
         alias_applied=alias_applied,
         limit=normalized_limit,
     )
-    return [_serialize_quick_find_row(row) for row in ranked_rows]
+    print(
+        f"[QFS RANK DONE] ranked_count={len(ranked_rows)} "
+        f"time_ms={(time.time() - rank_started) * 1000:.2f}"
+    )
 
+    serialized = [_serialize_quick_find_row(row) for row in ranked_rows]
+    print(
+        f"[QFS END] serialized_count={len(serialized)} "
+        f"total_ms={(time.time() - qfs_started) * 1000:.2f}"
+    )
+    return serialized
 
 def serialize_game_metadata(game: Optional[Game]) -> dict:
     game_slug = _canonical_game_slug(game.name if game else None, game.id if game else None)

@@ -1639,9 +1639,6 @@ def _run_quick_find_search_v1(
         SELECT g.id
         FROM games g
         WHERE lower(g.name) = :query_value
-        ORDER BY
-            length(g.name) ASC,
-            g.name ASC
         LIMIT :limit
     """
     prefix_match_ids_sql = """
@@ -1886,13 +1883,11 @@ def _run_quick_find_search_v1(
         quick_strong_stages.append(("tokenized_prefix", prefix_match_ids_sql, tokenized_query))
 
     quick_timeout_safe_stages: list[tuple[str, str, str]] = [
-        ("exact", exact_match_ids_sql, normalized_query),
         ("prefix", prefix_match_ids_sql, normalized_query),
     ]
     if numeral_equivalent_query and numeral_equivalent_query != normalized_query:
         quick_timeout_safe_stages.extend(
             [
-                ("numeral_exact", exact_match_ids_sql, numeral_equivalent_query),
                 ("numeral_prefix", prefix_match_ids_sql, numeral_equivalent_query),
             ]
         )

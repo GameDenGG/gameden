@@ -260,6 +260,145 @@ select {
     line-height: 1.35;
 }
 
+.homepage-import-proof {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(110, 212, 164, 0.16);
+    background: rgba(11, 23, 24, 0.42);
+    color: rgba(197, 245, 222, 0.9);
+    font-size: 11px;
+    line-height: 1.35;
+    letter-spacing: 0.01em;
+}
+
+.homepage-import-proof::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(110, 212, 164, 0.92);
+    box-shadow: 0 0 0 4px rgba(110, 212, 164, 0.08);
+    flex: 0 0 auto;
+}
+
+.homepage-freshness-strip.homepage-import-highlight-soft {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-color: rgba(110, 212, 164, 0.28);
+    box-shadow:
+        0 0 0 1px rgba(110, 212, 164, 0.08),
+        0 16px 32px rgba(2, 7, 20, 0.26),
+        0 0 34px rgba(110, 212, 164, 0.1);
+}
+
+.homepage-freshness-strip.homepage-import-highlight-soft::after,
+#recommendedForYouPanel.homepage-import-highlight-strong::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background:
+        linear-gradient(115deg, rgba(255, 255, 255, 0) 0%, rgba(110, 212, 164, 0.08) 34%, rgba(110, 212, 164, 0.18) 49%, rgba(255, 255, 255, 0) 64%);
+    transform: translateX(-12%);
+}
+
+#recommendedForYouPanel.homepage-import-highlight-strong {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-color: rgba(110, 212, 164, 0.3);
+    box-shadow:
+        0 0 0 1px rgba(110, 212, 164, 0.08),
+        0 22px 48px rgba(2, 7, 20, 0.48),
+        0 0 48px rgba(110, 212, 164, 0.14);
+}
+
+#recommendedForYouPanel.homepage-import-highlight-strong::after {
+    background:
+        linear-gradient(115deg, rgba(255, 255, 255, 0) 0%, rgba(110, 212, 164, 0.1) 28%, rgba(110, 212, 164, 0.24) 48%, rgba(255, 255, 255, 0) 68%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .homepage-freshness-strip.homepage-import-highlight-soft::after {
+        animation: homepageImportSweep 920ms ease-out 1;
+    }
+
+    #recommendedForYouPanel.homepage-import-highlight-strong::after {
+        animation: homepageImportSweep 1040ms ease-out 1;
+    }
+
+    .homepage-freshness-strip.homepage-import-highlight-soft,
+    #recommendedForYouPanel.homepage-import-highlight-strong {
+        animation: homepageImportGlow 920ms ease-out 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .homepage-freshness-strip.homepage-import-highlight-soft,
+    #recommendedForYouPanel.homepage-import-highlight-strong {
+        animation: none;
+        transition:
+            border-color 160ms ease,
+            box-shadow 160ms ease,
+            background 160ms ease;
+    }
+
+    .homepage-freshness-strip.homepage-import-highlight-soft::after,
+    #recommendedForYouPanel.homepage-import-highlight-strong::after {
+        animation: none;
+        opacity: 0.12;
+        transform: none;
+    }
+}
+
+@keyframes homepageImportSweep {
+    0% {
+        opacity: 0;
+        transform: translateX(-18%);
+    }
+    18% {
+        opacity: 0.55;
+    }
+    54% {
+        opacity: 0.82;
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(16%);
+    }
+}
+
+@keyframes homepageImportGlow {
+    0% {
+        filter: saturate(1);
+        box-shadow:
+            0 0 0 1px rgba(110, 212, 164, 0.03),
+            0 16px 32px rgba(2, 7, 20, 0.24),
+            0 0 0 rgba(110, 212, 164, 0);
+    }
+    45% {
+        filter: saturate(1.05);
+        box-shadow:
+            0 0 0 1px rgba(110, 212, 164, 0.12),
+            0 18px 36px rgba(2, 7, 20, 0.28),
+            0 0 44px rgba(110, 212, 164, 0.16);
+    }
+    100% {
+        filter: saturate(1);
+        box-shadow:
+            0 0 0 1px rgba(110, 212, 164, 0.08),
+            0 16px 32px rgba(2, 7, 20, 0.24),
+            0 0 0 rgba(110, 212, 164, 0);
+    }
+}
+
 .homepage-value-cta {
     flex: 0 0 auto;
     min-height: 34px;
@@ -5298,6 +5437,7 @@ input:focus-visible {
                     </div>
                     <div class="homepage-freshness-note" id="homepageFreshnessNote">Fresh matches surface as prices move.</div>
                 </section>
+                <div class="homepage-import-proof hidden" id="homepageImportProof" aria-live="polite"></div>
                 <section class="panel panel-seasonal panel-secondary-intel hidden" id="seasonalSaleTopPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -5978,6 +6118,7 @@ input:focus-visible {
         const HOMEPAGE_SEARCH_SESSION_ID = createHomepageSearchSessionId();
         let STEAM_IMPORT_IN_PROGRESS = false;
         let STEAM_IMPORT_SUCCESS_BANNER_TIMER = null;
+        let HOMEPAGE_IMPORT_HIGHLIGHT_TIMER = null;
 
         function isDefaultOrAnonymousUserId(userId) {
             const normalized = String(userId || "").trim().toLowerCase();
@@ -6418,6 +6559,8 @@ input:focus-visible {
                 deferredCompleted: false,
             },
             personalSummaryLoaded: false,
+            homepageImportProof: null,
+            homepageImportHighlight: null,
             dashboardRestore: {
                 restored: false,
                 restoredAt: 0,
@@ -6540,6 +6683,7 @@ input:focus-visible {
             homepageFreshnessLabel: document.getElementById("homepageFreshnessLabel"),
             homepageFreshnessValue: document.getElementById("homepageFreshnessValue"),
             homepageFreshnessNote: document.getElementById("homepageFreshnessNote"),
+            homepageImportProof: document.getElementById("homepageImportProof"),
             homepageImportSuccessBanner: document.getElementById("steamImportSuccessBanner"),
             homepageImportSuccessTitle: document.getElementById("steamImportSuccessTitle"),
             homepageImportSuccessNote: document.getElementById("steamImportSuccessNote"),
@@ -7336,6 +7480,57 @@ input:focus-visible {
             }, 5200);
         }
 
+        function clearHomepageImportHighlight() {
+            if (HOMEPAGE_IMPORT_HIGHLIGHT_TIMER) {
+                clearTimeout(HOMEPAGE_IMPORT_HIGHLIGHT_TIMER);
+                HOMEPAGE_IMPORT_HIGHLIGHT_TIMER = null;
+            }
+            state.homepageImportHighlight = null;
+            renderHomepageFreshnessStrip();
+            renderPersonalizedDeals();
+        }
+
+        function triggerHomepageImportHighlight() {
+            const token = String(Date.now());
+            if (HOMEPAGE_IMPORT_HIGHLIGHT_TIMER) {
+                clearTimeout(HOMEPAGE_IMPORT_HIGHLIGHT_TIMER);
+                HOMEPAGE_IMPORT_HIGHLIGHT_TIMER = null;
+            }
+            state.homepageImportHighlight = {
+                token,
+                active: true,
+            };
+            renderHomepageFreshnessStrip();
+            renderPersonalizedDeals();
+            HOMEPAGE_IMPORT_HIGHLIGHT_TIMER = window.setTimeout(() => {
+                clearHomepageImportHighlight();
+            }, 1020);
+        }
+
+        function snapshotPersonalizedHomepageState() {
+            return {
+                personalizedDealsSource: safeArray(state.personalizedDealsSource).slice(),
+                personalizedDeals: safeArray(state.personalizedDeals).slice(),
+                personalizedDealsDisplaySignature: String(state.personalizedDealsDisplaySignature || ""),
+                personalizedDealsDisplayRows: safeArray(state.personalizedDealsDisplayRows).slice(),
+                personalizedStatus: {
+                    ...state.personalizedStatus,
+                },
+            };
+        }
+
+        function restorePersonalizedHomepageState(snapshot) {
+            if (!snapshot || typeof snapshot !== "object") return;
+            state.personalizedDealsSource = safeArray(snapshot.personalizedDealsSource).slice();
+            state.personalizedDeals = safeArray(snapshot.personalizedDeals).slice();
+            state.personalizedDealsDisplaySignature = String(snapshot.personalizedDealsDisplaySignature || "");
+            state.personalizedDealsDisplayRows = safeArray(snapshot.personalizedDealsDisplayRows).slice();
+            state.personalizedStatus = {
+                ...state.personalizedStatus,
+                ...snapshot.personalizedStatus,
+            };
+        }
+
         function closeSteamImportModal() {
             const { backdrop } = getSteamImportModalElements();
             if (!(backdrop instanceof HTMLElement)) return;
@@ -7365,11 +7560,24 @@ input:focus-visible {
 
         async function refreshHomepageAfterSteamImport() {
             const refreshToken = String(Date.now());
-            await loadUserWishlist().catch(() => null);
-            await loadPersonalizedDeals({ force: true, cacheBust: refreshToken }).catch(() => null);
+            const previousPersonalizedState = snapshotPersonalizedHomepageState();
+            const [wishlistResult, personalizedResult] = await Promise.allSettled([
+                loadUserWishlist(),
+                loadPersonalizedDeals({ force: true, cacheBust: refreshToken }),
+            ]);
+            const refreshedPersonalizedItems = personalizedResult.status === "fulfilled"
+                ? safeArray(personalizedResult.value)
+                : [];
+            const hasUsablePersonalizedResult = refreshedPersonalizedItems.length > 0;
+            if (!hasUsablePersonalizedResult) {
+                restorePersonalizedHomepageState(previousPersonalizedState);
+            }
             renderWishlist();
             rerenderOwnedFilteredFeedSections();
             syncCardActionButtonsFromState();
+            if (wishlistResult.status === "rejected") {
+                console.warn("Failed to refresh Steam-imported wishlist", wishlistResult.reason);
+            }
         }
 
         async function refreshDashboardIdentityState(options = {}) {
@@ -7401,13 +7609,20 @@ input:focus-visible {
                 state.personalizedDealsSource = [];
                 state.personalizedDealsDisplaySignature = "";
                 state.personalizedDealsDisplayRows = [];
+                state.homepageImportProof = null;
+                state.homepageImportHighlight = null;
                 if (previousWasAuthenticated && (nextIsAuthenticated ? previousUserId !== nextUserId : true)) {
                     clearHomepageRailSessionState();
                 }
                 state.personalizedStatus.personalized = false;
                 state.personalizedStatus.fallbackMode = false;
                 state.personalizedStatus.resolved = false;
+                if (HOMEPAGE_IMPORT_HIGHLIGHT_TIMER) {
+                    clearTimeout(HOMEPAGE_IMPORT_HIGHLIGHT_TIMER);
+                    HOMEPAGE_IMPORT_HIGHLIGHT_TIMER = null;
+                }
                 rerenderOwnedFilteredFeedSections();
+                renderHomepageFreshnessStrip();
             }
 
             const statePayload = await authSession.getState();
@@ -7560,6 +7775,12 @@ input:focus-visible {
                         const successCount = importedCount > 0
                             ? importedCount
                             : (matchedCount > 0 ? matchedCount : steamOwnedCount);
+                        if (successCount > 0) {
+                            state.homepageImportProof = {
+                                count: successCount,
+                            };
+                            renderHomepageFreshnessStrip();
+                        }
                         const successTitle = successCount > 0
                             ? `Imported ${fmtInt(successCount)} game${successCount === 1 ? "" : "s"} — your deals are now personalized.`
                             : "Steam library imported — your deals are now personalized.";
@@ -7570,6 +7791,9 @@ input:focus-visible {
                         );
                         setSteamImportStatus(`${summaryMessage} Refreshing homepage...`, "success");
                         await refreshHomepageAfterSteamImport();
+                        if (successCount > 0) {
+                            triggerHomepageImportHighlight();
+                        }
                     } catch (error) {
                         const detail = String(error?.detail || error?.message || "").trim();
                         setSteamImportStatus(
@@ -12809,6 +13033,8 @@ input:focus-visible {
             const loading = !state.homepageLoad?.criticalLoaded;
             const freshCount = safeArray(state.newDeals).length;
             const recentMovesCount = safeArray(state.recentlyUpdated).length;
+            const importHighlightActive = !!state.homepageImportHighlight?.active;
+            ui.homepageFreshnessStrip.classList.toggle("homepage-import-highlight-soft", importHighlightActive);
 
             if (ui.homepageFreshnessLabel) {
                 ui.homepageFreshnessLabel.textContent = "What Changed";
@@ -12840,6 +13066,16 @@ input:focus-visible {
                 ui.homepageFreshnessNote.textContent = hasLastVisit
                     ? "Since your last visit."
                     : "Fresh matches surface as prices move.";
+            }
+            if (ui.homepageImportProof instanceof HTMLElement) {
+                const proofCount = Number(state.homepageImportProof?.count || 0);
+                if (proofCount > 0) {
+                    ui.homepageImportProof.textContent = `Using ${fmtInt(proofCount)} imported owned game${proofCount === 1 ? "" : "s"}.`;
+                    ui.homepageImportProof.classList.remove("hidden");
+                } else {
+                    ui.homepageImportProof.textContent = "";
+                    ui.homepageImportProof.classList.add("hidden");
+                }
             }
         }
 
@@ -13026,6 +13262,10 @@ input:focus-visible {
             const personalizedSubtitle = personalizedActive
                 ? "Your strongest next pick from tracked games and live prices."
                 : "The strongest live pick right now.";
+            const importHighlightActive = !!state.homepageImportHighlight?.active;
+            if (ui.recommendedForYouPanel instanceof HTMLElement) {
+                ui.recommendedForYouPanel.classList.toggle("homepage-import-highlight-strong", importHighlightActive);
+            }
 
             setPanelVisibility(ui.recommendedForYouPanel, true);
             if (ui.yourDealsTodayTitle) {

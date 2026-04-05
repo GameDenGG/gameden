@@ -1145,14 +1145,6 @@ input:focus-visible {
     display: none;
 }
 
-#recommendedForYouPanel .homepage-feature-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 2px 0 1px;
-}
-
 #recommendedForYouPanel .panel-title {
     color: #fff0da;
     font-size: 22px;
@@ -1170,51 +1162,232 @@ input:focus-visible {
     padding: 0;
 }
 
-#recommendedForYouPanel .command-center-best {
-    gap: 6px;
+#recommendedForYouPanel .game-card-hero {
+    overflow: hidden;
+    border: 0;
+    border-radius: 24px;
+    background: transparent;
+    box-shadow: none;
+    min-width: 0;
+    padding: 0;
 }
 
-#recommendedForYouPanel .game-card-image,
-#recommendedForYouPanel .card-banner-img {
-    height: 112px;
-}
-
-#recommendedForYouPanel .card-banner-fallback {
-    min-height: 112px;
-}
-
-#recommendedForYouPanel .game-card-top {
-    padding-top: 7px;
-}
-
-#recommendedForYouPanel .game-name {
-    font-size: 15px;
-}
-
-#recommendedForYouPanel .price-current {
-    font-size: 17px;
-}
-
-#recommendedForYouPanel .card-action-row {
-    padding-top: 6px;
-    gap: 4px;
-}
-
-#recommendedForYouPanel .card-action-btn {
-    min-height: 28px;
-    padding: 4px 7px;
-    font-size: 10px;
-}
-
-#recommendedForYouPanel .card-meta-stack {
-    gap: 3px;
-    padding-top: 4px;
-}
-
-#recommendedForYouPanel .card-meta-row.card-secondary-signals,
-#recommendedForYouPanel .card-reason-line,
-#recommendedForYouPanel .card-mini-stats {
+#recommendedForYouPanel .game-card-hero::before {
     display: none;
+}
+
+#recommendedForYouPanel .game-card-hero:hover,
+#recommendedForYouPanel .game-card-hero:focus-within {
+    border-color: transparent;
+    box-shadow: none;
+    background: transparent;
+}
+
+#recommendedForYouPanel .game-card-hero > .game-card-hero-surface {
+    position: relative;
+    z-index: 3;
+    min-height: clamp(272px, 31vw, 380px);
+    border-radius: inherit;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+#recommendedForYouPanel .game-card-hero .card-banner {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    background: #0a1220;
+}
+
+#recommendedForYouPanel .game-card-hero .game-card-image,
+#recommendedForYouPanel .game-card-hero .card-banner-img,
+#recommendedForYouPanel .game-card-hero .card-banner-fallback {
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+}
+
+#recommendedForYouPanel .game-card-hero .card-banner-overlay {
+    background:
+        linear-gradient(180deg, rgba(4, 8, 16, 0.06) 0%, rgba(4, 8, 16, 0.18) 28%, rgba(4, 8, 16, 0.56) 64%, rgba(4, 8, 16, 0.93) 100%),
+        linear-gradient(90deg, rgba(4, 8, 16, 0.8) 0%, rgba(4, 8, 16, 0.2) 56%, rgba(4, 8, 16, 0.08) 100%);
+}
+
+#recommendedForYouPanel .game-card-hero .card-banner::after {
+    display: none;
+}
+
+#recommendedForYouPanel .game-card-hero-content {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto 1fr;
+    gap: 12px 16px;
+    padding: 18px 18px 16px;
+    align-items: start;
+    pointer-events: none;
+}
+
+#recommendedForYouPanel .game-card-hero-top {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: start;
+    min-width: 0;
+}
+
+#recommendedForYouPanel .game-card-hero-copy {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    max-width: 54ch;
+}
+
+#recommendedForYouPanel .game-card-hero-kicker {
+    color: rgba(255, 225, 181, 0.9);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+#recommendedForYouPanel .game-card-hero .game-name {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(24px, 3.2vw, 34px);
+    line-height: 0.98;
+    letter-spacing: -0.04em;
+}
+
+#recommendedForYouPanel .game-card-hero-context {
+    color: rgba(236, 243, 255, 0.84);
+    font-size: 12px;
+    line-height: 1.45;
+    max-width: 44ch;
+}
+
+#recommendedForYouPanel .game-card-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+#recommendedForYouPanel .game-card-hero .hero-cta-btn {
+    pointer-events: auto;
+    min-height: 38px;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255, 196, 111, 0.98), rgba(255, 168, 72, 0.96));
+    color: #121722;
+    box-shadow: 0 14px 28px rgba(7, 12, 22, 0.28);
+}
+
+#recommendedForYouPanel .game-card-hero .hero-cta-btn:hover {
+    background: linear-gradient(180deg, rgba(255, 205, 132, 1), rgba(255, 180, 90, 0.98));
+    color: #0b1017;
+    box-shadow: 0 16px 32px rgba(7, 12, 22, 0.32);
+}
+
+#recommendedForYouPanel .game-card-hero-price-box {
+    display: grid;
+    gap: 4px;
+    justify-items: end;
+    text-align: right;
+    align-self: start;
+    min-width: 108px;
+    color: #fff;
+}
+
+#recommendedForYouPanel .game-card-hero-price {
+    font-family: var(--font-display);
+    font-size: clamp(23px, 3vw, 32px);
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    line-height: 1;
+}
+
+#recommendedForYouPanel .game-card-hero-original {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 11px;
+    text-decoration: line-through;
+}
+
+#recommendedForYouPanel .game-card-hero-discount {
+    display: inline-flex;
+    justify-self: end;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(115, 245, 170, 0.22);
+    background: rgba(115, 245, 170, 0.16);
+    color: #d7ffea;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+#recommendedForYouPanel .game-card-hero-signals {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-self: end;
+}
+
+#recommendedForYouPanel .game-card-hero-signal {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(5, 8, 16, 0.24);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #edf3ff;
+}
+
+#recommendedForYouPanel .game-card-hero-signal-label {
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+#recommendedForYouPanel .game-card-hero-signal strong {
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+@media (max-width: 820px) {
+    #recommendedForYouPanel .game-card-hero > .game-card-hero-surface {
+        min-height: 300px;
+    }
+
+    #recommendedForYouPanel .game-card-hero-content {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        padding: 14px;
+    }
+
+    #recommendedForYouPanel .game-card-hero-top {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    #recommendedForYouPanel .game-card-hero-price-box {
+        justify-items: start;
+        text-align: left;
+        min-width: 0;
+    }
 }
 
 .command-center-best {
@@ -5206,7 +5379,7 @@ input:focus-visible {
                     </button>
                 </div>
                 <section class="panel-personalized hidden" id="recommendedForYouPanel" aria-hidden="true">
-                    <div class="homepage-feature-head">
+                    <div class="homepage-feature-head sr-only">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title" id="yourDealsTodayTitle">Worth Buying</h2>
                             <div class="panel-subtitle" id="yourDealsTodaySubtitle">Your strongest next pick from tracked games and live prices.</div>
@@ -9741,6 +9914,7 @@ input:focus-visible {
             const detailHref = buildGameDetailHref(game);
             const gameName = escapeHtml(game.game_name || "Unknown game");
             const upcomingCard = isUpcomingCard(game, context);
+            const heroMode = context.view === "command-center-best-personalized" || context.view === "command-center-best-fallback";
             const watched = isInWatchlist(game);
             const timingSignal = upcomingCard
                 ? null
@@ -9774,6 +9948,89 @@ input:focus-visible {
                 && game.original_price > game.price
             );
             const newSignalClass = shouldRenderNewSignalCard(game, context) ? " is-new-signal" : "";
+            if (heroMode) {
+                const discount = Math.max(0, Number(game.discount_percent) || 0);
+                const historicalLow = Number(game.historical_low);
+                const priceVsLowRatio = Number(game.price_vs_low_ratio);
+                const reviewScore = Number(game.review_score);
+                const reviewLabel = String(getReviewLabel(game) || "").trim();
+                const players = Number(game.current_players);
+                const heroSignals = [];
+                let pricePositionValue = "";
+
+                if (discount >= 0) {
+                    heroSignals.push({
+                        label: "Discount",
+                        value: `${Math.round(discount)}%`,
+                    });
+                }
+                if (Number.isFinite(players) && players > 0) {
+                    heroSignals.push({
+                        label: "Players",
+                        value: fmtInt(players),
+                    });
+                }
+                if (reviewLabel) {
+                    heroSignals.push({
+                        label: "Reviews",
+                        value: reviewLabel,
+                    });
+                } else if (Number.isFinite(reviewScore) && reviewScore > 0) {
+                    heroSignals.push({
+                        label: "Reviews",
+                        value: `${Math.round(reviewScore)}%`,
+                    });
+                }
+                if (Number.isFinite(historicalLow) && historicalLow > 0) {
+                    if (Number.isFinite(priceVsLowRatio) && priceVsLowRatio > 0 && priceVsLowRatio <= 1.06) {
+                        pricePositionValue = "Near low";
+                    } else if (Number.isFinite(priceVsLowRatio) && priceVsLowRatio > 0) {
+                        pricePositionValue = `${Math.max(0, Math.round((priceVsLowRatio - 1) * 100))}% above low`;
+                    } else {
+                        pricePositionValue = `Low ${fmtPrice(historicalLow)}`;
+                    }
+                }
+                if (pricePositionValue) {
+                    heroSignals.push({
+                        label: "Price",
+                        value: pricePositionValue,
+                    });
+                }
+
+                return `
+                    <article class="game-card game-card-hero${newSignalClass}">
+                        <a class="game-card-link-overlay" href="${detailHref}" aria-label="Open ${gameName} details"></a>
+                        <div class="game-card-hero-surface">
+                            ${buildBannerHtml(game, context)}
+                            <div class="game-card-hero-content">
+                                <div class="game-card-hero-top">
+                                    <div class="game-card-hero-copy">
+                                        <div class="game-card-hero-kicker">${escapeHtml(String(context.title || "Worth Buying"))}</div>
+                                        <h3 class="game-name">${gameName}</h3>
+                                        ${primaryReason ? `<div class="game-card-hero-context">${primaryReason}</div>` : ""}
+                                        <div class="game-card-hero-actions">
+                                            <a class="secondary-btn hero-cta-btn" href="${detailHref}">View best offer</a>
+                                        </div>
+                                    </div>
+                                    <div class="game-card-hero-price-box">
+                                        <div class="game-card-hero-price">${currentPriceLabel}</div>
+                                        ${showOriginalPrice ? `<div class="game-card-hero-original">${fmtPrice(game.original_price)}</div>` : ""}
+                                        ${discount > 0 ? `<div class="game-card-hero-discount">-${Math.round(discount)}%</div>` : ""}
+                                    </div>
+                                </div>
+                                <div class="game-card-hero-signals">
+                                    ${heroSignals.map((signal) => `
+                                        <span class="game-card-hero-signal">
+                                            <span class="game-card-hero-signal-label">${escapeHtml(signal.label)}</span>
+                                            <strong>${escapeHtml(String(signal.value))}</strong>
+                                        </span>
+                                    `).join("")}
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                `;
+            }
             return `
                 <article class="game-card${newSignalClass}">
                     <a class="game-card-link-overlay" href="${detailHref}" aria-label="Open ${gameName} details"></a>

@@ -215,13 +215,13 @@ select {
 
 .homepage-shell {
     display: grid;
-    gap: 14px;
+    gap: 10px;
     min-width: 0;
 }
 
 .homepage-top-shell {
     display: grid;
-    gap: 10px;
+    gap: 6px;
     min-width: 0;
 }
 
@@ -231,13 +231,111 @@ select {
     min-width: 0;
 }
 
+.homepage-proposition {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    max-width: min(100%, 1070px);
+    padding: 0 0 4px;
+}
+
+.homepage-proposition-copy {
+    display: grid;
+    gap: 7px;
+    min-width: 0;
+}
+
+.homepage-proposition-title {
+    margin: 0;
+    color: #f5fbff;
+    font-family: var(--font-display);
+    font-size: clamp(2.15rem, 3.2vw, 4rem);
+    line-height: 0.94;
+    letter-spacing: -0.045em;
+    text-wrap: balance;
+    max-width: 14ch;
+    text-shadow: 0 14px 34px rgba(4, 12, 24, 0.26);
+}
+
+.homepage-proposition-subline {
+    margin: 0;
+    max-width: 62ch;
+    color: rgba(218, 231, 247, 0.82);
+    font-size: clamp(0.94rem, 1.02vw, 1.03rem);
+    line-height: 1.46;
+}
+
+.homepage-proposition-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.homepage-proposition-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    text-decoration: none;
+    transition:
+        transform var(--ui-duration-fast) var(--ui-ease-standard),
+        border-color var(--ui-duration-base) var(--ui-ease-standard),
+        background var(--ui-duration-base) var(--ui-ease-standard),
+        box-shadow var(--ui-duration-base) var(--ui-ease-standard),
+        color var(--ui-duration-base) var(--ui-ease-standard);
+    will-change: transform;
+}
+
+.homepage-proposition-cta:hover {
+    transform: translateY(-0.5px);
+}
+
+.homepage-proposition-cta-primary {
+    border-color: rgba(113, 233, 255, 0.36);
+    background:
+        linear-gradient(180deg, rgba(103, 234, 255, 0.26), rgba(77, 146, 255, 0.18));
+    color: #f7fcff;
+    box-shadow:
+        0 14px 24px rgba(4, 12, 24, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.homepage-proposition-cta-primary:hover {
+    border-color: rgba(113, 233, 255, 0.54);
+    background:
+        linear-gradient(180deg, rgba(103, 234, 255, 0.32), rgba(77, 146, 255, 0.24));
+    box-shadow:
+        0 18px 28px rgba(4, 12, 24, 0.22),
+        0 0 0 1px rgba(103, 234, 255, 0.16);
+}
+
+.homepage-proposition-cta-secondary {
+    border-color: rgba(121, 168, 255, 0.2);
+    background: rgba(121, 168, 255, 0.06);
+    color: var(--text);
+}
+
+.homepage-proposition-cta-secondary:hover {
+    border-color: rgba(121, 168, 255, 0.38);
+    background: rgba(121, 168, 255, 0.12);
+    box-shadow: 0 8px 16px rgba(6, 14, 28, 0.22);
+}
+
 .logo-hero {
     position: relative;
     display: block;
     overflow: visible;
-    margin-bottom: clamp(6px, 1.2vw, 12px);
+    margin-bottom: clamp(0px, 0.35vw, 6px);
     padding: 0;
-    min-height: clamp(252px, 35vw, 452px);
+    min-height: clamp(124px, 18vw, 208px);
     isolation: isolate;
 }
 
@@ -259,8 +357,8 @@ select {
 .logo-hero::after {
     content: "";
     position: absolute;
-    inset: auto 9% -24px;
-    height: clamp(108px, 16vw, 220px);
+    inset: auto 10% -16px;
+    height: clamp(62px, 10vw, 128px);
     pointer-events: none;
     z-index: -2;
     background:
@@ -273,7 +371,7 @@ select {
 .logo-hero-stage {
     position: relative;
     width: 100%;
-    height: clamp(252px, 35vw, 452px);
+    height: clamp(124px, 18vw, 208px);
     min-height: 0;
     overflow: hidden;
     isolation: isolate;
@@ -4129,38 +4227,42 @@ input:focus-visible {
 
 @media (min-width: 861px) {
     .homepage-shell {
-        gap: 12px;
+        gap: 10px;
     }
     .homepage-top-shell {
-        gap: 6px;
+        gap: 5px;
+    }
+    .homepage-proposition {
+        gap: 10px;
+        padding-bottom: 2px;
     }
     .logo-hero {
-        margin-bottom: clamp(2px, 0.55vw, 8px);
-        min-height: clamp(196px, 27vw, 344px);
+        margin-bottom: clamp(0px, 0.3vw, 4px);
+        min-height: clamp(124px, 18vw, 208px);
     }
     .logo-hero::before {
-        inset: clamp(-26px, -2.8vw, -8px) -6% clamp(-12px, -1.8vw, -2px);
+        inset: clamp(-20px, -2.1vw, -8px) -6% clamp(-8px, -1.3vw, -2px);
         background:
-            radial-gradient(ellipse at 50% 36%, rgba(102, 177, 255, 0.19) 0%, rgba(102, 177, 255, 0.1) 34%, rgba(102, 177, 255, 0.025) 56%, rgba(102, 177, 255, 0) 76%),
-            radial-gradient(ellipse at 18% 24%, rgba(99, 222, 255, 0.11) 0%, rgba(99, 222, 255, 0) 62%),
-            radial-gradient(ellipse at 82% 22%, rgba(157, 151, 255, 0.1) 0%, rgba(157, 151, 255, 0) 60%),
-            linear-gradient(180deg, rgba(17, 35, 61, 0.3) 0%, rgba(8, 17, 30, 0.11) 56%, rgba(8, 17, 30, 0) 100%);
-        filter: saturate(1.02);
+            radial-gradient(ellipse at 50% 36%, rgba(102, 177, 255, 0.15) 0%, rgba(102, 177, 255, 0.08) 34%, rgba(102, 177, 255, 0.02) 56%, rgba(102, 177, 255, 0) 76%),
+            radial-gradient(ellipse at 18% 24%, rgba(99, 222, 255, 0.09) 0%, rgba(99, 222, 255, 0) 62%),
+            radial-gradient(ellipse at 82% 22%, rgba(157, 151, 255, 0.08) 0%, rgba(157, 151, 255, 0) 60%),
+            linear-gradient(180deg, rgba(17, 35, 61, 0.24) 0%, rgba(8, 17, 30, 0.1) 56%, rgba(8, 17, 30, 0) 100%);
+        filter: saturate(1.01);
     }
     .logo-hero::after {
-        inset: auto 14% -14px;
-        height: clamp(72px, 10vw, 140px);
+        inset: auto 12% -12px;
+        height: clamp(58px, 8vw, 112px);
         background:
-            radial-gradient(ellipse at 50% 32%, rgba(95, 169, 255, 0.2) 0%, rgba(95, 169, 255, 0.08) 40%, rgba(95, 169, 255, 0) 76%),
-            radial-gradient(ellipse at 50% 98%, rgba(12, 25, 44, 0.24) 0%, rgba(12, 25, 44, 0) 74%);
+            radial-gradient(ellipse at 50% 32%, rgba(95, 169, 255, 0.16) 0%, rgba(95, 169, 255, 0.06) 40%, rgba(95, 169, 255, 0) 76%),
+            radial-gradient(ellipse at 50% 98%, rgba(12, 25, 44, 0.2) 0%, rgba(12, 25, 44, 0) 74%);
         filter: blur(8px);
         opacity: 0.58;
     }
     .logo-hero-stage {
-        height: clamp(196px, 27vw, 344px);
+        height: clamp(124px, 18vw, 208px);
     }
     .logo-hero-stage::before {
-        inset: 12% 16% 22%;
+        inset: 14% 16% 24%;
         background: radial-gradient(circle, rgba(146, 211, 255, 0.14) 0%, rgba(146, 211, 255, 0.06) 42%, rgba(146, 211, 255, 0) 74%);
         filter: blur(11px);
     }
@@ -4171,11 +4273,11 @@ input:focus-visible {
         filter: saturate(1.02) drop-shadow(0 18px 30px rgba(7, 15, 30, 0.42));
     }
     .sticky-shell {
-        margin-top: clamp(-28px, -2.8vw, -14px);
-        margin-bottom: 18px;
+        margin-top: clamp(-4px, -0.4vw, 2px);
+        margin-bottom: 14px;
     }
     .command-launcher {
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
 }
 
@@ -4187,36 +4289,44 @@ input:focus-visible {
     .sticky-shell {
         top: 8px;
         z-index: 62;
-        margin-top: clamp(-10px, -2.3vw, -4px);
+        margin-top: clamp(-4px, -0.6vw, 0px);
     }
     .logo-hero {
-        margin-bottom: 12px;
+        margin-bottom: 8px;
         padding: 0;
-        min-height: clamp(204px, 40vw, 316px);
+        min-height: clamp(118px, 28vw, 176px);
     }
     .logo-hero::before {
-        inset: -18px -12% -8px;
+        inset: -14px -12% -6px;
     }
     .logo-hero::after {
-        inset: auto 4% -14px;
-        height: clamp(86px, 20vw, 154px);
+        inset: auto 5% -12px;
+        height: clamp(58px, 12vw, 112px);
     }
     .logo-hero-stage {
         width: 100%;
-        height: clamp(204px, 40vw, 316px);
+        height: clamp(118px, 28vw, 176px);
     }
     .logo-hero-image {
         max-height: none;
     }
+    .homepage-proposition {
+        gap: 8px;
+        max-width: none;
+        padding-bottom: 2px;
+    }
+    .homepage-proposition-title {
+        font-size: clamp(2rem, 5.5vw, 3.15rem);
+    }
     .modal-body { grid-template-columns: 1fr; }
     .command-launcher {
-        margin-bottom: 14px;
+        margin-bottom: 10px;
     }
     .command-search-layer {
         gap: 4px;
     }
     .home-jump-nav {
-        margin: 2px 0 8px;
+        margin: 0 0 8px;
         gap: 6px;
         padding-bottom: 4px;
     }
@@ -4511,32 +4621,42 @@ input:focus-visible {
         padding: 14px 0 20px;
     }
     .homepage-shell {
-        gap: 10px;
+        gap: 8px;
     }
     .homepage-top-shell {
-        gap: 8px;
+        gap: 4px;
     }
     .homepage-content-shell {
         gap: 14px;
     }
+    .homepage-proposition {
+        gap: 8px;
+    }
+    .homepage-proposition-title {
+        font-size: clamp(1.75rem, 5.6vw, 2.35rem);
+        max-width: 13ch;
+    }
+    .homepage-proposition-subline {
+        font-size: 14px;
+    }
     .logo-hero {
-        margin-bottom: 10px;
+        margin-bottom: 4px;
         padding: 0;
-        min-height: clamp(176px, 53vw, 274px);
+        min-height: clamp(106px, 24vw, 150px);
     }
     .logo-hero::after {
-        inset: auto 0 -10px;
-        height: clamp(68px, 20vw, 112px);
+        inset: auto 0 -8px;
+        height: clamp(48px, 14vw, 88px);
     }
     .logo-hero-stage {
         width: 100%;
-        height: clamp(176px, 53vw, 274px);
+        height: clamp(106px, 24vw, 150px);
     }
     .logo-hero-image {
         max-height: none;
     }
     .home-jump-nav {
-        margin: 0 0 7px;
+        margin: 0 0 6px;
     }
     .home-jump-chip {
         min-height: 32px;
@@ -4890,6 +5010,17 @@ input:focus-visible {
                             <source src="/assets/logo/gameden-logo-animated.webm" type="video/webm" />
                             GameDen logo animation unavailable.
                         </video>
+                    </div>
+                </section>
+
+                <section class="homepage-proposition" aria-labelledby="homepagePromiseTitle">
+                    <div class="homepage-proposition-copy">
+                        <h2 class="homepage-proposition-title" id="homepagePromiseTitle">Only the game deals worth buying.</h2>
+                        <p class="homepage-proposition-subline">GameDen filters out games you already own and deals that aren’t worth your time.</p>
+                    </div>
+                    <div class="homepage-proposition-actions" aria-label="Homepage actions">
+                        <button class="homepage-proposition-cta homepage-proposition-cta-primary" id="scanLibraryCtaBtn" type="button">Scan Your Library</button>
+                        <button class="homepage-proposition-cta homepage-proposition-cta-secondary" id="searchGameCtaBtn" type="button">Search a Game</button>
                     </div>
                 </section>
 
@@ -5527,7 +5658,7 @@ input:focus-visible {
                         <div class="panel-head">
                             <div class="panel-title-wrap">
                                 <h2 class="panel-title">More Market Intelligence</h2>
-                                <div class="panel-subtitle">Extra market views and diagnostics below the main rails.</div>
+                                <div class="panel-subtitle">Extra market views and diagnostics for a deeper dive.</div>
                             </div>
                             <button
                                 class="panel-action"
@@ -6278,6 +6409,8 @@ input:focus-visible {
             quickIncludeFreeChip: document.getElementById("quickIncludeFreeChip"),
             quickHideOwnedToggleBtn: document.getElementById("quickHideOwnedToggleBtn"),
             clearQuickFiltersBtn: document.getElementById("clearQuickFiltersBtn"),
+            scanLibraryCtaBtn: document.getElementById("scanLibraryCtaBtn"),
+            searchGameCtaBtn: document.getElementById("searchGameCtaBtn"),
             feedOwnedToggleBtn: document.getElementById("feedOwnedToggleBtn"),
             opportunitiesPanel: document.getElementById("opportunitiesPanel"),
             opportunitiesGrid: document.getElementById("opportunitiesGrid"),
@@ -16545,6 +16678,19 @@ try {
                     }
                 }, 180);
             };
+
+            if (ui.scanLibraryCtaBtn instanceof HTMLButtonElement) {
+                ui.scanLibraryCtaBtn.addEventListener("click", () => {
+                    setAccountPanelExpanded(true);
+                });
+            }
+            if (ui.searchGameCtaBtn instanceof HTMLButtonElement) {
+                ui.searchGameCtaBtn.addEventListener("click", () => {
+                    if (!(ui.searchInput instanceof HTMLInputElement)) return;
+                    ui.searchInput.focus();
+                    ui.searchInput.select();
+                });
+            }
 
             ui.searchInput.addEventListener("input", (event) => {
                 const value = event.target.value;

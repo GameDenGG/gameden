@@ -225,6 +225,53 @@ select {
     min-width: 0;
 }
 
+.homepage-value-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 14px;
+    min-width: 0;
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid rgba(121, 168, 255, 0.14);
+    border-radius: 16px;
+    background: linear-gradient(90deg, rgba(12, 19, 34, 0.84), rgba(8, 14, 24, 0.9));
+    box-shadow: 0 10px 22px rgba(2, 7, 20, 0.16);
+}
+
+.homepage-value-copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.homepage-value-label {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(16px, 1.7vw, 19px);
+    line-height: 1.06;
+    letter-spacing: -0.02em;
+    color: #f5f9ff;
+}
+
+.homepage-value-note {
+    color: rgba(154, 182, 230, 0.76);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.homepage-value-cta {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border-color: rgba(103, 234, 255, 0.28);
+    background: linear-gradient(180deg, rgba(103, 234, 255, 0.16), rgba(121, 168, 255, 0.12));
+    color: #f1fbff;
+    box-shadow: 0 10px 20px rgba(4, 12, 24, 0.18);
+    white-space: nowrap;
+}
+
 .homepage-content-shell {
     display: grid;
     gap: 22px;
@@ -4135,7 +4182,7 @@ input:focus-visible {
         gap: 6px;
     }
     .logo-hero {
-        margin-bottom: clamp(2px, 0.55vw, 8px);
+        margin-bottom: clamp(2px, 0.45vw, 6px);
         min-height: clamp(196px, 27vw, 344px);
     }
     .logo-hero::before {
@@ -4171,7 +4218,7 @@ input:focus-visible {
         filter: saturate(1.02) drop-shadow(0 18px 30px rgba(7, 15, 30, 0.42));
     }
     .sticky-shell {
-        margin-top: clamp(-28px, -2.8vw, -14px);
+        margin-top: clamp(-8px, -1vw, -4px);
         margin-bottom: 18px;
     }
     .command-launcher {
@@ -4520,7 +4567,7 @@ input:focus-visible {
         gap: 14px;
     }
     .logo-hero {
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         padding: 0;
         min-height: clamp(176px, 53vw, 274px);
     }
@@ -4534,6 +4581,20 @@ input:focus-visible {
     }
     .logo-hero-image {
         max-height: none;
+    }
+    .homepage-value-strip {
+        padding: 9px 10px;
+        gap: 10px 12px;
+    }
+    .homepage-value-label {
+        font-size: 17px;
+    }
+    .homepage-value-note {
+        font-size: 10px;
+    }
+    .homepage-value-cta {
+        min-height: 32px;
+        padding: 6px 11px;
     }
     .home-jump-nav {
         margin: 0 0 7px;
@@ -4892,6 +4953,14 @@ input:focus-visible {
                         </video>
                     </div>
                 </section>
+
+                <div class="homepage-value-strip" id="homepageValueStrip">
+                    <div class="homepage-value-copy">
+                        <div class="homepage-value-label">Only the game deals worth buying.</div>
+                        <div class="homepage-value-note">Filters out games you already own.</div>
+                    </div>
+                    <button class="secondary-btn homepage-value-cta" id="scanLibraryBtn" type="button">Scan Library</button>
+                </div>
 
                 <div class="sticky-shell">
                     <section class="command-launcher" id="searchStack" aria-label="Quick game search">
@@ -7088,10 +7157,16 @@ input:focus-visible {
             const loginBtn = ui.accountLoginBtn;
             const logoutBtn = ui.accountLogoutBtn;
             const toggleBtn = ui.accountToggleBtn;
+            const scanLibraryBtn = document.getElementById("scanLibraryBtn");
 
             if (toggleBtn instanceof HTMLButtonElement) {
                 toggleBtn.addEventListener("click", () => {
                     setAccountPanelExpanded(!state.accountPanelExpanded);
+                });
+            }
+            if (scanLibraryBtn instanceof HTMLButtonElement) {
+                scanLibraryBtn.addEventListener("click", () => {
+                    setAccountPanelExpanded(true);
                 });
             }
 

@@ -601,14 +601,14 @@ select {
 
 .command-launcher {
     position: relative;
-    margin-bottom: 4px;
+    margin-bottom: 0;
     z-index: 52;
 }
 
 .command-search-layer {
     position: relative;
     display: grid;
-    gap: 4px;
+    gap: 1px;
 }
 
 .command-search-layer::before {
@@ -652,8 +652,8 @@ select {
     grid-template-columns: auto 1fr;
     align-items: center;
     gap: 10px;
-    min-height: 46px;
-    padding: 8px 14px;
+    min-height: 44px;
+    padding: 7px 14px;
     border-radius: 14px;
     border: 0;
     background:
@@ -734,32 +734,13 @@ select {
     height: 16px;
     flex: 0 0 auto;
     margin-left: 1px;
-    opacity: 0.88;
+    opacity: 0.9;
     transform: translateY(0);
-    color: rgba(171, 209, 244, 0.92);
-}
-
-.search-bar-icon::before {
-    content: "";
-    position: absolute;
-    inset: 1.5px;
-    border-radius: 50%;
-    border: 1.7px solid currentColor;
-    box-shadow: 0 0 0 1px rgba(7, 14, 27, 0.35);
-}
-
-.search-bar-icon::after {
-    content: "";
-    position: absolute;
-    width: 7px;
-    height: 1.7px;
-    right: -1px;
-    bottom: 0;
-    border-radius: 999px;
-    background: currentColor;
-    transform: rotate(45deg);
-    transform-origin: right center;
-    box-shadow: 0 0 0 1px rgba(7, 14, 27, 0.22);
+    fill: none;
+    stroke: rgba(171, 209, 244, 0.94);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .search-bar input {
@@ -807,9 +788,9 @@ select {
 .home-jump-nav {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin: 4px 0 12px;
-    padding: 2px 2px 6px;
+    gap: 10px;
+    margin: 8px 0 10px;
+    padding: 2px 2px 4px;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-padding-left: 2px;
@@ -823,16 +804,16 @@ select {
 
 .home-jump-chip {
     flex: 0 0 auto;
-    min-height: 32px;
-    padding: 5px 11px;
+    min-height: 36px;
+    padding: 6px 13px;
     border-radius: 999px;
-    border: 1px solid rgba(121, 168, 255, 0.24);
-    background: rgba(121, 168, 255, 0.08);
+    border: 1px solid rgba(121, 168, 255, 0.3);
+    background: rgba(121, 168, 255, 0.1);
     color: var(--muted-2);
     font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.07em;
+    font-size: 10.5px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
     line-height: 1;
@@ -845,17 +826,17 @@ select {
 }
 
 .home-jump-chip:hover {
-    border-color: rgba(121, 168, 255, 0.42);
-    background: rgba(121, 168, 255, 0.16);
+    border-color: rgba(121, 168, 255, 0.5);
+    background: rgba(121, 168, 255, 0.18);
     color: #eef5ff;
     transform: translateY(-0.5px);
 }
 
 .home-jump-chip.is-active {
-    border-color: rgba(255, 196, 111, 0.48);
-    background: rgba(255, 196, 111, 0.17);
+    border-color: rgba(255, 196, 111, 0.52);
+    background: rgba(255, 196, 111, 0.18);
     color: #ffe7c2;
-    box-shadow: 0 8px 18px rgba(4, 12, 24, 0.22);
+    box-shadow: 0 10px 20px rgba(4, 12, 24, 0.24);
 }
 
 .home-jump-chip[aria-current="true"] {
@@ -1003,7 +984,7 @@ select {
 .quick-toggle-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 5px;
     align-items: center;
     margin-top: 0;
 }
@@ -1011,7 +992,7 @@ select {
 .quick-toggle-strip {
     position: relative;
     z-index: 2;
-    margin-top: 0;
+    margin-top: -2px;
 }
 
 .field label {
@@ -1105,51 +1086,51 @@ select {
 
 .quick-toggle-row .pill-toggle,
 .quick-toggle-row .quick-filter-btn {
-    min-height: 28px;
-    padding: 4px 9px;
-    border-radius: 11px;
-    border-color: rgba(121, 168, 255, 0.12);
-    background: rgba(121, 168, 255, 0.035);
+    min-height: 24px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    border-color: rgba(121, 168, 255, 0.1);
+    background: rgba(121, 168, 255, 0.025);
     box-shadow: none;
-    font-size: 9px;
-    font-weight: 750;
-    letter-spacing: 0.042em;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.035em;
 }
 
 .quick-toggle-row .pill-toggle:hover,
 .quick-toggle-row .quick-filter-btn:hover {
-    border-color: rgba(121, 168, 255, 0.24);
-    background: rgba(121, 168, 255, 0.07);
-    box-shadow: 0 4px 10px rgba(4, 12, 24, 0.08);
+    border-color: rgba(121, 168, 255, 0.18);
+    background: rgba(121, 168, 255, 0.05);
+    box-shadow: 0 3px 8px rgba(4, 12, 24, 0.06);
     transform: translateY(-0.25px);
 }
 
 .quick-toggle-row .pill-toggle.is-active,
 .quick-toggle-row .quick-filter-btn.is-active,
 .quick-toggle-row #toggleAdvancedFiltersBtn[aria-expanded="true"] {
-    border-color: rgba(103, 234, 255, 0.28);
-    background: rgba(103, 234, 255, 0.09);
+    border-color: rgba(103, 234, 255, 0.22);
+    background: rgba(103, 234, 255, 0.07);
     color: #defbff;
     transform: translateY(-0.4px);
 }
 
 .quick-toggle-row .quick-owned-toggle-btn[data-active="true"] {
-    border-color: rgba(110, 221, 163, 0.28);
-    background: rgba(110, 221, 163, 0.08);
+    border-color: rgba(110, 221, 163, 0.22);
+    background: rgba(110, 221, 163, 0.06);
     color: #c9f7de;
 }
 
 .quick-toggle-row .quick-clear-btn {
-    border-color: rgba(121, 168, 255, 0.1);
-    background: rgba(121, 168, 255, 0.02);
-    color: rgba(154, 182, 230, 0.84);
+    border-color: rgba(121, 168, 255, 0.08);
+    background: rgba(121, 168, 255, 0.015);
+    color: rgba(154, 182, 230, 0.78);
 }
 
 .quick-toggle-row #toggleAdvancedFiltersBtn {
-    color: rgba(160, 189, 230, 0.84);
-    border-color: rgba(121, 168, 255, 0.1);
-    background: rgba(121, 168, 255, 0.02);
-    font-weight: 700;
+    color: rgba(160, 189, 230, 0.8);
+    border-color: rgba(121, 168, 255, 0.08);
+    background: rgba(121, 168, 255, 0.015);
+    font-weight: 650;
 }
 
 .quick-filter-btn {
@@ -5356,7 +5337,10 @@ input:focus-visible {
                         <div class="command-search-layer">
                             <div class="search-bar-wrap command-search-wrap" id="searchBarWrap">
                                 <div class="search-bar command-search-input">
-                                    <span class="search-bar-icon" aria-hidden="true"></span>
+                                    <svg class="search-bar-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                                        <circle cx="8.5" cy="8.5" r="5.75"></circle>
+                                        <path d="M13.2 13.2L17 17"></path>
+                                    </svg>
                                     <label class="sr-only" for="searchInput">Search games</label>
                                     <input id="searchInput" type="text" placeholder="Search games, genres, or tags..." autocomplete="off" />
                                 </div>

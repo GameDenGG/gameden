@@ -649,12 +649,12 @@ select {
     position: relative;
     overflow: hidden;
     display: grid;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 10px;
-    min-height: 44px;
-    padding: 7px 14px;
-    border-radius: 14px;
+    gap: 8px;
+    min-height: 50px;
+    padding: 7px 12px;
+    border-radius: 15px;
     border: 0;
     background:
         linear-gradient(180deg, rgba(14, 24, 39, 0.3), rgba(8, 13, 23, 0.14));
@@ -680,6 +680,25 @@ select {
         radial-gradient(120% 130% at 20% 0%, rgba(110, 196, 255, 0.08), rgba(110, 196, 255, 0)),
         linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 44%);
     opacity: 0.9;
+}
+
+.search-bar-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    min-width: 0;
+    margin-left: auto;
+    padding-left: 2px;
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.search-bar-actions::-webkit-scrollbar {
+    display: none;
 }
 
 .search-bar:focus-within {
@@ -749,6 +768,7 @@ select {
     outline: 0;
     color: var(--text);
     width: 100%;
+    min-width: 0;
     font-size: clamp(16px, 1.65vw, 19px);
     font-weight: 640;
     line-height: 1.1;
@@ -763,6 +783,69 @@ select {
 .search-bar input:focus-visible {
     outline: none;
     box-shadow: none;
+}
+
+.search-bar-actions .pill-toggle,
+.search-bar-actions .quick-filter-btn {
+    min-height: 24px;
+    padding: 3px 8px;
+    border-radius: 9px;
+    border: 1px solid rgba(121, 168, 255, 0.1);
+    background: rgba(121, 168, 255, 0.025);
+    box-shadow: none;
+    color: var(--muted-2);
+    font-family: var(--font-mono);
+    font-size: 7.75px;
+    font-weight: 760;
+    letter-spacing: 0.035em;
+    line-height: 1;
+}
+
+.search-bar-actions .pill-toggle:hover,
+.search-bar-actions .quick-filter-btn:hover {
+    border-color: rgba(121, 168, 255, 0.2);
+    background: rgba(121, 168, 255, 0.05);
+    box-shadow: 0 3px 8px rgba(4, 12, 24, 0.06);
+    transform: translateY(-0.25px);
+}
+
+.search-bar-actions .pill-toggle.is-active,
+.search-bar-actions .quick-filter-btn.is-active,
+.search-bar-actions #toggleAdvancedFiltersBtn[aria-expanded="true"] {
+    border-color: rgba(103, 234, 255, 0.22);
+    background: rgba(103, 234, 255, 0.08);
+    color: #dffcff;
+    transform: translateY(-0.35px);
+}
+
+.search-bar-actions .quick-owned-toggle-btn[data-active="true"] {
+    border-color: rgba(110, 221, 163, 0.22);
+    background: rgba(110, 221, 163, 0.06);
+    color: #c9f7de;
+}
+
+.search-bar-actions .quick-filter-pill input[type="checkbox"] {
+    margin: 0;
+    accent-color: #7ae4ff;
+    transform: scale(0.92);
+}
+
+.search-bar-actions .quick-filter-btn {
+    white-space: nowrap;
+}
+
+.search-bar-actions .quick-clear-btn {
+    border-color: rgba(121, 168, 255, 0.08);
+    background: rgba(121, 168, 255, 0.015);
+    color: rgba(154, 182, 230, 0.78);
+}
+
+.search-bar-actions .search-more-filters-btn {
+    margin-left: 2px;
+    color: rgba(160, 189, 230, 0.82);
+    border-color: rgba(121, 168, 255, 0.08);
+    background: rgba(121, 168, 255, 0.015);
+    font-weight: 650;
 }
 
 .search-results-pop {
@@ -4633,20 +4716,18 @@ input:focus-visible {
         scroll-snap-align: start;
     }
     .search-bar {
-        min-height: 46px;
-        padding: 9px 13px;
+        min-height: 48px;
+        padding: 7px 10px;
+        gap: 7px;
     }
-    .quick-toggle-row {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        overflow-y: hidden;
-        padding-bottom: 4px;
-        scrollbar-width: thin;
+    .search-bar-actions {
+        gap: 3px;
     }
-    .quick-toggle-row > .quick-filter-pill,
-    .quick-toggle-row > #toggleAdvancedFiltersBtn {
-        flex: 0 0 auto;
-        margin-left: 0;
+    .search-bar-actions .pill-toggle,
+    .search-bar-actions .quick-filter-btn {
+        min-height: 23px;
+        padding: 2px 7px;
+        font-size: 7px;
     }
     .advanced-filters-drawer {
         top: calc(100% + 6px);
@@ -4968,11 +5049,19 @@ input:focus-visible {
         font-size: 9px;
     }
     .search-bar {
-        min-height: 44px;
-        padding: 8px 12px;
-    }
-    .quick-toggle-row {
+        min-height: 46px;
+        padding: 7px 9px;
         gap: 6px;
+    }
+    .search-bar-actions {
+        gap: 2px;
+        max-width: 58vw;
+    }
+    .search-bar-actions .pill-toggle,
+    .search-bar-actions .quick-filter-btn {
+        min-height: 22px;
+        padding: 2px 6px;
+        font-size: 6.75px;
     }
     .panel-title {
         font-size: 17px;
@@ -5343,14 +5432,7 @@ input:focus-visible {
                                     </svg>
                                     <label class="sr-only" for="searchInput">Search games</label>
                                     <input id="searchInput" type="text" placeholder="Search games, genres, or tags..." autocomplete="off" />
-                                </div>
-                                <div class="search-results-pop" id="searchResultsPop">
-                                    <div class="search-results-list" id="searchResultsList"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                            <div class="quick-toggle-row quick-toggle-strip" id="quickToggleRow">
+                                    <div class="search-bar-actions" id="quickToggleRow" aria-label="Quick filters">
                                         <label class="pill-toggle quick-filter-pill" id="quickDealsOnlyChip">
                                             <input id="dealsOnlyCheckbox" type="checkbox" />
                                             Deals only
@@ -5369,11 +5451,17 @@ input:focus-visible {
                                         >
                                             Hide owned
                                         </button>
-                                        <button class="secondary-btn quick-filter-pill quick-filter-btn" id="toggleAdvancedFiltersBtn" type="button" aria-expanded="false" aria-controls="advancedFilters">
+                                        <button class="secondary-btn quick-filter-pill quick-filter-btn search-more-filters-btn" id="toggleAdvancedFiltersBtn" type="button" aria-expanded="false" aria-controls="advancedFilters">
                                             More filters
                                             <span class="dropdown-arrow">⇊</span>
                                         </button>
                                     </div>
+                                </div>
+                                <div class="search-results-pop" id="searchResultsPop">
+                                    <div class="search-results-list" id="searchResultsList"></div>
+                                </div>
+                            </div>
+                        </div>
 
                                     <button
                                         class="advanced-panel-backdrop"

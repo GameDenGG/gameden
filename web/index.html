@@ -1127,24 +1127,135 @@ input:focus-visible {
 }
 
 #recommendedForYouPanel {
-    border-color: rgba(188, 168, 255, 0.28);
-    background: linear-gradient(180deg, rgba(20, 30, 54, 0.9), rgba(11, 18, 33, 0.96));
+    --panel-accent: rgba(255, 196, 111, 0.95);
+    border-color: rgba(255, 196, 111, 0.28);
+    background: linear-gradient(180deg, rgba(22, 34, 60, 0.98), rgba(10, 17, 31, 0.98));
     box-shadow:
-        0 16px 30px rgba(3, 8, 22, 0.26),
-        0 0 0 1px rgba(188, 168, 255, 0.1) inset;
+        0 26px 54px rgba(2, 7, 20, 0.38),
+        0 0 0 1px rgba(255, 196, 111, 0.12) inset;
+}
+
+#recommendedForYouPanel .panel-head {
+    padding-top: 18px;
+    padding-bottom: 11px;
+}
+
+#recommendedForYouPanel .panel-title {
+    color: #fff0da;
+    font-size: 28px;
+    letter-spacing: -0.03em;
+    opacity: 1;
+}
+
+#recommendedForYouPanel .panel-subtitle {
+    color: rgba(247, 221, 190, 0.92);
+    font-size: 11.5px;
+    opacity: 1;
 }
 
 #recommendedForYouPanel .panel-body {
-    padding-top: 8px;
+    padding-top: 14px;
+    padding-bottom: 18px;
 }
 
 .command-center-best {
     display: grid;
-    gap: 10px;
+    gap: 12px;
 }
 
 .command-center-best .game-card {
     min-width: 0;
+}
+
+.homepage-freshness-strip {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 14px;
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 196, 111, 0.18);
+    border-radius: 18px;
+    background: linear-gradient(90deg, rgba(17, 25, 40, 0.92), rgba(11, 17, 29, 0.9));
+    box-shadow: 0 16px 32px rgba(2, 7, 20, 0.24);
+}
+
+.homepage-freshness-copy {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.homepage-freshness-label {
+    color: #ffe0b8;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+}
+
+.homepage-freshness-value {
+    color: #f4f8ff;
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+.homepage-freshness-note {
+    flex: 1 1 260px;
+    max-width: 380px;
+    color: rgba(201, 220, 248, 0.78);
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.decision-context-grid {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.decision-context-copy,
+.decision-context-note {
+    grid-column: 1 / -1;
+    color: rgba(203, 220, 248, 0.82);
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.decision-context-note {
+    color: rgba(154, 182, 230, 0.72);
+    font-size: 10.5px;
+}
+
+.decision-context-card {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 12px 13px;
+    border-radius: 14px;
+    border: 1px solid rgba(121, 168, 255, 0.18);
+    background: linear-gradient(180deg, rgba(16, 27, 47, 0.9), rgba(9, 16, 30, 0.96));
+    box-shadow: 0 10px 22px rgba(2, 7, 20, 0.18);
+}
+
+.decision-context-value {
+    color: #eef6ff;
+    font-family: var(--font-display);
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: -0.03em;
+}
+
+.decision-context-label {
+    color: rgba(203, 220, 248, 0.78);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
 }
 
 #becauseYouOwnPanel .panel-body {
@@ -1660,77 +1771,61 @@ input:focus-visible {
 
 /* Homepage section hierarchy tiers */
 /* Tier 1: Primary decision surfaces */
-#opportunitiesPanel,
-#buyNowPicksPanel {
-    border-color: rgba(178, 214, 255, 0.4);
-    background: linear-gradient(180deg, rgba(18, 33, 58, 0.96), rgba(10, 20, 37, 0.99));
-    box-shadow:
-        0 34px 66px rgba(2, 8, 24, 0.5),
-        0 0 0 1px rgba(170, 204, 255, 0.16) inset;
-}
-
 #opportunitiesPanel {
     margin-top: 4px;
+    border-color: rgba(121, 168, 255, 0.18);
+    background: linear-gradient(180deg, rgba(10, 18, 32, 0.86), rgba(8, 14, 26, 0.92));
+    box-shadow: 0 14px 28px rgba(2, 7, 20, 0.22);
+}
+
+#opportunitiesPanel .panel-head {
+    border-bottom-color: rgba(121, 168, 255, 0.08);
+    padding-top: 14px;
+    padding-bottom: 9px;
+}
+
+#opportunitiesPanel .panel-title {
+    font-size: 19px;
+    letter-spacing: -0.02em;
+    color: #e6f1ff;
+}
+
+#opportunitiesPanel .panel-subtitle {
+    color: rgba(154, 182, 230, 0.76);
+    font-size: 10.5px;
+}
+
+#opportunitiesPanel .panel-body {
+    padding-top: 10px;
+    padding-bottom: 12px;
 }
 
 #buyNowPicksPanel {
     margin-top: 6px;
+    border-color: rgba(121, 168, 255, 0.18);
+    background: linear-gradient(180deg, rgba(13, 24, 43, 0.92), rgba(9, 17, 31, 0.96));
+    box-shadow: 0 18px 36px rgba(2, 7, 20, 0.28);
 }
 
-#opportunitiesPanel .panel-head,
 #buyNowPicksPanel .panel-head {
-    border-bottom-color: rgba(170, 204, 255, 0.24);
-    padding-top: 19px;
-    padding-bottom: 12px;
-}
-
-#opportunitiesPanel .panel-title-wrap,
-#buyNowPicksPanel .panel-title-wrap {
-    display: grid;
-    gap: 4px;
-}
-
-#opportunitiesPanel .panel-title-wrap::before,
-#buyNowPicksPanel .panel-title-wrap::before {
-    display: inline-flex;
-    width: fit-content;
-    padding: 3px 8px;
-    border-radius: 999px;
-    border: 1px solid rgba(170, 204, 255, 0.34);
-    background: rgba(170, 204, 255, 0.1);
-    color: rgba(221, 236, 255, 0.94);
-    font-family: var(--font-mono);
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    line-height: 1.1;
-}
-
-#opportunitiesPanel .panel-title-wrap::before {
-    content: "Best Opportunities";
-}
-
-#buyNowPicksPanel .panel-title-wrap::before {
-    content: "Buy-Now Focus";
-}
-
-#opportunitiesPanel .panel-title,
-#buyNowPicksPanel .panel-title {
-    font-size: 23px;
-    letter-spacing: -0.016em;
-    color: #eef6ff;
-}
-
-#opportunitiesPanel .panel-subtitle,
-#buyNowPicksPanel .panel-subtitle {
-    color: rgba(199, 220, 248, 0.9);
-}
-
-#opportunitiesPanel .panel-body,
-#buyNowPicksPanel .panel-body {
+    border-bottom-color: rgba(121, 168, 255, 0.1);
     padding-top: 15px;
-    padding-bottom: 19px;
+    padding-bottom: 9px;
+}
+
+#buyNowPicksPanel .panel-title {
+    font-size: 21px;
+    letter-spacing: -0.02em;
+    color: #e9f3ff;
+}
+
+#buyNowPicksPanel .panel-subtitle {
+    color: rgba(154, 182, 230, 0.76);
+}
+
+#buyNowPicksPanel .panel-body {
+    padding-top: 12px;
+    padding-bottom: 14px;
 }
 
 /* Tier 2: Secondary decision surfaces */
@@ -3977,12 +4072,15 @@ input:focus-visible {
         align-items: center;
         gap: 6px;
     }
-    #recommendedForYouPanel .panel-body {
-        padding-top: 0;
-    }
     .panel-title {
         font-size: 18px;
         letter-spacing: -0.02em;
+    }
+    #recommendedForYouPanel .panel-title {
+        font-size: 23px;
+    }
+    #recommendedForYouPanel .panel-body {
+        padding-top: 12px;
     }
     #opportunitiesPanel .panel-title,
     #buyNowPicksPanel .panel-title {
@@ -4004,6 +4102,15 @@ input:focus-visible {
     }
     .panel-body {
         padding: 10px 12px 12px;
+    }
+    .homepage-freshness-strip {
+        padding: 12px 12px;
+    }
+    .homepage-freshness-note {
+        max-width: none;
+    }
+    .decision-context-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .secondary-intel-stack {
         gap: 10px;
@@ -4214,6 +4321,12 @@ input:focus-visible {
     .panel-title {
         font-size: 17px;
     }
+    #recommendedForYouPanel .panel-title {
+        font-size: 20px;
+    }
+    #recommendedForYouPanel .panel-body {
+        padding-top: 10px;
+    }
     #opportunitiesPanel .panel-title,
     #buyNowPicksPanel .panel-title {
         font-size: 18px;
@@ -4229,6 +4342,21 @@ input:focus-visible {
     }
     .discovery-tabs-title {
         font-size: 18px;
+    }
+    .homepage-freshness-strip {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 12px 12px;
+    }
+    .homepage-freshness-value {
+        font-size: 16px;
+    }
+    .homepage-freshness-note {
+        max-width: none;
+    }
+    .decision-context-grid {
+        grid-template-columns: 1fr;
     }
     .discovery-tab-btn {
         min-height: 32px;
@@ -4656,8 +4784,8 @@ input:focus-visible {
                 </div>
 
                 <nav class="home-jump-nav" id="homeJumpNav" aria-label="Jump to homepage zones">
-                    <button class="home-jump-chip" type="button" data-home-jump-group="Buy Now" data-home-jump-target="opportunitiesPanel">Buy Now</button>
-                    <button class="home-jump-chip" type="button" data-home-jump-group="Your Radar" data-home-jump-target="recommendedForYouPanel">Your Radar</button>
+                    <button class="home-jump-chip" type="button" data-home-jump-group="Buy Now" data-home-jump-target="recommendedForYouPanel">Worth Buying</button>
+                    <button class="home-jump-chip" type="button" data-home-jump-group="Your Radar" data-home-jump-target="becauseYouOwnPanel">Your Radar</button>
                     <button class="home-jump-chip" type="button" data-home-jump-group="Discover" data-home-jump-target="discoveryTabsShell">Discover</button>
                     <button class="home-jump-chip" type="button" data-home-jump-group="Market Intelligence" data-home-jump-target="moreIntelSection">Market Intelligence</button>
                     <div class="home-jump-account-slot">
@@ -4707,6 +4835,13 @@ input:focus-visible {
             <div class="homepage-content-shell">
                 <div class="homepage-body homepage-content-grid dashboard-grid">
                     <main class="homepage-main main-column homepage-main-column" aria-label="Main market intelligence">
+                <section class="homepage-freshness-strip" id="homepageFreshnessStrip" role="status" aria-live="polite">
+                    <div class="homepage-freshness-copy">
+                        <div class="homepage-freshness-label" id="homepageFreshnessLabel">Fresh picks</div>
+                        <div class="homepage-freshness-value" id="homepageFreshnessValue">Updated live</div>
+                    </div>
+                    <div class="homepage-freshness-note" id="homepageFreshnessNote">Live prices and player activity refresh this surface.</div>
+                </section>
                 <section class="panel panel-seasonal panel-secondary-intel hidden" id="seasonalSaleTopPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
@@ -4771,23 +4906,15 @@ input:focus-visible {
                     </div>
                 </section>
 
-                <section class="panel panel-opportunities" id="opportunitiesPanel">
+                <section class="panel panel-intel panel-secondary-intel" id="opportunitiesPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Opportunities Right Now</h2>
-                            <div class="panel-subtitle">Strong deal picks worth checking right now.</div>
-                        </div>
-                        <div class="row-nav">
-                            <button class="row-nav-btn" type="button" data-row-left="opportunitiesGrid">&lt;</button>
-                            <button class="row-nav-btn" type="button" data-row-right="opportunitiesGrid">&gt;</button>
+                            <h2 class="panel-title">How We Rank</h2>
+                            <div class="panel-subtitle">Price, demand, and recent movement shape what reaches Worth Buying.</div>
                         </div>
                     </div>
                     <div class="panel-body">
-                        <div class="row-section">
-                            <div class="row-fade-left"></div>
-                            <div class="row-fade-right"></div>
-                            <div id="opportunitiesGrid" class="row-scroller"></div>
-                        </div>
+                        <div id="opportunitiesGrid" class="decision-context-grid" aria-live="polite"></div>
                     </div>
                 </section>
 
@@ -4805,8 +4932,8 @@ input:focus-visible {
                 <section class="panel panel-deals" id="worthBuyingPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Worth Buying Now</h2>
-                            <div class="panel-subtitle">Top buy-now candidates based on price, value, and demand.</div>
+                            <h2 class="panel-title">Best Bets</h2>
+                            <div class="panel-subtitle">A sharper list of high-value deals.</div>
                         </div>
                         <div class="row-nav">
                             <button class="row-nav-btn" type="button" data-row-left="worthBuyingGrid">&lt;</button>
@@ -4825,8 +4952,8 @@ input:focus-visible {
                 <section class="panel panel-deals" id="trendingGamesPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Trending Now</h2>
-                            <div class="panel-subtitle">Games gaining player activity right now.</div>
+                            <h2 class="panel-title">Popular Right Now</h2>
+                            <div class="panel-subtitle">Games pulling in player attention right now.</div>
                         </div>
                         <div class="row-nav">
                             <button class="row-nav-btn" type="button" data-row-left="trendingDealsGrid">&lt;</button>
@@ -4865,8 +4992,8 @@ input:focus-visible {
                 <section class="panel panel-activity" id="buyNowPicksPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">Buy Now Picks</h2>
-                            <div class="panel-subtitle">Recommended buy-now picks at strong current prices.</div>
+                            <h2 class="panel-title">You’ll Probably Like</h2>
+                            <div class="panel-subtitle">Strong picks based on price, value, and demand.</div>
                         </div>
                         <div class="row-nav">
                             <button class="row-nav-btn" type="button" data-row-left="newDealsGrid">&lt;</button>
@@ -5005,7 +5132,7 @@ input:focus-visible {
                 <div class="side-zone-header">
                     <div class="side-zone-context">
                         <div class="column-zone-label side-zone-label">Command Center</div>
-                        <div class="side-zone-note">Your best personal picks and quick actions.</div>
+                        <div class="side-zone-note">Tracked matches and quick actions.</div>
                     </div>
                     <button
                         class="secondary-btn alerts-toggle-btn"
@@ -5022,8 +5149,8 @@ input:focus-visible {
                 <section class="panel panel-personalized hidden" id="recommendedForYouPanel" aria-hidden="true">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title" id="yourDealsTodayTitle">Best Personal Opportunity</h2>
-                            <div class="panel-subtitle" id="yourDealsTodaySubtitle">Best next pick based on your watchlist, owned games, and live prices.</div>
+                            <h2 class="panel-title" id="yourDealsTodayTitle">Worth Buying</h2>
+                            <div class="panel-subtitle" id="yourDealsTodaySubtitle">Your strongest next pick from tracked games and live prices.</div>
                         </div>
                     </div>
                     <div class="panel-body">
@@ -5595,6 +5722,7 @@ input:focus-visible {
             "analyticsPanel",
         ]);
         const HOMEPAGE_SECTION_LAYOUT = Object.freeze([
+            { id: "recommendedForYouPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_NOW, priority: 5, column: "main" },
             { id: "opportunitiesPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_NOW, priority: 10, column: "main" },
             { id: "buyNowPicksPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_NOW, priority: 20, column: "main" },
 
@@ -5602,7 +5730,6 @@ input:focus-visible {
             { id: "seasonalSaleTopPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 15, column: "main" },
             { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 15, column: "lower" },
 
-            { id: "recommendedForYouPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 10, column: "side" },
             { id: "becauseYouOwnPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 15, column: "side" },
             { id: "watchlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 20, column: "side" },
             { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 30, column: "side" },
@@ -5622,20 +5749,20 @@ input:focus-visible {
             {
                 id: "trendingGamesPanel",
                 group: HOMEPAGE_SECTION_GROUPS.DISCOVER,
-                priority: 20,
+                priority: 30,
                 column: "main",
                 discoveryTab: true,
                 tabKey: "trending",
-                tabLabel: "Trending",
+                tabLabel: "Popular Right Now",
             },
             {
                 id: "worthBuyingPanel",
                 group: HOMEPAGE_SECTION_GROUPS.DISCOVER,
-                priority: 30,
+                priority: 20,
                 column: "main",
                 discoveryTab: true,
                 tabKey: "worth-buying",
-                tabLabel: "Worth Buying",
+                tabLabel: "Best Bets",
             },
             {
                 id: "newHistoricalLowsPanel",
@@ -5671,7 +5798,6 @@ input:focus-visible {
             { id: "analyticsPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 40, column: "main" },
         ].map((entry) => Object.freeze(entry)));
         const HOMEPAGE_TIMING_EMPHASIS_SECTION_KEYS = Object.freeze(new Set([
-            "opportunitiesGrid",
             "newDealsGrid",
             "personalizedDealsGrid",
             "dealRankedGrid",
@@ -5912,6 +6038,10 @@ input:focus-visible {
             discoveryTabsShell: document.getElementById("discoveryTabsShell"),
             discoveryTabsList: document.getElementById("discoveryTabsList"),
             discoveryTabsBody: document.getElementById("discoveryTabsBody"),
+            homepageFreshnessStrip: document.getElementById("homepageFreshnessStrip"),
+            homepageFreshnessLabel: document.getElementById("homepageFreshnessLabel"),
+            homepageFreshnessValue: document.getElementById("homepageFreshnessValue"),
+            homepageFreshnessNote: document.getElementById("homepageFreshnessNote"),
             quickDealsOnlyChip: document.getElementById("quickDealsOnlyChip"),
             quickIncludeFreeChip: document.getElementById("quickIncludeFreeChip"),
             quickHideOwnedToggleBtn: document.getElementById("quickHideOwnedToggleBtn"),
@@ -7724,7 +7854,6 @@ input:focus-visible {
         const NEW_SIGNAL_TRACKER_LIMIT = 1500;
         const HIGH_VALUE_CARD_SECTIONS = new Set([
             "dealRankedGrid",
-            "opportunitiesGrid",
             "personalizedDealsGrid",
             "worthBuyingGrid",
             "newHistoricalLowsGrid",
@@ -10164,6 +10293,7 @@ input:focus-visible {
         }
 
         function renderNewDeals() {
+            renderHomepageFreshnessStrip();
             const filtered = resolveDiscoveryFeedRows(state.buyNowPicks, {
                 targetCount: 12,
                 extendToCount: getHomepageDealRailDepthLimit(),
@@ -10172,10 +10302,10 @@ input:focus-visible {
             if (!filtered.rows.length) {
                 renderOwnedFilteredFeedEmpty(
                     ui.newDealsGrid,
-                    "No strong buy-now picks right now.",
+                    "No picks worth showing right now.",
                     {
                         tone: "neutral",
-                        detail: "This list refreshes as new pricing data comes in.",
+                        detail: "This rail refreshes as prices and demand shift.",
                     },
                     filtered,
                 );
@@ -10190,7 +10320,7 @@ input:focus-visible {
                 toggleButton: null,
                 showAllButton: ui.newDealsShowAllBtn,
                 view: "buy-now-picks",
-                title: "Buy Now Picks",
+                title: "You’ll Probably Like",
                 initialCount: 12,
             });
         }
@@ -10359,6 +10489,7 @@ input:focus-visible {
         function computeNewDeals() {
             if (state.lastVisitTs <= 0) {
                 state.newDeals = [];
+                renderHomepageFreshnessStrip();
                 return;
             }
 
@@ -10423,6 +10554,7 @@ input:focus-visible {
                     delete normalized._detected_ts;
                     return normalized;
                 });
+            renderHomepageFreshnessStrip();
         }
 
         function computeRecentlyUpdated() {
@@ -11868,35 +12000,65 @@ input:focus-visible {
             });
         }
 
-        function renderOpportunities() {
-            const filtered = resolveDiscoveryFeedRows(state.opportunitiesNow, {
-                targetCount: 12,
-                extendToCount: getHomepageDealRailDepthLimit(),
-                includeFallback: false,
-            });
-            if (!filtered.rows.length) {
-                renderOwnedFilteredFeedEmpty(
-                    ui.opportunitiesGrid,
-                    "No opportunities right now.",
-                    {
-                        tone: "neutral",
-                        detail: "Top opportunities appear as prices and activity update.",
-                    },
-                    filtered,
-                );
-                return;
+        function renderHomepageFreshnessStrip() {
+            if (!ui.homepageFreshnessStrip) return;
+            const hasLastVisit = state.lastVisitTs > 0;
+            const loading = !state.homepageLoad?.criticalLoaded;
+            const freshCount = safeArray(state.newDeals).length;
+
+            if (ui.homepageFreshnessLabel) {
+                ui.homepageFreshnessLabel.textContent = hasLastVisit
+                    ? "New since your last visit"
+                    : "Fresh picks";
             }
-            renderPagedCards({
-                container: ui.opportunitiesGrid,
-                items: filtered.rows,
-                renderer: gameCardHtml,
-                visibleKey: "opportunitiesGrid",
-                toggleButton: null,
-                showAllButton: null,
-                view: "deal-opportunities",
-                title: "Opportunities Right Now",
-                initialCount: 12,
-            });
+            if (ui.homepageFreshnessValue) {
+                ui.homepageFreshnessValue.textContent = hasLastVisit
+                    ? (freshCount > 0
+                        ? `${fmtInt(freshCount)} fresh deal${freshCount === 1 ? "" : "s"}`
+                        : loading
+                            ? "Refreshing live picks"
+                            : "Nothing new yet")
+                    : "Updated live";
+            }
+            if (ui.homepageFreshnessNote) {
+                ui.homepageFreshnessNote.textContent = "Live prices and player activity refresh this surface.";
+            }
+        }
+
+        function buildHomepageContextCounts() {
+            const currentPicksCount = Math.max(
+                safeArray(state.opportunitiesNow).length,
+                safeArray(state.buyNowPicks).length,
+                safeArray(state.worthBuyingNow).length,
+            );
+            const freshChangesCount = safeArray(state.newDeals).length;
+            const trackedGamesCount = safeArray(state.wishlist).length + safeArray(state.watchlist).length;
+            return {
+                currentPicksCount,
+                freshChangesCount,
+                trackedGamesCount,
+            };
+        }
+
+        function renderOpportunities() {
+            if (!ui.opportunitiesGrid) return;
+            const counts = buildHomepageContextCounts();
+            ui.opportunitiesGrid.innerHTML = `
+                <div class="decision-context-copy">We keep the main answer tight by favoring price, demand, and recent movement.</div>
+                <div class="decision-context-card">
+                    <div class="decision-context-value">${fmtInt(counts.currentPicksCount)}</div>
+                    <div class="decision-context-label">Current picks</div>
+                </div>
+                <div class="decision-context-card">
+                    <div class="decision-context-value">${fmtInt(counts.freshChangesCount)}</div>
+                    <div class="decision-context-label">New since visit</div>
+                </div>
+                <div class="decision-context-card">
+                    <div class="decision-context-value">${fmtInt(counts.trackedGamesCount)}</div>
+                    <div class="decision-context-label">Tracked games</div>
+                </div>
+                <div class="decision-context-note">Worth Buying stays centered on games that are cheap, active, or tied to what you track.</div>
+            `;
         }
 
         function renderOpportunityRadar() {
@@ -11940,6 +12102,8 @@ input:focus-visible {
                 });
             };
             addRows(state.opportunitiesNow);
+            addRows(state.buyNowPicks);
+            addRows(state.worthBuyingNow);
             addRows(state.opportunityRadar);
             return keys;
         }
@@ -12041,19 +12205,16 @@ input:focus-visible {
             const hasStickyResult = !!stickyEntry;
             const personalizedLimit = HOMEPAGE_SECTION_LIMITS.personalizedDeals;
             const personalizedActive = knownUser && personalizedResolved && !!state.personalizedStatus?.personalized;
-            const personalizedTitleVisible = !knownUser || personalizedResolved;
-            const personalizedLabel = personalizedActive
-                ? "Best Personal Opportunity"
-                : "Best Opportunity Right Now";
+            const personalizedLabel = "Worth Buying";
             const personalizedSubtitle = personalizedActive
-                ? "Your best next pick from Watch, Owned, and live prices."
-                : "Top pick right now based on live deal quality.";
+                ? "Your strongest next pick from tracked games and live prices."
+                : "The strongest live pick right now.";
 
             setPanelVisibility(ui.recommendedForYouPanel, true);
-            if (ui.yourDealsTodayTitle && personalizedTitleVisible) {
+            if (ui.yourDealsTodayTitle) {
                 ui.yourDealsTodayTitle.textContent = personalizedLabel;
             }
-            if (ui.yourDealsTodaySubtitle && personalizedTitleVisible) {
+            if (ui.yourDealsTodaySubtitle) {
                 ui.yourDealsTodaySubtitle.textContent = personalizedSubtitle;
             }
 
@@ -12068,7 +12229,7 @@ input:focus-visible {
                     view: personalizedActive || (knownUser && !personalizedResolved)
                         ? "command-center-best-personalized"
                         : "command-center-best-fallback",
-                    title: "Best Personal Opportunity",
+                    title: "Worth Buying",
                     initialCount: 1,
                 });
                 return;
@@ -12101,7 +12262,6 @@ input:focus-visible {
                 state.personalizedDealsDisplaySignature = sourceSignature;
                 state.personalizedDealsDisplayRows = filteredDisplay.rows.slice(0, 1);
             }
-            const personalizedResultIsStrong = personalizedActive && filteredDisplay.rows.length > 0;
             const shouldPromotePersonalizedResult = filteredDisplay.rows.length > 0
                 && (!hasStickyResult || personalizedActive);
             if (shouldPromotePersonalizedResult) {
@@ -12114,12 +12274,6 @@ input:focus-visible {
                         : "command-center-best-fallback",
                 });
             } else if (hasStickyResult) {
-                if (ui.yourDealsTodayTitle && stickyEntry.title) {
-                    ui.yourDealsTodayTitle.textContent = stickyEntry.title;
-                }
-                if (ui.yourDealsTodaySubtitle && stickyEntry.subtitle) {
-                    ui.yourDealsTodaySubtitle.textContent = stickyEntry.subtitle;
-                }
                 renderPagedCards({
                     container: ui.personalizedDealsGrid,
                     items: stickyEntry.items.slice(0, 1),
@@ -12130,13 +12284,13 @@ input:focus-visible {
                     view: stickyEntry.view || (personalizedActive || (knownUser && !personalizedResolved)
                         ? "command-center-best-personalized"
                         : "command-center-best-fallback"),
-                    title: "Best Personal Opportunity",
+                    title: "Worth Buying",
                     initialCount: 1,
                 });
                 return;
             }
             if (error && !uniqueApiItems.length) {
-                renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");
+                renderError(ui.personalizedDealsGrid, "Failed to load Worth Buying.");
                 return;
             }
             if (knownUser && !personalizedResolved && !uniqueApiItems.length) {
@@ -12152,19 +12306,19 @@ input:focus-visible {
                 return;
             }
             if (error && !filteredDisplay.rows.length) {
-                renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");
+                renderError(ui.personalizedDealsGrid, "Failed to load Worth Buying.");
                 return;
             }
             if (!filteredDisplay.rows.length) {
                 renderOwnedFilteredFeedEmpty(
                     ui.personalizedDealsGrid,
                     knownUser
-                        ? "No personalized deals yet."
-                        : "No strong deals available right now.",
+                        ? "No strong picks yet."
+                        : "No strong picks available right now.",
                     {
                         tone: "neutral",
                         detail: knownUser
-                            ? "Add games to Watch or mark them Owned to improve recommendations."
+                            ? "Add games to Watch or mark them Owned to sharpen this answer."
                             : "Check back as prices and trends refresh.",
                     },
                     filteredDisplay,
@@ -12182,7 +12336,7 @@ input:focus-visible {
                 view: personalizedActive || (knownUser && !personalizedResolved)
                     ? "command-center-best-personalized"
                     : "command-center-best-fallback",
-                title: "Best Personal Opportunity",
+                title: "Worth Buying",
                 initialCount: 1,
             });
         }
@@ -12199,10 +12353,10 @@ input:focus-visible {
             if (!filtered.rows.length) {
                 renderOwnedFilteredFeedEmpty(
                     ui.worthBuyingGrid,
-                    "No worth-buying deals available right now.",
+                    "No best bets available right now.",
                     {
                         tone: "neutral",
-                        detail: "This section updates when strong buy opportunities appear.",
+                        detail: "This tab updates when stronger value appears.",
                     },
                     filtered,
                 );
@@ -12216,7 +12370,7 @@ input:focus-visible {
                 toggleButton: null,
                 showAllButton: null,
                 view: "worth-buying-now",
-                title: "Worth Buying Now",
+                title: "Best Bets",
                 initialCount: 12,
             });
         }
@@ -12233,10 +12387,10 @@ input:focus-visible {
             if (!filtered.rows.length) {
                 renderOwnedFilteredFeedEmpty(
                     ui.trendingDealsGrid,
-                    "No trending deal cards available right now.",
+                    "No popular picks available right now.",
                     {
                         tone: "neutral",
-                        detail: "Trending picks update as player activity changes.",
+                        detail: "This tab updates as player activity changes.",
                     },
                     filtered,
                 );
@@ -12250,7 +12404,7 @@ input:focus-visible {
                 toggleButton: null,
                 showAllButton: null,
                 view: "trending-now",
-                title: "Trending Now",
+                title: "Popular Right Now",
                 initialCount: 12,
             });
         }
@@ -12923,8 +13077,9 @@ input:focus-visible {
         }
 
         function applyAllRenders() {
-            renderOpportunities();
+            renderHomepageFreshnessStrip();
             renderPersonalizedDeals();
+            renderOpportunities();
             renderActiveDiscoveryTabPane();
             renderNewDeals();
             renderSeasonalSale();
@@ -15325,7 +15480,7 @@ try {
 
         function renderCriticalHomepageSkeletons() {
             renderSkeleton(ui.dealRankedGrid, "deal-cards", HOMEPAGE_ALL_DEALS_INITIAL_COUNT, { cardClass: "game-card" });
-            renderSkeleton(ui.opportunitiesGrid, "deal-cards", 6, { cardClass: "game-card" });
+            renderSkeleton(ui.opportunitiesGrid, "mini-list", 3, { itemClass: "mini-item" });
             if (!getHomepageRailSessionEntry("personalizedDeals")) {
                 renderSkeleton(ui.personalizedDealsGrid, "deal-cards", 1, { cardClass: "game-card" });
             }
@@ -15334,9 +15489,10 @@ try {
         }
 
         function renderCriticalHomepageSections() {
-            renderDealRanked();
-            renderOpportunities();
+            renderHomepageFreshnessStrip();
             renderPersonalizedDeals();
+            renderOpportunities();
+            renderDealRanked();
             renderBecauseYouOwn();
             renderDailyDigest();
             renderDealRadar();
@@ -15357,6 +15513,7 @@ try {
         }
 
         function renderRestoredNonCriticalSections() {
+            renderHomepageFreshnessStrip();
             if (!safeArray(state.recentlyUpdated).length) {
                 computeRecentlyUpdated();
             }
@@ -15548,7 +15705,7 @@ try {
                 state.personalListStatus.watchlistError = error;
                 state.dailyDigestStatus.error = error;
                 renderError(ui.dailyDigestList, "Failed to load daily digest.");
-                renderError(ui.personalizedDealsGrid, "Failed to load your deals feed.");
+                renderError(ui.personalizedDealsGrid, "Failed to load Worth Buying.");
                 renderError(ui.wishlistList, "Failed to load owned list.");
                 renderError(ui.watchlistList, "Failed to load watchlist.");
             }
@@ -16646,7 +16803,6 @@ try {
             if (wireHorizontalRailContinuation._wired) return;
             const sections = [
                 { key: "dealRankedGrid", render: renderDealRanked, onNearEnd: maybeLoadMoreAllDealsHomepageCatalog },
-                { key: "opportunitiesGrid", render: renderOpportunities },
                 { key: "worthBuyingGrid", render: renderWorthBuyingNow },
                 { key: "trendingDealsGrid", render: renderTrendingDeals },
                 { key: "newHistoricalLowsGrid", render: renderNewHistoricalLows },
@@ -16767,6 +16923,7 @@ try {
                 applyDiscoverySectionOrder();
                 wireResponsiveHomepageLayout();
                 state.lastVisitTs = getStoredLastVisitTs();
+                renderHomepageFreshnessStrip();
                 const restoredSnapshot = restoreDashboardSnapshot();
                 const restoredRailSession = loadHomepageRailSessionState();
                 if (restoredRailSession) {
@@ -16783,7 +16940,7 @@ try {
                 const shouldFetchCriticalBundle = shouldFetchCriticalDashboardBundle();
                 const startCriticalLoad = () => loadCriticalHomepageData().catch((error) => {
                     console.error(error);
-                    renderError(ui.opportunitiesGrid, "Failed to load opportunities.", {
+                    renderError(ui.opportunitiesGrid, "Failed to load ranking context.", {
                         onRetry: () => { void startCriticalLoad(); },
                     });
                 });
@@ -16840,7 +16997,7 @@ try {
                 );
             } catch (error) {
                 console.error(error);
-                renderError(ui.opportunitiesGrid, "Failed to load opportunities.", {
+                renderError(ui.opportunitiesGrid, "Failed to load ranking context.", {
                     onRetry: () => { window.location.reload(); },
                 });
                 scheduleDeferredHomepageStage();

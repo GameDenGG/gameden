@@ -12576,6 +12576,7 @@ input:focus-visible {
                 excludeKeys: protectedKeys,
                 seedRows: apiItems,
             });
+            const fallbackFromSource = uniqueGamesByIdentity(apiItems).slice(0, personalizedLimit);
             const displayItems = useFallbackRows
                 ? fallbackRows
                 : filterRowsByIdentityExclusion(
@@ -12583,12 +12584,25 @@ input:focus-visible {
                     protectedKeys,
                     personalizedLimit,
                 );
+            const persistedRows = safeArray(state.personalizedDealsDisplayRows);
+            const stableDisplayItems = displayItems.length
+                ? displayItems
+                : (
+                    persistedRows.length
+                        ? persistedRows
+                        : (
+                            fallbackRows.length
+                                ? fallbackRows
+                                : fallbackFromSource
+                        )
+                );
             const filteredDisplay = {
-                rows: displayItems,
+                rows: stableDisplayItems,
                 hiddenOwnedCount: 0,
-                totalCount: displayItems.length,
+                totalCount: stableDisplayItems.length,
             };
-            if (personalizedActive && filteredDisplay.rows.length) {
+            const usedPersistedRows = !displayItems.length && persistedRows.length > 0;
+            if (personalizedActive && filteredDisplay.rows.length && !usedPersistedRows) {
                 state.personalizedDealsDisplaySignature = sourceSignature;
                 state.personalizedDealsDisplayRows = filteredDisplay.rows.slice(0, 1);
             }
@@ -15355,7 +15369,6 @@ try {
             if (!forceReload && inflight && loadPersonalizedDeals._inflightUserId === requestedUserId) {
                 return inflight;
             }
-
             state.personalizedStatus.enabled = true;
             state.personalizedStatus.error = null;
             state.personalizedStatus.resolved = false;

@@ -1128,7 +1128,14 @@ input:focus-visible {
 
 #recommendedForYouPanel {
     --panel-accent: rgba(255, 196, 111, 0.95);
-    border-color: transparent;
+    display: grid;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+    margin: 0 0 14px;
+    padding: 0 4px;
+    border: 0;
+    border-radius: 0;
     background: transparent;
     box-shadow: none;
     overflow: visible;
@@ -1138,9 +1145,12 @@ input:focus-visible {
     display: none;
 }
 
-#recommendedForYouPanel .panel-head {
-    padding: 8px 4px 5px;
-    border-bottom-color: transparent;
+#recommendedForYouPanel .homepage-feature-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 2px 0 1px;
 }
 
 #recommendedForYouPanel .panel-title {
@@ -1156,8 +1166,8 @@ input:focus-visible {
     opacity: 1;
 }
 
-#recommendedForYouPanel .panel-body {
-    padding: 0 4px 8px;
+#recommendedForYouPanel .homepage-feature-body {
+    padding: 0;
 }
 
 #recommendedForYouPanel .command-center-best {
@@ -1746,16 +1756,16 @@ input:focus-visible {
     flex-wrap: wrap;
 }
 
-#recommendedForYouPanel .panel-head {
+#recommendedForYouPanel .homepage-feature-head {
     flex-wrap: nowrap;
     align-items: flex-start;
 }
 
-#recommendedForYouPanel .panel-head .panel-title-wrap {
+#recommendedForYouPanel .homepage-feature-head .panel-title-wrap {
     flex: 1 1 0;
 }
 
-#recommendedForYouPanel .panel-head .row-nav {
+#recommendedForYouPanel .homepage-feature-head .row-nav {
     flex: 0 0 auto;
     margin-left: auto;
 }
@@ -4128,8 +4138,8 @@ input:focus-visible {
     #recommendedForYouPanel .panel-title {
         font-size: 21px;
     }
-    #recommendedForYouPanel .panel-body {
-        padding: 0 4px 7px;
+    #recommendedForYouPanel .homepage-feature-body {
+        padding: 0;
     }
     #opportunitiesPanel .panel-title,
     #buyNowPicksPanel .panel-title {
@@ -4373,8 +4383,8 @@ input:focus-visible {
     #recommendedForYouPanel .panel-title {
         font-size: 19px;
     }
-    #recommendedForYouPanel .panel-body {
-        padding: 0 2px 6px;
+    #recommendedForYouPanel .homepage-feature-body {
+        padding: 0;
     }
     #opportunitiesPanel .panel-title,
     #buyNowPicksPanel .panel-title {
@@ -5195,14 +5205,14 @@ input:focus-visible {
                         Signals
                     </button>
                 </div>
-                <section class="panel panel-personalized hidden" id="recommendedForYouPanel" aria-hidden="true">
-                    <div class="panel-head">
+                <section class="panel-personalized hidden" id="recommendedForYouPanel" aria-hidden="true">
+                    <div class="homepage-feature-head">
                         <div class="panel-title-wrap">
                             <h2 class="panel-title" id="yourDealsTodayTitle">Worth Buying</h2>
                             <div class="panel-subtitle" id="yourDealsTodaySubtitle">Your strongest next pick from tracked games and live prices.</div>
                         </div>
                     </div>
-                    <div class="panel-body">
+                    <div class="homepage-feature-body">
                         <div id="personalizedDealsGrid" class="command-center-best"></div>
                     </div>
                 </section>

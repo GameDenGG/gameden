@@ -617,10 +617,10 @@ select {
     inset: -12px -10px -10px;
     border-radius: 24px;
     background:
-        radial-gradient(120% 120% at 50% -10%, rgba(129, 199, 255, 0.18), rgba(129, 199, 255, 0)),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
-    filter: blur(10px);
-    opacity: 0.85;
+        radial-gradient(120% 120% at 50% -10%, rgba(129, 199, 255, 0.1), rgba(129, 199, 255, 0)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0));
+    filter: blur(12px);
+    opacity: 0.62;
     pointer-events: none;
     z-index: 0;
 }
@@ -655,12 +655,13 @@ select {
     min-height: 76px;
     padding: 20px 24px;
     border-radius: 20px;
-    border: 1px solid rgba(160, 205, 255, 0.24);
+    border: 1px solid rgba(160, 205, 255, 0.12);
     background:
-        linear-gradient(180deg, rgba(17, 34, 58, 0.92), rgba(10, 21, 38, 0.92));
+        linear-gradient(180deg, rgba(17, 34, 58, 0.78), rgba(10, 21, 38, 0.8));
     box-shadow:
-        0 18px 38px rgba(3, 9, 21, 0.34),
-        0 1px 0 rgba(255, 255, 255, 0.06) inset;
+        0 14px 30px rgba(3, 9, 21, 0.24),
+        0 1px 0 rgba(255, 255, 255, 0.04) inset,
+        0 0 0 1px rgba(255, 255, 255, 0.015) inset;
     transition:
         border-color 180ms var(--ui-ease-standard),
         box-shadow 180ms var(--ui-ease-standard),
@@ -669,19 +670,19 @@ select {
 }
 
 .search-bar:focus-within {
-    border-color: rgba(103, 234, 255, 0.4);
+    border-color: rgba(103, 234, 255, 0.22);
     box-shadow:
-        0 0 0 1px rgba(103, 234, 255, 0.24),
-        0 28px 48px rgba(3, 10, 22, 0.42),
-        0 0 22px rgba(103, 234, 255, 0.18);
-    background: linear-gradient(180deg, rgba(19, 38, 65, 0.94), rgba(11, 22, 39, 0.93));
-    transform: translateY(-1px) scale(1.006);
+        0 0 0 1px rgba(103, 234, 255, 0.14),
+        0 18px 32px rgba(3, 10, 22, 0.3),
+        0 0 18px rgba(103, 234, 255, 0.1);
+    background: linear-gradient(180deg, rgba(19, 38, 65, 0.86), rgba(11, 22, 39, 0.86));
+    transform: translateY(-1px);
 }
 
 .search-bar.is-reacting {
     box-shadow:
-        0 0 0 1px rgba(121, 188, 255, 0.26),
-        0 20px 40px rgba(3, 9, 20, 0.4);
+        0 0 0 1px rgba(121, 188, 255, 0.18),
+        0 16px 32px rgba(3, 9, 20, 0.28);
 }
 
 .search-bar.is-loading::after {
@@ -714,8 +715,8 @@ select {
 .search-bar-icon {
     font-size: 18px;
     line-height: 1;
-    opacity: 0.9;
-    transform: translateY(-0.5px);
+    opacity: 0.74;
+    transform: translateY(0);
 }
 
 .search-bar input {
@@ -730,7 +731,7 @@ select {
 }
 
 .search-bar input::placeholder {
-    color: rgba(158, 194, 238, 0.78);
+    color: rgba(158, 194, 238, 0.64);
 }
 
 .search-bar input:focus,

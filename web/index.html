@@ -221,7 +221,7 @@ select {
 
 .homepage-top-shell {
     display: grid;
-    gap: 2px;
+    gap: 0;
     min-width: 0;
 }
 
@@ -233,6 +233,7 @@ select {
     min-width: 0;
     margin: 0;
     margin-left: clamp(14px, 2.2vw, 30px);
+    margin-bottom: 14px;
     padding: 0;
     border: 0;
     border-radius: 0;
@@ -433,43 +434,50 @@ select {
 .homepage-value-cta {
     flex: 0 0 auto;
     margin-left: 2px;
-    min-height: 26px;
-    padding: 3px 8px;
-    border-radius: 10px;
-    border: 1px solid rgba(121, 168, 255, 0.08);
-    background: rgba(121, 168, 255, 0.03);
-    color: rgba(242, 248, 255, 0.96);
+    min-height: 0;
+    padding: 0 0 1px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: rgba(233, 239, 249, 0.92);
     box-shadow: none;
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 700;
     text-decoration: none;
+    letter-spacing: 0.01em;
     white-space: nowrap;
 }
 
 .homepage-value-strip > .homepage-value-cta {
     margin-left: 2px;
-    min-height: 26px;
-    padding: 3px 8px;
-    border: 1px solid rgba(121, 168, 255, 0.08);
-    border-radius: 10px;
-    background: rgba(121, 168, 255, 0.03);
-    color: rgba(242, 248, 255, 0.96);
+    min-height: 0;
+    padding: 0 0 1px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: rgba(233, 239, 249, 0.92);
     box-shadow: none;
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 700;
     text-decoration: none;
+    letter-spacing: 0.01em;
+    position: relative;
 }
 
 .homepage-value-strip > .homepage-value-cta:hover {
-    border-color: rgba(121, 168, 255, 0.16);
-    background: rgba(121, 168, 255, 0.05);
+    background: transparent;
     color: #ffffff;
 }
 
 .homepage-value-cta:hover {
-    border-color: rgba(121, 168, 255, 0.16);
-    background: rgba(121, 168, 255, 0.05);
+    background: transparent;
     color: #ffffff;
+}
+
+.homepage-value-strip > .homepage-value-cta::after {
+    content: "→";
+    margin-left: 4px;
+    opacity: 0.62;
 }
 
 .homepage-import-banner {
@@ -656,7 +664,7 @@ select {
     position: sticky;
     top: 10px;
     z-index: 15;
-    margin-top: clamp(-8px, -0.9vw, 2px);
+    margin-top: 14px;
     margin-bottom: 30px;
 }
 

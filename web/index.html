@@ -614,13 +614,13 @@ select {
 .command-search-layer::before {
     content: "";
     position: absolute;
-    inset: -12px -10px -10px;
+    inset: -16px -12px -8px;
     border-radius: 24px;
     background:
-        radial-gradient(120% 120% at 50% -10%, rgba(129, 199, 255, 0.08), rgba(129, 199, 255, 0)),
+        radial-gradient(120% 120% at 50% -10%, rgba(129, 199, 255, 0.12), rgba(129, 199, 255, 0)),
         linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
-    filter: blur(11px);
-    opacity: 0.54;
+    filter: blur(14px);
+    opacity: 0.38;
     pointer-events: none;
     z-index: 0;
 }
@@ -652,18 +652,17 @@ select {
     grid-template-columns: auto 1fr;
     align-items: center;
     gap: 12px;
-    min-height: 64px;
-    padding: 16px 20px;
-    border-radius: 18px;
-    border: 1px solid rgba(160, 205, 255, 0.08);
+    min-height: 48px;
+    padding: 9px 16px;
+    border-radius: 15px;
+    border: 0;
     background:
-        linear-gradient(180deg, rgba(17, 34, 58, 0.72), rgba(10, 21, 38, 0.76));
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+        linear-gradient(180deg, rgba(14, 24, 39, 0.3), rgba(8, 13, 23, 0.14));
+    backdrop-filter: blur(12px) saturate(1.06);
+    -webkit-backdrop-filter: blur(12px) saturate(1.06);
     box-shadow:
-        0 12px 24px rgba(3, 9, 21, 0.18),
-        0 1px 0 rgba(255, 255, 255, 0.035) inset,
-        0 0 0 1px rgba(255, 255, 255, 0.012) inset;
+        inset 0 1px 0 rgba(255, 255, 255, 0.025),
+        inset 0 -1px 0 rgba(103, 234, 255, 0.06);
     transition:
         border-color 180ms var(--ui-ease-standard),
         box-shadow 180ms var(--ui-ease-standard),
@@ -671,15 +670,28 @@ select {
         transform 180ms var(--ui-ease-standard);
 }
 
+.search-bar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+        radial-gradient(120% 130% at 20% 0%, rgba(110, 196, 255, 0.08), rgba(110, 196, 255, 0)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 44%);
+    opacity: 0.9;
+}
+
 .search-bar:focus-within {
-    border-color: rgba(103, 234, 255, 0.2);
+    border-color: rgba(103, 234, 255, 0.18);
     box-shadow:
-        0 0 0 1px rgba(103, 234, 255, 0.12),
-        0 0 0 6px rgba(103, 234, 255, 0.04),
-        0 18px 32px rgba(3, 10, 22, 0.28),
-        0 0 18px rgba(103, 234, 255, 0.08),
-        0 1px 0 rgba(255, 255, 255, 0.05) inset;
-    background: linear-gradient(180deg, rgba(19, 38, 65, 0.84), rgba(11, 22, 39, 0.86));
+        0 0 0 1px rgba(103, 234, 255, 0.16),
+        0 0 0 8px rgba(103, 234, 255, 0.05),
+        0 0 20px rgba(103, 234, 255, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        inset 0 -1px 0 rgba(103, 234, 255, 0.1);
+    background:
+        linear-gradient(180deg, rgba(18, 30, 50, 0.38), rgba(9, 14, 25, 0.18));
     transform: translateY(-1px);
 }
 
@@ -717,10 +729,17 @@ select {
 }
 
 .search-bar-icon {
-    font-size: 17px;
+    font-size: 15px;
     line-height: 1;
-    opacity: 0.7;
+    opacity: 0.92;
     transform: translateY(0);
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(104, 190, 255, 0.08);
+    box-shadow: inset 0 0 0 1px rgba(104, 190, 255, 0.11);
 }
 
 .search-bar input {
@@ -729,14 +748,14 @@ select {
     outline: 0;
     color: var(--text);
     width: 100%;
-    font-size: clamp(18px, 2vw, 21px);
-    font-weight: 650;
+    font-size: clamp(16px, 1.65vw, 19px);
+    font-weight: 640;
     line-height: 1.1;
-    letter-spacing: 0.012em;
+    letter-spacing: 0.006em;
 }
 
 .search-bar input::placeholder {
-    color: rgba(158, 194, 238, 0.72);
+    color: rgba(173, 206, 236, 0.9);
 }
 
 .search-bar input:focus,
@@ -4544,7 +4563,7 @@ input:focus-visible {
         margin-bottom: 14px;
     }
     .command-search-layer {
-        gap: 4px;
+        gap: 5px;
     }
     .home-jump-nav {
         margin: 2px 0 8px;
@@ -4564,8 +4583,8 @@ input:focus-visible {
         scroll-snap-align: start;
     }
     .search-bar {
-        min-height: 60px;
-        padding: 13px 16px;
+        min-height: 46px;
+        padding: 9px 13px;
     }
     .quick-toggle-row {
         flex-wrap: nowrap;
@@ -4899,8 +4918,8 @@ input:focus-visible {
         font-size: 9px;
     }
     .search-bar {
-        min-height: 52px;
-        padding: 11px 13px;
+        min-height: 44px;
+        padding: 8px 12px;
     }
     .quick-toggle-row {
         gap: 6px;

@@ -11,6 +11,7 @@ from pathlib import Path
 from statistics import mean
 from types import SimpleNamespace
 from typing import Any, Optional
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
@@ -43,6 +44,7 @@ from config import (
     SITE_HOST,
     SITE_NAME,
     SITE_URL,
+    STEAM_USER_AGENT,
     SUPABASE_ANON_KEY,
     SUPABASE_AUTH_VERIFY_TIMEOUT_SECONDS,
     SUPABASE_URL,
@@ -76,6 +78,11 @@ from database.models import (
 from logger_config import setup_logger
 
 logger = setup_logger("api")
+
+STEAM_WEB_API_BASE_URL = "https://api.steampowered.com"
+STEAM_LIBRARY_IMPORT_TIMEOUT_SECONDS = 15
+STEAM_ID64_PATTERN = re.compile(r"^\d{17}$")
+STEAM_VANITY_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 validate_settings()
 
@@ -839,6 +846,10 @@ class DealWatchlistRemoveRequest(BaseModel):
 
 class GameInteractionRequest(BaseModel):
     type: str
+
+
+class SteamLibraryImportRequest(BaseModel):
+    profile_input: str
 
 
 def _start_timer() -> float:
@@ -10461,25 +10472,23 @@ def list_personalized_deals(
         _, home_payload = _read_dashboard_cache(session)
         protected_deal_ids = _collect_protected_deal_game_ids(home_payload if isinstance(home_payload, dict) else {})
 
-        owned_rows: list[tuple[int | None, datetime.datetime | None]] = []
-        watchlist_rows: list[tuple[int | None, datetime.datetime | None]] = []
-        target_rows: list[tuple[int | None, datetime.datetime | None]] = []
-        if personalization_enabled:
-            owned_rows = (
-                session.query(WishlistItem.game_id, WishlistItem.created_at)
-                .filter(WishlistItem.user_id == normalized_user_id)
-                .all()
-            )
-            watchlist_rows = (
-                session.query(Watchlist.game_id, Watchlist.created_at)
-                .filter(Watchlist.user_id == normalized_user_id)
-                .all()
-            )
-            target_rows = (
-                session.query(DealWatchlist.game_id, DealWatchlist.updated_at)
-                .filter(DealWatchlist.user_id == normalized_user_id, DealWatchlist.active.is_(True))
-                .all()
-            )
+        owned_rows: list[tuple[int | None, datetime.datetime | None]] = (
+            session.query(WishlistItem.game_id, WishlistItem.created_at)
+            .filter(WishlistItem.user_id == normalized_user_id)
+            .all()
+        )
+        watchlist_rows: list[tuple[int | None, datetime.datetime | None]] = (
+            session.query(Watchlist.game_id, Watchlist.created_at)
+            .filter(Watchlist.user_id == normalized_user_id)
+            .all()
+        )
+        target_rows: list[tuple[int | None, datetime.datetime | None]] = (
+            session.query(DealWatchlist.game_id, DealWatchlist.updated_at)
+            .filter(DealWatchlist.user_id == normalized_user_id, DealWatchlist.active.is_(True))
+            .all()
+        )
+        if not personalization_enabled:
+            personalization_enabled = bool(owned_rows or watchlist_rows or target_rows)
 
         owned_game_ids = {int(game_id) for game_id, _ in owned_rows if game_id is not None}
         watchlist_game_ids = {int(game_id) for game_id, _ in watchlist_rows if game_id is not None}
@@ -11018,6 +11027,228 @@ def list_user_wishlist(request: Request, user_id: str):
             }
             for item, game, snapshot in rows
         ]
+    finally:
+        session.close()
+
+
+def _steam_api_request(endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
+    api_key = str(os.getenv("STEAM_API_KEY") or "").strip()
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Steam import is not configured yet.")
+
+    request_params = {str(key): value for key, value in (params or {}).items()}
+    request_params["key"] = api_key
+    url = f"{STEAM_WEB_API_BASE_URL.rstrip('/')}/{endpoint.lstrip('/')}"
+    try:
+        response = requests.get(
+            url,
+            headers={"User-Agent": STEAM_USER_AGENT},
+            params=request_params,
+            timeout=STEAM_LIBRARY_IMPORT_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException as exc:
+        logger.exception("Steam import request failed endpoint=%s", endpoint)
+        raise HTTPException(status_code=502, detail="Steam import request failed.") from exc
+    except ValueError as exc:
+        logger.exception("Steam import returned invalid JSON endpoint=%s", endpoint)
+        raise HTTPException(status_code=502, detail="Steam returned invalid data.") from exc
+
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=502, detail="Steam returned an unexpected payload.")
+    return payload
+
+
+def _normalize_steam_library_profile_input(profile_input: str) -> tuple[str, str]:
+    raw_input = str(profile_input or "").strip()
+    if not raw_input:
+        raise HTTPException(status_code=400, detail="Steam profile URL or SteamID is required.")
+
+    if STEAM_ID64_PATTERN.fullmatch(raw_input):
+        return raw_input, raw_input
+
+    candidate_url = raw_input if "://" in raw_input else f"https://{raw_input}"
+    parsed = urlsplit(candidate_url)
+    host = (parsed.netloc or "").lower()
+    path_segments = [segment for segment in (parsed.path or "").split("/") if segment]
+
+    if "steamcommunity.com" in host:
+        if len(path_segments) < 2:
+            raise HTTPException(
+                status_code=400,
+                detail="Steam profile URL is missing a vanity name or SteamID64.",
+            )
+
+        namespace = path_segments[0].lower()
+        identifier = path_segments[1].strip()
+        if namespace == "profiles":
+            if not STEAM_ID64_PATTERN.fullmatch(identifier):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Steam profile URL must contain a valid SteamID64.",
+                )
+            return identifier, raw_input
+        if namespace == "id":
+            if not STEAM_VANITY_PATTERN.fullmatch(identifier):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Steam vanity URLs may only contain letters, numbers, underscores, and hyphens.",
+                )
+            return identifier, raw_input
+        raise HTTPException(
+            status_code=400,
+            detail="Steam profile URL must point to a /id/ or /profiles/ path.",
+        )
+
+    if STEAM_VANITY_PATTERN.fullmatch(raw_input):
+        return raw_input, raw_input
+
+    raise HTTPException(
+        status_code=400,
+        detail="Enter a Steam profile URL, vanity URL, or SteamID64.",
+    )
+
+
+def _resolve_steam_library_profile_id(profile_input: str) -> tuple[str, str]:
+    profile_identifier, normalized_input = _normalize_steam_library_profile_input(profile_input)
+    if STEAM_ID64_PATTERN.fullmatch(profile_identifier):
+        return profile_identifier, normalized_input
+
+    vanity_payload = _steam_api_request(
+        "ISteamUser/ResolveVanityURL/v1/",
+        {"vanityurl": profile_identifier},
+    )
+    vanity_response = vanity_payload.get("response")
+    if not isinstance(vanity_response, dict):
+        raise HTTPException(status_code=502, detail="Steam returned an unexpected vanity lookup payload.")
+
+    try:
+        success = int(vanity_response.get("success") or 0)
+    except (TypeError, ValueError):
+        success = 0
+    steam_id64 = str(vanity_response.get("steamid") or "").strip()
+    if success != 1 or not steam_id64:
+        raise HTTPException(status_code=404, detail="Steam profile not found.")
+
+    return steam_id64, normalized_input
+
+
+@app.post("/api/steam-library/import")
+def import_steam_library(payload: SteamLibraryImportRequest, request: Request):
+    normalized_user_id = resolve_request_user_id(request)
+    steam_id64, normalized_input = _resolve_steam_library_profile_id(payload.profile_input)
+    owned_payload = _steam_api_request(
+        "IPlayerService/GetOwnedGames/v1/",
+        {
+            "steamid": steam_id64,
+            "include_appinfo": 1,
+            "include_played_free_games": 1,
+            "format": "json",
+        },
+    )
+    owned_response = owned_payload.get("response")
+    if not isinstance(owned_response, dict):
+        raise HTTPException(status_code=502, detail="Steam returned an unexpected library payload.")
+
+    owned_games_raw = owned_response.get("games")
+    if owned_games_raw is None:
+        raise HTTPException(status_code=400, detail="Steam library is private or unavailable.")
+    if not isinstance(owned_games_raw, list):
+        raise HTTPException(status_code=502, detail="Steam returned an unexpected library payload.")
+
+    steam_owned_count = int(owned_response.get("game_count") or len(owned_games_raw) or 0)
+    owned_appids: list[str] = []
+    owned_game_names: dict[str, str] = {}
+    seen_appids: set[str] = set()
+    for entry in owned_games_raw:
+        if not isinstance(entry, dict):
+            continue
+        appid = str(entry.get("appid") or "").strip()
+        if not appid or appid in seen_appids:
+            continue
+        seen_appids.add(appid)
+        owned_appids.append(appid)
+        game_name = str(entry.get("name") or "").strip()
+        if game_name:
+            owned_game_names[appid] = game_name
+
+    if not owned_appids:
+        return {
+            "ok": True,
+            "user_id": normalized_user_id,
+            "steam_id64": steam_id64,
+            "profile_input": normalized_input,
+            "steam_owned_count": steam_owned_count,
+            "matched_count": 0,
+            "imported_count": 0,
+            "updated_count": 0,
+            "skipped_count": 0,
+        }
+
+    session = Session()
+    try:
+        matched_games = session.query(Game).filter(Game.appid.in_(owned_appids)).all()
+        games_by_appid = {
+            str(game.appid).strip(): game
+            for game in matched_games
+            if str(game.appid or "").strip()
+        }
+
+        imported_count = 0
+        updated_count = 0
+        matched_count = 0
+        skipped_count = 0
+        for appid in owned_appids:
+            game = games_by_appid.get(appid)
+            if not game:
+                skipped_count += 1
+                continue
+
+            matched_count += 1
+            existing = (
+                session.query(WishlistItem)
+                .filter(
+                    WishlistItem.user_id == normalized_user_id,
+                    WishlistItem.game_id == game.id,
+                )
+                .first()
+            )
+            if existing:
+                canonical_name = str(game.name or "").strip() or owned_game_names.get(appid) or existing.game_name
+                if canonical_name and existing.game_name != canonical_name:
+                    existing.game_name = canonical_name
+                    updated_count += 1
+                continue
+
+            session.add(
+                WishlistItem(
+                    user_id=normalized_user_id,
+                    game_id=game.id,
+                    game_name=str(game.name or "").strip() or owned_game_names.get(appid) or None,
+                )
+            )
+            imported_count += 1
+
+        session.commit()
+        return {
+            "ok": True,
+            "user_id": normalized_user_id,
+            "steam_id64": steam_id64,
+            "profile_input": normalized_input,
+            "steam_owned_count": steam_owned_count,
+            "matched_count": matched_count,
+            "imported_count": imported_count,
+            "updated_count": updated_count,
+            "skipped_count": skipped_count,
+        }
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as exc:
+        session.rollback()
+        logger.exception("Steam library import failed for user_id=%s", normalized_user_id)
+        raise HTTPException(status_code=502, detail="Steam library import failed.") from exc
     finally:
         session.close()
 

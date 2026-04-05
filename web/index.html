@@ -4147,6 +4147,85 @@ input:focus-visible {
     margin-top: 8px;
 }
 
+.steam-import-modal {
+    width: min(620px, 100%);
+}
+
+.steam-import-modal .modal-body {
+    grid-template-columns: 1fr;
+}
+
+.steam-import-form {
+    display: grid;
+    gap: 10px;
+}
+
+.steam-import-helper {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.steam-import-label {
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+}
+
+.steam-import-input {
+    width: 100%;
+    min-height: 44px;
+    padding: 11px 13px;
+    border-radius: 14px;
+    border: 1px solid rgba(154, 182, 255, 0.22);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    font: inherit;
+}
+
+.steam-import-input::placeholder {
+    color: rgba(154, 182, 230, 0.68);
+}
+
+.steam-import-input:focus {
+    outline: 2px solid rgba(121, 168, 255, 0.48);
+    outline-offset: 1px;
+    border-color: rgba(121, 168, 255, 0.44);
+}
+
+.steam-import-status {
+    min-height: 18px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.steam-import-status.is-error {
+    color: #fca5a5;
+}
+
+.steam-import-status.is-success {
+    color: #86efac;
+}
+
+.steam-import-actions {
+    justify-content: flex-start;
+}
+
+.steam-import-submit {
+    border-color: rgba(103, 234, 255, 0.3);
+    background: linear-gradient(180deg, rgba(103, 234, 255, 0.18), rgba(121, 168, 255, 0.14));
+    color: #f4fbff;
+    box-shadow: 0 12px 22px rgba(4, 12, 24, 0.18);
+}
+
+.steam-import-submit[disabled] {
+    opacity: 0.72;
+    cursor: progress;
+}
+
 @media (max-width: 1260px) {
     .homepage-content-shell {
         gap: 16px;
@@ -4956,10 +5035,10 @@ input:focus-visible {
 
                 <div class="homepage-value-strip" id="homepageValueStrip">
                     <div class="homepage-value-copy">
-                        <div class="homepage-value-label">Only the game deals worth buying.</div>
-                        <div class="homepage-value-note">Filters out games you already own.</div>
+                        <div class="homepage-value-label">No repeats. No junk. Just good deals.</div>
+                        <div class="homepage-value-note">Filters out games you own and offers better options based on what you like.</div>
                     </div>
-                    <button class="secondary-btn homepage-value-cta" id="scanLibraryBtn" type="button">Scan Library</button>
+                    <button class="secondary-btn homepage-value-cta" id="scanLibraryBtn" type="button" aria-haspopup="dialog" aria-controls="steamImportBackdrop">Scan Library</button>
                 </div>
 
                 <div class="sticky-shell">
@@ -5677,6 +5756,46 @@ input:focus-visible {
         </div>
     </div>
 
+    <div class="modal-backdrop" id="steamImportBackdrop" aria-hidden="true">
+        <div
+            class="modal steam-import-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="steamImportTitle"
+            aria-describedby="steamImportHelper"
+        >
+            <div class="modal-head">
+                <div class="modal-title" id="steamImportTitle">Import your Steam library</div>
+                <button class="modal-close" id="steamImportClose" type="button" aria-label="Close">✕</button>
+            </div>
+            <div class="modal-body">
+                <form class="steam-import-form" id="steamImportForm">
+                    <p class="steam-import-helper" id="steamImportHelper">
+                        Paste your public Steam profile and GameDen will import your owned games to filter out duplicate deals.
+                    </p>
+                    <label class="steam-import-label" for="steamImportInput">
+                        Steam profile URL, vanity URL, or SteamID64
+                    </label>
+                    <input
+                        class="steam-import-input"
+                        id="steamImportInput"
+                        name="steamImportInput"
+                        type="text"
+                        placeholder="https://steamcommunity.com/id/yourname"
+                        autocomplete="url"
+                        autocapitalize="off"
+                        spellcheck="false"
+                    />
+                    <div class="steam-import-status" id="steamImportStatus" role="status" aria-live="polite"></div>
+                    <div class="modal-actions steam-import-actions">
+                        <button class="secondary-btn steam-import-submit" id="steamImportSubmit" type="submit">Import Library</button>
+                        <button class="secondary-btn" id="steamImportCancel" type="button">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.documentElement.classList.remove("no-js");
 
@@ -5781,6 +5900,7 @@ input:focus-visible {
         }
 
         const HOMEPAGE_SEARCH_SESSION_ID = createHomepageSearchSessionId();
+        let STEAM_IMPORT_IN_PROGRESS = false;
 
         function isDefaultOrAnonymousUserId(userId) {
             const normalized = String(userId || "").trim().toLowerCase();
@@ -7050,6 +7170,86 @@ input:focus-visible {
             }
         }
 
+        function getSteamImportModalElements() {
+            return {
+                backdrop: document.getElementById("steamImportBackdrop"),
+                form: document.getElementById("steamImportForm"),
+                input: document.getElementById("steamImportInput"),
+                status: document.getElementById("steamImportStatus"),
+                submit: document.getElementById("steamImportSubmit"),
+                cancel: document.getElementById("steamImportCancel"),
+                close: document.getElementById("steamImportClose"),
+            };
+        }
+
+        function setSteamImportStatus(message, tone = "muted") {
+            const { status } = getSteamImportModalElements();
+            if (!(status instanceof HTMLElement)) return;
+            const text = String(message || "").trim();
+            status.textContent = text;
+            status.classList.remove("is-error", "is-success");
+            if (!text || tone === "muted") {
+                status.removeAttribute("data-tone");
+                return;
+            }
+            const normalizedTone = tone === "success" ? "is-success" : "is-error";
+            status.classList.add(normalizedTone);
+            status.setAttribute("data-tone", tone);
+        }
+
+        function setSteamImportBusy(isBusy) {
+            STEAM_IMPORT_IN_PROGRESS = !!isBusy;
+            const { input, submit } = getSteamImportModalElements();
+            if (input instanceof HTMLInputElement) {
+                input.disabled = STEAM_IMPORT_IN_PROGRESS;
+            }
+            if (submit instanceof HTMLButtonElement) {
+                submit.disabled = STEAM_IMPORT_IN_PROGRESS;
+                submit.textContent = STEAM_IMPORT_IN_PROGRESS ? "Importing..." : "Import Library";
+                if (STEAM_IMPORT_IN_PROGRESS) {
+                    submit.setAttribute("aria-busy", "true");
+                } else {
+                    submit.removeAttribute("aria-busy");
+                }
+            }
+        }
+
+        function closeSteamImportModal() {
+            const { backdrop } = getSteamImportModalElements();
+            if (!(backdrop instanceof HTMLElement)) return;
+            backdrop.classList.remove("open");
+            backdrop.setAttribute("aria-hidden", "true");
+        }
+
+        function openSteamImportModal() {
+            setAccountPanelExpanded(false);
+            const { backdrop, input } = getSteamImportModalElements();
+            if (!(backdrop instanceof HTMLElement)) return;
+            if (!STEAM_IMPORT_IN_PROGRESS) {
+                setSteamImportStatus("", "muted");
+                setSteamImportBusy(false);
+            } else {
+                setSteamImportBusy(true);
+            }
+            backdrop.classList.add("open");
+            backdrop.setAttribute("aria-hidden", "false");
+            if (input instanceof HTMLInputElement) {
+                input.focus();
+                if (typeof input.select === "function") {
+                    input.select();
+                }
+            }
+        }
+
+        async function refreshHomepageAfterSteamImport() {
+            const refreshToken = String(Date.now());
+            await loadUserWishlist().catch(() => null);
+            await loadPersonalizedDeals({ force: true, cacheBust: refreshToken }).catch(() => null);
+            renderWishlist();
+            rerenderOwnedFilteredFeedSections();
+            syncCardActionButtonsFromState();
+        }
+
         async function refreshDashboardIdentityState(options = {}) {
             const opts = options && typeof options === "object" ? options : {};
             const account = window.GameDenAccount;
@@ -7158,6 +7358,11 @@ input:focus-visible {
             const logoutBtn = ui.accountLogoutBtn;
             const toggleBtn = ui.accountToggleBtn;
             const scanLibraryBtn = document.getElementById("scanLibraryBtn");
+            const steamImportBackdrop = document.getElementById("steamImportBackdrop");
+            const steamImportForm = document.getElementById("steamImportForm");
+            const steamImportInput = document.getElementById("steamImportInput");
+            const steamImportCancel = document.getElementById("steamImportCancel");
+            const steamImportClose = document.getElementById("steamImportClose");
 
             if (toggleBtn instanceof HTMLButtonElement) {
                 toggleBtn.addEventListener("click", () => {
@@ -7166,7 +7371,82 @@ input:focus-visible {
             }
             if (scanLibraryBtn instanceof HTMLButtonElement) {
                 scanLibraryBtn.addEventListener("click", () => {
-                    setAccountPanelExpanded(true);
+                    openSteamImportModal();
+                });
+            }
+            if (steamImportCancel instanceof HTMLButtonElement) {
+                steamImportCancel.addEventListener("click", () => {
+                    closeSteamImportModal();
+                });
+            }
+            if (steamImportClose instanceof HTMLButtonElement) {
+                steamImportClose.addEventListener("click", () => {
+                    closeSteamImportModal();
+                });
+            }
+            if (steamImportBackdrop instanceof HTMLElement) {
+                steamImportBackdrop.addEventListener("click", (event) => {
+                    if (event.target === steamImportBackdrop) {
+                        closeSteamImportModal();
+                    }
+                });
+            }
+            document.addEventListener("keydown", (event) => {
+                if (event.key !== "Escape") return;
+                const backdrop = document.getElementById("steamImportBackdrop");
+                if (backdrop instanceof HTMLElement && backdrop.classList.contains("open")) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    event.stopPropagation();
+                    closeSteamImportModal();
+                }
+            });
+            if (steamImportForm instanceof HTMLFormElement) {
+                steamImportForm.addEventListener("submit", async (event) => {
+                    event.preventDefault();
+                    if (STEAM_IMPORT_IN_PROGRESS) return;
+
+                    const profileInput = String(steamImportInput?.value || "").trim();
+                    if (!profileInput) {
+                        setSteamImportStatus("Paste a Steam profile URL, vanity URL, or SteamID64.", "error");
+                        if (steamImportInput instanceof HTMLInputElement) {
+                            steamImportInput.focus();
+                        }
+                        return;
+                    }
+
+                    setSteamImportBusy(true);
+                    setSteamImportStatus("Importing your Steam library...", "muted");
+                    try {
+                        const response = await fetchJson("/api/steam-library/import", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                profile_input: profileInput,
+                            }),
+                        });
+                        const importedCount = Number(response?.imported_count || 0);
+                        const matchedCount = Number(response?.matched_count || 0);
+                        const steamOwnedCount = Number(response?.steam_owned_count || 0);
+                        const summaryMessage = importedCount > 0
+                            ? `Imported ${fmtInt(importedCount)} owned game${importedCount === 1 ? "" : "s"}.`
+                            : matchedCount > 0
+                                ? `Matched ${fmtInt(matchedCount)} game${matchedCount === 1 ? "" : "s"} from your library.`
+                                : steamOwnedCount > 0
+                                    ? `Imported ${fmtInt(steamOwnedCount)} owned game${steamOwnedCount === 1 ? "" : "s"}, but none matched the current catalog.`
+                                    : "Steam returned no owned games for that profile.";
+                        setSteamImportStatus(`${summaryMessage} Refreshing homepage...`, "success");
+                        await refreshHomepageAfterSteamImport();
+                        closeSteamImportModal();
+                    } catch (error) {
+                        const detail = String(error?.detail || error?.message || "").trim();
+                        setSteamImportStatus(
+                            detail || "Steam import failed. Use a public Steam profile URL, vanity URL, or SteamID64.",
+                            "error",
+                        );
+                    } finally {
+                        setSteamImportBusy(false);
+                    }
                 });
             }
 
@@ -12609,7 +12889,7 @@ input:focus-visible {
             const stickyEntry = getHomepageRailSessionEntry("personalizedDeals");
             const hasStickyResult = !!stickyEntry;
             const personalizedLimit = HOMEPAGE_SECTION_LIMITS.personalizedDeals;
-            const personalizedActive = knownUser && personalizedResolved && !!state.personalizedStatus?.personalized;
+            const personalizedActive = personalizedResolved && !!state.personalizedStatus?.personalized;
             const personalizedLabel = "Worth Buying";
             const personalizedSubtitle = personalizedActive
                 ? "Your strongest next pick from tracked games and live prices."
@@ -12646,7 +12926,7 @@ input:focus-visible {
                 protectedKeys,
                 personalizedLimit,
             );
-            const useFallbackRows = (!knownUser || (personalizedResolved && !state.personalizedStatus?.personalized)) && !uniqueApiItems.length;
+            const useFallbackRows = (personalizedResolved && !state.personalizedStatus?.personalized) && !uniqueApiItems.length;
             const fallbackRows = buildYourDealsFallbackRows(personalizedLimit, {
                 excludeKeys: protectedKeys,
                 seedRows: apiItems,
@@ -15438,12 +15718,14 @@ try {
         async function loadPersonalizedDeals(options = {}) {
             const opts = options && typeof options === "object" ? options : {};
             const forceReload = !!opts.force;
+            const cacheBustToken = String(opts.cacheBust || opts.seq || "").trim();
             const requestedUserId = String(CURRENT_USER_ID || "").trim();
-            const knownUser = !isDefaultOrAnonymousUserId(requestedUserId);
             const inflight = loadPersonalizedDeals._inflight;
             if (!forceReload && inflight && loadPersonalizedDeals._inflightUserId === requestedUserId) {
                 return inflight;
             }
+            const requestSeq = Number(loadPersonalizedDeals._requestSeq || 0) + 1;
+            loadPersonalizedDeals._requestSeq = requestSeq;
             state.personalizedStatus.enabled = true;
             state.personalizedStatus.error = null;
             state.personalizedStatus.resolved = false;
@@ -15451,16 +15733,27 @@ try {
             const task = (async () => {
                 await ensureAuthRuntimeForUser(requestedUserId);
                 const includeOwnedParam = state.feedFilters?.showOwned ? "1" : "0";
+                const params = new URLSearchParams({
+                    user_id: requestedUserId,
+                    limit: String(HOMEPAGE_SECTION_LIMITS.personalizedDeals),
+                    include_owned: includeOwnedParam,
+                });
+                if (cacheBustToken && cacheBustToken !== "0") {
+                    params.set("seq", cacheBustToken);
+                }
                 const payload = await fetchJson(
-                    `/api/personalized-deals?user_id=${encodeURIComponent(requestedUserId)}&limit=${HOMEPAGE_SECTION_LIMITS.personalizedDeals}&include_owned=${includeOwnedParam}`,
+                    `/api/personalized-deals?${params.toString()}`,
                 );
-                if (String(CURRENT_USER_ID || "").trim() !== requestedUserId) {
+                if (
+                    loadPersonalizedDeals._requestSeq !== requestSeq
+                    || String(CURRENT_USER_ID || "").trim() !== requestedUserId
+                ) {
                     return safeArray(state.personalizedDealsSource).length
                         ? safeArray(state.personalizedDealsSource)
                         : safeArray(state.personalizedDeals);
                 }
                 const items = uniqueGamesByName(payload?.items || payload || []);
-                const personalized = !!payload?.personalized && knownUser;
+                const personalized = !!payload?.personalized;
                 state.personalizedDealsSource = items;
                 state.personalizedDeals = items;
                 sanitizePersonalizedDealsState();
@@ -15469,6 +15762,11 @@ try {
                 state.personalizedStatus.resolved = true;
                 return items;
             })().catch((error) => {
+                if (loadPersonalizedDeals._requestSeq !== requestSeq) {
+                    return safeArray(state.personalizedDealsSource).length
+                        ? safeArray(state.personalizedDealsSource)
+                        : safeArray(state.personalizedDeals);
+                }
                 const hasExistingItems = safeArray(state.personalizedDealsSource).length > 0;
                 state.personalizedStatus.error = error;
                 if (!hasExistingItems) {
@@ -15480,8 +15778,10 @@ try {
                 state.personalizedStatus.resolved = true;
                 throw error;
             }).finally(() => {
-                state.personalizedStatus.loading = false;
-                if (loadPersonalizedDeals._inflight === task) {
+                if (loadPersonalizedDeals._requestSeq === requestSeq) {
+                    state.personalizedStatus.loading = false;
+                }
+                if (loadPersonalizedDeals._requestSeq === requestSeq && loadPersonalizedDeals._inflight === task) {
                     loadPersonalizedDeals._inflight = null;
                     loadPersonalizedDeals._inflightUserId = "";
                 }

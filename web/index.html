@@ -229,17 +229,15 @@ select {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px 14px;
+    gap: 10px 14px;
     min-width: 0;
     margin: 0;
-    padding: 8px 11px;
-    border: 1px solid rgba(121, 168, 255, 0.08);
-    border-radius: 15px;
-    background: linear-gradient(90deg, rgba(9, 15, 26, 0.58), rgba(7, 12, 21, 0.68));
-    box-shadow:
-        0 6px 14px rgba(2, 7, 20, 0.08),
-        inset 0 1px 0 rgba(255, 255, 255, 0.025);
-    overflow: hidden;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
 }
 
 .homepage-value-copy {
@@ -251,8 +249,8 @@ select {
 .homepage-value-label {
     margin: 0;
     font-family: var(--font-display);
-    font-size: clamp(16px, 1.7vw, 19px);
-    line-height: 1.06;
+    font-size: clamp(15px, 1.6vw, 18px);
+    line-height: 1.03;
     letter-spacing: -0.02em;
     display: flex;
     flex-wrap: wrap;
@@ -278,15 +276,15 @@ select {
 }
 
 .homepage-value-phrase--repeat {
-    background-image: linear-gradient(180deg, #f2f4f8 0%, #c9d2e3 52%, #9eaac0 100%);
+    background-image: linear-gradient(180deg, #F1EDF0 0%, #CFC8D1 52%, #B2AAB1 100%);
 }
 
 .homepage-value-phrase--junk {
-    background-image: linear-gradient(180deg, #a9bce8 0%, #6f89c7 50%, #445d97 100%);
+    background-image: linear-gradient(180deg, #8B96BA 0%, #5C688E 50%, #2E405A 100%);
 }
 
 .homepage-value-phrase--deals {
-    background-image: linear-gradient(180deg, #bfc7d8 0%, #8d98ae 52%, #5e687c 100%);
+    background-image: linear-gradient(180deg, #8188A1 0%, #616B84 52%, #3A4152 100%);
 }
 
 .homepage-import-proof {
@@ -430,8 +428,8 @@ select {
 
 .homepage-value-cta {
     flex: 0 0 auto;
-    min-height: 32px;
-    padding: 6px 11px;
+    min-height: 30px;
+    padding: 5px 10px;
     border-radius: 999px;
     border-color: rgba(103, 234, 255, 0.12);
     background: linear-gradient(180deg, rgba(103, 234, 255, 0.1), rgba(121, 168, 255, 0.06));
@@ -5046,14 +5044,10 @@ input:focus-visible {
         max-height: none;
     }
     .homepage-value-strip {
-        padding: 8px 10px;
-        gap: 10px 12px;
+        gap: 8px 12px;
     }
     .homepage-value-label {
-        font-size: 17px;
-    }
-    .homepage-value-note {
-        font-size: 9px;
+        font-size: 16px;
     }
     .homepage-value-cta {
         min-height: 30px;
@@ -5442,7 +5436,6 @@ input:focus-visible {
                             <span class="homepage-value-phrase homepage-value-phrase--junk">No junk.</span>
                             <span class="homepage-value-phrase homepage-value-phrase--deals">Just good deals.</span>
                         </div>
-                        <div class="homepage-value-note">Filters out games you own and offers better options based on what you like.</div>
                     </div>
                     <button class="secondary-btn homepage-value-cta" id="scanLibraryBtn" type="button" aria-haspopup="dialog" aria-controls="steamImportBackdrop">Scan Library</button>
                 </div>

@@ -1136,14 +1136,14 @@ input:focus-visible {
 }
 
 #recommendedForYouPanel .panel-head {
-    padding-top: 18px;
-    padding-bottom: 11px;
+    padding-top: 14px;
+    padding-bottom: 8px;
 }
 
 #recommendedForYouPanel .panel-title {
     color: #fff0da;
-    font-size: 28px;
-    letter-spacing: -0.03em;
+    font-size: 24px;
+    letter-spacing: -0.028em;
     opacity: 1;
 }
 
@@ -1154,8 +1154,55 @@ input:focus-visible {
 }
 
 #recommendedForYouPanel .panel-body {
-    padding-top: 14px;
-    padding-bottom: 18px;
+    padding-top: 11px;
+    padding-bottom: 14px;
+}
+
+#recommendedForYouPanel .command-center-best {
+    gap: 8px;
+}
+
+#recommendedForYouPanel .game-card-image,
+#recommendedForYouPanel .card-banner-img {
+    height: 112px;
+}
+
+#recommendedForYouPanel .card-banner-fallback {
+    min-height: 112px;
+}
+
+#recommendedForYouPanel .game-card-top {
+    padding-top: 7px;
+}
+
+#recommendedForYouPanel .game-name {
+    font-size: 15px;
+}
+
+#recommendedForYouPanel .price-current {
+    font-size: 17px;
+}
+
+#recommendedForYouPanel .card-action-row {
+    padding-top: 6px;
+    gap: 4px;
+}
+
+#recommendedForYouPanel .card-action-btn {
+    min-height: 28px;
+    padding: 4px 7px;
+    font-size: 10px;
+}
+
+#recommendedForYouPanel .card-meta-stack {
+    gap: 3px;
+    padding-top: 4px;
+}
+
+#recommendedForYouPanel .card-meta-row.card-secondary-signals,
+#recommendedForYouPanel .card-reason-line,
+#recommendedForYouPanel .card-mini-stats {
+    display: none;
 }
 
 .command-center-best {
@@ -1785,8 +1832,8 @@ input:focus-visible {
 }
 
 #opportunitiesPanel .panel-title {
-    font-size: 19px;
-    letter-spacing: -0.02em;
+    font-size: 18px;
+    letter-spacing: -0.024em;
     color: #e6f1ff;
 }
 
@@ -4837,10 +4884,10 @@ input:focus-visible {
                     <main class="homepage-main main-column homepage-main-column" aria-label="Main market intelligence">
                 <section class="homepage-freshness-strip" id="homepageFreshnessStrip" role="status" aria-live="polite">
                     <div class="homepage-freshness-copy">
-                        <div class="homepage-freshness-label" id="homepageFreshnessLabel">Fresh picks</div>
-                        <div class="homepage-freshness-value" id="homepageFreshnessValue">Updated live</div>
+                        <div class="homepage-freshness-label" id="homepageFreshnessLabel">What Changed</div>
+                        <div class="homepage-freshness-value" id="homepageFreshnessValue">Fresh updates are still coming in</div>
                     </div>
-                    <div class="homepage-freshness-note" id="homepageFreshnessNote">Live prices and player activity refresh this surface.</div>
+                    <div class="homepage-freshness-note" id="homepageFreshnessNote">Fresh matches surface as prices move.</div>
                 </section>
                 <section class="panel panel-seasonal panel-secondary-intel hidden" id="seasonalSaleTopPanel">
                     <div class="panel-head">
@@ -4909,8 +4956,8 @@ input:focus-visible {
                 <section class="panel panel-intel panel-secondary-intel" id="opportunitiesPanel">
                     <div class="panel-head">
                         <div class="panel-title-wrap">
-                            <h2 class="panel-title">How We Rank</h2>
-                            <div class="panel-subtitle">Price, demand, and recent movement shape what reaches Worth Buying.</div>
+                            <h2 class="panel-title">Tracked Changes</h2>
+                            <div class="panel-subtitle">Recent movement and tracked games keep this current.</div>
                         </div>
                     </div>
                     <div class="panel-body">
@@ -5723,13 +5770,13 @@ input:focus-visible {
         ]);
         const HOMEPAGE_SECTION_LAYOUT = Object.freeze([
             { id: "recommendedForYouPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_NOW, priority: 5, column: "main" },
-            { id: "opportunitiesPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_NOW, priority: 10, column: "main" },
             { id: "buyNowPicksPanel", group: HOMEPAGE_SECTION_GROUPS.BUY_NOW, priority: 20, column: "main" },
 
             { id: "upcomingPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 10, column: "main" },
             { id: "seasonalSaleTopPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 15, column: "main" },
             { id: "seasonalSaleLowerPanel", group: HOMEPAGE_SECTION_GROUPS.MARKET_INTELLIGENCE, priority: 15, column: "lower" },
 
+            { id: "opportunitiesPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 10, column: "side" },
             { id: "becauseYouOwnPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 15, column: "side" },
             { id: "watchlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 20, column: "side" },
             { id: "wishlistPanel", group: HOMEPAGE_SECTION_GROUPS.YOUR_RADAR, priority: 30, column: "side" },
@@ -12005,23 +12052,38 @@ input:focus-visible {
             const hasLastVisit = state.lastVisitTs > 0;
             const loading = !state.homepageLoad?.criticalLoaded;
             const freshCount = safeArray(state.newDeals).length;
+            const recentMovesCount = safeArray(state.recentlyUpdated).length;
 
             if (ui.homepageFreshnessLabel) {
-                ui.homepageFreshnessLabel.textContent = hasLastVisit
-                    ? "New since your last visit"
-                    : "Fresh picks";
+                ui.homepageFreshnessLabel.textContent = "What Changed";
             }
             if (ui.homepageFreshnessValue) {
-                ui.homepageFreshnessValue.textContent = hasLastVisit
-                    ? (freshCount > 0
-                        ? `${fmtInt(freshCount)} fresh deal${freshCount === 1 ? "" : "s"}`
-                        : loading
-                            ? "Refreshing live picks"
-                            : "Nothing new yet")
-                    : "Updated live";
+                let valueText = "";
+                if (hasLastVisit) {
+                    if (freshCount > 0 && recentMovesCount > 0) {
+                        valueText = `${fmtInt(freshCount)} new match${freshCount === 1 ? "" : "es"} · ${fmtInt(recentMovesCount)} recent moves`;
+                    } else if (freshCount > 0) {
+                        valueText = `${fmtInt(freshCount)} new match${freshCount === 1 ? "" : "es"}`;
+                    } else if (recentMovesCount > 0) {
+                        valueText = `${fmtInt(recentMovesCount)} recent moves`;
+                    } else if (loading) {
+                        valueText = "Checking for changes";
+                    } else {
+                        valueText = "Nothing new since your last visit";
+                    }
+                } else if (recentMovesCount > 0) {
+                    valueText = `${fmtInt(recentMovesCount)} recent moves today`;
+                } else if (loading) {
+                    valueText = "Checking live changes";
+                } else {
+                    valueText = "Fresh updates are still coming in";
+                }
+                ui.homepageFreshnessValue.textContent = valueText;
             }
             if (ui.homepageFreshnessNote) {
-                ui.homepageFreshnessNote.textContent = "Live prices and player activity refresh this surface.";
+                ui.homepageFreshnessNote.textContent = hasLastVisit
+                    ? "Since your last visit."
+                    : "Fresh matches surface as prices move.";
             }
         }
 
@@ -12031,11 +12093,11 @@ input:focus-visible {
                 safeArray(state.buyNowPicks).length,
                 safeArray(state.worthBuyingNow).length,
             );
-            const freshChangesCount = safeArray(state.newDeals).length;
+            const recentUpdatesCount = safeArray(state.recentlyUpdated).length;
             const trackedGamesCount = safeArray(state.wishlist).length + safeArray(state.watchlist).length;
             return {
                 currentPicksCount,
-                freshChangesCount,
+                recentUpdatesCount,
                 trackedGamesCount,
             };
         }
@@ -12044,20 +12106,19 @@ input:focus-visible {
             if (!ui.opportunitiesGrid) return;
             const counts = buildHomepageContextCounts();
             ui.opportunitiesGrid.innerHTML = `
-                <div class="decision-context-copy">We keep the main answer tight by favoring price, demand, and recent movement.</div>
                 <div class="decision-context-card">
                     <div class="decision-context-value">${fmtInt(counts.currentPicksCount)}</div>
-                    <div class="decision-context-label">Current picks</div>
+                    <div class="decision-context-label">Matches now</div>
                 </div>
                 <div class="decision-context-card">
-                    <div class="decision-context-value">${fmtInt(counts.freshChangesCount)}</div>
-                    <div class="decision-context-label">New since visit</div>
+                    <div class="decision-context-value">${fmtInt(counts.recentUpdatesCount)}</div>
+                    <div class="decision-context-label">Recent moves</div>
                 </div>
                 <div class="decision-context-card">
                     <div class="decision-context-value">${fmtInt(counts.trackedGamesCount)}</div>
                     <div class="decision-context-label">Tracked games</div>
                 </div>
-                <div class="decision-context-note">Worth Buying stays centered on games that are cheap, active, or tied to what you track.</div>
+                <div class="decision-context-note">Owned games stay filtered out.</div>
             `;
         }
 
@@ -16940,7 +17001,7 @@ try {
                 const shouldFetchCriticalBundle = shouldFetchCriticalDashboardBundle();
                 const startCriticalLoad = () => loadCriticalHomepageData().catch((error) => {
                     console.error(error);
-                    renderError(ui.opportunitiesGrid, "Failed to load ranking context.", {
+                    renderError(ui.opportunitiesGrid, "Failed to load tracked changes.", {
                         onRetry: () => { void startCriticalLoad(); },
                     });
                 });
@@ -16997,7 +17058,7 @@ try {
                 );
             } catch (error) {
                 console.error(error);
-                renderError(ui.opportunitiesGrid, "Failed to load ranking context.", {
+                renderError(ui.opportunitiesGrid, "Failed to load tracked changes.", {
                     onRetry: () => { window.location.reload(); },
                 });
                 scheduleDeferredHomepageStage();

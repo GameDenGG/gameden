@@ -601,14 +601,14 @@ select {
 
 .command-launcher {
     position: relative;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     z-index: 52;
 }
 
 .command-search-layer {
     position: relative;
     display: grid;
-    gap: 8px;
+    gap: 4px;
 }
 
 .command-search-layer::before {
@@ -651,10 +651,10 @@ select {
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
-    gap: 12px;
-    min-height: 48px;
-    padding: 9px 16px;
-    border-radius: 15px;
+    gap: 10px;
+    min-height: 46px;
+    padding: 8px 14px;
+    border-radius: 14px;
     border: 0;
     background:
         linear-gradient(180deg, rgba(14, 24, 39, 0.3), rgba(8, 13, 23, 0.14));
@@ -729,17 +729,37 @@ select {
 }
 
 .search-bar-icon {
-    font-size: 15px;
-    line-height: 1;
-    opacity: 0.92;
+    position: relative;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    margin-left: 1px;
+    opacity: 0.88;
     transform: translateY(0);
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-items: center;
+    color: rgba(171, 209, 244, 0.92);
+}
+
+.search-bar-icon::before {
+    content: "";
+    position: absolute;
+    inset: 1.5px;
+    border-radius: 50%;
+    border: 1.7px solid currentColor;
+    box-shadow: 0 0 0 1px rgba(7, 14, 27, 0.35);
+}
+
+.search-bar-icon::after {
+    content: "";
+    position: absolute;
+    width: 7px;
+    height: 1.7px;
+    right: -1px;
+    bottom: 0;
     border-radius: 999px;
-    background: rgba(104, 190, 255, 0.08);
-    box-shadow: inset 0 0 0 1px rgba(104, 190, 255, 0.11);
+    background: currentColor;
+    transform: rotate(45deg);
+    transform-origin: right center;
+    box-shadow: 0 0 0 1px rgba(7, 14, 27, 0.22);
 }
 
 .search-bar input {
@@ -983,7 +1003,7 @@ select {
 .quick-toggle-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 9px;
+    gap: 6px;
     align-items: center;
     margin-top: 0;
 }
@@ -991,7 +1011,7 @@ select {
 .quick-toggle-strip {
     position: relative;
     z-index: 2;
-    margin-top: 3px;
+    margin-top: 0;
 }
 
 .field label {
@@ -1081,6 +1101,55 @@ select {
 
 .quick-filter-pill {
     flex: 0 0 auto;
+}
+
+.quick-toggle-row .pill-toggle,
+.quick-toggle-row .quick-filter-btn {
+    min-height: 28px;
+    padding: 4px 9px;
+    border-radius: 11px;
+    border-color: rgba(121, 168, 255, 0.12);
+    background: rgba(121, 168, 255, 0.035);
+    box-shadow: none;
+    font-size: 9px;
+    font-weight: 750;
+    letter-spacing: 0.042em;
+}
+
+.quick-toggle-row .pill-toggle:hover,
+.quick-toggle-row .quick-filter-btn:hover {
+    border-color: rgba(121, 168, 255, 0.24);
+    background: rgba(121, 168, 255, 0.07);
+    box-shadow: 0 4px 10px rgba(4, 12, 24, 0.08);
+    transform: translateY(-0.25px);
+}
+
+.quick-toggle-row .pill-toggle.is-active,
+.quick-toggle-row .quick-filter-btn.is-active,
+.quick-toggle-row #toggleAdvancedFiltersBtn[aria-expanded="true"] {
+    border-color: rgba(103, 234, 255, 0.28);
+    background: rgba(103, 234, 255, 0.09);
+    color: #defbff;
+    transform: translateY(-0.4px);
+}
+
+.quick-toggle-row .quick-owned-toggle-btn[data-active="true"] {
+    border-color: rgba(110, 221, 163, 0.28);
+    background: rgba(110, 221, 163, 0.08);
+    color: #c9f7de;
+}
+
+.quick-toggle-row .quick-clear-btn {
+    border-color: rgba(121, 168, 255, 0.1);
+    background: rgba(121, 168, 255, 0.02);
+    color: rgba(154, 182, 230, 0.84);
+}
+
+.quick-toggle-row #toggleAdvancedFiltersBtn {
+    color: rgba(160, 189, 230, 0.84);
+    border-color: rgba(121, 168, 255, 0.1);
+    background: rgba(121, 168, 255, 0.02);
+    font-weight: 700;
 }
 
 .quick-filter-btn {
@@ -5287,7 +5356,7 @@ input:focus-visible {
                         <div class="command-search-layer">
                             <div class="search-bar-wrap command-search-wrap" id="searchBarWrap">
                                 <div class="search-bar command-search-input">
-                                    <span class="search-bar-icon" aria-hidden="true">🔎</span>
+                                    <span class="search-bar-icon" aria-hidden="true"></span>
                                     <label class="sr-only" for="searchInput">Search games</label>
                                     <input id="searchInput" type="text" placeholder="Search games, genres, or tags..." autocomplete="off" />
                                 </div>

@@ -11035,7 +11035,7 @@ def list_user_wishlist(request: Request, user_id: str):
 def _steam_api_request(endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
     api_key = str(os.getenv("STEAM_API_KEY") or "").strip()
     if not api_key:
-        raise HTTPException(status_code=503, detail="Steam import is not configured yet.")
+        raise HTTPException(status_code=503, detail="Steam is temporarily unreachable.")
 
     request_params = {str(key): value for key, value in (params or {}).items()}
     request_params["key"] = api_key

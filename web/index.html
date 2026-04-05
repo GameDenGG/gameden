@@ -272,6 +272,65 @@ select {
     white-space: nowrap;
 }
 
+.homepage-import-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 14px;
+    min-width: 0;
+    margin: 0;
+    padding: 0 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(110, 212, 164, 0);
+    background: linear-gradient(90deg, rgba(11, 23, 24, 0), rgba(11, 23, 24, 0));
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition:
+        max-height 220ms ease,
+        opacity 200ms ease,
+        transform 200ms ease,
+        padding 200ms ease,
+        border-color 200ms ease,
+        background 200ms ease,
+        box-shadow 200ms ease;
+}
+
+.homepage-import-banner.is-visible {
+    max-height: 96px;
+    padding: 10px 12px;
+    border-color: rgba(110, 212, 164, 0.24);
+    background: linear-gradient(90deg, rgba(11, 23, 24, 0.9), rgba(11, 23, 24, 0.82));
+    box-shadow: 0 10px 22px rgba(2, 7, 20, 0.18);
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.homepage-import-banner-copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.homepage-import-banner-label {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(15px, 1.55vw, 18px);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    color: #e9fff3;
+}
+
+.homepage-import-banner-note {
+    color: rgba(176, 227, 202, 0.78);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
 .homepage-content-shell {
     display: grid;
     gap: 22px;
@@ -4675,6 +4734,16 @@ input:focus-visible {
         min-height: 32px;
         padding: 6px 11px;
     }
+    .homepage-import-banner {
+        padding: 0 10px;
+    }
+    .homepage-import-banner.is-visible {
+        max-height: 108px;
+        padding: 9px 10px;
+    }
+    .homepage-import-banner-label {
+        font-size: 15px;
+    }
     .home-jump-nav {
         margin: 0 0 7px;
     }
@@ -5039,6 +5108,13 @@ input:focus-visible {
                         <div class="homepage-value-note">Filters out games you own and offers better options based on what you like.</div>
                     </div>
                     <button class="secondary-btn homepage-value-cta" id="scanLibraryBtn" type="button" aria-haspopup="dialog" aria-controls="steamImportBackdrop">Scan Library</button>
+                </div>
+
+                <div class="homepage-import-banner" id="steamImportSuccessBanner" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true">
+                    <div class="homepage-import-banner-copy">
+                        <div class="homepage-import-banner-label" id="steamImportSuccessTitle"></div>
+                        <div class="homepage-import-banner-note" id="steamImportSuccessNote"></div>
+                    </div>
                 </div>
 
                 <div class="sticky-shell">
@@ -5901,6 +5977,7 @@ input:focus-visible {
 
         const HOMEPAGE_SEARCH_SESSION_ID = createHomepageSearchSessionId();
         let STEAM_IMPORT_IN_PROGRESS = false;
+        let STEAM_IMPORT_SUCCESS_BANNER_TIMER = null;
 
         function isDefaultOrAnonymousUserId(userId) {
             const normalized = String(userId || "").trim().toLowerCase();
@@ -6463,6 +6540,9 @@ input:focus-visible {
             homepageFreshnessLabel: document.getElementById("homepageFreshnessLabel"),
             homepageFreshnessValue: document.getElementById("homepageFreshnessValue"),
             homepageFreshnessNote: document.getElementById("homepageFreshnessNote"),
+            homepageImportSuccessBanner: document.getElementById("steamImportSuccessBanner"),
+            homepageImportSuccessTitle: document.getElementById("steamImportSuccessTitle"),
+            homepageImportSuccessNote: document.getElementById("steamImportSuccessNote"),
             quickDealsOnlyChip: document.getElementById("quickDealsOnlyChip"),
             quickIncludeFreeChip: document.getElementById("quickIncludeFreeChip"),
             quickHideOwnedToggleBtn: document.getElementById("quickHideOwnedToggleBtn"),
@@ -7214,6 +7294,48 @@ input:focus-visible {
             }
         }
 
+        function getHomepageImportSuccessBannerElements() {
+            return {
+                banner: ui.homepageImportSuccessBanner,
+                title: ui.homepageImportSuccessTitle,
+                note: ui.homepageImportSuccessNote,
+            };
+        }
+
+        function hideHomepageImportSuccessBanner() {
+            if (STEAM_IMPORT_SUCCESS_BANNER_TIMER) {
+                clearTimeout(STEAM_IMPORT_SUCCESS_BANNER_TIMER);
+                STEAM_IMPORT_SUCCESS_BANNER_TIMER = null;
+            }
+            const { banner } = getHomepageImportSuccessBannerElements();
+            if (!(banner instanceof HTMLElement)) return;
+            banner.classList.remove("is-visible");
+            banner.setAttribute("aria-hidden", "true");
+        }
+
+        function showHomepageImportSuccessBanner(primaryText, secondaryText = "") {
+            if (STEAM_IMPORT_SUCCESS_BANNER_TIMER) {
+                clearTimeout(STEAM_IMPORT_SUCCESS_BANNER_TIMER);
+                STEAM_IMPORT_SUCCESS_BANNER_TIMER = null;
+            }
+            const { banner, title, note } = getHomepageImportSuccessBannerElements();
+            if (!(banner instanceof HTMLElement)) return;
+            const primary = String(primaryText || "").trim();
+            const secondary = String(secondaryText || "").trim();
+            if (title instanceof HTMLElement) {
+                title.textContent = primary;
+            }
+            if (note instanceof HTMLElement) {
+                note.textContent = secondary;
+                note.classList.toggle("hidden", !secondary);
+            }
+            banner.setAttribute("aria-hidden", "false");
+            banner.classList.add("is-visible");
+            STEAM_IMPORT_SUCCESS_BANNER_TIMER = window.setTimeout(() => {
+                hideHomepageImportSuccessBanner();
+            }, 5200);
+        }
+
         function closeSteamImportModal() {
             const { backdrop } = getSteamImportModalElements();
             if (!(backdrop instanceof HTMLElement)) return;
@@ -7435,9 +7557,19 @@ input:focus-visible {
                                 : steamOwnedCount > 0
                                     ? `Imported ${fmtInt(steamOwnedCount)} owned game${steamOwnedCount === 1 ? "" : "s"}, but none matched the current catalog.`
                                     : "Steam returned no owned games for that profile.";
+                        const successCount = importedCount > 0
+                            ? importedCount
+                            : (matchedCount > 0 ? matchedCount : steamOwnedCount);
+                        const successTitle = successCount > 0
+                            ? `Imported ${fmtInt(successCount)} game${successCount === 1 ? "" : "s"} — your deals are now personalized.`
+                            : "Steam library imported — your deals are now personalized.";
+                        closeSteamImportModal();
+                        showHomepageImportSuccessBanner(
+                            successTitle,
+                            "Owned games are now filtered out across your homepage.",
+                        );
                         setSteamImportStatus(`${summaryMessage} Refreshing homepage...`, "success");
                         await refreshHomepageAfterSteamImport();
-                        closeSteamImportModal();
                     } catch (error) {
                         const detail = String(error?.detail || error?.message || "").trim();
                         setSteamImportStatus(

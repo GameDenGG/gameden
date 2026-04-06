@@ -513,27 +513,27 @@ select {
     position: relative;
     isolation: isolate;
     overflow: visible;
-    will-change: transform, box-shadow, border-color, background, filter, color;
+    z-index: 0;
+    will-change: transform, filter, color;
 }
 
 .homepage-value-strip > .homepage-value-cta::before {
     content: "";
     position: absolute;
-    inset: -40px;
+    inset: -24px -28px;
     pointer-events: none;
     opacity: 0;
-    border-radius: inherit;
+    border-radius: 999px;
     background:
         radial-gradient(circle at 50% 50%,
-            rgba(154, 199, 255, 0.95) 0%,
-            rgba(124, 168, 255, 0.6) 18%,
-            rgba(86, 140, 255, 0.28) 38%,
-            rgba(124, 168, 255, 0.12) 56%,
-            rgba(124, 168, 255, 0) 76%);
-    filter: blur(24px) saturate(1.18);
-    transform: scale(1.2);
-    mix-blend-mode: screen;
-    z-index: 1;
+            rgba(166, 210, 255, 0) 20%,
+            rgba(145, 195, 255, 0.22) 36%,
+            rgba(120, 175, 255, 0.54) 49%,
+            rgba(102, 157, 255, 0.24) 62%,
+            rgba(102, 157, 255, 0) 78%);
+    filter: blur(18px) saturate(1.14);
+    transform: scale(0.9);
+    z-index: -1;
 }
 
 .homepage-value-strip > .homepage-value-cta:hover {
@@ -554,23 +554,20 @@ select {
 
 @media (prefers-reduced-motion: no-preference) {
     .homepage-value-strip > .homepage-value-cta.is-handoff-highlight {
-        background:
-            radial-gradient(circle at 50% 50%, rgba(154, 199, 255, 0.72) 0%, rgba(124, 168, 255, 0.42) 28%, rgba(124, 168, 255, 0.2) 54%, rgba(124, 168, 255, 0.08) 72%, rgba(124, 168, 255, 0) 78%),
-            rgba(124, 168, 255, 0.34);
-        border-color: rgba(124, 168, 255, 0.22);
-        box-shadow:
-            0 0 40px rgba(124, 168, 255, 0.78),
-            0 0 110px rgba(124, 168, 255, 0.42);
         color: #ffffff;
+        text-shadow:
+            0 0 10px rgba(124, 168, 255, 0.24),
+            0 0 20px rgba(124, 168, 255, 0.12);
         filter:
-            brightness(1.25)
-            drop-shadow(0 0 24px rgba(124, 168, 255, 0.66))
-            drop-shadow(0 0 64px rgba(124, 168, 255, 0.28));
+            brightness(1.14)
+            saturate(1.06)
+            drop-shadow(0 0 10px rgba(124, 168, 255, 0.5))
+            drop-shadow(0 0 26px rgba(124, 168, 255, 0.2));
     }
 
     .homepage-value-strip > .homepage-value-cta.is-handoff-highlight::before {
         opacity: 1;
-        animation: homepageValueCtaGlow 920ms var(--ui-ease-standard) 1 both;
+        animation: homepageValueCtaHalo 840ms var(--ui-ease-standard) 1 both;
     }
 }
 
@@ -598,21 +595,20 @@ select {
     }
 
     .homepage-value-strip > .homepage-value-cta.is-handoff-highlight {
-        background:
-            radial-gradient(circle at 50% 50%, rgba(154, 199, 255, 0.48) 0%, rgba(124, 168, 255, 0.28) 28%, rgba(124, 168, 255, 0.14) 54%, rgba(124, 168, 255, 0.06) 72%, rgba(124, 168, 255, 0) 78%),
-            rgba(124, 168, 255, 0.18);
-        border-color: rgba(124, 168, 255, 0.18);
-        box-shadow:
-            0 0 40px rgba(124, 168, 255, 0.34),
-            0 0 88px rgba(124, 168, 255, 0.18);
         color: rgba(255, 255, 255, 0.98);
-        filter: brightness(1.2) drop-shadow(0 0 20px rgba(124, 168, 255, 0.24));
+        text-shadow:
+            0 0 8px rgba(124, 168, 255, 0.18),
+            0 0 16px rgba(124, 168, 255, 0.08);
+        filter:
+            brightness(1.08)
+            saturate(1.03)
+            drop-shadow(0 0 8px rgba(124, 168, 255, 0.34));
     }
 
     .homepage-value-strip > .homepage-value-cta.is-handoff-highlight::before {
         opacity: 1;
         animation: none;
-        transform: none;
+        transform: scale(1.02);
     }
 }
 
@@ -680,28 +676,29 @@ select {
     }
 }
 
-@keyframes homepageValueCtaGlow {
+@keyframes homepageValueCtaHalo {
     0% {
         opacity: 0;
-        transform: scale(0.88);
-        filter: blur(14px) saturate(1.05);
+        transform: scale(0.9);
+        filter: blur(20px) saturate(1.08) brightness(0.96);
     }
-    18% {
-        opacity: 0.72;
+    14% {
+        opacity: 0.94;
     }
-    38% {
+    42% {
         opacity: 1;
-        transform: scale(1.2);
-        filter: blur(24px) saturate(1.18);
+        transform: scale(1.08);
+        filter: blur(24px) saturate(1.2) brightness(1.18);
     }
-    66% {
-        opacity: 0.82;
-        transform: scale(1);
+    72% {
+        opacity: 0.8;
+        transform: scale(1.02);
+        filter: blur(19px) saturate(1.12) brightness(1.06);
     }
     100% {
-        opacity: 0;
-        transform: scale(0.98);
-        filter: blur(10px) saturate(1.05);
+        opacity: 0.74;
+        transform: scale(1);
+        filter: blur(17px) saturate(1.1) brightness(1.02);
     }
 }
 
@@ -6585,6 +6582,8 @@ input:focus-visible {
         let HOMEPAGE_VALUE_CTA_HIGHLIGHT_SETTLE_TIMER = null;
         let HOMEPAGE_VALUE_CTA_HIGHLIGHT_PLAYED = false;
         let HOMEPAGE_VALUE_CTA_HIGHLIGHT_ARMED_AT = 0;
+        let HOMEPAGE_LOGO_INTRO_STARTED_AT = 0;
+        let HOMEPAGE_LOGO_INTRO_COMPLETE_AT = 0;
 
         function isDefaultOrAnonymousUserId(userId) {
             const normalized = String(userId || "").trim().toLowerCase();
@@ -6694,6 +6693,8 @@ input:focus-visible {
             const setStaticState = (markPlayed = true) => {
                 logoStage.classList.remove("is-playing");
                 logoStage.classList.add("is-static");
+                HOMEPAGE_LOGO_INTRO_STARTED_AT = Number(window.performance?.now?.() || Date.now());
+                HOMEPAGE_LOGO_INTRO_COMPLETE_AT = Number(window.performance?.now?.() || Date.now());
                 if (markPlayed) markPlayedInSession();
             };
 
@@ -6727,10 +6728,12 @@ input:focus-visible {
                 if (fallbackTimer !== null) {
                     clearTimeout(fallbackTimer);
                 }
+                HOMEPAGE_LOGO_INTRO_COMPLETE_AT = Number(window.performance?.now?.() || Date.now());
                 setStaticState(true);
                 if (resetTimer !== null) {
                     clearTimeout(resetTimer);
                 }
+                refreshHomepageValueCtaHighlight();
                 resetTimer = window.setTimeout(() => {
                     resetAnimatedLogo();
                 }, HERO_LOGO_FADE_DURATION_MS + 40);
@@ -6741,6 +6744,7 @@ input:focus-visible {
                 markPlayedInSession();
                 logoStage.classList.add("is-playing");
                 logoStage.classList.remove("is-static");
+                HOMEPAGE_LOGO_INTRO_STARTED_AT = Number(window.performance?.now?.() || Date.now());
                 if (resetTimer !== null) {
                     clearTimeout(resetTimer);
                     resetTimer = null;
@@ -6820,10 +6824,8 @@ input:focus-visible {
             if (HOMEPAGE_VALUE_CTA_HIGHLIGHT_PLAYED) return;
 
             const importedCount = Number(state.homepageImportProof?.count || 0);
-            const personalizedResolved = state.personalizedStatus?.resolved === true;
             const personalized = state.personalizedStatus?.personalized === true;
-            const personalizedLoading = state.personalizedStatus?.loading === true;
-            if (importedCount > 0 || (personalizedResolved && personalized)) {
+            if (importedCount > 0 || personalized) {
                 clearHomepageValueCtaHighlight({ lock: true });
                 return;
             }
@@ -6834,8 +6836,6 @@ input:focus-visible {
                 window.matchMedia
                 && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
             );
-            const targetDelayMs = reduceMotion ? 0 : 260;
-            const maxPersonalizedWaitMs = 1200;
             const tick = () => {
                 HOMEPAGE_VALUE_CTA_HIGHLIGHT_TIMER = null;
                 if (HOMEPAGE_VALUE_CTA_HIGHLIGHT_PLAYED) return;
@@ -6844,48 +6844,29 @@ input:focus-visible {
                 if (!(currentBtn instanceof HTMLElement)) return;
 
                 const currentImportedCount = Number(state.homepageImportProof?.count || 0);
-                const currentPersonalizedResolved = state.personalizedStatus?.resolved === true;
                 const currentPersonalized = state.personalizedStatus?.personalized === true;
-                const currentPersonalizedLoading = state.personalizedStatus?.loading === true;
-                if (currentImportedCount > 0 || (currentPersonalizedResolved && currentPersonalized)) {
+                if (currentImportedCount > 0 || currentPersonalized) {
                     clearHomepageValueCtaHighlight({ lock: true });
                     return;
                 }
 
-                if (currentPersonalizedLoading && !currentPersonalizedResolved) {
-                    const elapsedMs = Math.max(
-                        0,
-                        Number(window.performance?.now?.() || Date.now()) - HOMEPAGE_VALUE_CTA_HIGHLIGHT_ARMED_AT,
-                    );
-                    if (elapsedMs < maxPersonalizedWaitMs) {
-                        HOMEPAGE_VALUE_CTA_HIGHLIGHT_TIMER = window.setTimeout(tick, 80);
-                        return;
-                    }
-                }
-
-                if (currentPersonalizedResolved && currentPersonalized) {
-                    clearHomepageValueCtaHighlight({ lock: true });
+                const logoStartedAt = Number(HOMEPAGE_LOGO_INTRO_STARTED_AT || 0);
+                if (!logoStartedAt) {
+                    HOMEPAGE_VALUE_CTA_HIGHLIGHT_TIMER = window.setTimeout(tick, 40);
                     return;
                 }
 
-                if (currentImportedCount > 0) {
-                    clearHomepageValueCtaHighlight({ lock: true });
-                    return;
-                }
-
-                if (currentPersonalizedLoading && !currentPersonalizedResolved) {
-                    HOMEPAGE_VALUE_CTA_HIGHLIGHT_TIMER = window.setTimeout(tick, 80);
-                    return;
-                }
-
-                const elapsedMs = Math.max(
-                    0,
-                    Number(window.performance?.now?.() || Date.now()) - HOMEPAGE_VALUE_CTA_HIGHLIGHT_ARMED_AT,
+                const logoHandoffDelayMs = reduceMotion ? 0 : 160;
+                const minimumStartDelayMs = reduceMotion ? 0 : 1260;
+                const desiredStartAt = Math.max(
+                    HOMEPAGE_VALUE_CTA_HIGHLIGHT_ARMED_AT + minimumStartDelayMs,
+                    logoStartedAt + logoHandoffDelayMs,
                 );
-                if (!reduceMotion && elapsedMs < targetDelayMs) {
+                const remainingMs = Math.max(0, desiredStartAt - Number(window.performance?.now?.() || Date.now()));
+                if (remainingMs > 0) {
                     HOMEPAGE_VALUE_CTA_HIGHLIGHT_TIMER = window.setTimeout(
                         tick,
-                        Math.max(80, targetDelayMs - elapsedMs),
+                        Math.max(40, Math.min(remainingMs, 80)),
                     );
                     return;
                 }
@@ -6900,14 +6881,9 @@ input:focus-visible {
                 }
             };
 
-            const elapsedMs = Math.max(
-                0,
-                Number(window.performance?.now?.() || Date.now()) - HOMEPAGE_VALUE_CTA_HIGHLIGHT_ARMED_AT,
-            );
-            const initialDelayMs = Math.max(80, targetDelayMs - elapsedMs);
             HOMEPAGE_VALUE_CTA_HIGHLIGHT_TIMER = window.setTimeout(
                 tick,
-                reduceMotion ? 0 : initialDelayMs,
+                reduceMotion ? 0 : 40,
             );
         }
 

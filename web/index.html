@@ -512,39 +512,28 @@ select {
     letter-spacing: 0.01em;
     position: relative;
     isolation: isolate;
-    overflow: hidden;
+    overflow: visible;
     will-change: transform, box-shadow, border-color, background, filter, color;
 }
 
 .homepage-value-strip > .homepage-value-cta::before {
     content: "";
     position: absolute;
-    inset: -3px;
+    inset: -40px;
     pointer-events: none;
     opacity: 0;
     border-radius: inherit;
-    padding: 1px;
     background:
-        linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 34%),
-        conic-gradient(
-            from 212deg,
-            rgba(124, 168, 255, 0) 0deg,
-            rgba(124, 168, 255, 0) 90deg,
-            rgba(124, 168, 255, 0.18) 112deg,
-            rgba(154, 199, 255, 1) 146deg,
-            rgba(86, 140, 255, 0.5) 172deg,
-            rgba(124, 168, 255, 0) 206deg,
-            rgba(124, 168, 255, 0) 360deg
-        );
-    -webkit-mask:
-        linear-gradient(#000 0 0) content-box,
-        linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    transform: rotate(-18deg) scale(0.985);
-    box-shadow:
-        0 0 0 1px rgba(124, 168, 255, 0.22) inset,
-        0 0 18px rgba(124, 168, 255, 0.12);
+        radial-gradient(circle at 50% 50%,
+            rgba(154, 199, 255, 0.95) 0%,
+            rgba(124, 168, 255, 0.6) 18%,
+            rgba(86, 140, 255, 0.28) 38%,
+            rgba(124, 168, 255, 0.12) 56%,
+            rgba(124, 168, 255, 0) 76%);
+    filter: blur(24px) saturate(1.18);
+    transform: scale(1.2);
+    mix-blend-mode: screen;
+    z-index: 1;
 }
 
 .homepage-value-strip > .homepage-value-cta:hover {
@@ -565,26 +554,23 @@ select {
 
 @media (prefers-reduced-motion: no-preference) {
     .homepage-value-strip > .homepage-value-cta.is-handoff-highlight {
-        overflow: visible;
-        outline: 2px solid rgba(124, 168, 255, 0.9);
-        outline-offset: 3px;
-        border-color: rgba(124, 168, 255, 0.84);
-        background: rgba(124, 168, 255, 0.2);
+        background:
+            radial-gradient(circle at 50% 50%, rgba(154, 199, 255, 0.72) 0%, rgba(124, 168, 255, 0.42) 28%, rgba(124, 168, 255, 0.2) 54%, rgba(124, 168, 255, 0.08) 72%, rgba(124, 168, 255, 0) 78%),
+            rgba(124, 168, 255, 0.34);
+        border-color: rgba(124, 168, 255, 0.22);
         box-shadow:
-            0 0 0 2px rgba(124, 168, 255, 0.68),
-            0 0 30px rgba(124, 168, 255, 0.42),
-            0 0 78px rgba(124, 168, 255, 0.18),
-            inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+            0 0 40px rgba(124, 168, 255, 0.78),
+            0 0 110px rgba(124, 168, 255, 0.42);
         color: #ffffff;
         filter:
-            brightness(1.18)
-            drop-shadow(0 0 10px rgba(124, 168, 255, 0.38))
-            drop-shadow(0 0 24px rgba(124, 168, 255, 0.22));
+            brightness(1.25)
+            drop-shadow(0 0 24px rgba(124, 168, 255, 0.66))
+            drop-shadow(0 0 64px rgba(124, 168, 255, 0.28));
     }
 
     .homepage-value-strip > .homepage-value-cta.is-handoff-highlight::before {
         opacity: 1;
-        animation: homepageValueCtaTrace 900ms var(--ui-ease-standard) 1 both;
+        animation: homepageValueCtaGlow 920ms var(--ui-ease-standard) 1 both;
     }
 }
 
@@ -612,16 +598,15 @@ select {
     }
 
     .homepage-value-strip > .homepage-value-cta.is-handoff-highlight {
-        overflow: visible;
-        outline: 1px solid rgba(124, 168, 255, 0.42);
-        outline-offset: 2px;
-        border-color: rgba(124, 168, 255, 0.58);
-        background: rgba(124, 168, 255, 0.1);
+        background:
+            radial-gradient(circle at 50% 50%, rgba(154, 199, 255, 0.48) 0%, rgba(124, 168, 255, 0.28) 28%, rgba(124, 168, 255, 0.14) 54%, rgba(124, 168, 255, 0.06) 72%, rgba(124, 168, 255, 0) 78%),
+            rgba(124, 168, 255, 0.18);
+        border-color: rgba(124, 168, 255, 0.18);
         box-shadow:
-            0 0 0 1px rgba(124, 168, 255, 0.36),
-            0 0 20px rgba(124, 168, 255, 0.2);
+            0 0 40px rgba(124, 168, 255, 0.34),
+            0 0 88px rgba(124, 168, 255, 0.18);
         color: rgba(255, 255, 255, 0.98);
-        filter: brightness(1.12) drop-shadow(0 0 8px rgba(124, 168, 255, 0.18));
+        filter: brightness(1.2) drop-shadow(0 0 20px rgba(124, 168, 255, 0.24));
     }
 
     .homepage-value-strip > .homepage-value-cta.is-handoff-highlight::before {
@@ -695,28 +680,28 @@ select {
     }
 }
 
-@keyframes homepageValueCtaTrace {
+@keyframes homepageValueCtaGlow {
     0% {
         opacity: 0;
-        transform: rotate(-18deg) scale(0.985);
-        filter: blur(0.15px);
+        transform: scale(0.88);
+        filter: blur(14px) saturate(1.05);
     }
     18% {
-        opacity: 0.56;
+        opacity: 0.72;
     }
     38% {
         opacity: 1;
-        transform: rotate(34deg) scale(1);
-        filter: blur(0.02px);
+        transform: scale(1.2);
+        filter: blur(24px) saturate(1.18);
     }
     66% {
-        opacity: 0.92;
-        transform: rotate(182deg) scale(1);
+        opacity: 0.82;
+        transform: scale(1);
     }
     100% {
         opacity: 0;
-        transform: rotate(340deg) scale(1);
-        filter: blur(0px);
+        transform: scale(0.98);
+        filter: blur(10px) saturate(1.05);
     }
 }
 

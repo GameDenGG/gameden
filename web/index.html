@@ -514,25 +514,33 @@ select {
     isolation: isolate;
     overflow: visible;
     z-index: 0;
-    will-change: transform, filter, color;
+    will-change: transform, filter, color, box-shadow, text-shadow;
 }
 
 .homepage-value-strip > .homepage-value-cta::before {
     content: "";
     position: absolute;
-    inset: -24px -28px;
+    left: -0.58em;
+    right: -0.48em;
+    top: calc(50% + 0.34em);
+    height: 2px;
     pointer-events: none;
     opacity: 0;
     border-radius: 999px;
     background:
-        radial-gradient(circle at 50% 50%,
-            rgba(166, 210, 255, 0) 20%,
-            rgba(145, 195, 255, 0.22) 36%,
-            rgba(120, 175, 255, 0.54) 49%,
-            rgba(102, 157, 255, 0.24) 62%,
-            rgba(102, 157, 255, 0) 78%);
-    filter: blur(18px) saturate(1.14);
-    transform: scale(0.9);
+        linear-gradient(90deg,
+            rgba(103, 234, 255, 0) 0%,
+            rgba(103, 234, 255, 0.08) 18%,
+            rgba(124, 168, 255, 0.96) 47%,
+            rgba(176, 224, 255, 1) 50%,
+            rgba(124, 168, 255, 0.96) 53%,
+            rgba(103, 234, 255, 0.08) 82%,
+            rgba(103, 234, 255, 0) 100%);
+    box-shadow: 0 0 3px rgba(124, 168, 255, 0.24);
+    filter: drop-shadow(0 0 2px rgba(124, 168, 255, 0.18));
+    mix-blend-mode: screen;
+    transform: translate3d(-120%, -50%, 0) scaleX(0.58);
+    transform-origin: 50% 50%;
     z-index: -1;
 }
 
@@ -556,18 +564,16 @@ select {
     .homepage-value-strip > .homepage-value-cta.is-handoff-highlight {
         color: #ffffff;
         text-shadow:
-            0 0 10px rgba(124, 168, 255, 0.24),
-            0 0 20px rgba(124, 168, 255, 0.12);
-        filter:
-            brightness(1.14)
-            saturate(1.06)
-            drop-shadow(0 0 10px rgba(124, 168, 255, 0.5))
-            drop-shadow(0 0 26px rgba(124, 168, 255, 0.2));
+            0 0 8px rgba(124, 168, 255, 0.18),
+            0 0 14px rgba(124, 168, 255, 0.08);
+        box-shadow: inset 0 -1px 0 rgba(124, 168, 255, 0.34);
+        filter: brightness(1.06) saturate(1.03);
+        animation: homepageValueCtaSettle 980ms var(--ui-ease-standard) 1 both;
     }
 
     .homepage-value-strip > .homepage-value-cta.is-handoff-highlight::before {
         opacity: 1;
-        animation: homepageValueCtaHalo 840ms var(--ui-ease-standard) 1 both;
+        animation: homepageValueCtaTrace 980ms var(--ui-ease-standard) 1 both;
     }
 }
 
@@ -597,18 +603,17 @@ select {
     .homepage-value-strip > .homepage-value-cta.is-handoff-highlight {
         color: rgba(255, 255, 255, 0.98);
         text-shadow:
-            0 0 8px rgba(124, 168, 255, 0.18),
-            0 0 16px rgba(124, 168, 255, 0.08);
-        filter:
-            brightness(1.08)
-            saturate(1.03)
-            drop-shadow(0 0 8px rgba(124, 168, 255, 0.34));
+            0 0 6px rgba(124, 168, 255, 0.14),
+            0 0 10px rgba(124, 168, 255, 0.06);
+        box-shadow: inset 0 -1px 0 rgba(124, 168, 255, 0.26);
+        filter: brightness(1.03) saturate(1.02);
+        animation: none;
     }
 
     .homepage-value-strip > .homepage-value-cta.is-handoff-highlight::before {
-        opacity: 1;
+        opacity: 0.52;
+        transform: translate3d(0, -50%, 0) scaleX(1);
         animation: none;
-        transform: scale(1.02);
     }
 }
 
@@ -676,29 +681,62 @@ select {
     }
 }
 
-@keyframes homepageValueCtaHalo {
+@keyframes homepageValueCtaTrace {
     0% {
         opacity: 0;
-        transform: scale(0.9);
-        filter: blur(20px) saturate(1.08) brightness(0.96);
+        transform: translate3d(-120%, -50%, 0) scaleX(0.58);
     }
-    14% {
-        opacity: 0.94;
+    10% {
+        opacity: 0.9;
     }
-    42% {
+    36% {
         opacity: 1;
-        transform: scale(1.08);
-        filter: blur(24px) saturate(1.2) brightness(1.18);
+        transform: translate3d(-10%, -50%, 0) scaleX(0.86);
     }
-    72% {
-        opacity: 0.8;
-        transform: scale(1.02);
-        filter: blur(19px) saturate(1.12) brightness(1.06);
+    60% {
+        opacity: 1;
+        transform: translate3d(14%, -50%, 0) scaleX(1);
+    }
+    78% {
+        opacity: 0.82;
+        transform: translate3d(58%, -50%, 0) scaleX(0.88);
     }
     100% {
-        opacity: 0.74;
-        transform: scale(1);
-        filter: blur(17px) saturate(1.1) brightness(1.02);
+        opacity: 0;
+        transform: translate3d(120%, -50%, 0) scaleX(0.58);
+    }
+}
+
+@keyframes homepageValueCtaSettle {
+    0% {
+        color: rgba(233, 239, 249, 0.92);
+        text-shadow: none;
+        box-shadow: none;
+        filter: none;
+    }
+    62% {
+        color: #ffffff;
+        text-shadow:
+            0 0 8px rgba(124, 168, 255, 0.18),
+            0 0 14px rgba(124, 168, 255, 0.08);
+        box-shadow: inset 0 -1px 0 rgba(124, 168, 255, 0.22);
+        filter: brightness(1.06) saturate(1.03);
+    }
+    82% {
+        color: #ffffff;
+        text-shadow:
+            0 0 6px rgba(124, 168, 255, 0.15),
+            0 0 10px rgba(124, 168, 255, 0.06);
+        box-shadow: inset 0 -1px 0 rgba(124, 168, 255, 0.3);
+        filter: brightness(1.04) saturate(1.02);
+    }
+    100% {
+        color: #ffffff;
+        text-shadow:
+            0 0 5px rgba(124, 168, 255, 0.12),
+            0 0 8px rgba(124, 168, 255, 0.04);
+        box-shadow: inset 0 -1px 0 rgba(124, 168, 255, 0.26);
+        filter: brightness(1.03) saturate(1.02);
     }
 }
 
@@ -6850,8 +6888,8 @@ input:focus-visible {
                     return;
                 }
 
-                const logoStartedAt = Number(HOMEPAGE_LOGO_INTRO_STARTED_AT || 0);
-                if (!logoStartedAt) {
+                const logoCompleteAt = Number(HOMEPAGE_LOGO_INTRO_COMPLETE_AT || 0);
+                if (!logoCompleteAt) {
                     HOMEPAGE_VALUE_CTA_HIGHLIGHT_TIMER = window.setTimeout(tick, 40);
                     return;
                 }
@@ -6860,7 +6898,7 @@ input:focus-visible {
                 const minimumStartDelayMs = reduceMotion ? 0 : 1260;
                 const desiredStartAt = Math.max(
                     HOMEPAGE_VALUE_CTA_HIGHLIGHT_ARMED_AT + minimumStartDelayMs,
-                    logoStartedAt + logoHandoffDelayMs,
+                    logoCompleteAt + logoHandoffDelayMs,
                 );
                 const remainingMs = Math.max(0, desiredStartAt - Number(window.performance?.now?.() || Date.now()));
                 if (remainingMs > 0) {
@@ -6873,12 +6911,6 @@ input:focus-visible {
 
                 HOMEPAGE_VALUE_CTA_HIGHLIGHT_PLAYED = true;
                 currentBtn.classList.add("is-handoff-highlight");
-                if (!reduceMotion) {
-                    HOMEPAGE_VALUE_CTA_HIGHLIGHT_SETTLE_TIMER = window.setTimeout(() => {
-                        HOMEPAGE_VALUE_CTA_HIGHLIGHT_SETTLE_TIMER = null;
-                        clearHomepageValueCtaHighlight({ lock: true });
-                    }, 940);
-                }
             };
 
             HOMEPAGE_VALUE_CTA_HIGHLIGHT_TIMER = window.setTimeout(

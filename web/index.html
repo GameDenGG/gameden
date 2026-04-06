@@ -264,33 +264,33 @@ select {
     font-weight: 700;
     color: #f5f9ff;
     position: relative;
-    transform: translateY(2px);
-    filter: brightness(0.985) contrast(0.99) saturate(0.99);
+    transform: translateY(4px);
+    filter: brightness(0.92) contrast(0.94) saturate(0.97);
     will-change: transform, filter;
 }
 
 .homepage-value-label::after {
     content: "";
     position: absolute;
-    inset: -0.1em -0.14em;
+    inset: -0.16em -0.18em;
     pointer-events: none;
     opacity: 0;
-    background: linear-gradient(112deg, rgba(255, 255, 255, 0) 38%, rgba(255, 255, 255, 0.16) 49%, rgba(255, 255, 255, 0) 61%);
-    transform: translateX(-8%);
+    background: linear-gradient(112deg, rgba(255, 255, 255, 0) 32%, rgba(255, 255, 255, 0.22) 45%, rgba(255, 255, 255, 0.62) 50%, rgba(255, 255, 255, 0.22) 55%, rgba(255, 255, 255, 0) 68%);
+    transform: translateX(-16%);
     mix-blend-mode: screen;
 }
 
 .homepage-value-strip.is-intro-visible {
-    animation: homepageValueStripRefine 520ms var(--ui-ease-standard) 1 both;
+    animation: homepageValueStripRefine 620ms var(--ui-ease-standard) 1 both;
 }
 
 .homepage-value-strip.is-intro-visible .homepage-value-label {
-    animation: homepageValueLabelResolve 420ms var(--ui-ease-standard) 1 both;
+    animation: homepageValueLabelResolve 560ms var(--ui-ease-standard) 1 both;
 }
 
 .homepage-value-strip.is-intro-visible .homepage-value-label::after {
-    animation: homepageValueLabelCatch 480ms var(--ui-ease-standard) 1 both;
-    animation-delay: 44ms;
+    animation: homepageValueLabelCatch 620ms var(--ui-ease-standard) 1 both;
+    animation-delay: 36ms;
 }
 
 .homepage-value-note {
@@ -308,25 +308,25 @@ select {
     -webkit-font-smoothing: antialiased;
     text-shadow: none;
     font-weight: 700;
-    transform: translateY(2px);
-    filter: blur(0.45px) brightness(0.985) contrast(0.985) saturate(0.99);
+    transform: translateY(4px);
+    filter: blur(1.1px) brightness(0.9) contrast(0.93) saturate(0.97);
     will-change: transform, filter;
 }
 
 .homepage-value-strip.is-intro-visible .homepage-value-phrase {
-    animation: homepageValuePhraseResolve 420ms var(--ui-ease-standard) 1 both;
+    animation: homepageValuePhraseResolve 560ms var(--ui-ease-standard) 1 both;
 }
 
 .homepage-value-strip.is-intro-visible .homepage-value-phrase--repeat {
-    animation-delay: 40ms;
+    animation-delay: 56ms;
 }
 
 .homepage-value-strip.is-intro-visible .homepage-value-phrase--junk {
-    animation-delay: 110ms;
+    animation-delay: 148ms;
 }
 
 .homepage-value-strip.is-intro-visible .homepage-value-phrase--deals {
-    animation-delay: 175ms;
+    animation-delay: 232ms;
 }
 
 .homepage-value-phrase--repeat {
@@ -511,11 +511,29 @@ select {
     text-decoration: none;
     letter-spacing: 0.01em;
     position: relative;
+    overflow: hidden;
+    will-change: transform, box-shadow, border-color, background, filter, color;
 }
 
 .homepage-value-strip.is-intro-visible > .homepage-value-cta {
-    animation: homepageValueCtaGuidance 620ms var(--ui-ease-standard) 1 both;
-    animation-delay: 280ms;
+    animation: homepageValueCtaGuidance 760ms var(--ui-ease-standard) 1 both;
+    animation-delay: 480ms;
+}
+
+.homepage-value-strip.is-intro-visible > .homepage-value-cta::before {
+    animation: homepageValueCtaCatch 760ms var(--ui-ease-standard) 1 both;
+    animation-delay: 480ms;
+}
+
+.homepage-value-strip > .homepage-value-cta::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(115deg, rgba(255, 255, 255, 0) 22%, rgba(255, 255, 255, 0.22) 46%, rgba(124, 168, 255, 0.46) 50%, rgba(255, 255, 255, 0.24) 54%, rgba(255, 255, 255, 0) 78%);
+    transform: translateX(-24%);
+    mix-blend-mode: screen;
 }
 
 .homepage-value-strip > .homepage-value-cta:hover {
@@ -536,7 +554,7 @@ select {
 
 @media (prefers-reduced-motion: no-preference) {
     .homepage-value-strip.is-intro-visible > .homepage-value-cta {
-        border-color: rgba(124, 168, 255, 0.34);
+        border-color: rgba(124, 168, 255, 0.46);
     }
 }
 
@@ -571,12 +589,17 @@ select {
             0 0 18px rgba(124, 168, 255, 0.1);
         color: rgba(255, 255, 255, 0.98);
     }
+
+    .homepage-value-strip.is-intro-visible > .homepage-value-cta::before {
+        opacity: 0.16;
+        transform: none;
+    }
 }
 
 @keyframes homepageValueStripRefine {
     0% {
-        transform: translateY(2px);
-        filter: brightness(0.985) saturate(0.985);
+        transform: translateY(3px);
+        filter: brightness(0.95) contrast(0.97) saturate(0.98);
     }
     100% {
         transform: translateY(0);
@@ -586,9 +609,14 @@ select {
 
 @keyframes homepageValueLabelResolve {
     0% {
-        transform: translateY(2px);
-        filter: brightness(0.985) contrast(0.985) saturate(0.99);
+        transform: translateY(3px);
+        filter: brightness(0.95) contrast(0.97) saturate(0.98);
         text-shadow: 0 0 0 rgba(124, 168, 255, 0);
+    }
+    44% {
+        transform: translateY(1px);
+        filter: brightness(1.12) contrast(1.04) saturate(1.03);
+        text-shadow: 0 0 18px rgba(124, 168, 255, 0.18);
     }
     100% {
         transform: translateY(0);
@@ -600,22 +628,30 @@ select {
 @keyframes homepageValueLabelCatch {
     0% {
         opacity: 0;
-        transform: translateX(-8%);
+        transform: translateX(-18%);
     }
-    35% {
-        opacity: 0.24;
+    22% {
+        opacity: 0.28;
+    }
+    48% {
+        opacity: 0.58;
     }
     100% {
         opacity: 0;
-        transform: translateX(6%);
+        transform: translateX(18%);
     }
 }
 
 @keyframes homepageValuePhraseResolve {
     0% {
-        transform: translateY(2px);
-        filter: blur(0.55px) brightness(0.985) contrast(0.985) saturate(0.99);
+        transform: translateY(3px);
+        filter: blur(0.85px) brightness(0.94) contrast(0.95) saturate(0.98);
         text-shadow: 0 0 0 rgba(124, 168, 255, 0);
+    }
+    42% {
+        transform: translateY(1px);
+        filter: blur(0.08px) brightness(1.14) contrast(1.04) saturate(1.04);
+        text-shadow: 0 0 24px rgba(124, 168, 255, 0.22);
     }
     100% {
         transform: translateY(0);
@@ -632,15 +668,26 @@ select {
         color: rgba(233, 239, 249, 0.92);
         filter: none;
     }
-    45% {
-        border-color: rgba(124, 168, 255, 0.38);
-        background: rgba(124, 168, 255, 0.08);
+    34% {
+        border-color: rgba(124, 168, 255, 0.7);
+        background: rgba(124, 168, 255, 0.34);
         box-shadow:
-            0 0 0 1px rgba(124, 168, 255, 0.12),
-            0 0 20px rgba(124, 168, 255, 0.12),
-            inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+            0 0 0 1px rgba(124, 168, 255, 0.38),
+            0 0 40px rgba(124, 168, 255, 0.38),
+            0 0 84px rgba(124, 168, 255, 0.18),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.05);
         color: #ffffff;
-        filter: brightness(1.04);
+        filter: brightness(1.16);
+    }
+    58% {
+        border-color: rgba(124, 168, 255, 0.52);
+        background: rgba(124, 168, 255, 0.18);
+        box-shadow:
+            0 0 0 1px rgba(124, 168, 255, 0.18),
+            0 0 26px rgba(124, 168, 255, 0.22),
+            0 0 44px rgba(124, 168, 255, 0.12),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+        filter: brightness(1.08);
     }
     100% {
         border-color: rgba(121, 168, 255, 0.22);
@@ -648,6 +695,26 @@ select {
         box-shadow: none;
         color: rgba(233, 239, 249, 0.94);
         filter: none;
+    }
+}
+
+@keyframes homepageValueCtaCatch {
+    0% {
+        opacity: 0;
+        transform: translateX(-24%);
+    }
+    30% {
+        opacity: 0.3;
+    }
+    42% {
+        opacity: 0.9;
+    }
+    60% {
+        opacity: 0.36;
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(18%);
     }
 }
 

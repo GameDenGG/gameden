@@ -511,6 +511,7 @@ select {
     text-decoration: none;
     letter-spacing: 0.01em;
     position: relative;
+    isolation: isolate;
     overflow: hidden;
     will-change: transform, box-shadow, border-color, background, filter, color;
 }
@@ -518,21 +519,21 @@ select {
 .homepage-value-strip > .homepage-value-cta::before {
     content: "";
     position: absolute;
-    inset: 0;
+    inset: -3px;
     pointer-events: none;
     opacity: 0;
     border-radius: inherit;
     padding: 1px;
     background:
-        linear-gradient(145deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 36%),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 34%),
         conic-gradient(
             from 212deg,
             rgba(124, 168, 255, 0) 0deg,
-            rgba(124, 168, 255, 0) 94deg,
-            rgba(124, 168, 255, 0.26) 116deg,
-            rgba(154, 199, 255, 0.96) 144deg,
-            rgba(86, 140, 255, 0.42) 170deg,
-            rgba(124, 168, 255, 0) 202deg,
+            rgba(124, 168, 255, 0) 90deg,
+            rgba(124, 168, 255, 0.18) 112deg,
+            rgba(154, 199, 255, 1) 146deg,
+            rgba(86, 140, 255, 0.5) 172deg,
+            rgba(124, 168, 255, 0) 206deg,
             rgba(124, 168, 255, 0) 360deg
         );
     -webkit-mask:
@@ -540,11 +541,10 @@ select {
         linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
-    mix-blend-mode: screen;
     transform: rotate(-18deg) scale(0.985);
     box-shadow:
-        0 0 0 1px rgba(124, 168, 255, 0.2) inset,
-        0 0 24px rgba(124, 168, 255, 0.14);
+        0 0 0 1px rgba(124, 168, 255, 0.22) inset,
+        0 0 18px rgba(124, 168, 255, 0.12);
 }
 
 .homepage-value-strip > .homepage-value-cta:hover {
@@ -565,16 +565,22 @@ select {
 
 @media (prefers-reduced-motion: no-preference) {
     .homepage-value-strip > .homepage-value-cta.is-handoff-highlight {
-        border-color: rgba(124, 168, 255, 0.58);
-        background: rgba(124, 168, 255, 0.1);
+        outline: 1px solid rgba(124, 168, 255, 0.28);
+        outline-offset: 1px;
+        border-color: rgba(124, 168, 255, 0.62);
+        background: transparent;
         box-shadow:
-            0 0 0 1px rgba(124, 168, 255, 0.34),
-            0 0 24px rgba(124, 168, 255, 0.24),
-            0 0 68px rgba(124, 168, 255, 0.12),
-            inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+            0 0 0 1px rgba(124, 168, 255, 0.36),
+            0 0 24px rgba(124, 168, 255, 0.18),
+            0 0 54px rgba(124, 168, 255, 0.08),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.04);
         color: #ffffff;
         filter: brightness(1.12);
-        text-shadow: 0 0 10px rgba(124, 168, 255, 0.12);
+    }
+
+    .homepage-value-strip > .homepage-value-cta.is-handoff-highlight::before {
+        opacity: 1;
+        animation: homepageValueCtaTrace 900ms var(--ui-ease-standard) 1 both;
     }
 }
 
@@ -602,11 +608,13 @@ select {
     }
 
     .homepage-value-strip > .homepage-value-cta.is-handoff-highlight {
-        border-color: rgba(124, 168, 255, 0.4);
-        background: rgba(124, 168, 255, 0.08);
+        outline: 1px solid rgba(124, 168, 255, 0.2);
+        outline-offset: 1px;
+        border-color: rgba(124, 168, 255, 0.42);
+        background: transparent;
         box-shadow:
             0 0 0 1px rgba(124, 168, 255, 0.22),
-            0 0 22px rgba(124, 168, 255, 0.16);
+            0 0 18px rgba(124, 168, 255, 0.12);
         color: rgba(255, 255, 255, 0.98);
     }
 

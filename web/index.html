@@ -2010,6 +2010,46 @@ input:focus-visible {
     pointer-events: auto;
 }
 
+#recommendedForYouPanel .game-card-hero-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 10px;
+    min-width: 0;
+    max-width: 50ch;
+    padding-top: 2px;
+    color: #eef4ff;
+}
+
+#recommendedForYouPanel .game-card-hero-summary::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 22px;
+    height: 1px;
+    margin-right: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(255, 196, 111, 0.54), rgba(124, 168, 255, 0.16));
+    opacity: 0.9;
+    align-self: center;
+}
+
+#recommendedForYouPanel .game-card-hero-summary-label {
+    color: rgba(255, 225, 181, 0.9);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+#recommendedForYouPanel .game-card-hero-summary-line {
+    color: rgba(236, 243, 255, 0.9);
+    font-size: 12px;
+    line-height: 1.45;
+    letter-spacing: -0.01em;
+}
+
 #recommendedForYouPanel .game-card-hero .hero-cta-btn {
     pointer-events: auto;
     min-height: 38px;
@@ -2063,41 +2103,6 @@ input:focus-visible {
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.04em;
-}
-
-#recommendedForYouPanel .game-card-hero-signals {
-    grid-column: 1 / -1;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-self: end;
-}
-
-#recommendedForYouPanel .game-card-hero-signal {
-    display: inline-flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    padding: 8px 10px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(5, 8, 16, 0.24);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    color: #edf3ff;
-}
-
-#recommendedForYouPanel .game-card-hero-signal-label {
-    color: rgba(255, 255, 255, 0.68);
-    font-size: 9px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-#recommendedForYouPanel .game-card-hero-signal strong {
-    font-size: 12px;
-    font-weight: 800;
-    line-height: 1.1;
 }
 
 @media (max-width: 820px) {
@@ -11279,32 +11284,8 @@ input:focus-visible {
                 const reviewScore = Number(game.review_score);
                 const reviewLabel = String(getReviewLabel(game) || "").trim();
                 const players = Number(game.current_players);
-                const heroSignals = [];
                 let pricePositionValue = "";
 
-                if (discount >= 0) {
-                    heroSignals.push({
-                        label: "Discount",
-                        value: `${Math.round(discount)}%`,
-                    });
-                }
-                if (Number.isFinite(players) && players > 0) {
-                    heroSignals.push({
-                        label: "Players",
-                        value: fmtInt(players),
-                    });
-                }
-                if (reviewLabel) {
-                    heroSignals.push({
-                        label: "Reviews",
-                        value: reviewLabel,
-                    });
-                } else if (Number.isFinite(reviewScore) && reviewScore > 0) {
-                    heroSignals.push({
-                        label: "Reviews",
-                        value: `${Math.round(reviewScore)}%`,
-                    });
-                }
                 if (Number.isFinite(historicalLow) && historicalLow > 0) {
                     if (Number.isFinite(priceVsLowRatio) && priceVsLowRatio > 0 && priceVsLowRatio <= 1.06) {
                         pricePositionValue = "Near low";
@@ -11314,12 +11295,22 @@ input:focus-visible {
                         pricePositionValue = `Low ${fmtPrice(historicalLow)}`;
                     }
                 }
-                if (pricePositionValue) {
-                    heroSignals.push({
-                        label: "Price",
-                        value: pricePositionValue,
-                    });
+                const heroSummaryParts = [];
+                if (discount > 0) {
+                    heroSummaryParts.push(`${Math.round(discount)}% off`);
                 }
+                if (Number.isFinite(players) && players > 0) {
+                    heroSummaryParts.push(`${fmtInt(players)} players`);
+                }
+                if (reviewLabel) {
+                    heroSummaryParts.push(reviewLabel);
+                } else if (Number.isFinite(reviewScore) && reviewScore > 0) {
+                    heroSummaryParts.push(`${Math.round(reviewScore)}% reviews`);
+                }
+                if (pricePositionValue) {
+                    heroSummaryParts.push(pricePositionValue);
+                }
+                const heroSummaryText = heroSummaryParts.join(" · ");
 
                 return `
                     <article class="game-card game-card-hero${newSignalClass}">
@@ -11335,20 +11326,18 @@ input:focus-visible {
                                         <div class="game-card-hero-actions">
                                             <a class="secondary-btn hero-cta-btn" href="${detailHref}">View best offer</a>
                                         </div>
+                                        ${heroSummaryText ? `
+                                            <div class="game-card-hero-summary" aria-label="Quick take: ${escapeHtml(heroSummaryText)}">
+                                                <span class="game-card-hero-summary-label">Quick take</span>
+                                                <span class="game-card-hero-summary-line">${escapeHtml(heroSummaryText)}</span>
+                                            </div>
+                                        ` : ""}
                                     </div>
                                     <div class="game-card-hero-price-box">
                                         <div class="game-card-hero-price">${currentPriceLabel}</div>
                                         ${showOriginalPrice ? `<div class="game-card-hero-original">${fmtPrice(game.original_price)}</div>` : ""}
                                         ${discount > 0 ? `<div class="game-card-hero-discount">-${Math.round(discount)}%</div>` : ""}
                                     </div>
-                                </div>
-                                <div class="game-card-hero-signals">
-                                    ${heroSignals.map((signal) => `
-                                        <span class="game-card-hero-signal">
-                                            <span class="game-card-hero-signal-label">${escapeHtml(signal.label)}</span>
-                                            <strong>${escapeHtml(String(signal.value))}</strong>
-                                        </span>
-                                    `).join("")}
                                 </div>
                             </div>
                         </div>

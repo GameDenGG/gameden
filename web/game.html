@@ -3139,39 +3139,39 @@ function firstNonEmptyText(...values) {
 function normalizeGameReview(payload) {
     const reviewPayload = payload?.review && typeof payload.review === "object" ? payload.review : {};
     const scoreRaw = firstFiniteNumber(
-        reviewPayload?.score,
-        reviewPayload?.review_score,
         payload?.review_score,
         payload?.reviewScore,
+        reviewPayload?.score,
+        reviewPayload?.review_score,
     );
     const score = Number.isFinite(scoreRaw) && scoreRaw > 0
         ? Math.max(0, Math.min(100, scoreRaw))
         : null;
     const scoreText = score !== null ? `${Math.round(score)}/100` : "";
     const summary = firstNonEmptyText(
+        payload?.review_summary,
+        payload?.reviewSummary,
         reviewPayload?.summary,
         reviewPayload?.review_summary,
         reviewPayload?.reviewSummary,
-        payload?.review_summary,
-        payload?.reviewSummary,
     );
     const label = firstNonEmptyText(
-        reviewPayload?.label,
         payload?.review_label,
         payload?.review_score_label,
         payload?.reviewScoreLabel,
+        reviewPayload?.label,
     );
     const countRaw = firstFiniteNumber(
-        reviewPayload?.count,
-        reviewPayload?.review_count,
         payload?.review_count,
         payload?.review_total_count,
         payload?.reviewCount,
+        reviewPayload?.count,
+        reviewPayload?.review_count,
     );
     const count = Number.isFinite(countRaw) && countRaw > 0 ? Math.round(countRaw) : null;
     const sentiment = firstNonEmptyText(
-        reviewPayload?.sentiment,
         payload?.review_sentiment,
+        reviewPayload?.sentiment,
     );
 
     return {

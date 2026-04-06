@@ -1832,31 +1832,133 @@ input:focus-visible {
 }
 
 .homepage-right-rail {
-    gap: 12px;
+    gap: 0;
+    padding: 16px 16px 18px;
+    border: 1px solid rgba(121, 168, 255, 0.14);
+    border-radius: 28px;
+    background: linear-gradient(180deg, rgba(9, 16, 30, 0.86), rgba(7, 13, 24, 0.94));
+    box-shadow: 0 18px 42px rgba(2, 7, 20, 0.28);
 }
 
-.homepage-right-rail .panel {
-    border-color: rgba(121, 168, 255, 0.16);
-    background: linear-gradient(180deg, rgba(10, 19, 34, 0.84), rgba(8, 15, 28, 0.9));
-    box-shadow: 0 10px 22px rgba(2, 7, 20, 0.22);
+.homepage-right-rail > .side-zone-header {
+    margin: 0 0 14px;
+    padding: 0 0 14px;
+    border-bottom: 1px solid rgba(121, 168, 255, 0.08);
 }
 
-.homepage-right-rail .panel::before {
-    opacity: 0.58;
+.homepage-right-rail .panel,
+.homepage-right-rail .panel-personalized {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
 }
 
 .homepage-right-rail .panel-head {
-    padding: 14px 14px 0;
-    padding-bottom: 8px;
-    border-bottom-color: rgba(121, 168, 255, 0.08);
+    padding: 0 0 6px;
+    border-bottom-color: transparent;
 }
 
 .homepage-right-rail .panel-body {
-    padding: 10px 14px 12px;
+    padding: 0;
 }
 
 .homepage-right-rail .panel-subtitle {
-    color: rgba(154, 182, 230, 0.72);
+    color: rgba(154, 182, 230, 0.68);
+    font-size: 10.5px;
+    line-height: 1.35;
+}
+
+.homepage-right-rail .panel::before {
+    display: none;
+}
+
+.homepage-right-rail .panel-title {
+    font-size: 14px;
+    letter-spacing: -0.018em;
+}
+
+#recommendedForYouPanel {
+    margin: 0 0 14px;
+    padding: 0 2px 16px;
+    border-bottom: 1px solid rgba(121, 168, 255, 0.08);
+}
+
+#becauseYouOwnPanel,
+#dailyDigestPanel,
+#alertsPanel,
+#wishlistPanel,
+#watchlistPanel,
+#analyticsPanel,
+#dealRadarPanel {
+    margin: 0;
+    padding-top: 14px;
+    border-top: 1px solid rgba(121, 168, 255, 0.08);
+}
+
+#dailyDigestPanel,
+#alertsPanel {
+    padding-top: 12px;
+}
+
+#becauseYouOwnPanel .panel-title,
+#dailyDigestPanel .panel-title,
+#alertsPanel .panel-title,
+#wishlistPanel .panel-title,
+#watchlistPanel .panel-title,
+#analyticsPanel .panel-title,
+#dealRadarPanel .panel-title {
+    font-size: 13px;
+    letter-spacing: -0.014em;
+}
+
+#becauseYouOwnPanel .panel-subtitle,
+#dailyDigestPanel .panel-subtitle,
+#alertsPanel .panel-subtitle,
+#wishlistPanel .panel-subtitle,
+#watchlistPanel .panel-subtitle,
+#analyticsPanel .panel-subtitle,
+#dealRadarPanel .panel-subtitle {
+    color: rgba(154, 182, 230, 0.64);
+}
+
+#becauseYouOwnPanel .panel-body,
+#dailyDigestPanel .panel-body,
+#alertsPanel .panel-body,
+#wishlistPanel .panel-body,
+#watchlistPanel .panel-body,
+#analyticsPanel .panel-body,
+#dealRadarPanel .panel-body {
+    padding: 0;
+}
+
+.homepage-right-rail .because-owned-item,
+.homepage-right-rail .digest-item,
+.homepage-right-rail .alerts-list .mini-item,
+.homepage-right-rail #wishlistPanel .mini-item,
+.homepage-right-rail #watchlistPanel .mini-item,
+.homepage-right-rail .analytics-list .mini-item,
+.homepage-right-rail .deal-radar-card {
+    box-shadow: none;
+    background: rgba(255, 255, 255, 0.015);
+    border-color: rgba(121, 168, 255, 0.1);
+}
+
+.homepage-right-rail .analytics-group {
+    box-shadow: none;
+    background: rgba(255, 255, 255, 0.01);
+    border-color: rgba(121, 168, 255, 0.1);
+}
+
+.homepage-right-rail #dailyDigestPanel .digest-item,
+.homepage-right-rail #dailyDigestPanel .digest-item:hover {
+    box-shadow: none;
+    background: rgba(255, 255, 255, 0.015);
+    border-color: rgba(121, 168, 255, 0.1);
+    border-radius: 10px;
+    transform: none;
 }
 
 #recommendedForYouPanel {
@@ -2240,24 +2342,24 @@ input:focus-visible {
 #becauseYouOwnPanel,
 #watchlistPanel,
 #dailyDigestPanel {
-    border-color: rgba(121, 168, 255, 0.14);
-    background: linear-gradient(180deg, rgba(11, 20, 37, 0.8), rgba(8, 14, 27, 0.9));
-    box-shadow: 0 8px 16px rgba(2, 7, 20, 0.2);
+    border: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
 #wishlistPanel .panel-head,
 #becauseYouOwnPanel .panel-head,
 #watchlistPanel .panel-head,
 #dailyDigestPanel .panel-head {
-    padding-top: 12px;
-    padding-bottom: 7px;
+    padding-top: 0;
+    padding-bottom: 6px;
 }
 
 #wishlistPanel .panel-title,
 #becauseYouOwnPanel .panel-title,
 #watchlistPanel .panel-title,
 #dailyDigestPanel .panel-title {
-    font-size: 16px;
+    font-size: 13px;
     letter-spacing: -0.014em;
 }
 
@@ -2265,7 +2367,7 @@ input:focus-visible {
 #becauseYouOwnPanel .panel-subtitle,
 #watchlistPanel .panel-subtitle,
 #dailyDigestPanel .panel-subtitle {
-    color: rgba(154, 182, 230, 0.68);
+    color: rgba(154, 182, 230, 0.64);
     font-size: 10.5px;
 }
 
@@ -2273,8 +2375,8 @@ input:focus-visible {
 #becauseYouOwnPanel .panel-body,
 #watchlistPanel .panel-body,
 #dailyDigestPanel .panel-body {
-    padding-top: 8px;
-    padding-bottom: 10px;
+    padding-top: 0;
+    padding-bottom: 0;
 }
 
 #wishlistPanel .tracked-preview-toggle-wrap,

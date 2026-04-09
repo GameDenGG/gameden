@@ -11,6 +11,7 @@ import hashlib
 import json
 import math
 import os
+import subprocess
 import time
 import uuid
 from statistics import median
@@ -83,6 +84,7 @@ from services.push_notifications import send_push_notification
 CACHE_KEY = "home_v1"
 CRITICAL_CACHE_KEY = "home_critical_v1"
 LEGACY_CACHE_KEYS = ("home",)
+INSIGHT_ENGINE_BRIDGE_SCRIPT = ROOT_DIR / "scripts" / "insight-engine" / "run_insight_engine.mjs"
 # Shared runtime settings (defined once in config.py).
 SNAPSHOT_MIN_BATCH_SIZE = CONFIG_SNAPSHOT_MIN_BATCH_SIZE
 MAX_BATCH_SIZE = CONFIG_SNAPSHOT_MAX_BATCH_SIZE
@@ -229,6 +231,36 @@ def safe_num(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def _normalize_review_label(raw_label: Any, review_score: Any) -> str | None:
+    label = str(raw_label or "").strip()
+    if label:
+        normalized = " ".join(label.split()).lower()
+        canonical_labels = {
+            "overwhelmingly negative": "Overwhelmingly Negative",
+            "mostly negative": "Mostly Negative",
+            "mixed": "Mixed",
+            "mostly positive": "Mostly Positive",
+            "very positive": "Very Positive",
+            "overwhelmingly positive": "Overwhelmingly Positive",
+        }
+        if normalized in canonical_labels:
+            return canonical_labels[normalized]
+    score = safe_num(review_score, default=-1.0)
+    if score < 0:
+        return None
+    if score >= 95:
+        return "Overwhelmingly Positive"
+    if score >= 80:
+        return "Very Positive"
+    if score >= 70:
+        return "Mostly Positive"
+    if score >= 40:
+        return "Mixed"
+    if score >= 20:
+        return "Mostly Negative"
+    return "Overwhelmingly Negative"
+
+
 def split_csv_field(value: str | None) -> list[str]:
     if not value:
         return []
@@ -243,6 +275,91 @@ def compute_retry_backoff_seconds(retry_count: int) -> int:
     attempt = max(1, min(int(retry_count), RETRY_BACKOFF_EXPONENT_CAP))
     delay_seconds = RETRY_BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
     return int(min(RETRY_BACKOFF_MAX_SECONDS, delay_seconds))
+
+
+def _contract_buy_recommendation(value: Any) -> str | None:
+    normalized = _normalize_buy_recommendation(value)
+    if normalized == "BUY_NOW":
+        return "Buy now"
+    if normalized == "WAIT":
+        return "Wait"
+    if normalized == "AVOID":
+        return "Avoid"
+    return None
+
+
+def _normalize_ranking_explanations(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return dict(value)
+    return {}
+
+
+def _as_epoch_ms(value: datetime.datetime | None) -> int:
+    timestamp = _as_aware_utc(value) or utcnow()
+    return int(timestamp.timestamp() * 1000)
+
+
+def _build_insight_engine_context(
+    *,
+    is_historical_low: bool,
+    wishlist_count: int,
+    watchlist_count: int,
+    click_count: int,
+    now: datetime.datetime,
+) -> dict[str, Any]:
+    return {
+        "evaluationTimestamp": _as_epoch_ms(now),
+        "userSignals": {
+            "isDismissed": False,
+            "isWishlisted": wishlist_count > 0,
+            "isViewedOrTracked": watchlist_count > 0 or click_count > 0,
+            "tasteMatch": "none",
+        },
+        "historicalContext": {
+            "priceContext": "all_time_low" if is_historical_low else "normal",
+        },
+    }
+
+
+def _run_insight_engine_subprocess(triggers: list[dict[str, Any]], context: dict[str, Any]) -> dict[str, Any]:
+    payload = {"triggers": triggers, "context": context}
+    completed = subprocess.run(
+        [
+            "node",
+            "--experimental-strip-types",
+            str(INSIGHT_ENGINE_BRIDGE_SCRIPT),
+        ],
+        input=json.dumps(payload, ensure_ascii=False),
+        text=True,
+        capture_output=True,
+        cwd=str(ROOT_DIR),
+    )
+
+    if completed.returncode != 0:
+        stderr = (completed.stderr or "").strip()
+        stdout = (completed.stdout or "").strip()
+        message = [
+            "insight engine subprocess failed",
+            f"exit_code={completed.returncode}",
+        ]
+        if stderr:
+            message.append(f"stderr={stderr}")
+        if stdout:
+            message.append(f"stdout={stdout}")
+        raise RuntimeError(" | ".join(message))
+
+    try:
+        parsed = json.loads(completed.stdout or "")
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            "insight engine subprocess returned invalid JSON "
+            f"stdout={completed.stdout!r} stderr={(completed.stderr or '').strip()!r}"
+        ) from exc
+
+    if not isinstance(parsed, dict):
+        raise RuntimeError(f"insight engine subprocess returned non-object JSON: {type(parsed).__name__}")
+
+    return parsed
 
 
 def compute_deal_score(
@@ -1758,7 +1875,7 @@ def _snapshot_row_to_dict(snapshot: GameSnapshot) -> dict:
         "recommended_score": snapshot.recommended_score,
         "trending_score": snapshot.trending_score,
         "buy_score": snapshot.buy_score,
-        "buy_recommendation": snapshot.buy_recommendation,
+        "buy_recommendation": _contract_buy_recommendation(snapshot.buy_recommendation),
         "buy_reason": snapshot.buy_reason,
         "price_vs_low_ratio": snapshot.price_vs_low_ratio,
         "predicted_next_sale_price": snapshot.predicted_next_sale_price,
@@ -1792,7 +1909,7 @@ def _snapshot_row_to_dict(snapshot: GameSnapshot) -> dict:
         "deal_heat_tags": snapshot.deal_heat_tags or [],
         "ranking_explanations": snapshot.ranking_explanations or {},
         "review_score": snapshot.review_score,
-        "review_score_label": snapshot.review_score_label,
+        "review_score_label": _normalize_review_label(snapshot.review_score_label, snapshot.review_score),
         "review_count": snapshot.review_count,
         "review_total_count": snapshot.review_count,
         "genres": split_csv_field(snapshot.genres),
@@ -2851,7 +2968,7 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
             snapshot.historical_low_reason_summary = None
 
         snapshot.review_score = int(review_score) if game.review_score is not None else None
-        snapshot.review_score_label = game.review_score_label
+        snapshot.review_score_label = _normalize_review_label(game.review_score_label, review_score)
         snapshot.review_count = int(review_count) if game.review_total_count is not None else None
 
         snapshot.genres = game.genres
@@ -2868,7 +2985,7 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
         snapshot.recommended_score = recommended_score
         snapshot.trending_score = trending_score
         snapshot.buy_score = worth_buying_score
-        snapshot.buy_recommendation = buy_recommendation
+        snapshot.buy_recommendation = _contract_buy_recommendation(buy_recommendation)
         snapshot.buy_reason = buy_reason
         snapshot.price_vs_low_ratio = price_vs_low_ratio
         snapshot.predicted_next_sale_price = next_sale_prediction.get("predicted_next_sale_price")
@@ -2891,23 +3008,88 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
         snapshot.deal_heat_level = deal_heat_level
         snapshot.deal_heat_reason = deal_heat_reason
         snapshot.deal_heat_tags = deal_heat_tags
-        snapshot.ranking_explanations = {
-            "worth_buying": worth_buying_reason_summary,
-            "momentum": trend_reason_summary,
-            "heat": deal_heat_reason,
-            "buy_timing": buy_reason,
-            "next_sale_prediction": next_sale_prediction.get("predicted_sale_reason"),
-            "deal_opportunity": deal_opportunity_reason,
-            "player_interest_state": player_interest_state,
-            "player_history_confidence": history_confidence,
-            "player_trends": {
-                "short_term": short_term_player_trend,
-                "medium_term": medium_term_player_trend,
-                "long_term": long_term_player_trend,
-                "coverage_days": int(safe_num(player_profile.get("history_coverage_days"), 0.0)),
-                "history_point_count": int(safe_num(player_profile.get("history_point_count"), 0.0)),
-            },
-        }
+        ranking_explanations = _normalize_ranking_explanations(snapshot.ranking_explanations)
+        insight_engine_triggers: list[dict[str, Any]] = []
+        insight_engine_timestamp = _as_epoch_ms(latest.recorded_at if latest and latest.recorded_at else now)
+
+        if previous_price is not None and latest_price is not None and previous_price != latest_price:
+            insight_engine_triggers.append(
+                {
+                    "type": "price_change",
+                    "gameId": str(game_id),
+                    "timestamp": insight_engine_timestamp,
+                    "previous": float(previous_price),
+                    "current": float(latest_price),
+                }
+            )
+
+        previous_review_label = _normalize_review_label(snapshot.review_score_label if snapshot else None, snapshot.review_score if snapshot else None)
+        current_review_label = _normalize_review_label(game.review_score_label, review_score)
+        if previous_review_label and current_review_label and previous_review_label != current_review_label:
+            insight_engine_triggers.append(
+                {
+                    "type": "review_change",
+                    "gameId": str(game_id),
+                    "timestamp": _as_epoch_ms(now),
+                    "previous": previous_review_label,
+                    "current": current_review_label,
+                }
+            )
+
+        if snapshot is not None and bool(snapshot.is_upcoming) and not is_upcoming:
+            insight_engine_triggers.append(
+                {
+                    "type": "release_event",
+                    "gameId": str(game_id),
+                    "timestamp": _as_epoch_ms(now),
+                    "previous": None,
+                    "current": "released",
+                }
+            )
+
+        if snapshot is not None and snapshot.popularity_score is not None:
+            previous_relevance = clamp(safe_num(snapshot.popularity_score, 0.0) / 100.0, 0.0, 1.0)
+            current_relevance = clamp(safe_num(popularity_score, 0.0) / 100.0, 0.0, 1.0)
+            if previous_relevance < 0.6 <= current_relevance:
+                insight_engine_triggers.append(
+                    {
+                        "type": "relevance_increase",
+                        "gameId": str(game_id),
+                        "timestamp": insight_engine_timestamp,
+                        "previous": float(previous_relevance),
+                        "current": float(current_relevance),
+                    }
+                )
+
+        insight_engine_context = _build_insight_engine_context(
+            is_historical_low=is_historical_low,
+            wishlist_count=wishlist_count,
+            watchlist_count=watchlist_count,
+            click_count=click_count,
+            now=now,
+        )
+        insight_engine_result = _run_insight_engine_subprocess(insight_engine_triggers, insight_engine_context)
+        ranking_explanations.update(
+            {
+                "worth_buying": worth_buying_reason_summary,
+                "momentum": trend_reason_summary,
+                "heat": deal_heat_reason,
+                "buy_timing": buy_reason,
+                "next_sale_prediction": next_sale_prediction.get("predicted_sale_reason"),
+                "deal_opportunity": deal_opportunity_reason,
+                "player_interest_state": player_interest_state,
+                "player_history_confidence": history_confidence,
+                "player_trends": {
+                    "short_term": short_term_player_trend,
+                    "medium_term": medium_term_player_trend,
+                    "long_term": long_term_player_trend,
+                    "coverage_days": int(safe_num(player_profile.get("history_coverage_days"), 0.0)),
+                    "history_point_count": int(safe_num(player_profile.get("history_point_count"), 0.0)),
+                },
+                "insight_engine": insight_engine_result,
+            }
+        )
+        snapshot.ranking_explanations = ranking_explanations
         snapshot.upcoming_hot_score = upcoming_hot_score
         snapshot.price_sparkline_90d = sparkline
         snapshot.sale_events_compact = sale_events_compact
@@ -2947,7 +3129,7 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
         discovery_row.historical_low = historical_low
         discovery_row.historical_status = snapshot.historical_status
         discovery_row.historical_low_hit = is_new_historical_low
-        discovery_row.buy_recommendation = buy_recommendation
+        discovery_row.buy_recommendation = _contract_buy_recommendation(buy_recommendation)
         discovery_row.buy_reason = buy_reason
         discovery_row.deal_score = deal_score
         discovery_row.buy_score = worth_buying_score
@@ -2969,7 +3151,7 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
         discovery_row.player_growth_ratio = player_growth_ratio
         discovery_row.short_term_player_trend = short_term_player_trend
         discovery_row.review_score = int(review_score) if game.review_score is not None else None
-        discovery_row.review_score_label = game.review_score_label
+        discovery_row.review_score_label = _normalize_review_label(game.review_score_label, review_score)
         discovery_row.review_count = int(review_count) if game.review_total_count is not None else None
         discovery_row.genres = game.genres
         discovery_row.tags = game.tags
@@ -3136,8 +3318,8 @@ def build_dashboard_filters(session: Session) -> dict[str, list[str]]:
 
 
 def _normalize_buy_recommendation(value: Any) -> str:
-    normalized = str(value or "").strip().upper()
-    return normalized if normalized in {"BUY_NOW", "WAIT"} else ""
+    normalized = str(value or "").strip().upper().replace(" ", "_")
+    return normalized if normalized in {"BUY_NOW", "WAIT", "AVOID"} else ""
 
 
 def _snapshot_identity_key(row: dict, index: int = 0) -> str:
@@ -3413,7 +3595,10 @@ def _compact_catalog_seed_row(row: dict) -> dict:
         "original_price": row.get("original_price"),
         "discount_percent": row.get("discount_percent"),
         "review_score": row.get("review_score"),
-        "review_score_label": row.get("review_score_label") or row.get("review_label"),
+        "review_score_label": _normalize_review_label(
+            row.get("review_score_label") or row.get("review_label"),
+            row.get("review_score"),
+        ),
         "current_players": row.get("current_players"),
         "genres": row.get("genres") if isinstance(row.get("genres"), list) else [],
         "tags": row.get("tags") if isinstance(row.get("tags"), list) else [],
@@ -3486,7 +3671,7 @@ def _build_homepage_critical_payload(payload: dict) -> dict:
             "buy_score": buy_score,
             "worth_buying_score": row.get("worth_buying_score"),
             "deal_opportunity_score": row.get("deal_opportunity_score"),
-            "buy_recommendation": row.get("buy_recommendation"),
+            "buy_recommendation": _contract_buy_recommendation(row.get("buy_recommendation")),
             "buy_reason": row.get("buy_reason"),
             "predicted_next_discount_percent": row.get("predicted_next_discount_percent"),
             "predicted_sale_reason": row.get("predicted_sale_reason"),
@@ -3494,7 +3679,7 @@ def _build_homepage_critical_payload(payload: dict) -> dict:
             "trend_reason_summary": row.get("trend_reason_summary"),
             "deal_heat_reason": row.get("deal_heat_reason"),
             "review_score": row.get("review_score"),
-            "review_score_label": review_score_label,
+            "review_score_label": _normalize_review_label(review_score_label, row.get("review_score")),
             "deal_detected_at": row.get("deal_detected_at"),
             "alert_type": row.get("alert_type"),
             "alert_label": row.get("alert_label"),

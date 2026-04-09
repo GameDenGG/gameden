@@ -91,7 +91,7 @@ def _make_snapshot(
         historical_low=9.99,
         historical_status="near_historical_low",
         price_vs_low_ratio=1.04,
-        buy_recommendation="BUY_NOW",
+        buy_recommendation="Buy now",
         buy_reason="Strong buy setup",
         deal_score=deal_score,
         buy_score=buy_score,

@@ -476,9 +476,14 @@ function pushUniqueHighlight(lines, line) {
   lines.push(normalized);
 }
 
+function normalizeBuyRecommendation(value) {
+  const token = String(value || "").trim().toUpperCase().replace(/\s+/g, "_");
+  return token === "BUY_NOW" || token === "WAIT" || token === "AVOID" ? token : "";
+}
+
 function buildDetailHighlightLines(detail) {
   const lines = [];
-  const recommendation = String(detail?.buy_recommendation || "").trim().toUpperCase();
+  const recommendation = normalizeBuyRecommendation(detail?.buy_recommendation);
   const buyReason = normalizeReasonSnippet(detail?.buy_reason);
   const predictedReason = normalizeReasonSnippet(detail?.predicted_sale_reason ?? detail?.next_sale_prediction?.reason);
   const worthReason = normalizeReasonSnippet(detail?.worth_buying?.reason ?? detail?.worth_buying_reason_summary);
@@ -688,7 +693,7 @@ function renderBuyRecommendation(detail) {
   const panel = document.getElementById("buyNowPanel");
   if (!panel) return;
 
-  const recommendation = String(detail.buy_recommendation || "").trim().toUpperCase();
+  const recommendation = normalizeBuyRecommendation(detail.buy_recommendation);
   const reason = String(detail.buy_reason || "").trim();
   const ratioValue = Number(detail.price_vs_low_ratio);
   const hasRatio = Number.isFinite(ratioValue) && ratioValue > 0;
@@ -701,7 +706,7 @@ function renderBuyRecommendation(detail) {
     return;
   }
 
-  const recommendationLabel = recommendation === "BUY_NOW" ? "BUY NOW" : "WAIT";
+  const recommendationLabel = recommendation === "BUY_NOW" ? "Buy now" : "Wait";
   let ratioSummary = "-";
   if (hasRatio) {
     if (ratioValue > 1.0) {

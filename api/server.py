@@ -105,6 +105,7 @@ class CacheControlStaticFiles(StaticFiles):
 
         if is_html:
             response.headers["Cache-Control"] = "public, max-age=300"
+            response.headers.setdefault("X-Robots-Tag", "noindex, follow")
         else:
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
 
@@ -263,7 +264,6 @@ SITEMAP_STATIC_PATHS = (
     "/all-results",
     "/game",
     "/history",
-    "/game-detail",
     "/watchlist",
     "/historical-lows",
     "/best-deals",
@@ -399,10 +399,10 @@ SEO_DISCOVERY_PAGE_DEFINITIONS: dict[str, dict[str, str]] = {
     "buy-now": {
         "slug": "buy-now",
         "path": "/buy-now",
-        "title": "Buy Now Picks on Steam | GameDen.gg",
-        "heading": "Buy Now Picks",
-        "intro": "Games currently flagged BUY NOW by GameDen snapshot signals and pricing context.",
-        "description": "Snapshot-backed BUY NOW Steam picks with current pricing and momentum context.",
+        "title": "Buy now picks on Steam | GameDen.gg",
+        "heading": "Buy now picks",
+        "intro": "Games currently flagged Buy now by GameDen snapshot signals and pricing context.",
+        "description": "Snapshot-backed Buy now Steam picks with current pricing and momentum context.",
         "empty_message": "No buy-now picks are available right now.",
     },
     "wait-for-sale": {
@@ -410,7 +410,7 @@ SEO_DISCOVERY_PAGE_DEFINITIONS: dict[str, dict[str, str]] = {
         "path": "/wait-for-sale",
         "title": "Steam Games to Wait For Sale | GameDen.gg",
         "heading": "Wait for Next Sale",
-        "intro": "Games currently flagged WAIT where a stronger future discount is likely.",
+        "intro": "Games currently flagged Wait where a stronger future discount is likely.",
         "description": "Steam games where snapshot signals suggest waiting for a better sale.",
         "empty_message": "No wait-for-sale picks are available right now.",
     },
@@ -1074,7 +1074,17 @@ def safe_num(value, default: float = 0.0) -> float:
 def _normalize_review_label(raw_label, review_score) -> str | None:
     label = str(raw_label or "").strip()
     if label:
-        return label
+        normalized = " ".join(label.split()).lower()
+        canonical_labels = {
+            "overwhelmingly negative": "Overwhelmingly Negative",
+            "mostly negative": "Mostly Negative",
+            "mixed": "Mixed",
+            "mostly positive": "Mostly Positive",
+            "very positive": "Very Positive",
+            "overwhelmingly positive": "Overwhelmingly Positive",
+        }
+        if normalized in canonical_labels:
+            return canonical_labels[normalized]
     score = safe_num(review_score, default=-1.0)
     if score < 0:
         return None
@@ -1089,7 +1099,18 @@ def _normalize_review_label(raw_label, review_score) -> str | None:
     if score >= 20:
         return "Mostly Negative"
     if score >= 0:
-        return "Very Negative"
+        return "Overwhelmingly Negative"
+    return None
+
+
+def _contract_buy_recommendation(value) -> str | None:
+    normalized = _normalize_buy_recommendation(value)
+    if normalized == "BUY_NOW":
+        return "Buy now"
+    if normalized == "WAIT":
+        return "Wait"
+    if normalized == "AVOID":
+        return "Avoid"
     return None
 
 
@@ -2186,7 +2207,7 @@ def serialize_upcoming_snapshot_row(snapshot: GameSnapshot) -> dict:
         "tags": parse_csv_field(snapshot.tags or ""),
         "platforms": parse_csv_field(snapshot.platforms or ""),
         "review_score": snapshot.review_score,
-        "review_score_label": snapshot.review_score_label,
+        "review_score_label": _normalize_review_label(snapshot.review_score_label, snapshot.review_score),
         "review_total_count": snapshot.review_count,
         "popularity_score": snapshot.popularity_score,
         "upcoming_hot_score": snapshot.upcoming_hot_score,
@@ -3020,7 +3041,7 @@ def _build_deal_opportunity_item(snapshot: FeedProjectionRow) -> dict | None:
     short_term_player_trend = safe_num(snapshot.short_term_player_trend, 0.0)
     max_discount = max(0, int(round(safe_num(snapshot.max_discount, 0.0))))
     price_vs_low_ratio = safe_num(snapshot.price_vs_low_ratio, 0.0)
-    recommendation = str(snapshot.buy_recommendation or "").strip().upper()
+    recommendation = _normalize_buy_recommendation(snapshot.buy_recommendation)
     historical_status = str(snapshot.historical_status or "").strip().lower()
     predicted_window_days_min = int(round(safe_num(snapshot.predicted_next_sale_window_days_min, 0.0)))
     stored_opportunity_score = safe_num(snapshot.deal_opportunity_score, 0.0)
@@ -3122,7 +3143,7 @@ def _build_deal_opportunity_item(snapshot: FeedProjectionRow) -> dict | None:
         "popularity_score": snapshot.popularity_score,
         "deal_score": snapshot.deal_score,
         "buy_score": buy_score,
-        "buy_recommendation": snapshot.buy_recommendation,
+        "buy_recommendation": _contract_buy_recommendation(snapshot.buy_recommendation),
         "buy_reason": snapshot.buy_reason,
         "predicted_next_sale_window_days_min": snapshot.predicted_next_sale_window_days_min,
         "predicted_next_sale_window_days_max": snapshot.predicted_next_sale_window_days_max,
@@ -3206,7 +3227,7 @@ def _build_opportunity_radar_item(snapshot: FeedProjectionRow) -> dict | None:
         "popularity_score": snapshot.popularity_score,
         "deal_score": snapshot.deal_score,
         "buy_score": buy_score,
-        "buy_recommendation": snapshot.buy_recommendation,
+        "buy_recommendation": _contract_buy_recommendation(snapshot.buy_recommendation),
         "buy_reason": snapshot.buy_reason,
         "predicted_sale_confidence": snapshot.predicted_sale_confidence,
         "predicted_sale_reason": snapshot.predicted_sale_reason,
@@ -3958,7 +3979,7 @@ def _build_personalized_deal_item(
         "deal_score": snapshot.deal_score,
         "deal_opportunity_score": snapshot.deal_opportunity_score,
         "buy_score": snapshot.buy_score if snapshot.buy_score is not None else snapshot.worth_buying_score,
-        "buy_recommendation": snapshot.buy_recommendation,
+        "buy_recommendation": _contract_buy_recommendation(snapshot.buy_recommendation),
         "buy_reason": snapshot.buy_reason,
         "popularity_score": snapshot.popularity_score,
         "momentum_score": snapshot.momentum_score,
@@ -4097,7 +4118,7 @@ def _serialize_seo_landing_item(snapshot: FeedProjectionRow, slug: str) -> dict:
         "popularity_score": snapshot.popularity_score,
         "deal_score": snapshot.deal_score,
         "buy_score": buy_score,
-        "buy_recommendation": snapshot.buy_recommendation,
+        "buy_recommendation": _contract_buy_recommendation(snapshot.buy_recommendation),
         "buy_reason": snapshot.buy_reason,
         "predicted_next_sale_price": snapshot.predicted_next_sale_price,
         "predicted_next_discount_percent": snapshot.predicted_next_discount_percent,
@@ -4107,8 +4128,8 @@ def _serialize_seo_landing_item(snapshot: FeedProjectionRow, slug: str) -> dict:
         "trend_reason_summary": snapshot.trend_reason_summary,
         "deal_heat_reason": snapshot.deal_heat_reason,
         "review_score": snapshot.review_score,
-        "review_score_label": snapshot.review_score_label,
-        "review_label": snapshot.review_score_label,
+        "review_score_label": _normalize_review_label(snapshot.review_score_label, snapshot.review_score),
+        "review_label": _normalize_review_label(snapshot.review_score_label, snapshot.review_score),
         "review_total_count": snapshot.review_count,
         "genres": parse_csv_field(snapshot.genres),
         "tags": parse_csv_field(snapshot.tags),
@@ -4122,7 +4143,7 @@ def _serialize_seo_landing_item(snapshot: FeedProjectionRow, slug: str) -> dict:
 
 def _build_seo_discovery_query(session, slug: str, model_cls=GameDiscoveryFeed):
     normalized_slug = _normalize_seo_slug(slug)
-    recommendation_expr = func.upper(func.coalesce(model_cls.buy_recommendation, ""))
+    recommendation_expr = func.replace(func.upper(func.coalesce(model_cls.buy_recommendation, "")), " ", "_")
     historical_priority = case(
         (model_cls.historical_status == "new_historical_low", 3),
         (model_cls.historical_status == "matches_historical_low", 2),
@@ -4279,7 +4300,7 @@ def _daily_digest_section_label(section_key: str) -> str:
     label_map = {
         "biggest_price_drops": "Biggest Price Drops",
         "new_historical_lows": "New Historical Lows",
-        "buy_now_opportunities": "Buy-Now Opportunities",
+        "buy_now_opportunities": "Buy now opportunities",
         "trending_games": "Trending Games",
         "radar_signals": "Radar Signals",
     }
@@ -4375,7 +4396,7 @@ def _build_daily_digest_item(
         "popularity_score": snapshot.popularity_score,
         "deal_score": snapshot.deal_score,
         "buy_score": buy_score,
-        "buy_recommendation": snapshot.buy_recommendation,
+        "buy_recommendation": _contract_buy_recommendation(snapshot.buy_recommendation),
         "buy_reason": snapshot.buy_reason,
         "predicted_next_sale_price": snapshot.predicted_next_sale_price,
         "predicted_next_discount_percent": snapshot.predicted_next_discount_percent,
@@ -4385,8 +4406,8 @@ def _build_daily_digest_item(
         "trend_reason_summary": snapshot.trend_reason_summary,
         "deal_heat_reason": snapshot.deal_heat_reason,
         "review_score": snapshot.review_score,
-        "review_score_label": snapshot.review_score_label,
-        "review_label": snapshot.review_score_label,
+        "review_score_label": _normalize_review_label(snapshot.review_score_label, snapshot.review_score),
+        "review_label": _normalize_review_label(snapshot.review_score_label, snapshot.review_score),
         "review_total_count": snapshot.review_count,
         "genres": parse_csv_field(snapshot.genres),
         "tags": parse_csv_field(snapshot.tags),
@@ -5280,7 +5301,7 @@ def _build_snapshot_game_detail_payload(
             "summary": deal_summary,
         },
         "buy_score": buy_score,
-        "buy_recommendation": snapshot.buy_recommendation if snapshot else None,
+        "buy_recommendation": _contract_buy_recommendation(snapshot.buy_recommendation) if snapshot else None,
         "buy_reason": snapshot.buy_reason if snapshot else None,
         "price_vs_low_ratio": snapshot.price_vs_low_ratio if snapshot else None,
         "predicted_next_sale_price": snapshot.predicted_next_sale_price if snapshot else None,
@@ -5940,27 +5961,66 @@ def home():
     return FileResponse("web/index.html")
 
 
+@app.get("/index.html", include_in_schema=False)
+def index_html_redirect():
+    return RedirectResponse(url="/", status_code=301)
+
+
+@app.get("/game", include_in_schema=False)
+def game_shell():
+    return FileResponse("web/game.html", headers={"X-Robots-Tag": "noindex, follow"})
+
+
 @app.get("/all-results")
 def all_results_page():
     return FileResponse("web/all-results.html")
 
 from fastapi.responses import FileResponse, RedirectResponse
 
-@app.get("/game/{identifier}")
-def game_page(identifier: str):
-    if str(identifier or "").isdigit():
-        session = ReadSessionLocal()
-        try:
-            game = _resolve_game_by_identifier(session, identifier)
-            if game is not None:
-                payload = _build_game_detail_response_payload(session, game, viewer_user_id=None)
-                slug = payload.get("slug") or payload.get("game_slug")
-                if slug:
-                    return RedirectResponse(url=f"/game/{slug}", status_code=301)
-        finally:
-            session.close()
 
-    return FileResponse("web/game.html")
+@app.get("/game.html", include_in_schema=False)
+def game_html_redirect():
+    return RedirectResponse(url="/game", status_code=301)
+
+
+@app.get("/all-results.html", include_in_schema=False)
+def all_results_html_redirect():
+    return RedirectResponse(url="/all-results", status_code=301)
+
+
+@app.get("/history.html", include_in_schema=False)
+def history_html_redirect():
+    return RedirectResponse(url="/history", status_code=301)
+
+
+@app.get("/watchlist.html", include_in_schema=False)
+def watchlist_html_redirect():
+    return RedirectResponse(url="/watchlist", status_code=301)
+
+
+@app.get("/game-detail.html", include_in_schema=False)
+def game_detail_html_redirect():
+    return RedirectResponse(url="/game-detail", status_code=301)
+
+@app.get("/game/{identifier}")
+def game_page(request: Request, identifier: str):
+    session = ReadSessionLocal()
+    try:
+        game = _resolve_game_by_identifier(session, identifier)
+        if game is None:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        payload = _build_game_detail_response_payload(session, game, viewer_user_id=None)
+        canonical_path = str(payload.get("canonical_path") or "").strip()
+        if not canonical_path:
+            canonical_path = _canonical_game_detail_path(game.name, game.id)
+
+        if request.url.query or request.url.path.rstrip("/") != canonical_path.rstrip("/"):
+            return RedirectResponse(url=canonical_path, status_code=301)
+
+        return FileResponse("web/game.html")
+    finally:
+        session.close()
 
 @app.get("/history")
 def history_page():
@@ -5969,7 +6029,7 @@ def history_page():
 
 @app.get("/game-detail")
 def game_detail_page():
-    return FileResponse("web/game-detail.html")
+    return FileResponse("web/game-detail.html", headers={"X-Robots-Tag": "noindex, follow"})
 
 
 @app.get("/favicon.ico", include_in_schema=False)
@@ -7005,7 +7065,7 @@ def get_released_games(
                     "historical_status": snapshot.historical_status if snapshot else None,
                     "deal_score": snapshot.deal_score if snapshot else None,
                     "buy_score": (snapshot.buy_score if snapshot and snapshot.buy_score is not None else (snapshot.worth_buying_score if snapshot else None)),
-                    "buy_recommendation": snapshot.buy_recommendation if snapshot else None,
+                    "buy_recommendation": _contract_buy_recommendation(snapshot.buy_recommendation) if snapshot else None,
                     "buy_reason": snapshot.buy_reason if snapshot else None,
                     "price_vs_low_ratio": snapshot.price_vs_low_ratio if snapshot else None,
                     "predicted_next_sale_price": snapshot.predicted_next_sale_price if snapshot else None,
@@ -7568,8 +7628,8 @@ def _dedupe_dashboard_rows(rows: list[dict]) -> list[dict]:
 
 
 def _normalize_buy_recommendation(value) -> str:
-    normalized = str(value or "").strip().upper()
-    return normalized if normalized in {"BUY_NOW", "WAIT"} else ""
+    normalized = str(value or "").strip().upper().replace(" ", "_")
+    return normalized if normalized in {"BUY_NOW", "WAIT", "AVOID"} else ""
 
 
 def _decision_rows_by_recommendation(rows: list[dict], recommendation: str, limit: int = 24) -> list[dict]:
@@ -9903,7 +9963,7 @@ def get_daily_deal_digest(
             .all()
         )
 
-        recommendation_expr = func.upper(func.coalesce(GameSnapshot.buy_recommendation, ""))
+        recommendation_expr = func.replace(func.upper(func.coalesce(GameSnapshot.buy_recommendation, "")), " ", "_")
         buy_now_rows = (
             session.query(GameSnapshot)
             .filter(
@@ -10369,14 +10429,14 @@ def _compact_personalized_feed_item(row: dict) -> dict:
         "momentum_score": _json_safe_numeric_value(row.get("momentum_score")),
         "deal_opportunity_score": _json_safe_numeric_value(row.get("deal_opportunity_score")),
         "deal_opportunity_reason": row.get("deal_opportunity_reason"),
-        "buy_recommendation": row.get("buy_recommendation"),
+        "buy_recommendation": _contract_buy_recommendation(row.get("buy_recommendation")),
         "buy_reason": row.get("buy_reason"),
         "price_vs_low_ratio": _json_safe_numeric_value(row.get("price_vs_low_ratio")),
         "predicted_next_sale_price": _json_safe_numeric_value(row.get("predicted_next_sale_price")),
         "predicted_next_discount_percent": _json_safe_int_value(row.get("predicted_next_discount_percent")),
         "predicted_sale_confidence": row.get("predicted_sale_confidence"),
         "review_score": _json_safe_int_value(row.get("review_score")),
-        "review_score_label": row.get("review_score_label"),
+        "review_score_label": _normalize_review_label(row.get("review_score_label"), row.get("review_score")),
         "current_players": _json_safe_int_value(row.get("current_players")),
         "deal_detected_at": _json_safe_temporal_value(row.get("deal_detected_at")),
         "personalization_score": safe_num(row.get("personalization_score"), 0.0),

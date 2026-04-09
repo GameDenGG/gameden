@@ -5344,6 +5344,7 @@ input:focus-visible {
     }
     .homepage-freshness-note {
         max-width: none;
+        flex: 0 1 auto;
     }
     .decision-context-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6070,7 +6071,7 @@ input:focus-visible {
                 </div>
 
                 <nav class="home-jump-nav" id="homeJumpNav" aria-label="Jump to homepage zones">
-                    <button class="home-jump-chip" type="button" data-home-jump-group="Buy Now" data-home-jump-target="recommendedForYouPanel">Worth Buying</button>
+                    <button class="home-jump-chip" type="button" data-home-jump-group="Buy now" data-home-jump-target="recommendedForYouPanel">Worth Buying</button>
                     <button class="home-jump-chip" type="button" data-home-jump-group="Your Radar" data-home-jump-target="becauseYouOwnPanel">Your Radar</button>
                     <button class="home-jump-chip" type="button" data-home-jump-group="Discover" data-home-jump-target="discoveryTabsShell">Discover</button>
                     <button class="home-jump-chip" type="button" data-home-jump-group="Market Intelligence" data-home-jump-target="moreIntelSection">Market Intelligence</button>
@@ -7143,7 +7144,7 @@ input:focus-visible {
         const HOMEPAGE_MOBILE_LAYOUT_BREAKPOINT_PX = 1260;
         // Homepage IA scaffold: lightweight section metadata used to drive purpose-based composition.
         const HOMEPAGE_SECTION_GROUPS = Object.freeze({
-            BUY_NOW: "Buy Now",
+            BUY_NOW: "Buy now",
             DISCOVER: "Discover",
             YOUR_RADAR: "Your Radar",
             MARKET_INTELLIGENCE: "Market Intelligence",
@@ -8932,7 +8933,7 @@ input:focus-visible {
             if (score >= 70) return "Mostly Positive";
             if (score >= 40) return "Mixed";
             if (score >= 20) return "Mostly Negative";
-            return "Very Negative";
+            return "Overwhelmingly Negative";
         }
 
         function normalizeGameRow(row) {
@@ -8981,8 +8982,8 @@ input:focus-visible {
         }
 
         function normalizeBuyRecommendation(value) {
-            const normalized = String(value || "").trim().toUpperCase();
-            return normalized === "BUY_NOW" || normalized === "WAIT" ? normalized : "";
+            const normalized = String(value || "").trim().toUpperCase().replace(/\s+/g, "_");
+            return normalized === "BUY_NOW" || normalized === "WAIT" || normalized === "AVOID" ? normalized : "";
         }
 
         function getDealTimingSignalForRow(game, options = {}) {
@@ -9135,27 +9136,7 @@ input:focus-visible {
         function appendGameIdQueryFallback(path, normalizedGame) {
             const rawPath = String(path || "").trim();
             if (!rawPath) return "/game";
-            const gameId = toPositiveIntOrNull(
-                normalizedGame?.canonical_game_id
-                ?? normalizedGame?.game_id
-                ?? normalizedGame?.id,
-            );
-            if (gameId === null) return rawPath;
-            try {
-                const parsed = new URL(rawPath, window.location.origin);
-                if (!parsed.pathname.startsWith("/game/")) {
-                    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-                }
-                if (!parsed.searchParams.has("game_id")) {
-                    const params = parsed.searchParams;
-                    params.set("game_id", String(gameId));
-                }
-                return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-            } catch {
-                if (!rawPath.startsWith("/game/")) return rawPath;
-                const joiner = rawPath.includes("?") ? "&" : "?";
-                return `${rawPath}${joiner}game_id=${encodeURIComponent(String(gameId))}`;
-            }
+            return rawPath;
         }
 
         function buildGameDetailHref(gameLike) {
@@ -12589,7 +12570,7 @@ input:focus-visible {
                 case "new_historical_lows":
                     return "Historical Low";
                 case "buy_now_opportunities":
-                    return "Buy Now";
+                    return "Buy now";
                 case "trending_games":
                     return "Trending";
                 case "radar_signals":

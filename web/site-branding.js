@@ -631,7 +631,7 @@
       };
     }
 
-    const recommendation = String(source.buy_recommendation || "").trim().toUpperCase();
+    const recommendation = String(source.buy_recommendation || "").trim().toUpperCase().replace(/\s+/g, "_");
     const discount = Math.max(0, _toFiniteNumber(source.discount_percent ?? source.latest_discount_percent) || 0);
     const dealScore = Math.max(
       0,

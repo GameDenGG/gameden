@@ -1656,6 +1656,21 @@ a {
     display: none;
 }
 
+.decision-insight-lead {
+    margin: 2px 18px 0;
+    color: var(--muted-2);
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    max-width: 100%;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    text-wrap: balance;
+}
+
 .decision-insights-section .panel-head::after,
 .decision-media-section .panel-head::after,
 .decision-store-section .panel-head::after,
@@ -2893,6 +2908,7 @@ a {
             <div class="panel-head">
                 <h2 class="panel-title">Decision insights</h2>
             </div>
+            <p id="decisionInsightLead" class="decision-insight-lead" hidden></p>
             <div class="panel-body decision-summary-strip" aria-label="Decision insights">
                 <div class="decision-summary-rail">
                     <div class="decision-summary-grid">
@@ -4455,39 +4471,33 @@ function derivePricePositionLabel(payload) {
     return "Price position unclear";
 }
 
+function renderDecisionInsightLead(payload) {
+    const leadEl = document.getElementById("decisionInsightLead");
+    if (!(leadEl instanceof HTMLElement)) return;
+
+    const insightEngineOutput = getInsightEngineOutput(payload);
+    const primaryInsight = insightEngineOutput.primaryInsight;
+    const leadText = buildInsightLeadSentence(primaryInsight);
+
+    if (!leadText) {
+        leadEl.hidden = true;
+        leadEl.textContent = "";
+        return;
+    }
+
+    leadEl.hidden = false;
+    leadEl.textContent = `💡 ${leadText}`;
+}
+
 function renderDecisionSummaryStrip(payload, context = currentGameContext) {
     const shouldBuyEl = document.getElementById("summaryShouldBuy");
     const reviewsEl = document.getElementById("summaryReviews");
     const playersEl = document.getElementById("summaryPlayers");
     const pricePositionEl = document.getElementById("summaryPricePosition");
-    const shouldBuyChip = shouldBuyEl?.closest(".decision-summary-chip");
-    const shouldBuyLabel = shouldBuyChip?.querySelector("span");
-    const insightEngineOutput = getInsightEngineOutput(payload);
-    const primaryInsight = insightEngineOutput.primaryInsight;
-    const playerInsights = getPlayerSignalInsights(payload);
-    const playerTrendLabel = String(playerInsights?.stateLabel || "").trim();
     const timing = deriveTimingSignal(payload, context);
     const reviewLabel = String(getReviewLabel(payload) || getReviewSummary(payload) || "").trim();
     const currentPlayers = Number(payload?.current_players);
-    if (primaryInsight) {
-        const primaryFullText = String(primaryInsight.title || primaryInsight.reason || primaryInsight.action || "").trim();
-        const primaryText = compactInsightHeadline(primaryFullText);
-        if (shouldBuyLabel) shouldBuyLabel.textContent = "Primary insight";
-        if (shouldBuyChip) {
-            shouldBuyChip.title = [
-                primaryFullText ? `Primary insight: ${primaryFullText}` : "",
-                playerTrendLabel ? `Player trend: ${playerTrendLabel}` : "",
-                primaryInsight.reason || "",
-            ]
-                .filter(Boolean)
-                .join(" • ");
-        }
-        if (shouldBuyEl) shouldBuyEl.textContent = primaryText || deriveRecommendationLabel(payload, context, timing);
-    } else {
-        if (shouldBuyLabel) shouldBuyLabel.textContent = "Should you buy";
-        if (shouldBuyChip) shouldBuyChip.removeAttribute("title");
-        if (shouldBuyEl) shouldBuyEl.textContent = deriveRecommendationLabel(payload, context, timing);
-    }
+    if (shouldBuyEl) shouldBuyEl.textContent = deriveRecommendationLabel(payload, context, timing);
     if (reviewsEl) reviewsEl.textContent = reviewLabel || "—";
     if (playersEl) playersEl.textContent = Number.isFinite(currentPlayers) && currentPlayers > 0 ? fmtInt(currentPlayers) : "—";
     if (pricePositionEl) pricePositionEl.textContent = derivePricePositionLabel(payload);
@@ -5528,11 +5538,19 @@ function normalizeInsightEngineInsight(value) {
     };
 }
 
-function compactInsightHeadline(value, maxLength = 64) {
-    const text = String(value || "").replace(/\s+/g, " ").trim();
-    if (!text) return "";
-    if (text.length <= maxLength) return text;
-    return `${text.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+function buildInsightLeadSentence(primaryInsight) {
+    const candidates = [
+        primaryInsight?.title,
+        primaryInsight?.reason,
+        primaryInsight?.action,
+    ];
+    for (const candidate of candidates) {
+        const text = String(candidate || "").replace(/\s+/g, " ").trim();
+        if (!text) continue;
+        if (/[.!?]$/.test(text) || /\.\.\.$/.test(text)) return text;
+        return `${text}.`;
+    }
+    return "";
 }
 
 function getInsightEngineOutput(payload) {
@@ -6677,6 +6695,7 @@ if (!payload || payload.error) {
     applyAdaptiveGameLayout(payload, currentGameContext);
     renderFeaturedMedia(payload);
     renderHeroStats(payload, currentGameContext);
+    renderDecisionInsightLead(payload);
     renderDecisionSummaryStrip(payload, currentGameContext);
     renderStoreDecisionSection(payload);
 

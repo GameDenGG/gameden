@@ -85,6 +85,7 @@ CACHE_KEY = "home_v1"
 CRITICAL_CACHE_KEY = "home_critical_v1"
 LEGACY_CACHE_KEYS = ("home",)
 INSIGHT_ENGINE_BRIDGE_SCRIPT = ROOT_DIR / "scripts" / "insight-engine" / "run_insight_engine.mjs"
+INSIGHT_ENGINE_DEBUG = os.getenv("INSIGHT_ENGINE_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
 # Shared runtime settings (defined once in config.py).
 SNAPSHOT_MIN_BATCH_SIZE = CONFIG_SNAPSHOT_MIN_BATCH_SIZE
 MAX_BATCH_SIZE = CONFIG_SNAPSHOT_MAX_BATCH_SIZE
@@ -319,6 +320,236 @@ def _build_insight_engine_context(
             "priceContext": "all_time_low" if is_historical_low else "normal",
         },
     }
+
+
+def _capture_prior_snapshot_state(snapshot: GameSnapshot | None) -> dict[str, Any]:
+    return {
+        "snapshot_exists": snapshot is not None,
+        "price": safe_num(snapshot.latest_price, default=0.0) if snapshot and snapshot.latest_price is not None else None,
+        "original_price": (
+            safe_num(snapshot.latest_original_price, default=0.0)
+            if snapshot and snapshot.latest_original_price is not None
+            else None
+        ),
+        "discount_percent": (
+            int(safe_num(snapshot.latest_discount_percent, default=0.0))
+            if snapshot and snapshot.latest_discount_percent is not None
+            else 0
+        ),
+        "historical_low": safe_num(snapshot.historical_low, default=0.0) if snapshot and snapshot.historical_low is not None else None,
+        "player_momentum": (
+            safe_num(snapshot.player_momentum, default=0.0) if snapshot and snapshot.player_momentum is not None else 0.0
+        ),
+        "daily_peak": (
+            int(safe_num(snapshot.daily_peak, default=0.0)) if snapshot and snapshot.daily_peak is not None else None
+        ),
+        "review_label": _normalize_review_label(
+            snapshot.review_score_label if snapshot else None,
+            snapshot.review_score if snapshot else None,
+        ),
+        "is_upcoming": bool(snapshot.is_upcoming) if snapshot is not None else False,
+        "popularity_score": (
+            safe_num(snapshot.popularity_score, default=0.0)
+            if snapshot and snapshot.popularity_score is not None
+            else None
+        ),
+    }
+
+
+def _append_insight_engine_trigger(
+    triggers: list[dict[str, Any]],
+    trigger: dict[str, Any],
+) -> bool:
+    trigger_signature = (
+        trigger.get("type"),
+        trigger.get("gameId"),
+        trigger.get("timestamp"),
+        trigger.get("previous"),
+        trigger.get("current"),
+    )
+    for existing in triggers:
+        existing_signature = (
+            existing.get("type"),
+            existing.get("gameId"),
+            existing.get("timestamp"),
+            existing.get("previous"),
+            existing.get("current"),
+        )
+        if existing_signature == trigger_signature:
+            return False
+    triggers.append(trigger)
+    return True
+
+
+def _append_price_change_trigger(
+    *,
+    triggers: list[dict[str, Any]],
+    game_id: int,
+    timestamp_ms: int,
+    previous_price: float | None,
+    current_price: float | None,
+) -> bool:
+    if previous_price is None or current_price is None:
+        return False
+    if previous_price <= 0 or current_price <= 0:
+        return False
+    if current_price >= previous_price:
+        return False
+    return _append_insight_engine_trigger(
+        triggers,
+        {
+            "type": "price_change",
+            "gameId": str(game_id),
+            "timestamp": timestamp_ms,
+            "previous": float(previous_price),
+            "current": float(current_price),
+        },
+    )
+
+
+def _build_insight_engine_triggers(
+    *,
+    game_id: int,
+    now: datetime.datetime,
+    latest_recorded_at: datetime.datetime | None,
+    prior_snapshot_state: dict[str, Any],
+    latest_price: float | None,
+    latest_original_price: float | None,
+    latest_discount_percent: int | None,
+    review_score: float,
+    review_score_label: Any,
+    is_upcoming: bool,
+    popularity_score: float,
+    is_new_historical_low: bool,
+) -> list[dict[str, Any]]:
+    triggers: list[dict[str, Any]] = []
+    insight_engine_timestamp = _as_epoch_ms(latest_recorded_at if latest_recorded_at else now)
+    previous_price = prior_snapshot_state.get("price")
+    previous_discount = int(prior_snapshot_state.get("discount_percent", 0))
+    previous_review_label = prior_snapshot_state.get("review_label")
+    previous_is_upcoming = bool(prior_snapshot_state.get("is_upcoming", False))
+    previous_popularity_score = prior_snapshot_state.get("popularity_score")
+    current_review_label = _normalize_review_label(review_score_label, review_score)
+
+    price_change_emitted = _append_price_change_trigger(
+        triggers=triggers,
+        game_id=game_id,
+        timestamp_ms=insight_engine_timestamp,
+        previous_price=previous_price,
+        current_price=latest_price,
+    )
+
+    sale_started = previous_discount <= 0 and safe_num(latest_discount_percent, 0.0) > 0
+    if (
+        not price_change_emitted
+        and prior_snapshot_state.get("snapshot_exists")
+        and latest_price is not None
+        and (sale_started or is_new_historical_low)
+    ):
+        candidate_baselines = [
+            latest_original_price,
+            prior_snapshot_state.get("original_price"),
+        ]
+        for baseline_price in candidate_baselines:
+            if _append_price_change_trigger(
+                triggers=triggers,
+                game_id=game_id,
+                timestamp_ms=insight_engine_timestamp,
+                previous_price=baseline_price,
+                current_price=latest_price,
+            ):
+                break
+
+    if previous_review_label and current_review_label and previous_review_label != current_review_label:
+        _append_insight_engine_trigger(
+            triggers,
+            {
+                "type": "review_change",
+                "gameId": str(game_id),
+                "timestamp": _as_epoch_ms(now),
+                "previous": previous_review_label,
+                "current": current_review_label,
+            },
+        )
+
+    if prior_snapshot_state.get("snapshot_exists") and previous_is_upcoming and not is_upcoming:
+        _append_insight_engine_trigger(
+            triggers,
+            {
+                "type": "release_event",
+                "gameId": str(game_id),
+                "timestamp": _as_epoch_ms(now),
+                "previous": None,
+                "current": "released",
+            },
+        )
+
+    if previous_popularity_score is not None:
+        previous_relevance = clamp(safe_num(previous_popularity_score, 0.0) / 100.0, 0.0, 1.0)
+        current_relevance = clamp(safe_num(popularity_score, 0.0) / 100.0, 0.0, 1.0)
+        if previous_relevance < 0.6 <= current_relevance:
+            _append_insight_engine_trigger(
+                triggers,
+                {
+                    "type": "relevance_increase",
+                    "gameId": str(game_id),
+                    "timestamp": insight_engine_timestamp,
+                    "previous": float(previous_relevance),
+                    "current": float(current_relevance),
+                },
+            )
+
+    return triggers
+
+
+def _build_insight_engine_payload(
+    *,
+    game_id: int,
+    now: datetime.datetime,
+    latest_recorded_at: datetime.datetime | None,
+    prior_snapshot_state: dict[str, Any],
+    latest_price: float | None,
+    latest_original_price: float | None,
+    latest_discount_percent: int | None,
+    review_score: float,
+    review_score_label: Any,
+    is_upcoming: bool,
+    popularity_score: float,
+    is_historical_low: bool,
+    is_new_historical_low: bool,
+    wishlist_count: int,
+    watchlist_count: int,
+    click_count: int,
+) -> dict[str, Any]:
+    triggers = _build_insight_engine_triggers(
+        game_id=game_id,
+        now=now,
+        latest_recorded_at=latest_recorded_at,
+        prior_snapshot_state=prior_snapshot_state,
+        latest_price=latest_price,
+        latest_original_price=latest_original_price,
+        latest_discount_percent=latest_discount_percent,
+        review_score=review_score,
+        review_score_label=review_score_label,
+        is_upcoming=is_upcoming,
+        popularity_score=popularity_score,
+        is_new_historical_low=is_new_historical_low,
+    )
+    context = _build_insight_engine_context(
+        is_historical_low=is_historical_low,
+        wishlist_count=wishlist_count,
+        watchlist_count=watchlist_count,
+        click_count=click_count,
+        now=now,
+    )
+    payload = {"triggers": triggers, "context": context}
+    if INSIGHT_ENGINE_DEBUG and triggers:
+        trigger_types = ",".join(sorted({str(trigger.get("type")) for trigger in triggers}))
+        print(
+            "insight_engine payload "
+            f"game_id={game_id} trigger_count={len(triggers)} trigger_types={trigger_types}"
+        )
+    return payload
 
 
 def _run_insight_engine_subprocess(triggers: list[dict[str, Any]], context: dict[str, Any]) -> dict[str, Any]:
@@ -2653,21 +2884,12 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
             continue
 
         snapshot = existing.get(int(game_id))
-        previous_price = safe_num(snapshot.latest_price, default=0.0) if snapshot and snapshot.latest_price is not None else None
-        previous_discount = (
-            int(safe_num(snapshot.latest_discount_percent, default=0.0))
-            if snapshot and snapshot.latest_discount_percent is not None
-            else 0
-        )
-        previous_historical_low = (
-            safe_num(snapshot.historical_low, default=0.0) if snapshot and snapshot.historical_low is not None else None
-        )
-        previous_player_momentum = (
-            safe_num(snapshot.player_momentum, default=0.0) if snapshot and snapshot.player_momentum is not None else 0.0
-        )
-        previous_daily_peak = (
-            int(safe_num(snapshot.daily_peak, default=0.0)) if snapshot and snapshot.daily_peak is not None else None
-        )
+        prior_snapshot_state = _capture_prior_snapshot_state(snapshot)
+        previous_price = prior_snapshot_state.get("price")
+        previous_discount = int(prior_snapshot_state.get("discount_percent", 0))
+        previous_historical_low = prior_snapshot_state.get("historical_low")
+        previous_player_momentum = safe_num(prior_snapshot_state.get("player_momentum"), default=0.0)
+        previous_daily_peak = prior_snapshot_state.get("daily_peak")
 
         latest = latest_rows.get(int(game_id))
 
@@ -3009,66 +3231,28 @@ def refresh_snapshots_once(session: Session, game_ids: list[int]) -> int:
         snapshot.deal_heat_reason = deal_heat_reason
         snapshot.deal_heat_tags = deal_heat_tags
         ranking_explanations = _normalize_ranking_explanations(snapshot.ranking_explanations)
-        insight_engine_triggers: list[dict[str, Any]] = []
-        insight_engine_timestamp = _as_epoch_ms(latest.recorded_at if latest and latest.recorded_at else now)
-
-        if previous_price is not None and latest_price is not None and previous_price != latest_price:
-            insight_engine_triggers.append(
-                {
-                    "type": "price_change",
-                    "gameId": str(game_id),
-                    "timestamp": insight_engine_timestamp,
-                    "previous": float(previous_price),
-                    "current": float(latest_price),
-                }
-            )
-
-        previous_review_label = _normalize_review_label(snapshot.review_score_label if snapshot else None, snapshot.review_score if snapshot else None)
-        current_review_label = _normalize_review_label(game.review_score_label, review_score)
-        if previous_review_label and current_review_label and previous_review_label != current_review_label:
-            insight_engine_triggers.append(
-                {
-                    "type": "review_change",
-                    "gameId": str(game_id),
-                    "timestamp": _as_epoch_ms(now),
-                    "previous": previous_review_label,
-                    "current": current_review_label,
-                }
-            )
-
-        if snapshot is not None and bool(snapshot.is_upcoming) and not is_upcoming:
-            insight_engine_triggers.append(
-                {
-                    "type": "release_event",
-                    "gameId": str(game_id),
-                    "timestamp": _as_epoch_ms(now),
-                    "previous": None,
-                    "current": "released",
-                }
-            )
-
-        if snapshot is not None and snapshot.popularity_score is not None:
-            previous_relevance = clamp(safe_num(snapshot.popularity_score, 0.0) / 100.0, 0.0, 1.0)
-            current_relevance = clamp(safe_num(popularity_score, 0.0) / 100.0, 0.0, 1.0)
-            if previous_relevance < 0.6 <= current_relevance:
-                insight_engine_triggers.append(
-                    {
-                        "type": "relevance_increase",
-                        "gameId": str(game_id),
-                        "timestamp": insight_engine_timestamp,
-                        "previous": float(previous_relevance),
-                        "current": float(current_relevance),
-                    }
-                )
-
-        insight_engine_context = _build_insight_engine_context(
+        insight_engine_payload = _build_insight_engine_payload(
+            game_id=game_id,
+            now=now,
+            latest_recorded_at=latest.recorded_at if latest and latest.recorded_at else None,
+            prior_snapshot_state=prior_snapshot_state,
+            latest_price=latest_price,
+            latest_original_price=latest_original_price,
+            latest_discount_percent=latest_discount_percent,
+            review_score=review_score,
+            review_score_label=game.review_score_label,
+            is_upcoming=is_upcoming,
+            popularity_score=popularity_score,
             is_historical_low=is_historical_low,
+            is_new_historical_low=is_new_historical_low,
             wishlist_count=wishlist_count,
             watchlist_count=watchlist_count,
             click_count=click_count,
-            now=now,
         )
-        insight_engine_result = _run_insight_engine_subprocess(insight_engine_triggers, insight_engine_context)
+        insight_engine_result = _run_insight_engine_subprocess(
+            insight_engine_payload["triggers"],
+            insight_engine_payload["context"],
+        )
         ranking_explanations.update(
             {
                 "worth_buying": worth_buying_reason_summary,

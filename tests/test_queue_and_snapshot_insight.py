@@ -1,8 +1,14 @@
+import datetime
 from types import SimpleNamespace
 
 import main
 from api import server
-from jobs.refresh_snapshots import DIRTY_CLAIM_PREDICATE_SQL, compute_retry_backoff_seconds
+from jobs.refresh_snapshots import (
+    DIRTY_CLAIM_PREDICATE_SQL,
+    _build_insight_engine_payload,
+    _run_insight_engine_subprocess,
+    compute_retry_backoff_seconds,
+)
 
 
 def test_dirty_claim_predicate_is_parenthesized():
@@ -41,6 +47,7 @@ def test_compute_historical_insight_map_uses_snapshot_rows():
 
 def test_get_latest_price_rows_uses_snapshots_not_history_scans():
     snapshot = SimpleNamespace(
+        game_id=1,
         game_name="Beta",
         latest_price=19.99,
         latest_original_price=39.99,
@@ -142,3 +149,130 @@ def test_retry_backoff_uses_exponential_delay(monkeypatch):
     assert compute_retry_backoff_seconds(1) == 10
     assert compute_retry_backoff_seconds(2) == 20
     assert compute_retry_backoff_seconds(3) == 40
+
+
+def test_insight_engine_payload_restores_preserved_trigger_categories():
+    now = datetime.datetime(2026, 3, 14, 3, 59, 14, 230367, tzinfo=datetime.timezone(datetime.timedelta(hours=-7)))
+    recorded_at = datetime.datetime(2026, 3, 14, 3, 53, 6, 284466, tzinfo=datetime.timezone(datetime.timedelta(hours=-7)))
+    payload = _build_insight_engine_payload(
+        game_id=64384,
+        now=now,
+        latest_recorded_at=recorded_at,
+        prior_snapshot_state={
+            "snapshot_exists": True,
+            "price": 29.99,
+            "original_price": 29.99,
+            "discount_percent": 0,
+            "historical_low": 29.99,
+            "player_momentum": 0.0,
+            "daily_peak": 1000,
+            "review_label": "Mixed",
+            "is_upcoming": True,
+            "popularity_score": 40.0,
+        },
+        latest_price=14.99,
+        latest_original_price=29.99,
+        latest_discount_percent=50,
+        review_score=85.0,
+        review_score_label=None,
+        is_upcoming=False,
+        popularity_score=75.0,
+        is_historical_low=True,
+        is_new_historical_low=True,
+        wishlist_count=1,
+        watchlist_count=1,
+        click_count=0,
+    )
+
+    trigger_types = {trigger["type"] for trigger in payload["triggers"]}
+    assert trigger_types == {"price_change", "review_change", "release_event", "relevance_increase"}
+
+
+def test_insight_engine_payload_bridges_strong_sale_start_to_non_null_primary_insight():
+    now = datetime.datetime(2026, 3, 14, 3, 59, 14, 230367, tzinfo=datetime.timezone(datetime.timedelta(hours=-7)))
+    recorded_at = datetime.datetime(2026, 3, 14, 3, 53, 6, 284466, tzinfo=datetime.timezone(datetime.timedelta(hours=-7)))
+    payload = _build_insight_engine_payload(
+        game_id=64384,
+        now=now,
+        latest_recorded_at=recorded_at,
+        prior_snapshot_state={
+            "snapshot_exists": True,
+            "price": None,
+            "original_price": None,
+            "discount_percent": 0,
+            "historical_low": None,
+            "player_momentum": 0.0,
+            "daily_peak": None,
+            "review_label": None,
+            "is_upcoming": False,
+            "popularity_score": 0.0,
+        },
+        latest_price=6.24,
+        latest_original_price=24.99,
+        latest_discount_percent=75,
+        review_score=89.0,
+        review_score_label=None,
+        is_upcoming=False,
+        popularity_score=0.0,
+        is_historical_low=True,
+        is_new_historical_low=True,
+        wishlist_count=0,
+        watchlist_count=0,
+        click_count=0,
+    )
+
+    assert payload["triggers"] == [
+        {
+            "type": "price_change",
+            "gameId": "64384",
+            "timestamp": 1773485586284,
+            "previous": 24.99,
+            "current": 6.24,
+        }
+    ]
+
+    result = _run_insight_engine_subprocess(payload["triggers"], payload["context"])
+    assert result["output"]["primaryInsight"] is not None
+    assert result["output"]["primaryInsight"]["type"] == "price_change"
+    assert result["output"]["primaryInsight"]["gameId"] == "64384"
+
+
+def test_insight_engine_payload_keeps_empty_no_signal_cases_safe():
+    now = datetime.datetime(2026, 3, 14, 3, 59, 14, 230367, tzinfo=datetime.timezone(datetime.timedelta(hours=-7)))
+    recorded_at = datetime.datetime(2026, 3, 14, 3, 53, 6, 284466, tzinfo=datetime.timezone(datetime.timedelta(hours=-7)))
+    payload = _build_insight_engine_payload(
+        game_id=70000,
+        now=now,
+        latest_recorded_at=recorded_at,
+        prior_snapshot_state={
+            "snapshot_exists": True,
+            "price": 19.99,
+            "original_price": 19.99,
+            "discount_percent": 0,
+            "historical_low": 19.99,
+            "player_momentum": 0.0,
+            "daily_peak": 100,
+            "review_label": "Mostly Positive",
+            "is_upcoming": False,
+            "popularity_score": 0.0,
+        },
+        latest_price=19.99,
+        latest_original_price=19.99,
+        latest_discount_percent=0,
+        review_score=74.0,
+        review_score_label="Mostly Positive",
+        is_upcoming=False,
+        popularity_score=0.0,
+        is_historical_low=False,
+        is_new_historical_low=False,
+        wishlist_count=0,
+        watchlist_count=0,
+        click_count=0,
+    )
+
+    assert payload["triggers"] == []
+
+    result = _run_insight_engine_subprocess(payload["triggers"], payload["context"])
+    assert result["output"]["primaryInsight"] is None
+    assert result["output"]["supportingSignals"] == []
+    assert result["debug"] == []
